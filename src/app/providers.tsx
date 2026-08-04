@@ -32,11 +32,15 @@ interface ProvidersProps {
   children: React.ReactNode;
 }
 
-export const Providers: React.FC<ProvidersProps> = ({ children }) => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <ThemeWrapper>{children}</ThemeWrapper>
-    </BrowserRouter>
-    {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
-  </QueryClientProvider>
-);
+export const Providers: React.FC<ProvidersProps> = ({ children }) => {
+  const basename = import.meta.env.PROD ? '/PWC-frontend/' : '/';
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter basename={basename}>
+        <ThemeWrapper>{children}</ThemeWrapper>
+      </BrowserRouter>
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
+  );
+};

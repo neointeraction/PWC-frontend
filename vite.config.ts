@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/PWC-frontend/' : '/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -14,4 +15,4 @@ export default defineConfig({
     port: 3000,
     open: true,
   },
-});
+}));
