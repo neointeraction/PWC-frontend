@@ -1,0 +1,216 @@
+import React, { useState } from 'react';
+import {
+  RiSettings3Line,
+  RiShieldLine,
+  RiPaletteLine,
+  RiSaveLine,
+} from 'react-icons/ri';
+import styled from 'styled-components';
+import { PageHeader } from '@/components/PageHeader';
+import { Card } from '@/components/Card';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { Checkbox } from '@/components/Checkbox';
+import { useToast } from '@/hooks';
+import { useThemeStore } from '@/store';
+import { ROUTES } from '@/constants';
+
+const TabsContainer = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.xs};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  margin-bottom: ${({ theme }) => theme.spacing.xl};
+  overflow-x: auto;
+`;
+
+const TabButton = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.lg};
+  font-size: ${({ theme }) => theme.fontSize.base};
+  font-weight: ${({ theme, $active }) =>
+    $active ? theme.fontWeight.semibold : theme.fontWeight.medium};
+  color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
+  border-bottom: 2px solid
+    ${({ theme, $active }) => ($active ? theme.colors.primary : 'transparent')};
+  transition: all ${({ theme }) => theme.transition.fast};
+  white-space: nowrap;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.lg};
+  max-width: 640px;
+`;
+
+const ToggleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: ${({ theme }) => theme.spacing.md} 0;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ToggleInfo = styled.div`
+  h4 {
+    font-size: ${({ theme }) => theme.fontSize.base};
+    font-weight: ${({ theme }) => theme.fontWeight.semibold};
+    color: ${({ theme }) => theme.colors.text};
+  }
+  p {
+    font-size: ${({ theme }) => theme.fontSize.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+  }
+`;
+
+export const SuperAdminSettings: React.FC = () => {
+  const toast = useToast();
+  const { theme, toggleTheme } = useThemeStore();
+
+  const [superTab, setSuperTab] = useState<'platform' | 'security' | 'appearance'>('platform');
+
+  const [superPlatformForm, setSuperPlatformForm] = useState({
+    platformName: 'kREATE Career Platform Global Engine',
+    supportEmail: 'support@pwc.com',
+    primaryDomain: 'pwc-career-platform.com',
+  });
+
+  return (
+    <div>
+      <PageHeader
+        title="Super Admin Platform Settings"
+        subtitle="Manage platform global configurations, master security policies, and system preferences"
+        breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Settings' }]}
+      />
+
+      <TabsContainer>
+        <TabButton $active={superTab === 'platform'} onClick={() => setSuperTab('platform')}>
+          <RiSettings3Line size={18} /> Platform Config
+        </TabButton>
+        <TabButton $active={superTab === 'security'} onClick={() => setSuperTab('security')}>
+          <RiShieldLine size={18} /> Global Security &amp; API
+        </TabButton>
+        <TabButton $active={superTab === 'appearance'} onClick={() => setSuperTab('appearance')}>
+          <RiPaletteLine size={18} /> Appearance
+        </TabButton>
+      </TabsContainer>
+
+      {superTab === 'platform' && (
+        <Card
+          title="Global Platform Settings"
+          subtitle="System-wide defaults for the kREATE Career Platform"
+        >
+          <Form
+            onSubmit={e => {
+              e.preventDefault();
+              toast.success('Settings Saved', 'Updated global platform parameters.');
+            }}
+          >
+            <Input
+              label="Global Platform Name"
+              value={superPlatformForm.platformName}
+              onChange={e =>
+                setSuperPlatformForm(prev => ({ ...prev, platformName: e.target.value }))
+              }
+            />
+            <Input
+              label="System Support Email"
+              type="email"
+              value={superPlatformForm.supportEmail}
+              onChange={e =>
+                setSuperPlatformForm(prev => ({ ...prev, supportEmail: e.target.value }))
+              }
+            />
+            <Input
+              label="Primary Domain"
+              value={superPlatformForm.primaryDomain}
+              onChange={e =>
+                setSuperPlatformForm(prev => ({ ...prev, primaryDomain: e.target.value }))
+              }
+            />
+            <div>
+              <Button type="submit" leftIcon={<RiSaveLine size={18} />}>
+                Save Platform Settings
+              </Button>
+            </div>
+          </Form>
+        </Card>
+      )}
+
+      {superTab === 'security' && (
+        <Card
+          title="Global Security &amp; API Policies"
+          subtitle="System-wide security controls and API token management"
+        >
+          <div style={{ maxWidth: '600px' }}>
+            <ToggleRow>
+              <ToggleInfo>
+                <h4>Mandatory 2FA for All Admins</h4>
+                <p>
+                  Enforce two-factor authentication across all institution and super admin accounts
+                </p>
+              </ToggleInfo>
+              <Checkbox
+                defaultChecked={true}
+                onChange={() => toast.success('Policy Saved', 'Updated global 2FA policy.')}
+              />
+            </ToggleRow>
+
+            <ToggleRow>
+              <ToggleInfo>
+                <h4>Audit Logging &amp; Traceability</h4>
+                <p>Log all administrative mutations and institution provisioning calls</p>
+              </ToggleInfo>
+              <Checkbox
+                defaultChecked={true}
+                onChange={() => toast.success('Policy Saved', 'Updated audit logging policy.')}
+              />
+            </ToggleRow>
+
+            <div style={{ marginTop: '20px' }}>
+              <Input
+                label="Super Admin Master API Key"
+                type="password"
+                value="sk_live_pwc_super_admin_998877665544"
+                readOnly
+              />
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {superTab === 'appearance' && (
+        <Card
+          title="Appearance &amp; Theme Preferences"
+          subtitle="Customize interface mode and visual styling"
+        >
+          <div
+            style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '16px' }}
+          >
+            <ToggleRow>
+              <ToggleInfo>
+                <h4>Interface Theme Mode</h4>
+                <p>
+                  Current theme mode: <strong>{theme.toUpperCase()}</strong>
+                </p>
+              </ToggleInfo>
+              <Button variant="secondary" onClick={toggleTheme}>
+                Toggle {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+              </Button>
+            </ToggleRow>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};

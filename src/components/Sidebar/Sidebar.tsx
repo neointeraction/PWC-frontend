@@ -1,0 +1,120 @@
+import React from 'react';
+import { useLocation } from 'react-router-dom';
+import {
+  RiDashboardLine,
+  RiTeamLine,
+  RiBookOpenLine,
+  RiSettings4Line,
+  RiArrowLeftSLine,
+} from 'react-icons/ri';
+import { useSidebarStore, useAuthStore } from '@/store';
+import { ROUTES } from '@/constants';
+import {
+  SidebarWrapper,
+  SidebarLogo,
+  LogoIcon,
+  LogoText,
+  SidebarNav,
+  NavSection,
+  NavSectionLabel,
+  NavItem,
+  NavLabel,
+  SidebarFooter,
+  CollapseButton,
+  TooltipPill,
+} from './Sidebar.styles';
+
+
+
+export const Sidebar: React.FC = () => {
+  const { isCollapsed, toggleCollapse } = useSidebarStore();
+  const { role } = useAuthStore();
+  const { pathname } = useLocation();
+
+  const isSuperAdmin = role === 'super_admin';
+  const portalLabel = isSuperAdmin ? 'Super Admin' : 'Admin';
+
+  const superAdminNavItems = [
+    {
+      label: 'Dashboard',
+      href: ROUTES.DASHBOARD,
+      icon: <RiDashboardLine size={18} />,
+    },
+    {
+      label: 'Tenant Management',
+      href: ROUTES.TENANT_MANAGEMENT,
+      icon: <RiTeamLine size={18} />,
+    },
+    {
+      label: 'Career Library',
+      href: ROUTES.CAREER_LIBRARY,
+      icon: <RiBookOpenLine size={18} />,
+    },
+    {
+      label: 'Settings',
+      href: ROUTES.SETTINGS,
+      icon: <RiSettings4Line size={18} />,
+    },
+  ];
+
+  const adminNavItems = [
+    {
+      label: 'Dashboard',
+      href: ROUTES.DASHBOARD,
+      icon: <RiDashboardLine size={18} />,
+    },
+    {
+      label: 'Settings',
+      href: ROUTES.SETTINGS,
+      icon: <RiSettings4Line size={18} />,
+    },
+  ];
+
+  const navItems = isSuperAdmin ? superAdminNavItems : adminNavItems;
+
+  const isActive = (href: string) => {
+    if (href === ROUTES.DASHBOARD) return pathname === href;
+    return pathname.startsWith(href);
+  };
+
+  return (
+    <SidebarWrapper $collapsed={isCollapsed} aria-label="Navigation sidebar">
+      <SidebarLogo $collapsed={isCollapsed}>
+        <LogoIcon>k</LogoIcon>
+        <LogoText $collapsed={isCollapsed}>kREATE {portalLabel}</LogoText>
+      </SidebarLogo>
+
+      <SidebarNav $collapsed={isCollapsed}>
+        <NavSection>
+          <NavSectionLabel $collapsed={isCollapsed}>
+            {isSuperAdmin ? 'Super Admin Menu' : 'Admin Menu'}
+          </NavSectionLabel>
+          {navItems.map(item => (
+            <NavItem
+              key={item.href}
+              to={item.href}
+              $active={isActive(item.href)}
+              $collapsed={isCollapsed}
+            >
+              {item.icon}
+              <NavLabel $collapsed={isCollapsed}>{item.label}</NavLabel>
+              {isCollapsed && <TooltipPill>{item.label}</TooltipPill>}
+            </NavItem>
+          ))}
+        </NavSection>
+      </SidebarNav>
+
+      <SidebarFooter $collapsed={isCollapsed}>
+        <CollapseButton
+          $collapsed={isCollapsed}
+          onClick={toggleCollapse}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <RiArrowLeftSLine size={18} />
+          <NavLabel $collapsed={isCollapsed}>Collapse</NavLabel>
+          {isCollapsed && <TooltipPill>Expand Sidebar</TooltipPill>}
+        </CollapseButton>
+      </SidebarFooter>
+    </SidebarWrapper>
+  );
+};
