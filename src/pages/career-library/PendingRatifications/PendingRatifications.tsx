@@ -39,6 +39,28 @@ const DetailRow = styled.div`
   }
 `;
 
+const CareerTitleText = styled.span`
+  font-weight: 700;
+  font-size: 14px;
+`;
+
+const SubmissionDateSubtext = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+const InstitutionNameText = styled.span`
+  font-weight: 500;
+  font-size: 13px;
+`;
+
+const ModalFooterButtonGroup = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-top: ${({ theme }) => theme.spacing.md};
+`;
+
 export const PendingRatificationsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -76,8 +98,8 @@ export const PendingRatificationsPage: React.FC = () => {
       header: 'Job Role (Proposed)',
       render: row => (
         <div>
-          <span style={{ fontWeight: 700, fontSize: '14px' }}>{row.careerName}</span>
-          <div style={{ fontSize: '11px', color: '#64748b' }}>Submitted: {row.submittedAt}</div>
+          <CareerTitleText>{row.careerName}</CareerTitleText>
+          <SubmissionDateSubtext>Submitted: {row.submittedAt}</SubmissionDateSubtext>
         </div>
       ),
     },
@@ -89,7 +111,7 @@ export const PendingRatificationsPage: React.FC = () => {
     {
       key: 'sourceTenant',
       header: 'Source Institution',
-      render: row => <span style={{ fontWeight: 500, fontSize: '13px' }}>{row.sourceTenant}</span>,
+      render: row => <InstitutionNameText>{row.sourceTenant}</InstitutionNameText>,
     },
     {
       key: 'status',
@@ -198,7 +220,7 @@ export const PendingRatificationsPage: React.FC = () => {
               <p>{selectedPending.description}</p>
             </DetailRow>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+            <ModalFooterButtonGroup>
               <Button variant="secondary" onClick={() => setSelectedPending(null)}>
                 Close
               </Button>
@@ -216,11 +238,11 @@ export const PendingRatificationsPage: React.FC = () => {
                     leftIcon={<MdCheck size={16} />}
                     onClick={() => ratifyMutation.mutate(selectedPending.id)}
                   >
-                    Ratify &amp; Publish to Library
+                    Ratify & Publish
                   </Button>
                 </>
               )}
-            </div>
+            </ModalFooterButtonGroup>
           </DetailSection>
         </Modal>
       )}

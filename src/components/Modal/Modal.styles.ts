@@ -17,13 +17,22 @@ export const Overlay = styled.div`
   animation: ${fadeIn} 0.15s ease;
 `;
 
-export const ModalContainer = styled.div<{ $size: 'sm' | 'md' | 'lg' }>`
+export const ModalContainer = styled.div<{ $size: 'sm' | 'md' | 'lg' | 'xl' | '2xl' }>`
   background-color: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.xl};
   box-shadow: ${({ theme }) => theme.colors.shadowLg};
   width: 100%;
-  max-width: ${({ $size }) => ($size === 'sm' ? '400px' : $size === 'md' ? '560px' : '720px')};
+  max-width: ${({ $size }) =>
+    $size === 'sm'
+      ? '400px'
+      : $size === 'md'
+        ? '560px'
+        : $size === 'xl'
+          ? '900px'
+          : $size === '2xl'
+            ? '1140px'
+            : '720px'};
   max-height: 90vh;
   display: flex;
   flex-direction: column;

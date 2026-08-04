@@ -7,6 +7,8 @@ import {
   PaginationControls,
   PageButton,
   PageSizeSelectGroup,
+  RightGroup,
+  SelectWrapper,
 } from './Pagination.styles';
 
 interface PaginationProps {
@@ -51,54 +53,52 @@ export const Pagination: React.FC<PaginationProps> = ({
       <PaginationInfo>
         Showing {start}–{end} of {total} results
       </PaginationInfo>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <RightGroup>
         {onLimitChange && (
           <PageSizeSelectGroup>
             <span>Rows per page:</span>
-            <div style={{ width: '80px' }}>
+            <SelectWrapper>
               <Select
                 options={pageSizeOptions}
                 value={String(limit)}
                 onChange={e => onLimitChange(Number(e.target.value))}
                 fullWidth={false}
               />
-            </div>
+            </SelectWrapper>
           </PageSizeSelectGroup>
         )}
         <PaginationControls>
-        <PageButton
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-          aria-label="Previous page"
-        >
-          <RiArrowLeftSLine size={18} />
-        </PageButton>
-        {withEllipsis.map((p, i) =>
-          p === '...' ? (
-            <PageButton key={`ellipsis-${i}`} disabled>
-              …
-            </PageButton>
-          ) : (
-            <PageButton
-              key={p}
-              $active={p === page}
-              onClick={() => onPageChange(p as number)}
-              aria-label={`Page ${p}`}
-              aria-current={p === page ? 'page' : undefined}
-            >
-              {p}
-            </PageButton>
-          )
-        )}
-        <PageButton
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-          aria-label="Next page"
-        >
-          <RiArrowRightSLine size={18} />
-        </PageButton>
-      </PaginationControls>
-      </div>
+          <PageButton
+            aria-label="Previous Page"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <RiArrowLeftSLine size={16} />
+          </PageButton>
+          {withEllipsis.map((p, idx) =>
+            p === '...' ? (
+              <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#94a3b8' }}>
+                ...
+              </span>
+            ) : (
+              <PageButton
+                key={p}
+                $active={p === page}
+                onClick={() => onPageChange(p as number)}
+              >
+                {p}
+              </PageButton>
+            )
+          )}
+          <PageButton
+            aria-label="Next Page"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            <RiArrowRightSLine size={16} />
+          </PageButton>
+        </PaginationControls>
+      </RightGroup>
     </PaginationWrapper>
   );
 };

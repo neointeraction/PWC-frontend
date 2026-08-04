@@ -13,6 +13,8 @@ export const ROUTES = {
   COUNSELOR_PORTAL: '/counselor-portal',
   TENANT_MANAGEMENT: '/tenant-management',
   INSTITUTIONS: '/institutions',
+  PROJECTS: '/projects',
+  COUNSELORS: '/counselors',
 } as const;
 
 export const PLANS = [

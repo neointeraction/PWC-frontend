@@ -133,6 +133,12 @@ export const DropdownItem = styled.li<{ $isSelected?: boolean; $isDisabled?: boo
   }
 `;
 
+export const ComingSoonTag = styled.span`
+  opacity: 0.65;
+  font-size: 11px;
+  margin-left: 6px;
+`;
+
 export const ErrorMessage = styled.span`
   font-size: ${({ theme }) => theme.fontSize.sm};
   color: ${({ theme }) => theme.colors.danger};

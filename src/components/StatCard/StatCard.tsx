@@ -50,6 +50,10 @@ const StatChange = styled.div<{ $positive: boolean }>`
   margin-top: 2px;
 `;
 
+const ChangeLabelText = styled.span`
+  font-weight: ${({ theme }) => theme.fontWeight.normal};
+`;
+
 interface StatCardProps {
   label: string;
   value: number | string;
@@ -74,7 +78,7 @@ export const StatCard: React.FC<StatCardProps> = ({
     {change !== undefined && (
       <StatChange $positive={change >= 0}>
         {change >= 0 ? '↑' : '↓'} {Math.abs(change)}%
-        {changeLabel && <span style={{ fontWeight: 400 }}> {changeLabel}</span>}
+        {changeLabel && <ChangeLabelText> {changeLabel}</ChangeLabelText>}
       </StatChange>
     )}
   </StatCardContainer>

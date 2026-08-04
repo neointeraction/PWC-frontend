@@ -18,6 +18,12 @@ const TenantManagementPage = lazy(() =>
 const CareerListPage = lazy(() =>
   import('@/pages/career-library').then(m => ({ default: m.CareerListPage }))
 );
+const ProjectsPage = lazy(() =>
+  import('@/pages/projects').then(m => ({ default: m.ProjectsPage }))
+);
+const CounselorsListPage = lazy(() =>
+  import('@/pages/counselors').then(m => ({ default: m.CounselorsListPage }))
+);
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -68,6 +74,8 @@ export const AppRoutes: React.FC = () => {
           }
         >
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+          <Route path={ROUTES.PROJECTS} element={<ProjectsPage />} />
+          <Route path={ROUTES.COUNSELORS} element={<CounselorsListPage />} />
           <Route
             path={ROUTES.TENANT_MANAGEMENT}
             element={

@@ -19,4 +19,5 @@ export * from './AlertModal';
 export * from './Tooltip';
 export * from './Tabs';
 export * from './ErrorBoundary';
-
+export * from './Stepper';
+export * from './FileUpload';

@@ -1,424 +1,249 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo } from 'react';
 import {
-  RiBellLine,
-  RiCheckboxCircleLine,
-  RiSettings4Line,
-  RiShieldLine,
-  RiUser3Line,
-  RiKeyLine,
-} from 'react-icons/ri';
-import styled from 'styled-components';
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
-import { Button } from '@/components/Button';
-import { Loader } from '@/components/Loader';
-import { dashboardService } from '@/services/dashboard.service';
-import { useAuthStore } from '@/store';
-import { ROUTES } from '@/constants';
-
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: ${({ theme }) => theme.spacing.lg};
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-
-  @media (max-width: ${({ theme }) => theme.breakpoints.xl}) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const StatMetricValue = styled.div<{ $variant?: 'success' | 'warning' | 'info' | 'default' }>`
-  font-size: ${({ theme }) => theme.fontSize.display};
-  font-weight: ${({ theme }) => theme.fontWeight.bold};
-  color: ${({ theme, $variant }) => {
-    if ($variant === 'success') return theme.colors.success;
-    if ($variant === 'warning') return theme.colors.warning;
-    if ($variant === 'info') return theme.colors.info;
-    return theme.colors.text;
-  }};
-  margin-top: 4px;
-`;
-
-const MetaText = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  margin-top: 4px;
-`;
-
-const WelcomeBanner = styled.div`
-  background: linear-gradient(
-    135deg,
-    ${({ theme }) => theme.colors.surface} 0%,
-    ${({ theme }) => theme.colors.primaryLight} 100%
-  );
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  padding: ${({ theme }) => theme.spacing.xl};
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: ${({ theme }) => theme.spacing.md};
-  }
-`;
-
-const WelcomeText = styled.div`
-  h2 {
-    font-size: ${({ theme }) => theme.fontSize.xxl};
-    font-weight: ${({ theme }) => theme.fontWeight.bold};
-    color: ${({ theme }) => theme.colors.text};
-    margin-bottom: 4px;
-  }
-
-  p {
-    font-size: ${({ theme }) => theme.fontSize.base};
-    color: ${({ theme }) => theme.colors.textSecondary};
-  }
-`;
-
-const StatBadgeRow = styled.div`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing.sm};
-  margin-top: ${({ theme }) => theme.spacing.sm};
-`;
-
-const PillStat = styled.span`
-  background-color: ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: 4px 12px;
-  border-radius: ${({ theme }) => theme.borderRadius.full};
-  font-size: ${({ theme }) => theme.fontSize.xs};
-  font-weight: ${({ theme }) => theme.fontWeight.semibold};
-  color: ${({ theme }) => theme.colors.primary};
-`;
-
-const ContentGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: ${({ theme }) => theme.spacing.xl};
-
-  @media (max-width: ${({ theme }) => theme.breakpoints.lg}) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const ActionCardContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-
-  p {
-    font-size: ${({ theme }) => theme.fontSize.sm};
-    color: ${({ theme }) => theme.colors.textSecondary};
-    margin-bottom: ${({ theme }) => theme.spacing.md};
-  }
-`;
-
-const QuickActionsList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-
-const QuickActionItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.md};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background-color: ${({ theme }) => theme.colors.surface};
-  cursor: pointer;
-  transition: all ${({ theme }) => theme.transition.fast};
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-    background-color: ${({ theme }) => theme.colors.surfaceHover};
-    transform: translateY(-1px);
-  }
-`;
-
-const QuickActionIcon = styled.div`
-  width: 40px;
-  height: 40px;
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  background-color: ${({ theme }) => theme.colors.primaryLight};
-  color: ${({ theme }) => theme.colors.primary};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-`;
-
-const QuickActionLabel = styled.p`
-  font-weight: ${({ theme }) => theme.fontWeight.semibold};
-`;
-
-const QuickActionDesc = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-`;
-
-const NotificationList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.md};
-`;
-
-const NotificationCardItem = styled.div<{ $type?: string }>`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.md};
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  background-color: ${({ theme, $type }) =>
-    $type === 'approval'
-      ? theme.colors.warningLight
-      : $type === 'reminder'
-        ? theme.colors.infoLight
-        : theme.colors.surfaceHover};
-  border-left: 4px solid
-    ${({ theme, $type }) =>
-      $type === 'approval'
-        ? theme.colors.warning
-        : $type === 'reminder'
-          ? theme.colors.info
-          : theme.colors.primary};
-`;
-
-const NotifTitle = styled.p`
-  font-weight: ${({ theme }) => theme.fontWeight.semibold};
-  font-size: ${({ theme }) => theme.fontSize.base};
-`;
-
-const NotifTime = styled.span`
-  font-size: ${({ theme }) => theme.fontSize.xs};
-  color: ${({ theme }) => theme.colors.textSecondary};
-`;
-
-const NotifMessage = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  margin-top: 4px;
-`;
-
-const ActivityList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.md};
-`;
-
-const ActivityItem = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: ${({ theme }) => theme.spacing.md};
-  padding-bottom: ${({ theme }) => theme.spacing.md};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
-const ActivityTitle = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.base};
-  font-weight: ${({ theme }) => theme.fontWeight.medium};
-`;
-
-const ActivityDesc = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-`;
-
-const ActivityTime = styled.span`
-  font-size: ${({ theme }) => theme.fontSize.xs};
-  color: ${({ theme }) => theme.colors.textMuted};
-`;
-
-const SectionHeading = styled.h4`
-  font-size: ${({ theme }) => theme.fontSize.md};
-  font-weight: ${({ theme }) => theme.fontWeight.semibold};
-  margin-bottom: 12px;
-`;
-
-const SuccessIconWrapper = styled.span`
-  color: ${({ theme }) => theme.colors.success};
-  display: flex;
-  align-items: center;
-`;
+import { Table, Column } from '@/components/Table';
+import { Badge } from '@/components/Badge';
+import { useTheme } from 'styled-components';
+import { DASHBOARD_MOCKS } from '@/mocks/dashboard.mock';
+import {
+  DashboardContainer,
+  StatsGrid,
+  StatMetricValue,
+  MetaText,
+  ChartsGrid,
+  ChartContainer,
+  MainContentGrid,
+  ListContainer,
+  ListItem,
+  ListItemTitle,
+  ListItemMeta,
+} from './AdminDashboard.styles';
 
 export const AdminDashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const user = useAuthStore(state => state.user);
+  const theme = useTheme();
 
-  const { data: summary, isLoading } = useQuery({
-    queryKey: ['dashboard-summary'],
-    queryFn: dashboardService.getSummary,
-  });
+  // Project Columns
+  const projectColumns: Column<any>[] = useMemo(
+    () => [
+      {
+        key: 'name',
+        header: 'Project Name',
+        accessor: 'name',
+      },
+      {
+        key: 'endDate',
+        header: 'End Date',
+        accessor: 'endDate',
+      },
+      {
+        key: 'counselors',
+        header: 'Counselors',
+        accessor: 'counselors',
+      },
+      {
+        key: 'students',
+        header: 'Students',
+        accessor: 'students',
+      },
+      {
+        key: 'sessions',
+        header: 'Sessions',
+        accessor: 'sessions',
+      },
+    ],
+    []
+  );
 
-  if (isLoading) return <Loader />;
+  // Pending Reports Columns
+  const reportColumns: Column<any>[] = useMemo(
+    () => [
+      {
+        key: 'studentName',
+        header: 'Student Name',
+        accessor: 'studentName',
+      },
+      {
+        key: 'counselorName',
+        header: 'Counselor Name',
+        accessor: 'counselorName',
+      },
+      {
+        key: 'dueDate',
+        header: 'Due Date',
+        accessor: 'dueDate',
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        accessor: 'status',
+        cell: (row: any) => (
+          <Badge variant={row.status === 'Overdue' ? 'danger' : 'warning'}>
+            {row.status}
+          </Badge>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
-    <div>
+    <DashboardContainer>
       <PageHeader
         title="Admin Dashboard"
-        subtitle="Overview of platform administration, institution settings, and security controls"
+        subtitle="Overview of platform administration, projects, and sessions"
         breadcrumbs={[{ label: 'Dashboard' }]}
       />
 
-      <WelcomeBanner>
-        <WelcomeText>
-          <h2>Welcome back, {user?.name || 'Sarah Connor'}!</h2>
-          <p>kREATE Admin Portal — Manage your institution preferences and profile settings.</p>
-          <StatBadgeRow>
-            <PillStat>Role: Admin</PillStat>
-            <PillStat>Institution: Phoenix Water Club</PillStat>
-            <PillStat>Status: Active</PillStat>
-          </StatBadgeRow>
-        </WelcomeText>
-      </WelcomeBanner>
-
+      {/* Top Stats Grid */}
       <StatsGrid>
-        <Card title="Institution Account">
-          <StatMetricValue $variant="info">
-            Active
-          </StatMetricValue>
-          <MetaText>PWC Enterprise Portal</MetaText>
+        <Card title="Total Projects">
+          <StatMetricValue>{DASHBOARD_MOCKS.stats.totalProjects}</StatMetricValue>
+          <MetaText>Active projects</MetaText>
         </Card>
-
-        <Card title="Active Members">
-          <StatMetricValue>
-            {summary?.activeStudentsCount ?? 28}
-          </StatMetricValue>
-          <MetaText>Institution active users</MetaText>
+        <Card title="Total Counselors">
+          <StatMetricValue>{DASHBOARD_MOCKS.stats.totalCounselors}</StatMetricValue>
+          <MetaText>Assigned counselors</MetaText>
         </Card>
-
-        <Card title="Daily Sessions">
-          <StatMetricValue $variant="success">{summary?.sessionsTodayCount ?? 12}</StatMetricValue>
-          <MetaText>System activity today</MetaText>
+        <Card title="Total Students">
+          <StatMetricValue>{DASHBOARD_MOCKS.stats.totalStudents}</StatMetricValue>
+          <MetaText>Enrolled students</MetaText>
         </Card>
-
-        <Card title="Admin Settings">
-          <ActionCardContent>
-            <p>Configure institution parameters, security, and notifications.</p>
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<RiSettings4Line size={16} />}
-              onClick={() => navigate(ROUTES.SETTINGS)}
-            >
-              Manage Settings
-            </Button>
-          </ActionCardContent>
+        <Card title="Total Sessions">
+          <StatMetricValue>{DASHBOARD_MOCKS.stats.totalSessions}</StatMetricValue>
+          <MetaText>Counseling sessions</MetaText>
         </Card>
       </StatsGrid>
 
-      <ContentGrid>
-        <Card title="Admin Quick Actions" subtitle="Platform options and configuration shortcuts">
-          <QuickActionsList>
-            <QuickActionItem onClick={() => navigate(ROUTES.SETTINGS)}>
-              <QuickActionIcon>
-                <RiSettings4Line size={20} />
-              </QuickActionIcon>
-              <div>
-                <QuickActionLabel>Admin Settings &amp; Configuration</QuickActionLabel>
-                <QuickActionDesc>
-                  Manage institution profile, subscription, and system options
-                </QuickActionDesc>
-              </div>
-            </QuickActionItem>
-
-            <QuickActionItem onClick={() => navigate(ROUTES.SETTINGS)}>
-              <QuickActionIcon>
-                <RiUser3Line size={20} />
-              </QuickActionIcon>
-              <div>
-                <QuickActionLabel>Administrator Staff &amp; Access</QuickActionLabel>
-                <QuickActionDesc>
-                  Configure institution staff users and role permissions
-                </QuickActionDesc>
-              </div>
-            </QuickActionItem>
-
-            <QuickActionItem onClick={() => navigate(ROUTES.SETTINGS)}>
-              <QuickActionIcon>
-                <RiShieldLine size={20} />
-              </QuickActionIcon>
-              <div>
-                <QuickActionLabel>Security &amp; 2FA Policies</QuickActionLabel>
-                <QuickActionDesc>
-                  Enforce two-factor authentication and session timeouts
-                </QuickActionDesc>
-              </div>
-            </QuickActionItem>
-
-            <QuickActionItem onClick={() => navigate(ROUTES.SETTINGS)}>
-              <QuickActionIcon>
-                <RiKeyLine size={20} />
-              </QuickActionIcon>
-              <div>
-                <QuickActionLabel>Notification Preferences</QuickActionLabel>
-                <QuickActionDesc>
-                  Configure email alerts, SMS notifications, and digests
-                </QuickActionDesc>
-              </div>
-            </QuickActionItem>
-          </QuickActionsList>
+      {/* Charts Grid */}
+      <ChartsGrid>
+        <Card title="Student Session Progress" subtitle="Completed vs Pending sessions">
+          <ChartContainer>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={DASHBOARD_MOCKS.studentSessionProgress}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.colors.border} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: theme.colors.textSecondary, fontSize: 12 }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: theme.colors.textSecondary, fontSize: 12 }}
+                />
+                <RechartsTooltip
+                  cursor={{ fill: theme.colors.surfaceHover }}
+                  contentStyle={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    borderRadius: '4px',
+                    boxShadow: theme.colors.shadowLg,
+                  }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {DASHBOARD_MOCKS.studentSessionProgress.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
         </Card>
 
-        <Card title="Recent Activity & Alerts" subtitle="System notifications and updates">
-          <NotificationList>
-            {summary?.notifications.map(item => (
-              <NotificationCardItem key={item.id} $type={item.type}>
-                <RiBellLine size={20} style={{ flexShrink: 0, marginTop: 2 }} />
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <NotifTitle>{item.title}</NotifTitle>
-                    <NotifTime>{item.time}</NotifTime>
-                  </div>
-                  <NotifMessage>{item.message}</NotifMessage>
-                </div>
-              </NotificationCardItem>
+        <Card title="Counselor Report Status" subtitle="Overview of pending vs submitted reports">
+          <ChartContainer>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={DASHBOARD_MOCKS.counselorReportStatuses}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {DASHBOARD_MOCKS.counselorReportStatuses.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    borderRadius: '4px',
+                    boxShadow: theme.colors.shadowLg,
+                  }}
+                />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </Card>
+      </ChartsGrid>
+
+      {/* Main Content Grid 1: Projects Table & Upcoming Sessions */}
+      <MainContentGrid>
+        <Card title="Projects Overview" subtitle="List of projects and their metrics">
+          <Table
+            data={DASHBOARD_MOCKS.projects}
+            columns={projectColumns}
+            keyExtractor={(row) => row.id}
+          />
+        </Card>
+        
+        <Card title="Upcoming Counseling Sessions">
+          <ListContainer>
+            {DASHBOARD_MOCKS.upcomingSessions.map((session) => (
+              <ListItem key={session.id}>
+                <ListItemTitle>{session.title}</ListItemTitle>
+                <ListItemMeta>
+                  {session.counselor} • {new Date(session.date).toLocaleDateString()}
+                </ListItemMeta>
+              </ListItem>
             ))}
-          </NotificationList>
-
-          <div style={{ marginTop: '24px' }}>
-            <SectionHeading>Activity Log</SectionHeading>
-            <ActivityList>
-              {summary?.recentActivities.map(act => (
-                <ActivityItem key={act.id}>
-                  <SuccessIconWrapper>
-                    <RiCheckboxCircleLine size={18} />
-                  </SuccessIconWrapper>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <ActivityTitle>{act.title}</ActivityTitle>
-                      <ActivityTime>{act.time}</ActivityTime>
-                    </div>
-                    <ActivityDesc>{act.description}</ActivityDesc>
-                  </div>
-                </ActivityItem>
-              ))}
-            </ActivityList>
-          </div>
+          </ListContainer>
         </Card>
-      </ContentGrid>
-    </div>
+      </MainContentGrid>
+
+      {/* Main Content Grid 2: Pending Reports & Career Requests */}
+      <MainContentGrid>
+        <Card title="Pending Student Reports" subtitle="Detailed list of specific pending reports">
+          <Table
+            data={DASHBOARD_MOCKS.pendingReports}
+            columns={reportColumns}
+            keyExtractor={(row) => row.id}
+          />
+        </Card>
+
+        <Card title="Career Library Requests">
+          <ListContainer>
+            {DASHBOARD_MOCKS.careerRequests.map((req) => (
+              <ListItem key={req.id}>
+                <ListItemTitle>{req.title}</ListItemTitle>
+                <ListItemMeta>
+                  Requested by: {req.requestedBy} • {req.date}
+                </ListItemMeta>
+              </ListItem>
+            ))}
+          </ListContainer>
+        </Card>
+      </MainContentGrid>
+    </DashboardContainer>
   );
 };

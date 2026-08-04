@@ -71,6 +71,100 @@ const ToggleRow = styled.div`
   }
 `;
 
+const UserNameText = styled.span`
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+`;
+
+const UserEmailSubtext = styled.div`
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+const FormContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.md};
+  max-width: 600px;
+`;
+
+const PlanBanner = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: ${({ theme }) => theme.spacing.md};
+  background-color: ${({ theme }) => theme.colors.primaryLight};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+`;
+
+const PlanLabel = styled.span`
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  color: ${({ theme }) => theme.colors.primary};
+  text-transform: uppercase;
+`;
+
+const PlanTitle = styled.h3`
+  font-size: ${({ theme }) => theme.fontSize.lg};
+  font-weight: ${({ theme }) => theme.fontWeight.bold};
+  color: ${({ theme }) => theme.colors.primary};
+  margin-top: 4px;
+`;
+
+const ProgressBarCard = styled.div`
+  padding: ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+`;
+
+const ProgressHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: ${({ theme }) => theme.spacing.xs};
+`;
+
+const ProgressTitle = styled.span`
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+`;
+
+const ProgressBarTrack = styled.div`
+  height: 8px;
+  width: 100%;
+  background-color: ${({ theme }) => theme.colors.border};
+  border-radius: 9999px;
+  overflow: hidden;
+`;
+
+const ProgressBarFill = styled.div<{ $percent: number }>`
+  height: 100%;
+  width: ${({ $percent }) => $percent}%;
+  background-color: ${({ theme }) => theme.colors.primary};
+`;
+
+const BillingInfo = styled.div`
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const TableHeaderAction = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+`;
+
+const SpacingTop = styled.div`
+  margin-top: ${({ theme }) => theme.spacing.lg};
+`;
+
+const ModalFooterRight = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-top: ${({ theme }) => theme.spacing.md};
+`;
+
 const ToggleInfo = styled.div`
   h4 {
     font-size: ${({ theme }) => theme.fontSize.base};
@@ -151,8 +245,8 @@ export const AdminSettings: React.FC = () => {
       header: 'Name',
       render: row => (
         <div>
-          <span style={{ fontWeight: 600 }}>{row.name}</span>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>{row.email}</div>
+          <UserNameText>{row.name}</UserNameText>
+          <UserEmailSubtext>{row.email}</UserEmailSubtext>
         </div>
       ),
     },
@@ -170,18 +264,22 @@ export const AdminSettings: React.FC = () => {
       header: 'Status',
       render: row => (
         <Badge variant={row.status === 'active' ? 'success' : 'default'} dot>
-          {row.status}
+          {row.status.toUpperCase()}
         </Badge>
       ),
     },
-    { key: 'lastActive', header: 'Last Active' },
+    {
+      key: 'lastActive',
+      header: 'Last Active',
+      render: row => row.lastActive || 'N/A',
+    },
   ];
 
   return (
     <div>
       <PageHeader
-        title="Admin Settings & Configuration"
-        subtitle="Manage institution profile, subscription plans, admin users, notifications, security, and appearance"
+        title="Settings"
+        subtitle="Manage your institution preferences and profile settings."
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Settings' }]}
       />
 
@@ -189,7 +287,10 @@ export const AdminSettings: React.FC = () => {
         <TabButton $active={instTab === 'institution'} onClick={() => setInstTab('institution')}>
           <RiBuilding4Line size={18} /> Institution
         </TabButton>
-        <TabButton $active={instTab === 'subscription'} onClick={() => setInstTab('subscription')}>
+        <TabButton
+          $active={instTab === 'subscription'}
+          onClick={() => setInstTab('subscription')}
+        >
           <RiBankCardLine size={18} /> Subscription
         </TabButton>
         <TabButton $active={instTab === 'admins'} onClick={() => setInstTab('admins')}>
@@ -209,11 +310,11 @@ export const AdminSettings: React.FC = () => {
         </TabButton>
       </TabsContainer>
 
-      {/* Tab 1: Institution Profile */}
+      {/* Tab 1: Institution */}
       {instTab === 'institution' && (
         <Card
-          title="Institution Profile"
-          subtitle="General details and contact information for your institution"
+          title="Institution Details"
+          subtitle="Update public contact info and institution metadata"
         >
           <Form
             onSubmit={e => {
@@ -266,74 +367,40 @@ export const AdminSettings: React.FC = () => {
           title="Subscription Plan & Seats"
           subtitle="Current billing plan and student seat allocation"
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '16px',
-                backgroundColor: '#eff6ff',
-                borderRadius: '8px',
-              }}
-            >
+          <FormContainer>
+            <PlanBanner>
               <div>
-                <span
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    color: '#1e3a8a',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Current Plan
-                </span>
-                <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1e3a8a', marginTop: 4 }}>
-                  {subscription?.plan.toUpperCase()} PLAN
-                </h3>
+                <PlanLabel>Current Plan</PlanLabel>
+                <PlanTitle>{subscription?.plan.toUpperCase()} PLAN</PlanTitle>
               </div>
               <Badge variant="success">Active</Badge>
-            </div>
+            </PlanBanner>
 
-            <div style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-              <div
-                style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}
-              >
-                <span style={{ fontWeight: 600 }}>Student Seats Allocated</span>
+            <ProgressBarCard>
+              <ProgressHeader>
+                <ProgressTitle>Student Seats Allocated</ProgressTitle>
                 <span>
                   {subscription?.seatsUsed} / {subscription?.seatsAllocated} Used
                 </span>
-              </div>
-              <div
-                style={{
-                  height: '8px',
-                  width: '100%',
-                  backgroundColor: '#e2e8f0',
-                  borderRadius: '9999px',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    width: `${
-                      ((subscription?.seatsUsed || 50) / (subscription?.seatsAllocated || 100)) *
-                      100
-                    }%`,
-                    backgroundColor: '#1e3a8a',
-                  }}
+              </ProgressHeader>
+              <ProgressBarTrack>
+                <ProgressBarFill
+                  $percent={
+                    ((subscription?.seatsUsed || 50) / (subscription?.seatsAllocated || 100)) *
+                    100
+                  }
                 />
-              </div>
-            </div>
+              </ProgressBarTrack>
+            </ProgressBarCard>
 
-            <div style={{ fontSize: '14px', color: '#64748b' }}>
+            <BillingInfo>
               <p>
                 Renews On: <strong>{subscription?.renewsOn}</strong>
               </p>
-              <p style={{ marginTop: 4 }}>
+              <p>
                 Billing Email: <strong>{subscription?.billingEmail}</strong>
               </p>
-            </div>
+            </BillingInfo>
 
             <div>
               <Button
@@ -345,7 +412,7 @@ export const AdminSettings: React.FC = () => {
                 Upgrade Subscription
               </Button>
             </div>
-          </div>
+          </FormContainer>
         </Card>
       )}
 
@@ -355,14 +422,14 @@ export const AdminSettings: React.FC = () => {
           title="Institution Administrator Users"
           subtitle="Manage staff access levels and permissions"
         >
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          <TableHeaderAction>
             <Button
               leftIcon={<RiAddLine size={18} />}
               onClick={() => setIsAddAdminModalOpen(true)}
             >
               Add Admin User
             </Button>
-          </div>
+          </TableHeaderAction>
           <Table
             columns={adminColumns}
             data={adminUsers ?? []}
@@ -378,7 +445,7 @@ export const AdminSettings: React.FC = () => {
           title="Notification Preferences"
           subtitle="Configure automated email and system notification alerts"
         >
-          <div style={{ maxWidth: '600px' }}>
+          <FormContainer>
             <ToggleRow>
               <ToggleInfo>
                 <h4>Email Alerts</h4>
@@ -428,7 +495,7 @@ export const AdminSettings: React.FC = () => {
                 }
               />
             </ToggleRow>
-          </div>
+          </FormContainer>
         </Card>
       )}
 
@@ -438,7 +505,7 @@ export const AdminSettings: React.FC = () => {
           title="Security & Authentication"
           subtitle="Configure 2FA policies and session security controls"
         >
-          <div style={{ maxWidth: '600px' }}>
+          <FormContainer>
             <ToggleRow>
               <ToggleInfo>
                 <h4>Enforce Two-Factor Authentication (2FA)</h4>
@@ -465,15 +532,15 @@ export const AdminSettings: React.FC = () => {
               />
             </ToggleRow>
 
-            <div style={{ marginTop: '20px' }}>
+            <SpacingTop>
               <Input
                 label="Session Timeout (Minutes)"
                 type="number"
                 defaultValue={securitySettings?.sessionTimeoutMinutes}
                 onChange={() => toast.success('Security Saved', 'Updated session timeout.')}
               />
-            </div>
-          </div>
+            </SpacingTop>
+          </FormContainer>
         </Card>
       )}
 
@@ -483,9 +550,7 @@ export const AdminSettings: React.FC = () => {
           title="Appearance & Theme Preferences"
           subtitle="Customize interface mode and visual styling"
         >
-          <div
-            style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '16px' }}
-          >
+          <FormContainer>
             <ToggleRow>
               <ToggleInfo>
                 <h4>Interface Theme Mode</h4>
@@ -497,7 +562,7 @@ export const AdminSettings: React.FC = () => {
                 Toggle {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
               </Button>
             </ToggleRow>
-          </div>
+          </FormContainer>
         </Card>
       )}
 
@@ -528,9 +593,7 @@ export const AdminSettings: React.FC = () => {
             onChange={e => setNewAdminForm(prev => ({ ...prev, email: e.target.value }))}
             required
           />
-          <div
-            style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}
-          >
+          <ModalFooterRight>
             <Button
               type="button"
               variant="secondary"
@@ -539,9 +602,9 @@ export const AdminSettings: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" variant="primary" isLoading={addAdminMutation.isPending}>
-              Send Invitation
+              Create Admin
             </Button>
-          </div>
+          </ModalFooterRight>
         </Form>
       </Modal>
     </div>

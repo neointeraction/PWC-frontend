@@ -129,6 +129,47 @@ const MoreTag = styled.span`
   }
 `;
 
+const JobRoleCellText = styled.span`
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.primary};
+`;
+
+const ResilienceCommentText = styled.span`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+const OneLineDescText = styled.span`
+  font-size: 13px;
+`;
+
+const CategorySelectWrapper = styled.div`
+  width: 170px;
+`;
+
+const AiSelectWrapper = styled.div`
+  width: 180px;
+`;
+
+const StatusSelectWrapper = styled.div`
+  width: 150px;
+`;
+
+const BoldText = styled.p`
+  font-weight: 700;
+`;
+
+const BadgeMarginWrapper = styled.div`
+  margin-top: 4px;
+`;
+
+const ModalFooterRight = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+`;
+
 const statusVariantMap: Record<string, BadgeVariant> = {
   active: 'success',
   inactive: 'default',
@@ -270,7 +311,7 @@ export const CareerListPage: React.FC = () => {
             onChange={e => setEditingRowData(prev => ({ ...prev, jobRole: e.target.value }))}
           />
         ) : (
-          <span style={{ fontWeight: 700, color: '#1e3a8a' }}>{row.jobRole || row.title}</span>
+          <JobRoleCellText>{row.jobRole || row.title}</JobRoleCellText>
         ),
     },
     {
@@ -311,9 +352,9 @@ export const CareerListPage: React.FC = () => {
             onChange={e => setEditingRowData(prev => ({ ...prev, aiResilienceComment: e.target.value }))}
           />
         ) : (
-          <span style={{ fontSize: '13px', color: '#475569' }}>
+          <ResilienceCommentText>
             {row.aiResilienceComment || 'Architectural reasoning & human ethics validation.'}
-          </span>
+          </ResilienceCommentText>
         ),
     },
     {
@@ -327,9 +368,9 @@ export const CareerListPage: React.FC = () => {
             onChange={e => setEditingRowData(prev => ({ ...prev, oneLineDescription: e.target.value }))}
           />
         ) : (
-          <span style={{ fontSize: '13px' }}>
+          <OneLineDescText>
             {row.oneLineDescription || row.description || 'Design and deploy scalable intelligent platforms.'}
-          </span>
+          </OneLineDescText>
         ),
     },
     {
@@ -456,20 +497,20 @@ export const CareerListPage: React.FC = () => {
           {editingRowId === row.id ? (
             <Tooltip content="Save Inline Edit">
               <IconButton aria-label="Save Inline Edit" onClick={() => handleSaveInlineEdit(row.id)}>
-                <RiSaveLine size={18} style={{ color: '#2563eb' }} />
+                <RiSaveLine size={16} style={{ color: '#2563eb' }} />
               </IconButton>
             </Tooltip>
           ) : (
             <Tooltip content="Edit Career Profile">
               <IconButton aria-label="Edit Career Profile" onClick={() => handleStartInlineEdit(row)}>
-                <RiEditLine size={18} />
+                <RiEditLine size={16} />
               </IconButton>
             </Tooltip>
           )}
 
           <Tooltip content="View Career Details">
             <IconButton aria-label="View Career Details" onClick={() => setSelectedCareer(row)}>
-              <RiEyeLine size={18} />
+              <RiEyeLine size={16} />
             </IconButton>
           </Tooltip>
 
@@ -477,12 +518,12 @@ export const CareerListPage: React.FC = () => {
             <>
               <Tooltip content="Approve Career">
                 <IconButton aria-label="Approve Career" onClick={() => updateStatusMutation.mutate({ id: row.id, status: 'active' })}>
-                  <RiCheckLine size={18} style={{ color: '#16a34a' }} />
+                  <RiCheckLine size={16} style={{ color: '#16a34a' }} />
                 </IconButton>
               </Tooltip>
               <Tooltip content="Reject Career">
                 <IconButton aria-label="Reject Career" onClick={() => updateStatusMutation.mutate({ id: row.id, status: 'inactive' })}>
-                  <RiCloseLine size={18} style={{ color: '#dc2626' }} />
+                  <RiCloseLine size={16} style={{ color: '#dc2626' }} />
                 </IconButton>
               </Tooltip>
             </>
@@ -528,41 +569,43 @@ export const CareerListPage: React.FC = () => {
             }}
             placeholder="Search job role, domain, cluster, or industry..."
           />
-          <Select
-            options={[{ value: '', label: 'All Clusters' }, ...CAREER_CATEGORIES.map(c => ({ value: c, label: c }))]}
-            value={categoryFilter}
-            onChange={e => {
-              setCategoryFilter(e.target.value);
-              setPage(1);
-            }}
-            fullWidth={false}
-            style={{ width: '170px' }}
-          />
-          <Select
-            options={[
-              { value: '', label: 'All AI Resilience' },
-              { value: 'High', label: 'AI Resilience: High' },
-              { value: 'Medium', label: 'AI Resilience: Medium' },
-              { value: 'Low', label: 'AI Resilience: Low' },
-            ]}
-            value={aiFilter}
-            onChange={e => {
-              setAiFilter(e.target.value);
-              setPage(1);
-            }}
-            fullWidth={false}
-            style={{ width: '180px' }}
-          />
-          <Select
-            options={[{ value: '', label: 'All Statuses' }, ...CAREER_STATUS]}
-            value={statusFilter}
-            onChange={e => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            fullWidth={false}
-            style={{ width: '150px' }}
-          />
+          <CategorySelectWrapper>
+            <Select
+              options={[{ value: '', label: 'All Clusters' }, ...CAREER_CATEGORIES.map(c => ({ value: c, label: c }))]}
+              value={categoryFilter}
+              onChange={e => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
+            />
+          </CategorySelectWrapper>
+
+          <AiSelectWrapper>
+            <Select
+              options={[
+                { value: '', label: 'All AI Resilience' },
+                { value: 'High', label: 'AI Resilience: High' },
+                { value: 'Medium', label: 'AI Resilience: Medium' },
+                { value: 'Low', label: 'AI Resilience: Low' },
+              ]}
+              value={aiFilter}
+              onChange={e => {
+                setAiFilter(e.target.value);
+                setPage(1);
+              }}
+            />
+          </AiSelectWrapper>
+
+          <StatusSelectWrapper>
+            <Select
+              options={[{ value: '', label: 'All Statuses' }, ...CAREER_STATUS]}
+              value={statusFilter}
+              onChange={e => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+            />
+          </StatusSelectWrapper>
         </Toolbar>
 
         <Table
@@ -619,7 +662,7 @@ export const CareerListPage: React.FC = () => {
 
               <ReviewRow>
                 <span>4. Job Role (Primary Key)</span>
-                <p style={{ fontWeight: 700 }}>{selectedCareer.jobRole || selectedCareer.title}</p>
+                <BoldText>{selectedCareer.jobRole || selectedCareer.title}</BoldText>
               </ReviewRow>
 
               <ReviewRow $fullWidth>
@@ -633,11 +676,11 @@ export const CareerListPage: React.FC = () => {
             <DetailGrid>
               <ReviewRow>
                 <span>5. AI Resilience Grading</span>
-                <div style={{ marginTop: '4px' }}>
+                <BadgeMarginWrapper>
                   <Badge variant={aiResilienceVariantMap[selectedCareer.aiResilienceGrading] || 'info'}>
                     {selectedCareer.aiResilienceGrading || 'High'}
                   </Badge>
-                </div>
+                </BadgeMarginWrapper>
               </ReviewRow>
 
               <ReviewRow>
@@ -721,7 +764,7 @@ export const CareerListPage: React.FC = () => {
               </ReviewRow>
             </DetailGrid>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+            <ModalFooterRight>
               <Button variant="secondary" onClick={() => setSelectedCareer(null)}>
                 Close
               </Button>
@@ -743,7 +786,7 @@ export const CareerListPage: React.FC = () => {
                   </Button>
                 </>
               )}
-            </div>
+            </ModalFooterRight>
           </ReviewDetailSection>
         </Modal>
       )}

@@ -1,5 +1,11 @@
 import styled, { css } from 'styled-components';
 
+export const Container = styled.div`
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
 export const CheckboxWrapper = styled.label<{ $disabled?: boolean }>`
   display: inline-flex;
   align-items: center;

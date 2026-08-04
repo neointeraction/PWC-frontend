@@ -10,6 +10,7 @@ import { Button } from '@/components/Button';
 import { tenantManagementService } from '@/services/tenant-management.service';
 import { useTenantManagementStore } from '@/store/tenant-management.store';
 import { useToast } from '@/hooks';
+import { ModalFormContainer } from '../TenantManagement.styles';
 
 const addTenantSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -78,8 +79,8 @@ export const AddTenantModal: React.FC = () => {
     <Modal
       isOpen={isAddModalOpen}
       onClose={closeAddModal}
-      title="Add New Tenant User"
-      subtitle="Register a kREATE User, Institution User, or Counselor User"
+      title="Add New Tenant"
+      subtitle="Register a kREATE, Institution, or Counselor tenant account"
       size="md"
       footer={
         <>
@@ -92,7 +93,7 @@ export const AddTenantModal: React.FC = () => {
         </>
       }
     >
-      <form id="add-tenant-form" onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <ModalFormContainer id="add-tenant-form" onSubmit={handleSubmit(onSubmit)}>
         <Input
           label="Full Name"
           placeholder="e.g. Alex Morgan"
@@ -116,11 +117,11 @@ export const AddTenantModal: React.FC = () => {
         />
 
         <Select
-          label="User Type"
+          label="Tenant Type"
           options={[
-            { value: 'pwc', label: 'kREATE User (Admin)' },
-            { value: 'institution', label: 'Institution User (Admin)', disabled: true },
-            { value: 'counselor', label: 'Counselor User (Career Advisor / Counselor)', disabled: true },
+            { value: 'pwc', label: 'kREATE (Admin)' },
+            { value: 'institution', label: 'Institution (Admin)', disabled: true },
+            { value: 'counselor', label: 'Counselor (Career Advisor)', disabled: true },
           ]}
           error={errors.userCategory?.message}
           {...register('userCategory')}
@@ -134,7 +135,7 @@ export const AddTenantModal: React.FC = () => {
             {...register('organizationName')}
           />
         )}
-      </form>
+      </ModalFormContainer>
     </Modal>
   );
 };

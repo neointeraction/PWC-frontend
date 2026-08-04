@@ -1,6 +1,7 @@
 import React, { forwardRef, useRef, useImperativeHandle, useEffect, useState } from 'react';
 import { RiCheckLine, RiSubtractLine } from 'react-icons/ri';
 import {
+  Container,
   CheckboxWrapper,
   HiddenInput,
   StyledBox,
@@ -65,7 +66,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
     const isChecked = checked !== undefined ? checked : internalChecked;
 
     return (
-      <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
+      <Container>
         <CheckboxWrapper $disabled={disabled} htmlFor={checkboxId} className={className} style={style}>
           <HiddenInput
             ref={inputRef}
@@ -91,7 +92,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           {label && <LabelText>{label}</LabelText>}
         </CheckboxWrapper>
         {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
-      </div>
+      </Container>
     );
   }
 );

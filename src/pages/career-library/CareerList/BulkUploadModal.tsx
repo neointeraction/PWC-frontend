@@ -96,12 +96,48 @@ const SectionHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   margin-top: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: ${({ theme }) => theme.spacing.xs};
 
   h4 {
-    font-size: ${({ theme }) => theme.fontSize.base};
+    font-size: ${({ theme }) => theme.fontSize.sm};
     font-weight: ${({ theme }) => theme.fontWeight.semibold};
     color: ${({ theme }) => theme.colors.text};
   }
+`;
+
+const JobRolePrimaryText = styled.span`
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.primary};
+`;
+
+const BadgeIconMargin = styled.span`
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+`;
+
+const DropzoneHintText = styled.p`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+const DropzoneTitleText = styled.div`
+  font-weight: 500;
+`;
+
+const ErrorMessageBox = styled.div`
+  padding: 8px 12px;
+  width: 100%;
+  color: ${({ theme }) => theme.colors.danger};
+  background-color: ${({ theme }) => theme.colors.dangerLight};
+  border-radius: 4px;
+  font-size: 13px;
+`;
+
+const PreviewTableScroll = styled.div`
+  margin-top: 12px;
+  max-height: 250px;
+  overflow-y: auto;
 `;
 
 const ModalFooterActions = styled.div`
@@ -411,7 +447,7 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClos
     {
       key: 'jobRole',
       header: 'Job Role (Primary Key)',
-      render: row => <span style={{ fontWeight: 600, color: '#1e3a8a' }}>{row.jobRole || '—'}</span>,
+      render: row => <JobRolePrimaryText>{row.jobRole || '—'}</JobRolePrimaryText>,
     },
     { key: 'careerCluster', header: 'Career Cluster' },
     { key: 'industry', header: 'Industry' },
@@ -430,11 +466,17 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClos
       render: row =>
         row.isValid ? (
           <Badge variant="success">
-            <MdCheckCircle size={13} style={{ marginRight: 4 }} /> Valid
+            <BadgeIconMargin>
+              <MdCheckCircle size={13} />
+            </BadgeIconMargin>{' '}
+            Valid
           </Badge>
         ) : (
           <Badge variant="danger">
-            <MdErrorOutline size={13} style={{ marginRight: 4 }} /> {row.error || 'Invalid'}
+            <BadgeIconMargin>
+              <MdErrorOutline size={13} />
+            </BadgeIconMargin>{' '}
+            {row.error || 'Invalid'}
           </Badge>
         ),
     },
@@ -501,24 +543,20 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClos
                 <MdInsertDriveFile />
               </DropIcon>
               <FileInfo>{fileName}</FileInfo>
-              <p style={{ fontSize: '12px', color: '#64748b' }}>Click or drag to replace file</p>
+              <DropzoneHintText>Click or drag to replace file</DropzoneHintText>
             </>
           ) : (
             <>
               <DropIcon>
                 <MdCloudUpload />
               </DropIcon>
-              <div style={{ fontWeight: 500 }}>Click to browse or drag & drop 18-spec CSV file here</div>
-              <p style={{ fontSize: '12px', color: '#64748b' }}>Supports .xlsx, .xls, .csv files with 18 standard headers</p>
+              <DropzoneTitleText>Click to browse or drag & drop 18-spec CSV file here</DropzoneTitleText>
+              <DropzoneHintText>Supports .xlsx, .xls, .csv files with 18 standard headers</DropzoneHintText>
             </>
           )}
         </DropZone>
 
-        {parseError && (
-          <div style={{ padding: '8px 12px', width: '100%', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '4px', fontSize: '13px' }}>
-            {parseError}
-          </div>
-        )}
+        {parseError && <ErrorMessageBox>{parseError}</ErrorMessageBox>}
 
         {parsedRows.length > 0 && (
           <div>
@@ -528,14 +566,14 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClos
                 {validCount} of {parsedRows.length} rows valid
               </Badge>
             </SectionHeader>
-            <div style={{ marginTop: '12px', maxHeight: '250px', overflowY: 'auto' }}>
+            <PreviewTableScroll>
               <Table
                 columns={previewColumns}
                 data={parsedRows}
                 keyExtractor={(row: ParsedCareerRow, index?: number) => `preview-${row.jobRole || index || 0}`}
                 emptyMessage="No data rows found."
               />
-            </div>
+            </PreviewTableScroll>
           </div>
         )}
       </Container>

@@ -3,7 +3,7 @@ import { Modal } from '@/components/Modal';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { useTenantManagementStore } from '@/store/tenant-management.store';
-import { DetailGrid, DetailItem } from '../TenantManagement.styles';
+import { DetailGrid, DetailItem, FlexColumnGap, FlexRowEnd } from '../TenantManagement.styles';
 
 export const ViewTenantModal: React.FC = () => {
   const { isViewModalOpen, closeViewModal, selectedUser } = useTenantManagementStore();
@@ -32,7 +32,7 @@ export const ViewTenantModal: React.FC = () => {
       subtitle={`Detailed metadata for ${selectedUser.name}`}
       size="md"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <FlexColumnGap>
         <DetailGrid>
           <DetailItem>
             <label>Full Name</label>
@@ -85,12 +85,12 @@ export const ViewTenantModal: React.FC = () => {
           </DetailItem>
         </DetailGrid>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+        <FlexRowEnd>
           <Button variant="secondary" onClick={closeViewModal}>
             Close
           </Button>
-        </div>
-      </div>
+        </FlexRowEnd>
+      </FlexColumnGap>
     </Modal>
   );
 };

@@ -89,9 +89,65 @@ export const ActionIconButton = styled.button`
   cursor: pointer;
   transition: all ${({ theme }) => theme.transition.fast};
 
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme }) => theme.colors.primaryLight};
   }
+`;
+
+export const TenantCell = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+export const TenantNameText = styled.span`
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const TenantEmailSubtext = styled.div`
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+export const ModalFormContainer = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+export const FlexColumnGap = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.lg};
+`;
+
+export const FlexRowBetween = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+export const FlexRowEnd = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-top: ${({ theme }) => theme.spacing.xs};
+`;
+
+export const CredentialNameText = styled.span`
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const BadgeIconMargin = styled.span`
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
 `;

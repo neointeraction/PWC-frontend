@@ -5,147 +5,31 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { RiUser3Line, RiLockLine } from 'react-icons/ri';
-import styled from 'styled-components';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { LoginPayload } from '@/types';
-
-const LoginWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: linear-gradient(
-    135deg,
-    ${({ theme }) => theme.colors.primaryLight} 0%,
-    ${({ theme }) => theme.colors.background} 100%
-  );
-  padding: ${({ theme }) => theme.spacing.lg};
-`;
-
-const LoginCard = styled.div`
-  width: 100%;
-  max-width: 440px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  box-shadow: ${({ theme }) => theme.colors.shadowLg};
-  padding: ${({ theme }) => theme.spacing.xxl};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-top: 4px solid ${({ theme }) => theme.colors.primary};
-`;
-
-const LogoWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-`;
-
-const LogoIcon = styled.div`
-  width: 44px;
-  height: 44px;
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  background: linear-gradient(
-    135deg,
-    ${({ theme }) => theme.colors.primary} 0%,
-    ${({ theme }) => theme.colors.primaryHover} 100%
-  );
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 22px;
-  box-shadow: 0 4px 12px ${({ theme }) => `${theme.colors.primary}33`};
-`;
-
-const LogoText = styled.div`
-  h1 {
-    font-size: 20px;
-    font-weight: 800;
-    color: ${({ theme }) => theme.colors.text};
-  }
-  p {
-    font-size: 12px;
-    color: ${({ theme }) => theme.colors.textSecondary};
-  }
-`;
-
-const LoginTitle = styled.div`
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-
-  h2 {
-    font-size: ${({ theme }) => theme.fontSize.xl};
-    font-weight: 700;
-    color: ${({ theme }) => theme.colors.text};
-    margin-bottom: 4px;
-  }
-  p {
-    font-size: ${({ theme }) => theme.fontSize.sm};
-    color: ${({ theme }) => theme.colors.textSecondary};
-  }
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.md};
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-`;
-
-const ForgotPasswordLink = styled.button`
-  background: none;
-  border: none;
-  color: ${({ theme }) => theme.colors.primary};
-  font-weight: ${({ theme }) => theme.fontWeight.medium};
-  font-size: ${({ theme }) => theme.fontSize.xs};
-  cursor: pointer;
-  margin-top: ${({ theme }) => theme.spacing.md};
-  text-align: center;
-  width: 100%;
-
-  &:hover {
-    color: ${({ theme }) => theme.colors.primaryHover};
-    text-decoration: underline;
-  }
-`;
-
-const HintBox = styled.div`
-  margin-top: ${({ theme }) => theme.spacing.xl};
-  padding: ${({ theme }) => theme.spacing.md};
-  background-color: ${({ theme }) => theme.colors.primaryLight};
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  border: 1px solid ${({ theme }) => theme.colors.primaryMuted};
-
-  .title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: ${({ theme }) => theme.colors.primary};
-    margin-bottom: 8px;
-    text-align: center;
-  }
-
-  .demo-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-`;
-
-const ErrorAlert = styled.div`
-  background-color: ${({ theme }) => theme.colors.dangerLight};
-  border: 1px solid ${({ theme }) => theme.colors.danger};
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  padding: ${({ theme }) => theme.spacing.md};
-  margin-bottom: ${({ theme }) => theme.spacing.md};
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.danger};
-`;
+import {
+  LoginWrapper,
+  LoginCard,
+  LogoWrapper,
+  LogoIcon,
+  LogoTextWrapper,
+  LogoTitle,
+  LogoSubtitle,
+  LoginTitleWrapper,
+  LoginHeading,
+  LoginSubtext,
+  LoginForm,
+  FormGroup,
+  ForgotPasswordLink,
+  HintBox,
+  HintTitle,
+  DemoButtons,
+  ErrorAlert,
+} from './Login.styles';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -190,18 +74,18 @@ export const LoginPage: React.FC = () => {
       <LoginCard>
         <LogoWrapper>
           <LogoIcon>k</LogoIcon>
-          <LogoText>
-            <h1>kREATE Portal</h1>
-            <p>Career Counselling Platform</p>
-          </LogoText>
+          <LogoTextWrapper>
+            <LogoTitle>kREATE Portal</LogoTitle>
+            <LogoSubtitle>Career Counselling Platform</LogoSubtitle>
+          </LogoTextWrapper>
         </LogoWrapper>
 
-        <LoginTitle>
-          <h2>Sign In</h2>
-          <p>Enter your user credentials to access your portal</p>
-        </LoginTitle>
+        <LoginTitleWrapper>
+          <LoginHeading>Sign In</LoginHeading>
+          <LoginSubtext>Enter your user credentials to access your portal</LoginSubtext>
+        </LoginTitleWrapper>
 
-        <form onSubmit={handleSubmit(data => mutation.mutate(data))} noValidate>
+        <LoginForm onSubmit={handleSubmit(data => mutation.mutate(data))} noValidate>
           {mutation.isError && (
             <ErrorAlert role="alert">
               {mutation.error instanceof Error
@@ -242,18 +126,18 @@ export const LoginPage: React.FC = () => {
           </Button>
 
           <ForgotPasswordLink type="button">Forgot Password?</ForgotPasswordLink>
-        </form>
+        </LoginForm>
 
         <HintBox>
-          <p className="title">Quick Demo Login Shortcuts</p>
-          <div className="demo-buttons">
+          <HintTitle>Quick Demo Login Shortcuts</HintTitle>
+          <DemoButtons>
             <Button size="sm" variant="secondary" onClick={fillSuperAdmin}>
               Super Admin (admin@pwc.com)
             </Button>
             <Button size="sm" variant="secondary" onClick={fillPwcUser}>
               kREATE User / Admin (sarah.connor@pwc-global.com)
             </Button>
-          </div>
+          </DemoButtons>
         </HintBox>
       </LoginCard>
     </LoginWrapper>

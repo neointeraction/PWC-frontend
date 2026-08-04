@@ -10,6 +10,7 @@ import {
   ChevronIcon,
   DropdownMenu,
   DropdownItem,
+  ComingSoonTag,
   ErrorMessage,
 } from './Select.styles';
 
@@ -215,7 +216,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                     >
                       <span>
                         {opt.label}
-                        {isOptDisabled && <span style={{ opacity: 0.65, fontSize: '11px', marginLeft: '6px' }}>(Coming Soon)</span>}
+                        {isOptDisabled && <ComingSoonTag>(Coming Soon)</ComingSoonTag>}
                       </span>
                       {isSelected && <RiCheckLine size={16} />}
                     </DropdownItem>

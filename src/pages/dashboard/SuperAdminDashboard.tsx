@@ -256,6 +256,30 @@ const SuccessIconWrapper = styled.span`
   align-items: center;
 `;
 
+const NotifHeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const NotifBellIcon = styled(RiBellLine)`
+  flex-shrink: 0;
+  margin-top: 2px;
+`;
+
+const ActivitySectionWrapper = styled.div`
+  margin-top: ${({ theme }) => theme.spacing.xl};
+`;
+
+const ActivityContent = styled.div`
+  flex: 1;
+`;
+
+const ActivityHeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+`;
+
 export const SuperAdminDashboard: React.FC = () => {
   const navigate = useNavigate();
 
@@ -384,25 +408,19 @@ export const SuperAdminDashboard: React.FC = () => {
           <NotificationList>
             {summary?.notifications.map(item => (
               <NotificationCardItem key={item.id} $type={item.type}>
-                <RiBellLine size={20} style={{ flexShrink: 0, marginTop: 2 }} />
+                <NotifBellIcon size={20} />
                 <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
+                  <NotifHeaderRow>
                     <NotifTitle>{item.title}</NotifTitle>
                     <NotifTime>{item.time}</NotifTime>
-                  </div>
+                  </NotifHeaderRow>
                   <NotifMessage>{item.message}</NotifMessage>
                 </div>
               </NotificationCardItem>
             ))}
           </NotificationList>
 
-          <div style={{ marginTop: '24px' }}>
+          <ActivitySectionWrapper>
             <SectionHeading>Recent Activity</SectionHeading>
             <ActivityList>
               {summary?.recentActivities.map(act => (
@@ -410,17 +428,17 @@ export const SuperAdminDashboard: React.FC = () => {
                   <SuccessIconWrapper>
                     <RiCheckboxCircleLine size={18} />
                   </SuccessIconWrapper>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <ActivityContent>
+                    <ActivityHeaderRow>
                       <ActivityTitle>{act.title}</ActivityTitle>
                       <ActivityTime>{act.time}</ActivityTime>
-                    </div>
+                    </ActivityHeaderRow>
                     <ActivityDesc>{act.description}</ActivityDesc>
-                  </div>
+                  </ActivityContent>
                 </ActivityItem>
               ))}
             </ActivityList>
-          </div>
+          </ActivitySectionWrapper>
         </Card>
       </ContentGrid>
     </div>

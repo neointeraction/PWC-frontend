@@ -132,6 +132,7 @@ Never use
 - Material UI
 - Chakra UI
 - Inline CSS
+- HTML elements (like `div`, `span`, `p`, etc.) with inline styles (`style={{ ... }}`). Always create and use styled-components.
 
 Component styles should always be colocated.
 
@@ -575,6 +576,7 @@ When generating code:
 - Whenever showing alerts or confirmations, NEVER use native browser `alert()` or `confirm()`. Always use `AlertModal` component. If `AlertModal` component is not present, create a reusable `AlertModal` in `src/components/` and reuse it.
 - Whenever using select inputs, NEVER use native HTML `<select>` elements. Always use the custom `Select` component.
 - Always use `Tooltip` component for showing tooltips in table actions and other page-level hover items. If `Tooltip` is not present, create a reusable `Tooltip` component in `src/components/`.
+- NEVER use `div` or any HTML elements with inline styles (`style={{ ... }}`). Always create and use styled-components.
 - Keep components small and composable.
 - Prefer composition over inheritance.
 - Extract repeated logic into custom hooks.

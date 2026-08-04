@@ -61,6 +61,17 @@ const ToggleRow = styled.div`
   }
 `;
 
+const FormWrapper = styled.div`
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+const SpacingTop = styled.div`
+  margin-top: ${({ theme }) => theme.spacing.lg};
+`;
+
 const ToggleInfo = styled.div`
   h4 {
     font-size: ${({ theme }) => theme.fontSize.base};
@@ -149,10 +160,10 @@ export const SuperAdminSettings: React.FC = () => {
 
       {superTab === 'security' && (
         <Card
-          title="Global Security &amp; API Policies"
+          title="Global Security & API Policies"
           subtitle="System-wide security controls and API token management"
         >
-          <div style={{ maxWidth: '600px' }}>
+          <FormWrapper>
             <ToggleRow>
               <ToggleInfo>
                 <h4>Mandatory 2FA for All Admins</h4>
@@ -168,7 +179,7 @@ export const SuperAdminSettings: React.FC = () => {
 
             <ToggleRow>
               <ToggleInfo>
-                <h4>Audit Logging &amp; Traceability</h4>
+                <h4>Audit Logging & Traceability</h4>
                 <p>Log all administrative mutations and institution provisioning calls</p>
               </ToggleInfo>
               <Checkbox
@@ -177,26 +188,24 @@ export const SuperAdminSettings: React.FC = () => {
               />
             </ToggleRow>
 
-            <div style={{ marginTop: '20px' }}>
+            <SpacingTop>
               <Input
                 label="Super Admin Master API Key"
                 type="password"
                 value="sk_live_pwc_super_admin_998877665544"
                 readOnly
               />
-            </div>
-          </div>
+            </SpacingTop>
+          </FormWrapper>
         </Card>
       )}
 
       {superTab === 'appearance' && (
         <Card
-          title="Appearance &amp; Theme Preferences"
+          title="Appearance & Theme Preferences"
           subtitle="Customize interface mode and visual styling"
         >
-          <div
-            style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '16px' }}
-          >
+          <FormWrapper>
             <ToggleRow>
               <ToggleInfo>
                 <h4>Interface Theme Mode</h4>
@@ -208,7 +217,7 @@ export const SuperAdminSettings: React.FC = () => {
                 Toggle {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
               </Button>
             </ToggleRow>
-          </div>
+          </FormWrapper>
         </Card>
       )}
     </div>

@@ -23,6 +23,8 @@ const editTenantSchema = z.object({
 
 type EditTenantFormData = z.infer<typeof editTenantSchema>;
 
+import { ModalFormContainer } from '../TenantManagement.styles';
+
 export const EditTenantModal: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -89,7 +91,7 @@ export const EditTenantModal: React.FC = () => {
         </>
       }
     >
-      <form id="edit-tenant-form" onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <ModalFormContainer id="edit-tenant-form" onSubmit={handleSubmit(onSubmit)}>
         <Input
           label="Full Name"
           error={errors.name?.message}
@@ -138,7 +140,7 @@ export const EditTenantModal: React.FC = () => {
           error={errors.status?.message}
           {...register('status')}
         />
-      </form>
+      </ModalFormContainer>
     </Modal>
   );
 };

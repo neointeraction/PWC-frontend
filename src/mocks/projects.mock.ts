@@ -1,0 +1,58 @@
+import { Project } from '@/types/project.types';
+
+export const mockProjects: Project[] = [
+  {
+    id: 'proj-001',
+    name: 'Career Guidance 2026 Batch A',
+    instituteName: 'St. Xavier\'s College, Mumbai',
+    counselorCount: 4,
+    studentCount: 120,
+    status: 'active',
+    createdAt: '2026-06-15',
+  },
+  {
+    id: 'proj-002',
+    name: 'Science Stream Counselling',
+    instituteName: 'Delhi Public School, Kochi',
+    counselorCount: 3,
+    studentCount: 85,
+    status: 'active',
+    createdAt: '2026-06-20',
+  },
+  {
+    id: 'proj-003',
+    name: 'Commerce Pathway Program',
+    instituteName: 'Loyola College, Chennai',
+    counselorCount: 2,
+    studentCount: 60,
+    status: 'completed',
+    createdAt: '2026-05-10',
+  },
+  {
+    id: 'proj-004',
+    name: 'Arts & Humanities Exploration',
+    instituteName: 'Fergusson College, Pune',
+    counselorCount: 5,
+    studentCount: 95,
+    status: 'draft',
+    createdAt: '2026-07-01',
+  },
+  {
+    id: 'proj-005',
+    name: 'Engineering Aptitude Batch',
+    instituteName: 'NIT Calicut',
+    counselorCount: 6,
+    studentCount: 200,
+    status: 'active',
+    createdAt: '2026-07-10',
+  },
+  {
+    id: 'proj-006',
+    name: 'Medical Pathway Assessment',
+    instituteName: 'CMC Vellore',
+    counselorCount: 3,
+    studentCount: 75,
+    status: 'draft',
+    createdAt: '2026-07-18',
+  },
+];

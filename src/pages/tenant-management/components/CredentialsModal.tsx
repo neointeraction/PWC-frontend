@@ -8,6 +8,12 @@ import { Badge } from '@/components/Badge';
 import { tenantManagementService } from '@/services/tenant-management.service';
 import { useTenantManagementStore } from '@/store/tenant-management.store';
 import { useToast } from '@/hooks';
+import { UserRecord } from '@/types/tenant-management.types';
+import {
+  FlexColumnGap,
+  FlexRowBetween,
+  CredentialNameText,
+} from '../TenantManagement.styles';
 
 const CredentialsBox = styled.div`
   background-color: ${({ theme }) => theme.colors.surfaceHover};
@@ -41,23 +47,22 @@ const InputValGroup = styled.div`
 
 const ReadonlyVal = styled.div`
   flex: 1;
-  padding: 10px 14px;
+  font-family: monospace;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  padding: 8px 12px;
   background-color: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.md};
-  font-family: monospace;
-  font-size: ${({ theme }) => theme.fontSize.base};
-  font-weight: ${({ theme }) => theme.fontWeight.semibold};
   color: ${({ theme }) => theme.colors.text};
-  word-break: break-all;
+  user-select: all;
 `;
 
 const SmallIconButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: ${({ theme }) => theme.borderRadius.md};
   border: 1px solid ${({ theme }) => theme.colors.border};
   background-color: ${({ theme }) => theme.colors.surface};
@@ -75,17 +80,18 @@ const SmallIconButton = styled.button`
 export const CredentialsModal: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { isCredentialsModalOpen, closeCredentialsModal, selectedUser, setSelectedUser } =
+  const { isCredentialsModalOpen, closeCredentialsModal, selectedUser } =
     useTenantManagementStore();
-
   const [showPassword, setShowPassword] = useState(false);
 
   const regenMutation = useMutation({
     mutationFn: (id: string) => tenantManagementService.regeneratePassword(id),
-    onSuccess: updated => {
+    onSuccess: (data: UserRecord) => {
       queryClient.invalidateQueries({ queryKey: ['tenant-records'] });
-      setSelectedUser(updated);
-      toast.success('Password Regenerated', 'Updated temporary login password.');
+      toast.success('Credentials Regenerated', `New password generated for ${data.name}.`);
+    },
+    onError: () => {
+      toast.error('Error', 'Failed to regenerate credentials.');
     },
   });
 
@@ -93,7 +99,7 @@ export const CredentialsModal: React.FC = () => {
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to Clipboard', `Copied ${label} to clipboard.`);
+    toast.info('Copied to Clipboard', `${label} has been copied.`);
   };
 
   const usernameVal = selectedUser.username || selectedUser.email;
@@ -107,15 +113,15 @@ export const CredentialsModal: React.FC = () => {
       subtitle={`Security login details for ${selectedUser.name}`}
       size="md"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <FlexColumnGap>
+        <FlexRowBetween>
           <div>
-            <span style={{ fontWeight: 600, fontSize: '15px' }}>{selectedUser.name}</span>
+            <CredentialNameText>{selectedUser.name}</CredentialNameText>
           </div>
           <Badge variant={selectedUser.userCategory === 'pwc' ? 'primary' : 'info'}>
             {selectedUser.userCategory.toUpperCase()} USER
           </Badge>
-        </div>
+        </FlexRowBetween>
 
         <CredentialsBox>
           <FieldRow>
@@ -151,7 +157,7 @@ export const CredentialsModal: React.FC = () => {
           </FieldRow>
         </CredentialsBox>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+        <FlexRowBetween>
           <Button
             variant="secondary"
             size="sm"
@@ -173,8 +179,8 @@ export const CredentialsModal: React.FC = () => {
           >
             Copy Full Credentials Package
           </Button>
-        </div>
-      </div>
+        </FlexRowBetween>
+      </FlexColumnGap>
     </Modal>
   );
 };

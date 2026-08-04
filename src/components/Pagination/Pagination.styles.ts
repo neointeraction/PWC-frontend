@@ -14,12 +14,22 @@ export const PaginationInfo = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
+export const RightGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
 export const PageSizeSelectGroup = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.xs};
   font-size: ${({ theme }) => theme.fontSize.sm};
   color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+export const SelectWrapper = styled.div`
+  width: 80px;
 `;
 
 export const PaginationControls = styled.div`

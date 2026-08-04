@@ -92,6 +92,11 @@ export const IconButton = styled.button`
   cursor: pointer;
   transition: all ${({ theme }) => theme.transition.fast};
 
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.primary};

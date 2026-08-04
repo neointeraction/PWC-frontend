@@ -6,6 +6,10 @@ const PageHeaderWrapper = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
+const BreadcrumbContainer = styled.div`
+  margin-bottom: ${({ theme }) => theme.spacing.xs};
+`;
+
 const TopRow = styled.div`
   display: flex;
   align-items: flex-start;
@@ -53,9 +57,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 }) => (
   <PageHeaderWrapper>
     {breadcrumbs && breadcrumbs.length > 0 && (
-      <div style={{ marginBottom: '8px' }}>
+      <BreadcrumbContainer>
         <Breadcrumb items={breadcrumbs} />
-      </div>
+      </BreadcrumbContainer>
     )}
     <TopRow>
       <TitleGroup>

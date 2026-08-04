@@ -27,6 +27,10 @@ import {
   SearchWrapper,
   ActionIconButtonGroup,
   ActionIconButton,
+  BadgeIconMargin,
+  TenantCell,
+  TenantNameText,
+  TenantEmailSubtext,
 } from './TenantManagement.styles';
 import { AlertModal, Tooltip, Tabs, TabItem } from '@/components';
 import { AddTenantModal } from './components/AddTenantModal';
@@ -94,21 +98,27 @@ export const TenantManagementPage: React.FC = () => {
       case 'pwc':
         return (
           <Badge variant="primary">
-            <RiUserStarLine size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            <BadgeIconMargin>
+              <RiUserStarLine size={14} />
+            </BadgeIconMargin>
             kREATE
           </Badge>
         );
       case 'institution':
         return (
           <Badge variant="info">
-            <RiBuilding4Line size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            <BadgeIconMargin>
+              <RiBuilding4Line size={14} />
+            </BadgeIconMargin>
             Institution
           </Badge>
         );
       case 'counselor':
         return (
           <Badge variant="success">
-            <RiGraduationCapLine size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            <BadgeIconMargin>
+              <RiGraduationCapLine size={14} />
+            </BadgeIconMargin>
             Counselor
           </Badge>
         );
@@ -120,10 +130,10 @@ export const TenantManagementPage: React.FC = () => {
       key: 'name',
       header: 'Tenant Name & Contact',
       render: row => (
-        <div>
-          <span style={{ fontWeight: 600 }}>{row.name}</span>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>{row.email}</div>
-        </div>
+        <TenantCell>
+          <TenantNameText>{row.name}</TenantNameText>
+          <TenantEmailSubtext>{row.email}</TenantEmailSubtext>
+        </TenantCell>
       ),
     },
     {
@@ -161,7 +171,10 @@ export const TenantManagementPage: React.FC = () => {
       render: row => (
         <ActionIconButtonGroup>
           <Tooltip content="View Credentials">
-            <ActionIconButton aria-label="View Credentials" onClick={() => openCredentialsModal(row)}>
+            <ActionIconButton
+              aria-label="View Credentials"
+              onClick={() => openCredentialsModal(row)}
+            >
               <RiKeyLine size={16} />
             </ActionIconButton>
           </Tooltip>
@@ -186,17 +199,17 @@ export const TenantManagementPage: React.FC = () => {
   ];
 
   const categoryTabs: TabItem<UserCategory | 'all'>[] = [
-    { id: 'pwc', label: 'kREATE Users', icon: <RiUserStarLine size={18} /> },
+    { id: 'pwc', label: 'kREATE', icon: <RiUserStarLine size={18} /> },
     {
       id: 'institution',
-      label: 'Institution Users',
+      label: 'Institution',
       icon: <RiBuilding4Line size={18} />,
       disabled: true,
       comingSoon: true,
     },
     {
       id: 'counselor',
-      label: 'Counselor Users',
+      label: 'Counselor',
       icon: <RiGraduationCapLine size={18} />,
       disabled: true,
       comingSoon: true,
@@ -207,7 +220,7 @@ export const TenantManagementPage: React.FC = () => {
     <TenantManagementContainer>
       <PageHeader
         title="Tenant Management"
-        subtitle="Manage kREATE Users, Institution Users, and Counselor Users across the platform"
+        subtitle="Manage kREATE, Institution, and Counselor tenants across the platform"
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Tenant Management' }]}
         actions={
           <Button leftIcon={<RiUserAddLine size={18} />} onClick={openAddModal}>
