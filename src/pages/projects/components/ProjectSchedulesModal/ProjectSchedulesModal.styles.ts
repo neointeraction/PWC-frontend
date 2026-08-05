@@ -99,6 +99,19 @@ export const DayCell = styled.div<{ $isCurrentMonth: boolean; $isToday: boolean 
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow-y: auto;
+
+  /* Custom thin scrollbar for day cell */
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: ${({ theme }) => theme.colors.border};
+    border-radius: 4px;
+  }
 `;
 
 export const DateNumber = styled.div<{ $isToday: boolean }>`
