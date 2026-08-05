@@ -5,6 +5,7 @@ import {
   RiSearchLine,
   RiEyeLine,
   RiDeleteBinLine,
+  RiCalendarLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -30,6 +31,7 @@ import {
   CountCell,
 } from './Projects.styles';
 import { AddProjectWizard } from './components/AddProjectWizard';
+import { ProjectSchedulesModal } from './components/ProjectSchedulesModal';
 
 export const ProjectsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -40,6 +42,7 @@ export const ProjectsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [projectForSchedules, setProjectForSchedules] = useState<Project | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['projects', searchQuery, page, limit],
@@ -133,6 +136,14 @@ export const ProjectsPage: React.FC = () => {
       header: 'Actions',
       render: row => (
         <ActionIconButtonGroup>
+          <Tooltip content="Schedules">
+            <ActionIconButton
+              aria-label="View Schedules"
+              onClick={() => setProjectForSchedules(row)}
+            >
+              <RiCalendarLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
           <Tooltip content="View Project">
             <ActionIconButton aria-label="View Project">
               <RiEyeLine size={16} />
@@ -218,6 +229,12 @@ export const ProjectsPage: React.FC = () => {
         confirmText="Delete"
         cancelText="Cancel"
         isLoading={deleteMutation.isPending}
+      />
+
+      <ProjectSchedulesModal
+        isOpen={Boolean(projectForSchedules)}
+        onClose={() => setProjectForSchedules(null)}
+        project={projectForSchedules}
       />
     </ProjectsContainer>
   );

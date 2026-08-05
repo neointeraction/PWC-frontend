@@ -17,7 +17,7 @@ export const Overlay = styled.div`
   animation: ${fadeIn} 0.15s ease;
 `;
 
-export const ModalContainer = styled.div<{ $size: 'sm' | 'md' | 'lg' | 'xl' | '2xl' }>`
+export const ModalContainer = styled.div<{ $size: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' }>`
   background-color: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.xl};
@@ -32,7 +32,9 @@ export const ModalContainer = styled.div<{ $size: 'sm' | 'md' | 'lg' | 'xl' | '2
           ? '900px'
           : $size === '2xl'
             ? '1140px'
-            : '720px'};
+            : $size === '3xl'
+              ? '1440px'
+              : '720px'};
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -42,7 +44,7 @@ export const ModalContainer = styled.div<{ $size: 'sm' | 'md' | 'lg' | 'xl' | '2
 
 export const ModalHeader = styled.div`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: ${({ theme }) => theme.spacing.md};
   padding: ${({ theme }) => theme.spacing.xl};
@@ -103,7 +105,6 @@ export const ModalBody = styled.div`
 export const ModalBodyContent = styled.div`
   padding: ${({ theme }) => theme.spacing.xl};
 `;
-
 
 export const ModalFooter = styled.div`
   padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
