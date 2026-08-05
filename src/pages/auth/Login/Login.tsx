@@ -69,6 +69,11 @@ export const LoginPage: React.FC = () => {
     setValue('password', 'admin123');
   };
 
+  const fillCounselor = () => {
+    setValue('email', 'counselor@pwc.com');
+    setValue('password', 'counselor123');
+  };
+
   return (
     <LoginWrapper>
       <LoginCard>
@@ -136,6 +141,9 @@ export const LoginPage: React.FC = () => {
             </Button>
             <Button size="sm" variant="secondary" onClick={fillPwcUser}>
               kREATE User / Admin (sarah.connor@pwc-global.com)
+            </Button>
+            <Button size="sm" variant="secondary" onClick={fillCounselor}>
+              Counselor (counselor@pwc.com)
             </Button>
           </DemoButtons>
         </HintBox>
