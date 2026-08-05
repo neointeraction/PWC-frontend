@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  RiSettings3Line,
   RiShieldLine,
   RiPaletteLine,
   RiSaveLine,
@@ -88,13 +87,7 @@ export const SuperAdminSettings: React.FC = () => {
   const toast = useToast();
   const { theme, toggleTheme } = useThemeStore();
 
-  const [superTab, setSuperTab] = useState<'platform' | 'security' | 'appearance'>('platform');
-
-  const [superPlatformForm, setSuperPlatformForm] = useState({
-    platformName: 'kREATE Career Platform Global Engine',
-    supportEmail: 'support@pwc.com',
-    primaryDomain: 'pwc-career-platform.com',
-  });
+  const [superTab, setSuperTab] = useState<'security' | 'appearance'>('security');
 
   return (
     <div>
@@ -105,98 +98,34 @@ export const SuperAdminSettings: React.FC = () => {
       />
 
       <TabsContainer>
-        <TabButton $active={superTab === 'platform'} onClick={() => setSuperTab('platform')}>
-          <RiSettings3Line size={18} /> Platform Config
-        </TabButton>
         <TabButton $active={superTab === 'security'} onClick={() => setSuperTab('security')}>
-          <RiShieldLine size={18} /> Global Security &amp; API
+          <RiShieldLine size={18} /> Security
         </TabButton>
         <TabButton $active={superTab === 'appearance'} onClick={() => setSuperTab('appearance')}>
           <RiPaletteLine size={18} /> Appearance
         </TabButton>
       </TabsContainer>
 
-      {superTab === 'platform' && (
+      {superTab === 'security' && (
         <Card
-          title="Global Platform Settings"
-          subtitle="System-wide defaults for the kREATE Career Platform"
+          title="Security Settings"
+          subtitle="Manage your password and security preferences"
         >
           <Form
             onSubmit={e => {
               e.preventDefault();
-              toast.success('Settings Saved', 'Updated global platform parameters.');
+              toast.success('Password Updated', 'Your password has been changed successfully.');
             }}
           >
-            <Input
-              label="Global Platform Name"
-              value={superPlatformForm.platformName}
-              onChange={e =>
-                setSuperPlatformForm(prev => ({ ...prev, platformName: e.target.value }))
-              }
-            />
-            <Input
-              label="System Support Email"
-              type="email"
-              value={superPlatformForm.supportEmail}
-              onChange={e =>
-                setSuperPlatformForm(prev => ({ ...prev, supportEmail: e.target.value }))
-              }
-            />
-            <Input
-              label="Primary Domain"
-              value={superPlatformForm.primaryDomain}
-              onChange={e =>
-                setSuperPlatformForm(prev => ({ ...prev, primaryDomain: e.target.value }))
-              }
-            />
+            <Input label="Current Password" type="password" placeholder="Enter current password" />
+            <Input label="New Password" type="password" placeholder="Enter new password" />
+            <Input label="Confirm New Password" type="password" placeholder="Confirm new password" />
             <div>
               <Button type="submit" leftIcon={<RiSaveLine size={18} />}>
-                Save Platform Settings
+                Update Password
               </Button>
             </div>
           </Form>
-        </Card>
-      )}
-
-      {superTab === 'security' && (
-        <Card
-          title="Global Security & API Policies"
-          subtitle="System-wide security controls and API token management"
-        >
-          <FormWrapper>
-            <ToggleRow>
-              <ToggleInfo>
-                <h4>Mandatory 2FA for All Admins</h4>
-                <p>
-                  Enforce two-factor authentication across all institution and super admin accounts
-                </p>
-              </ToggleInfo>
-              <Checkbox
-                defaultChecked={true}
-                onChange={() => toast.success('Policy Saved', 'Updated global 2FA policy.')}
-              />
-            </ToggleRow>
-
-            <ToggleRow>
-              <ToggleInfo>
-                <h4>Audit Logging & Traceability</h4>
-                <p>Log all administrative mutations and institution provisioning calls</p>
-              </ToggleInfo>
-              <Checkbox
-                defaultChecked={true}
-                onChange={() => toast.success('Policy Saved', 'Updated audit logging policy.')}
-              />
-            </ToggleRow>
-
-            <SpacingTop>
-              <Input
-                label="Super Admin Master API Key"
-                type="password"
-                value="sk_live_pwc_super_admin_998877665544"
-                readOnly
-              />
-            </SpacingTop>
-          </FormWrapper>
         </Card>
       )}
 
