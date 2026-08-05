@@ -27,6 +27,33 @@ export interface Career {
   status: 'active' | 'inactive' | 'pending';
   lastUpdated: string;
   sourceTenant?: string;
+  isShortlisted?: boolean;
+}
+
+export interface CareerCluster {
+  id: string;
+  name: string;
+  description?: string;
+  industryCount?: number;
+}
+
+export interface CareerIndustry {
+  id: string;
+  clusterId: string;
+  clusterName: string;
+  name: string;
+  description?: string;
+  domainCount?: number;
+}
+
+export interface CareerDomain {
+  id: string;
+  industryId: string;
+  industryName: string;
+  clusterName: string;
+  name: string;
+  description?: string;
+  roleCount?: number;
 }
 
 export interface PendingRatification {
@@ -48,3 +75,43 @@ export interface CareerFilters {
   page?: number;
   limit?: number;
 }
+
+export interface EntranceExam {
+  id: string;
+  name: string;
+  fullTitle: string;
+  level: 'UG' | 'PG';
+  conductedBy: string;
+  mode: string;
+  frequency: string;
+  applicableFor: string;
+  requirement12th: string;
+  website: string;
+  datesText?: string;
+  isShortlisted?: boolean;
+}
+
+export interface CourseDetail {
+  id: string;
+  badge: string;
+  title: string;
+  streamRequirement: string;
+  entranceExams: string;
+  programsOffered: string;
+  topColleges: string;
+  furtherStudyOptions: string;
+}
+
+export interface InstitutionDetail {
+  id: string;
+  badge: string;
+  name: string;
+  cityState: string;
+  entranceExam: string;
+  programsOffered: string;
+  ranking: string;
+  website: string;
+  isShortlisted?: boolean;
+}
+
+

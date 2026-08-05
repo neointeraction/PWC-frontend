@@ -9,7 +9,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { Checkbox } from '@/components/Checkbox';
 import { useToast } from '@/hooks';
 import { useThemeStore } from '@/store';
 import { ROUTES } from '@/constants';
@@ -65,10 +64,6 @@ const FormWrapper = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.md};
-`;
-
-const SpacingTop = styled.div`
-  margin-top: ${({ theme }) => theme.spacing.lg};
 `;
 
 const ToggleInfo = styled.div`
