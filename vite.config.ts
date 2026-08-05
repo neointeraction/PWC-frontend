@@ -4,7 +4,7 @@ import { resolve } from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/PWC-frontend/' : '/',
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {
