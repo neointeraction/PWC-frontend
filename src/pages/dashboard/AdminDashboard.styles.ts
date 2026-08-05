@@ -10,6 +10,7 @@ export const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: ${({ theme }) => theme.spacing.lg};
+  margin-top: -24px;
 
   > * {
     min-width: 0;

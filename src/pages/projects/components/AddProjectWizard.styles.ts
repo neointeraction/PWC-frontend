@@ -44,7 +44,6 @@ export const StepTitle = styled.h3`
 export const StepSubtitle = styled.p`
   font-size: ${({ theme }) => theme.fontSize.sm};
   color: ${({ theme }) => theme.colors.textSecondary};
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
 `;
 
 export const PreviewTableWrapper = styled.div`
@@ -93,4 +92,3 @@ export const FormGroup = styled.div`
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.md};
 `;
-

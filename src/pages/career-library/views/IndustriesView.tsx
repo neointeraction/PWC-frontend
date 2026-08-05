@@ -179,8 +179,8 @@ interface IndustriesViewProps {
   industries: CareerIndustry[];
   selectedIndustryName?: string;
   onSelectIndustry: (industry: CareerIndustry) => void;
-  onEditIndustry: (industry: CareerIndustry) => void;
-  onDeleteIndustry: (industry: CareerIndustry) => void;
+  onEditIndustry?: (industry: CareerIndustry) => void;
+  onDeleteIndustry?: (industry: CareerIndustry) => void;
 }
 
 export const IndustriesView: React.FC<IndustriesViewProps> = ({
@@ -206,26 +206,32 @@ export const IndustriesView: React.FC<IndustriesViewProps> = ({
                   {getIndustryIcon(ind.name)}
                 </IconBadge>
 
-                <ActionOverlay className="action-overlay" onClick={e => e.stopPropagation()}>
-                  <Tooltip content="Edit Industry">
-                    <ActionButton
-                      $selected={isSelected}
-                      onClick={() => onEditIndustry(ind)}
-                      aria-label="Edit industry"
-                    >
-                      <RiEditLine size={16} />
-                    </ActionButton>
-                  </Tooltip>
-                  <Tooltip content="Delete Industry">
-                    <ActionButton
-                      $selected={isSelected}
-                      onClick={() => onDeleteIndustry(ind)}
-                      aria-label="Delete industry"
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </ActionButton>
-                  </Tooltip>
-                </ActionOverlay>
+                {(onEditIndustry || onDeleteIndustry) && (
+                  <ActionOverlay className="action-overlay" onClick={e => e.stopPropagation()}>
+                    {onEditIndustry && (
+                      <Tooltip content="Edit Industry">
+                        <ActionButton
+                          $selected={isSelected}
+                          onClick={() => onEditIndustry(ind)}
+                          aria-label="Edit industry"
+                        >
+                          <RiEditLine size={16} />
+                        </ActionButton>
+                      </Tooltip>
+                    )}
+                    {onDeleteIndustry && (
+                      <Tooltip content="Delete Industry">
+                        <ActionButton
+                          $selected={isSelected}
+                          onClick={() => onDeleteIndustry(ind)}
+                          aria-label="Delete industry"
+                        >
+                          <RiDeleteBinLine size={16} />
+                        </ActionButton>
+                      </Tooltip>
+                    )}
+                  </ActionOverlay>
+                )}
               </CardTopRow>
 
               <CardContent>

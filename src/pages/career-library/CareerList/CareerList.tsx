@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
 import { AlertModal } from '@/components';
 import { useToast } from '@/hooks';
+import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { CareerCluster, CareerIndustry, CareerDomain, Career } from '@/types';
 import { careerService } from '@/services/career.service';
@@ -440,6 +441,9 @@ export const CareerListPage: React.FC = () => {
     }
   };
 
+  const { role } = useAuthStore();
+  const isSuperAdmin = role === 'super_admin';
+
   const addLabel = getAddLabel();
 
   return (
@@ -450,7 +454,7 @@ export const CareerListPage: React.FC = () => {
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Career Library' }]}
         onBack={level !== 'clusters' ? handleBack : undefined}
         actions={
-          level !== 'detail' ? (
+          isSuperAdmin && level !== 'detail' ? (
             <>
               {level === 'clusters' && (
                 <Button
@@ -486,9 +490,13 @@ export const CareerListPage: React.FC = () => {
               setSelectedCluster(cluster);
               setLevel('industries');
             }}
-            onEditCluster={cluster => handleOpenEditModal('cluster', cluster)}
-            onDeleteCluster={cluster =>
-              setDeleteTarget({ type: 'cluster', id: cluster.id, name: cluster.name })
+            onEditCluster={
+              isSuperAdmin ? cluster => handleOpenEditModal('cluster', cluster) : undefined
+            }
+            onDeleteCluster={
+              isSuperAdmin
+                ? cluster => setDeleteTarget({ type: 'cluster', id: cluster.id, name: cluster.name })
+                : undefined
             }
           />
         )}
@@ -501,9 +509,13 @@ export const CareerListPage: React.FC = () => {
               setSelectedIndustry(ind);
               setLevel('domains');
             }}
-            onEditIndustry={ind => handleOpenEditModal('industry', ind)}
-            onDeleteIndustry={ind =>
-              setDeleteTarget({ type: 'industry', id: ind.id, name: ind.name })
+            onEditIndustry={
+              isSuperAdmin ? ind => handleOpenEditModal('industry', ind) : undefined
+            }
+            onDeleteIndustry={
+              isSuperAdmin
+                ? ind => setDeleteTarget({ type: 'industry', id: ind.id, name: ind.name })
+                : undefined
             }
           />
         )}
@@ -516,8 +528,14 @@ export const CareerListPage: React.FC = () => {
               setSelectedDomain(dom);
               setLevel('roles');
             }}
-            onEditDomain={dom => handleOpenEditModal('domain', dom)}
-            onDeleteDomain={dom => setDeleteTarget({ type: 'domain', id: dom.id, name: dom.name })}
+            onEditDomain={
+              isSuperAdmin ? dom => handleOpenEditModal('domain', dom) : undefined
+            }
+            onDeleteDomain={
+              isSuperAdmin
+                ? dom => setDeleteTarget({ type: 'domain', id: dom.id, name: dom.name })
+                : undefined
+            }
           />
         )}
 
@@ -529,9 +547,13 @@ export const CareerListPage: React.FC = () => {
               setSelectedRole(role);
               setLevel('detail');
             }}
-            onEditRole={role => handleOpenEditModal('role', role)}
-            onDeleteRole={role =>
-              setDeleteTarget({ type: 'role', id: role.id, name: role.jobRole })
+            onEditRole={
+              isSuperAdmin ? role => handleOpenEditModal('role', role) : undefined
+            }
+            onDeleteRole={
+              isSuperAdmin
+                ? role => setDeleteTarget({ type: 'role', id: role.id, name: role.jobRole })
+                : undefined
             }
           />
         )}
@@ -545,7 +567,9 @@ export const CareerListPage: React.FC = () => {
             onToggleShortlist={() => toggleShortlistMutation.mutate(selectedRole.id)}
             onToggleExamShortlist={id => toggleExamShortlistMutation.mutate(id)}
             onToggleInstitutionShortlist={id => toggleInstShortlistMutation.mutate(id)}
-            onEditRole={role => handleOpenEditModal('role', role)}
+            onEditRole={
+              isSuperAdmin ? role => handleOpenEditModal('role', role) : undefined
+            }
           />
         )}
       </ContentCard>

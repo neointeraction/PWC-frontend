@@ -7,7 +7,12 @@ export const CardContainer = styled.div<{
   background-color: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
-  padding: ${({ $padding, theme }) => $padding || theme.spacing.xl};
+  padding: ${({ $padding, theme }) => {
+    if (!$padding) return theme.spacing.xl;
+    if ($padding === 'none') return '0';
+    if ($padding in theme.spacing) return theme.spacing[$padding as keyof typeof theme.spacing];
+    return $padding;
+  }};
   box-shadow: ${({ theme }) => theme.colors.shadow};
   transition:
     box-shadow ${({ theme }) => theme.transition.base},

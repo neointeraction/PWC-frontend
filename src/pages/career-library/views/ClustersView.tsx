@@ -207,8 +207,8 @@ interface ClustersViewProps {
   clusters: CareerCluster[];
   selectedClusterName?: string;
   onSelectCluster: (cluster: CareerCluster) => void;
-  onEditCluster: (cluster: CareerCluster) => void;
-  onDeleteCluster: (cluster: CareerCluster) => void;
+  onEditCluster?: (cluster: CareerCluster) => void;
+  onDeleteCluster?: (cluster: CareerCluster) => void;
 }
 
 export const ClustersView: React.FC<ClustersViewProps> = ({
@@ -234,26 +234,32 @@ export const ClustersView: React.FC<ClustersViewProps> = ({
                   {getClusterIcon(cluster.name)}
                 </IconBadge>
 
-                <ActionOverlay className="action-overlay" onClick={e => e.stopPropagation()}>
-                  <Tooltip content="Edit Cluster">
-                    <ActionButton
-                      $selected={isSelected}
-                      onClick={() => onEditCluster(cluster)}
-                      aria-label="Edit cluster"
-                    >
-                      <RiEditLine size={16} />
-                    </ActionButton>
-                  </Tooltip>
-                  <Tooltip content="Delete Cluster">
-                    <ActionButton
-                      $selected={isSelected}
-                      onClick={() => onDeleteCluster(cluster)}
-                      aria-label="Delete cluster"
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </ActionButton>
-                  </Tooltip>
-                </ActionOverlay>
+                {(onEditCluster || onDeleteCluster) && (
+                  <ActionOverlay className="action-overlay" onClick={e => e.stopPropagation()}>
+                    {onEditCluster && (
+                      <Tooltip content="Edit Cluster">
+                        <ActionButton
+                          $selected={isSelected}
+                          onClick={() => onEditCluster(cluster)}
+                          aria-label="Edit cluster"
+                        >
+                          <RiEditLine size={16} />
+                        </ActionButton>
+                      </Tooltip>
+                    )}
+                    {onDeleteCluster && (
+                      <Tooltip content="Delete Cluster">
+                        <ActionButton
+                          $selected={isSelected}
+                          onClick={() => onDeleteCluster(cluster)}
+                          aria-label="Delete cluster"
+                        >
+                          <RiDeleteBinLine size={16} />
+                        </ActionButton>
+                      </Tooltip>
+                    )}
+                  </ActionOverlay>
+                )}
               </CardTopRow>
 
               <CardContent>

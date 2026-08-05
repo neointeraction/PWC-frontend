@@ -7,7 +7,6 @@ import { DatePicker } from '@/components/DatePicker';
 import { useProjectStore } from '@/store/project.store';
 import {
   StepFormContainer,
-  StepTitle,
   StepSubtitle,
   FormGrid,
   FormGroup,
@@ -62,13 +61,9 @@ export const StepInstitute: React.FC = () => {
 
   return (
     <StepFormContainer>
-      <div>
-        <StepTitle>Add Institute Details</StepTitle>
-        <StepSubtitle>
-          Enter the primary contact and timeline information for this institute.
-        </StepSubtitle>
-      </div>
-
+      <StepSubtitle>
+        Enter the primary contact and timeline information for this institute.
+      </StepSubtitle>
       <FormGrid>
         <FormGroup>
           <Input

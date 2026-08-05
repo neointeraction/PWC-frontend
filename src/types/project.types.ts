@@ -7,7 +7,9 @@ export interface Project {
   counselorCount: number;
   studentCount: number;
   status: ProjectStatus;
-  createdAt: string;
+  validFrom: string;
+  validTo: string;
+  createdAt?: string;
 }
 
 export interface ProjectFilterParams {
@@ -37,6 +39,41 @@ export interface InstituteDetails {
   phone: string;
   validFrom: string;
   validTo: string;
+}
+
+export interface TimeSlot {
+  id: string;
+  time: string;
+  isSelected: boolean;
+}
+
+export interface CounselorSession {
+  id: string;
+  counselorId: string;
+  counselorName: string;
+  counselorEmail: string;
+  counselorPhone: string;
+  timeSlots: TimeSlot[];
+  assignedStudents: ProjectStudent[];
+}
+
+export interface StudentSessionDetail {
+  sessionNumber: 1 | 2;
+  status: 'completed' | 'scheduled' | 'pending';
+  date: string;
+  timeSlot: string;
+  counselorName: string;
+  counselorEmail: string;
+}
+
+export interface ProjectStudentDetail {
+  id: string;
+  name: string;
+  email: string;
+  mobile: string;
+  grade: string;
+  session1: StudentSessionDetail;
+  session2: StudentSessionDetail;
 }
 
 export interface CreateProjectPayload {

@@ -7,7 +7,6 @@ import { ProjectStudent } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import {
   StepFormContainer,
-  StepTitle,
   StepSubtitle,
   PreviewTableWrapper,
   SummaryRow,
@@ -93,12 +92,9 @@ export const StepStudents: React.FC = () => {
 
   return (
     <StepFormContainer>
-      <div>
-        <StepTitle>Student Onboarding</StepTitle>
-        <StepSubtitle>
-          Upload a CSV/Excel file with student details to onboard them into this project.
-        </StepSubtitle>
-      </div>
+      <StepSubtitle>
+        Upload a CSV/Excel file with student details to onboard them into this project.
+      </StepSubtitle>
 
       <FileUpload
         label="Student List"

@@ -188,8 +188,22 @@ export const TenantManagementPage: React.FC = () => {
               <RiEditLine size={16} />
             </ActionIconButton>
           </Tooltip>
-          <Tooltip content="Delete Tenant">
-            <ActionIconButton aria-label="Delete Tenant" onClick={() => handleDeleteClick(row)}>
+          <Tooltip
+            content={
+              (data?.total ?? data?.data?.length ?? 0) <= 1
+                ? 'Cannot delete the only tenant'
+                : 'Delete Tenant'
+            }
+          >
+            <ActionIconButton
+              aria-label="Delete Tenant"
+              disabled={(data?.total ?? data?.data?.length ?? 0) <= 1}
+              onClick={() => {
+                if ((data?.total ?? data?.data?.length ?? 0) > 1) {
+                  handleDeleteClick(row);
+                }
+              }}
+            >
               <RiDeleteBinLine size={16} />
             </ActionIconButton>
           </Tooltip>

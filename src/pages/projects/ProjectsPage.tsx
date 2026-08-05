@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiAddLine,
@@ -6,6 +8,7 @@ import {
   RiEyeLine,
   RiDeleteBinLine,
   RiCalendarLine,
+  RiUserLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -31,9 +34,9 @@ import {
   CountCell,
 } from './Projects.styles';
 import { AddProjectWizard } from './components/AddProjectWizard';
-import { ProjectSchedulesModal } from './components/ProjectSchedulesModal';
 
 export const ProjectsPage: React.FC = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -42,7 +45,6 @@ export const ProjectsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
-  const [projectForSchedules, setProjectForSchedules] = useState<Project | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['projects', searchQuery, page, limit],
@@ -112,14 +114,48 @@ export const ProjectsPage: React.FC = () => {
       ),
     },
     {
+      key: 'validFrom',
+      header: 'Valid From',
+      render: row => (row.validFrom ? dayjs(row.validFrom).format('DD MMM YYYY') : '—'),
+    },
+    {
+      key: 'validTo',
+      header: 'Valid To',
+      render: row => (row.validTo ? dayjs(row.validTo).format('DD MMM YYYY') : '—'),
+    },
+    {
+      key: 'sessions',
+      header: 'Sessions',
+      render: row => (
+        <Button
+          size="sm"
+          variant="secondary"
+          leftIcon={<RiCalendarLine size={16} />}
+          onClick={() => navigate(`/projects/${row.id}/sessions`)}
+        >
+          View Sessions
+        </Button>
+      ),
+    },
+    {
       key: 'counselorCount',
       header: 'Counselors',
       render: row => <CountCell>{row.counselorCount}</CountCell>,
     },
+
     {
       key: 'studentCount',
       header: 'Students',
-      render: row => <CountCell>{row.studentCount}</CountCell>,
+      render: row => (
+        <Button
+          size="sm"
+          variant="secondary"
+          leftIcon={<RiUserLine size={16} />}
+          onClick={() => navigate(`/projects/${row.id}/students`)}
+        >
+          {row.studentCount} Students
+        </Button>
+      ),
     },
     {
       key: 'status',
@@ -127,33 +163,17 @@ export const ProjectsPage: React.FC = () => {
       render: row => getStatusBadge(row.status),
     },
     {
-      key: 'createdAt',
-      header: 'Created',
-      render: row => row.createdAt,
-    },
-    {
       key: 'actions',
       header: 'Actions',
       render: row => (
         <ActionIconButtonGroup>
-          <Tooltip content="Schedules">
-            <ActionIconButton
-              aria-label="View Schedules"
-              onClick={() => setProjectForSchedules(row)}
-            >
-              <RiCalendarLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
           <Tooltip content="View Project">
             <ActionIconButton aria-label="View Project">
               <RiEyeLine size={16} />
             </ActionIconButton>
           </Tooltip>
           <Tooltip content="Delete Project">
-            <ActionIconButton
-              aria-label="Delete Project"
-              onClick={() => handleDeleteClick(row)}
-            >
+            <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
               <RiDeleteBinLine size={16} />
             </ActionIconButton>
           </Tooltip>
@@ -167,10 +187,7 @@ export const ProjectsPage: React.FC = () => {
       <PageHeader
         title="Projects"
         subtitle="Manage institution projects and counselling initiatives"
-        breadcrumbs={[
-          { label: 'Dashboard', href: ROUTES.DASHBOARD },
-          { label: 'Projects' },
-        ]}
+        breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Projects' }]}
         actions={
           <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
             Add Project
@@ -229,12 +246,6 @@ export const ProjectsPage: React.FC = () => {
         confirmText="Delete"
         cancelText="Cancel"
         isLoading={deleteMutation.isPending}
-      />
-
-      <ProjectSchedulesModal
-        isOpen={Boolean(projectForSchedules)}
-        onClose={() => setProjectForSchedules(null)}
-        project={projectForSchedules}
       />
     </ProjectsContainer>
   );

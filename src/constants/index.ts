@@ -14,7 +14,10 @@ export const ROUTES = {
   TENANT_MANAGEMENT: '/tenant-management',
   INSTITUTIONS: '/institutions',
   PROJECTS: '/projects',
+  PROJECT_SESSIONS: '/projects/:projectId/sessions',
+  PROJECT_STUDENTS: '/projects/:projectId/students',
   COUNSELORS: '/counselors',
+  REPORTS: '/reports',
 } as const;
 
 export const PLANS = [

@@ -1,0 +1,267 @@
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { Select } from '@/components/Select';
+import { ProjectStudentDetail } from '@/types/project.types';
+
+const FormContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.lg};
+`;
+
+const SectionBox = styled.div`
+  background-color: ${({ theme }) => theme.colors.surfaceHover};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+  padding: ${({ theme }) => theme.spacing.md};
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+const SectionTitle = styled.h4`
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+`;
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: ${({ theme }) => theme.spacing.md};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const counselorsList = [
+  'Anil Iyer',
+  'Mahesh Pillai',
+  'Hema Kurup',
+  'Girish Bhat',
+  'Manoj Chacko',
+];
+
+const timeSlotsList = [
+  '09:30 AM - 10:30 AM',
+  '11:00 AM - 12:00 PM',
+  '02:00 PM - 03:00 PM',
+  '04:00 PM - 05:00 PM',
+];
+
+interface EditStudentModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  student: ProjectStudentDetail | null;
+  onSave: (updated: ProjectStudentDetail) => void;
+  isSaving?: boolean;
+}
+
+export const EditStudentModal: React.FC<EditStudentModalProps> = ({
+  isOpen,
+  onClose,
+  student,
+  onSave,
+  isSaving,
+}) => {
+  const [formData, setFormData] = useState<ProjectStudentDetail | null>(null);
+
+  useEffect(() => {
+    if (student) {
+      setFormData(JSON.parse(JSON.stringify(student)));
+    }
+  }, [student]);
+
+  if (!formData) return null;
+
+  const handleSave = () => {
+    onSave(formData);
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={student?.id ? `Edit Student - ${formData.name}` : 'Add New Student'}
+      subtitle="Modify student personal details, grade, and session counselor assignments."
+      size="lg"
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
+          <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} isLoading={isSaving}>
+            Save Changes
+          </Button>
+        </div>
+      }
+    >
+      <FormContainer>
+        <SectionBox>
+          <SectionTitle>Student Information</SectionTitle>
+          <FormGrid>
+            <Input
+              label="Student Full Name"
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+            />
+            <Input
+              label="Email Address"
+              type="email"
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+            />
+            <Input
+              label="Mobile Number"
+              value={formData.mobile}
+              onChange={e => setFormData({ ...formData, mobile: e.target.value })}
+            />
+            <Select
+              label="Grade / Class"
+              value={formData.grade}
+              onChange={e => setFormData({ ...formData, grade: e.target.value })}
+              options={[
+                { value: '10th', label: '10th Grade' },
+                { value: '11th', label: '11th Grade' },
+                { value: '12th', label: '12th Grade' },
+              ]}
+            />
+          </FormGrid>
+        </SectionBox>
+
+        <SectionBox>
+          <SectionTitle>Session 1 Details</SectionTitle>
+          <FormGrid>
+            <Select
+              label="Session 1 Status"
+              value={formData.session1.status}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  session1: {
+                    ...formData.session1,
+                    status: e.target.value as 'completed' | 'scheduled' | 'pending',
+                  },
+                })
+              }
+              options={[
+                { value: 'scheduled', label: 'Scheduled' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'pending', label: 'Pending' },
+              ]}
+            />
+
+            <Select
+              label="Assigned Counselor"
+              value={formData.session1.counselorName}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  session1: {
+                    ...formData.session1,
+                    counselorName: e.target.value,
+                  },
+                })
+              }
+              options={counselorsList.map(c => ({ value: c, label: c }))}
+            />
+
+            <Input
+              label="Session Date"
+              type="date"
+              value={formData.session1.date}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  session1: { ...formData.session1, date: e.target.value },
+                })
+              }
+            />
+
+            <Select
+              label="Time Slot"
+              value={formData.session1.timeSlot}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  session1: { ...formData.session1, timeSlot: e.target.value },
+                })
+              }
+              options={timeSlotsList.map(t => ({ value: t, label: t }))}
+            />
+          </FormGrid>
+        </SectionBox>
+
+        <SectionBox>
+          <SectionTitle>Session 2 Details</SectionTitle>
+          <FormGrid>
+            <Select
+              label="Session 2 Status"
+              value={formData.session2.status}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  session2: {
+                    ...formData.session2,
+                    status: e.target.value as 'completed' | 'scheduled' | 'pending',
+                  },
+                })
+              }
+              options={[
+                { value: 'scheduled', label: 'Scheduled' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'pending', label: 'Pending' },
+              ]}
+            />
+
+            <Select
+              label="Assigned Counselor"
+              value={formData.session2.counselorName}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  session2: {
+                    ...formData.session2,
+                    counselorName: e.target.value,
+                  },
+                })
+              }
+              options={counselorsList.map(c => ({ value: c, label: c }))}
+            />
+
+            <Input
+              label="Session Date"
+              type="date"
+              value={formData.session2.date}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  session2: { ...formData.session2, date: e.target.value },
+                })
+              }
+            />
+
+            <Select
+              label="Time Slot"
+              value={formData.session2.timeSlot}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  session2: { ...formData.session2, timeSlot: e.target.value },
+                })
+              }
+              options={timeSlotsList.map(t => ({ value: t, label: t }))}
+            />
+          </FormGrid>
+        </SectionBox>
+      </FormContainer>
+    </Modal>
+  );
+};

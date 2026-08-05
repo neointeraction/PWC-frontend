@@ -21,6 +21,15 @@ const CareerListPage = lazy(() =>
 const ProjectsPage = lazy(() =>
   import('@/pages/projects').then(m => ({ default: m.ProjectsPage }))
 );
+const ProjectSessionsPage = lazy(() =>
+  import('@/pages/projects/ProjectSessionsPage').then(m => ({ default: m.ProjectSessionsPage }))
+);
+const ProjectStudentsPage = lazy(() =>
+  import('@/pages/projects/ProjectStudentsPage').then(m => ({ default: m.ProjectStudentsPage }))
+);
+const ReportsPage = lazy(() =>
+  import('@/pages/reports').then(m => ({ default: m.ReportsPage }))
+);
 const CounselorsListPage = lazy(() =>
   import('@/pages/counselors').then(m => ({ default: m.CounselorsListPage }))
 );
@@ -75,6 +84,8 @@ export const AppRoutes: React.FC = () => {
         >
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
           <Route path={ROUTES.PROJECTS} element={<ProjectsPage />} />
+          <Route path={ROUTES.PROJECT_SESSIONS} element={<ProjectSessionsPage />} />
+          <Route path={ROUTES.PROJECT_STUDENTS} element={<ProjectStudentsPage />} />
           <Route path={ROUTES.COUNSELORS} element={<CounselorsListPage />} />
           <Route
             path={ROUTES.TENANT_MANAGEMENT}
@@ -84,14 +95,8 @@ export const AppRoutes: React.FC = () => {
               </SuperAdminRoute>
             }
           />
-          <Route
-            path={ROUTES.CAREER_LIBRARY}
-            element={
-              <SuperAdminRoute>
-                <CareerListPage />
-              </SuperAdminRoute>
-            }
-          />
+          <Route path={ROUTES.CAREER_LIBRARY} element={<CareerListPage />} />
+          <Route path={ROUTES.REPORTS} element={<ReportsPage />} />
           <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
         </Route>
 

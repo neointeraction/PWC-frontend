@@ -180,8 +180,8 @@ interface JobRolesViewProps {
   roles: Career[];
   selectedRoleId?: string;
   onSelectRole: (role: Career) => void;
-  onEditRole: (role: Career) => void;
-  onDeleteRole: (role: Career) => void;
+  onEditRole?: (role: Career) => void;
+  onDeleteRole?: (role: Career) => void;
 }
 
 export const JobRolesView: React.FC<JobRolesViewProps> = ({
@@ -220,26 +220,32 @@ export const JobRolesView: React.FC<JobRolesViewProps> = ({
               </LeftMetaGroup>
 
               <RightSection>
-                <ActionOverlay className="action-overlay" onClick={e => e.stopPropagation()}>
-                  <Tooltip content="Edit Job Role">
-                    <ActionButton
-                      $selected={isSelected}
-                      onClick={() => onEditRole(role)}
-                      aria-label="Edit job role"
-                    >
-                      <RiEditLine size={16} />
-                    </ActionButton>
-                  </Tooltip>
-                  <Tooltip content="Delete Job Role">
-                    <ActionButton
-                      $selected={isSelected}
-                      onClick={() => onDeleteRole(role)}
-                      aria-label="Delete job role"
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </ActionButton>
-                  </Tooltip>
-                </ActionOverlay>
+                {(onEditRole || onDeleteRole) && (
+                  <ActionOverlay className="action-overlay" onClick={e => e.stopPropagation()}>
+                    {onEditRole && (
+                      <Tooltip content="Edit Job Role">
+                        <ActionButton
+                          $selected={isSelected}
+                          onClick={() => onEditRole(role)}
+                          aria-label="Edit job role"
+                        >
+                          <RiEditLine size={16} />
+                        </ActionButton>
+                      </Tooltip>
+                    )}
+                    {onDeleteRole && (
+                      <Tooltip content="Delete Job Role">
+                        <ActionButton
+                          $selected={isSelected}
+                          onClick={() => onDeleteRole(role)}
+                          aria-label="Delete job role"
+                        >
+                          <RiDeleteBinLine size={16} />
+                        </ActionButton>
+                      </Tooltip>
+                    )}
+                  </ActionOverlay>
+                )}
 
                 <OpenProfileBtn $selected={isSelected} className="open-btn">
                   Open profile <RiArrowRightSLine size={18} />

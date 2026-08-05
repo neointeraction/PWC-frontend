@@ -9,7 +9,6 @@ import { ProjectCounselor } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import {
   StepFormContainer,
-  StepTitle,
   StepSubtitle,
   PreviewTableWrapper,
   SummaryRow,
@@ -103,13 +102,10 @@ export const StepCounselors: React.FC = () => {
 
   return (
     <StepFormContainer>
-      <div>
-        <StepTitle>Assign Counselors</StepTitle>
-        <StepSubtitle>
-          Upload a CSV/Excel file with counselor details. The system will validate against existing
-          counselor records.
-        </StepSubtitle>
-      </div>
+      <StepSubtitle>
+        Upload a CSV/Excel file with counselor details. The system will validate against existing
+        counselor records.
+      </StepSubtitle>
 
       <FileUpload
         label="Counselor List"

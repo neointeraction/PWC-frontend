@@ -326,7 +326,7 @@ interface JobRoleDetailViewProps {
   onToggleShortlist: () => void;
   onToggleExamShortlist: (id: string) => void;
   onToggleInstitutionShortlist: (id: string) => void;
-  onEditRole: (role: Career) => void;
+  onEditRole?: (role: Career) => void;
 }
 
 type TabType = 'overview' | 'education' | 'exams' | 'courses' | 'institutions';
@@ -369,11 +369,13 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
               {role.isShortlisted ? <RiStarFill size={16} /> : <RiStarLine size={16} />}
               {role.isShortlisted ? 'Shortlisted' : 'Save to shortlist'}
             </ShortlistButton>
-            <Tooltip content="Edit Role Specification">
-              <GlassEditButton onClick={() => onEditRole(role)}>
-                <RiEditLine size={16} /> Edit Role
-              </GlassEditButton>
-            </Tooltip>
+            {onEditRole && (
+              <Tooltip content="Edit Role Specification">
+                <GlassEditButton onClick={() => onEditRole(role)}>
+                  <RiEditLine size={16} /> Edit Role
+                </GlassEditButton>
+              </Tooltip>
+            )}
           </HeaderActions>
         </BannerHeader>
 

@@ -185,8 +185,8 @@ interface DomainsViewProps {
   domains: CareerDomain[];
   selectedDomainName?: string;
   onSelectDomain: (domain: CareerDomain) => void;
-  onEditDomain: (domain: CareerDomain) => void;
-  onDeleteDomain: (domain: CareerDomain) => void;
+  onEditDomain?: (domain: CareerDomain) => void;
+  onDeleteDomain?: (domain: CareerDomain) => void;
 }
 
 export const DomainsView: React.FC<DomainsViewProps> = ({
@@ -212,26 +212,32 @@ export const DomainsView: React.FC<DomainsViewProps> = ({
                   {getDomainIcon(dom.name)}
                 </IconBadge>
 
-                <ActionOverlay className="action-overlay" onClick={e => e.stopPropagation()}>
-                  <Tooltip content="Edit Domain">
-                    <ActionButton
-                      $selected={isSelected}
-                      onClick={() => onEditDomain(dom)}
-                      aria-label="Edit domain"
-                    >
-                      <RiEditLine size={16} />
-                    </ActionButton>
-                  </Tooltip>
-                  <Tooltip content="Delete Domain">
-                    <ActionButton
-                      $selected={isSelected}
-                      onClick={() => onDeleteDomain(dom)}
-                      aria-label="Delete domain"
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </ActionButton>
-                  </Tooltip>
-                </ActionOverlay>
+                {(onEditDomain || onDeleteDomain) && (
+                  <ActionOverlay className="action-overlay" onClick={e => e.stopPropagation()}>
+                    {onEditDomain && (
+                      <Tooltip content="Edit Domain">
+                        <ActionButton
+                          $selected={isSelected}
+                          onClick={() => onEditDomain(dom)}
+                          aria-label="Edit domain"
+                        >
+                          <RiEditLine size={16} />
+                        </ActionButton>
+                      </Tooltip>
+                    )}
+                    {onDeleteDomain && (
+                      <Tooltip content="Delete Domain">
+                        <ActionButton
+                          $selected={isSelected}
+                          onClick={() => onDeleteDomain(dom)}
+                          aria-label="Delete domain"
+                        >
+                          <RiDeleteBinLine size={16} />
+                        </ActionButton>
+                      </Tooltip>
+                    )}
+                  </ActionOverlay>
+                )}
               </CardTopRow>
 
               <CardTitle $selected={isSelected}>{dom.name}</CardTitle>

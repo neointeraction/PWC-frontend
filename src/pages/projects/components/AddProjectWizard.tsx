@@ -27,8 +27,8 @@ import {
 
 const WIZARD_STEPS: StepConfig[] = [
   { label: 'Institute', description: 'Add institute details', icon: <RiBuildingLine size={16} /> },
-  { label: 'Counselors', description: 'Assign counselors', icon: <RiTeamLine size={16} /> },
   { label: 'Students', description: 'Onboard students', icon: <RiGraduationCapLine size={16} /> },
+  { label: 'Counselors', description: 'Assign counselors', icon: <RiTeamLine size={16} /> },
 ];
 
 export const AddProjectWizard: React.FC = () => {
@@ -68,9 +68,9 @@ export const AddProjectWizard: React.FC = () => {
         return false;
       }
       case 1:
-        return counselors.length === 0;
-      case 2:
         return students.length === 0;
+      case 2:
+        return counselors.length === 0;
       default:
         return false;
     }
@@ -92,9 +92,9 @@ export const AddProjectWizard: React.FC = () => {
       case 0:
         return <StepInstitute />;
       case 1:
-        return <StepCounselors />;
-      case 2:
         return <StepStudents />;
+      case 2:
+        return <StepCounselors />;
       default:
         return null;
     }
@@ -128,7 +128,7 @@ export const AddProjectWizard: React.FC = () => {
           <Button
             rightIcon={<RiArrowRightLine size={16} />}
             onClick={nextStep}
-            disabled={isNextDisabled}
+            // disabled={isNextDisabled}
           >
             Next
           </Button>
@@ -143,14 +143,12 @@ export const AddProjectWizard: React.FC = () => {
       onClose={closeWizard}
       title="Create New Project"
       subtitle="Follow the steps below to set up a new project"
-      size="2xl"
-      closeOnBackdrop={false}
+      size="xl"
       footer={wizardFooter}
     >
       <WizardStepperWrapper>
         <Stepper steps={WIZARD_STEPS} activeStep={wizardStep} />
       </WizardStepperWrapper>
-
       <WizardContent>{renderStepContent()}</WizardContent>
     </Modal>
   );

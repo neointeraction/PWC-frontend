@@ -8,6 +8,7 @@ import {
   RiFolderLine,
   RiUserHeartLine,
   RiArrowLeftSLine,
+  RiFileChartLine,
 } from 'react-icons/ri';
 import { useSidebarStore, useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
@@ -75,6 +76,16 @@ export const Sidebar: React.FC = () => {
       label: 'Projects',
       href: ROUTES.PROJECTS,
       icon: <RiFolderLine size={18} />,
+    },
+    {
+      label: 'Career Library',
+      href: ROUTES.CAREER_LIBRARY,
+      icon: <RiBookOpenLine size={18} />,
+    },
+    {
+      label: 'Report',
+      href: ROUTES.REPORTS,
+      icon: <RiFileChartLine size={18} />,
     },
     {
       label: 'Settings',

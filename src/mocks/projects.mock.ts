@@ -8,6 +8,8 @@ export const mockProjects: Project[] = [
     counselorCount: 4,
     studentCount: 120,
     status: 'active',
+    validFrom: '2026-06-01',
+    validTo: '2026-12-31',
     createdAt: '2026-06-15',
   },
   {
@@ -17,6 +19,8 @@ export const mockProjects: Project[] = [
     counselorCount: 3,
     studentCount: 85,
     status: 'active',
+    validFrom: '2026-06-15',
+    validTo: '2026-11-30',
     createdAt: '2026-06-20',
   },
   {
@@ -26,6 +30,8 @@ export const mockProjects: Project[] = [
     counselorCount: 2,
     studentCount: 60,
     status: 'completed',
+    validFrom: '2026-01-10',
+    validTo: '2026-05-10',
     createdAt: '2026-05-10',
   },
   {
@@ -35,6 +41,8 @@ export const mockProjects: Project[] = [
     counselorCount: 5,
     studentCount: 95,
     status: 'draft',
+    validFrom: '2026-07-01',
+    validTo: '2026-12-15',
     createdAt: '2026-07-01',
   },
   {
@@ -44,6 +52,8 @@ export const mockProjects: Project[] = [
     counselorCount: 6,
     studentCount: 200,
     status: 'active',
+    validFrom: '2026-07-10',
+    validTo: '2027-01-31',
     createdAt: '2026-07-10',
   },
   {
@@ -53,6 +63,8 @@ export const mockProjects: Project[] = [
     counselorCount: 3,
     studentCount: 75,
     status: 'draft',
+    validFrom: '2026-08-01',
+    validTo: '2027-02-28',
     createdAt: '2026-07-18',
   },
 ];
