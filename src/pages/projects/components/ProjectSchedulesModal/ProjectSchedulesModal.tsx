@@ -37,11 +37,16 @@ interface ProjectSchedulesModalProps {
 
 // Fixed colors for counselors
 const COUNSELOR_COLORS = [
-  '#5D2384', // Primary
-  '#0891B2', // Info
-  '#16A34A', // Success
-  '#D97706', // Warning
-  '#DC2626', // Danger
+  '#8B5CF6', // Violet
+  '#0891B2', // Cyan
+  '#16A34A', // Green
+  '#D97706', // Amber
+  '#DC2626', // Red
+  '#2563EB', // Blue
+  '#DB2777', // Pink
+  '#EA580C', // Orange
+  '#4F46E5', // Indigo
+  '#0D9488', // Teal
 ];
 
 // Base month for mock data (August 2026)
