@@ -34,7 +34,8 @@ export const Sidebar: React.FC = () => {
   const { pathname } = useLocation();
 
   const isSuperAdmin = role === 'super_admin';
-  const portalLabel = isSuperAdmin ? 'Super Admin' : 'Admin';
+  const isCounselor = role === 'counselor';
+  const portalLabel = isSuperAdmin ? 'Super Admin' : isCounselor ? 'Counselor' : 'Admin';
 
   const superAdminNavItems = [
     {
@@ -82,7 +83,20 @@ export const Sidebar: React.FC = () => {
     },
   ];
 
-  const navItems = isSuperAdmin ? superAdminNavItems : adminNavItems;
+  const counselorNavItems = [
+    {
+      label: 'Dashboard',
+      href: ROUTES.DASHBOARD,
+      icon: <RiDashboardLine size={18} />,
+    },
+    {
+      label: 'Settings',
+      href: ROUTES.SETTINGS,
+      icon: <RiSettings4Line size={18} />,
+    },
+  ];
+
+  const navItems = isSuperAdmin ? superAdminNavItems : isCounselor ? counselorNavItems : adminNavItems;
 
   const isActive = (href: string) => {
     if (href === ROUTES.DASHBOARD) return pathname === href;
@@ -99,7 +113,7 @@ export const Sidebar: React.FC = () => {
       <SidebarNav $collapsed={isCollapsed}>
         <NavSection>
           <NavSectionLabel $collapsed={isCollapsed}>
-            {isSuperAdmin ? 'Super Admin Menu' : 'Admin Menu'}
+            {isSuperAdmin ? 'Super Admin Menu' : isCounselor ? 'Counselor Menu' : 'Admin Menu'}
           </NavSectionLabel>
           {navItems.map(item => (
             <NavItem
