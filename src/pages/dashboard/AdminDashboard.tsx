@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   BarChart,
   Bar,
@@ -14,8 +14,6 @@ import {
 } from 'recharts';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
-import { Table, Column } from '@/components/Table';
-import { Badge } from '@/components/Badge';
 import { useTheme } from 'styled-components';
 import { DASHBOARD_MOCKS } from '@/mocks/dashboard.mock';
 import {
@@ -35,70 +33,6 @@ import {
 export const AdminDashboard: React.FC = () => {
   const theme = useTheme();
 
-  // Project Columns
-  const projectColumns: Column<any>[] = useMemo(
-    () => [
-      {
-        key: 'name',
-        header: 'Project Name',
-        accessor: 'name',
-      },
-      {
-        key: 'endDate',
-        header: 'End Date',
-        accessor: 'endDate',
-      },
-      {
-        key: 'counselors',
-        header: 'Counselors',
-        accessor: 'counselors',
-      },
-      {
-        key: 'students',
-        header: 'Students',
-        accessor: 'students',
-      },
-      {
-        key: 'sessions',
-        header: 'Sessions',
-        accessor: 'sessions',
-      },
-    ],
-    []
-  );
-
-  // Pending Reports Columns
-  const reportColumns: Column<any>[] = useMemo(
-    () => [
-      {
-        key: 'studentName',
-        header: 'Student Name',
-        accessor: 'studentName',
-      },
-      {
-        key: 'counselorName',
-        header: 'Counselor Name',
-        accessor: 'counselorName',
-      },
-      {
-        key: 'dueDate',
-        header: 'Due Date',
-        accessor: 'dueDate',
-      },
-      {
-        key: 'status',
-        header: 'Status',
-        accessor: 'status',
-        cell: (row: any) => (
-          <Badge variant={row.status === 'Overdue' ? 'danger' : 'warning'}>
-            {row.status}
-          </Badge>
-        ),
-      },
-    ],
-    []
-  );
-
   return (
     <DashboardContainer>
       <PageHeader
@@ -108,7 +42,7 @@ export const AdminDashboard: React.FC = () => {
       />
 
       {/* Top Stats Grid */}
-      <StatsGrid>
+      <StatsGrid style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
         <Card title="Total Projects">
           <StatMetricValue>{DASHBOARD_MOCKS.stats.totalProjects}</StatMetricValue>
           <MetaText>Active projects</MetaText>
@@ -116,14 +50,6 @@ export const AdminDashboard: React.FC = () => {
         <Card title="Total Counselors">
           <StatMetricValue>{DASHBOARD_MOCKS.stats.totalCounselors}</StatMetricValue>
           <MetaText>Assigned counselors</MetaText>
-        </Card>
-        <Card title="Total Students">
-          <StatMetricValue>{DASHBOARD_MOCKS.stats.totalStudents}</StatMetricValue>
-          <MetaText>Enrolled students</MetaText>
-        </Card>
-        <Card title="Total Sessions">
-          <StatMetricValue>{DASHBOARD_MOCKS.stats.totalSessions}</StatMetricValue>
-          <MetaText>Counseling sessions</MetaText>
         </Card>
       </StatsGrid>
 
@@ -197,16 +123,8 @@ export const AdminDashboard: React.FC = () => {
         </Card>
       </ChartsGrid>
 
-      {/* Main Content Grid 1: Projects Table & Upcoming Sessions */}
-      <MainContentGrid>
-        <Card title="Projects Overview" subtitle="List of projects and their metrics">
-          <Table
-            data={DASHBOARD_MOCKS.projects}
-            columns={projectColumns}
-            keyExtractor={(row) => row.id}
-          />
-        </Card>
-        
+      {/* Main Content Grid: Upcoming Counseling Sessions */}
+      <MainContentGrid style={{ gridTemplateColumns: '1fr' }}>
         <Card title="Upcoming Counseling Sessions">
           <ListContainer>
             {DASHBOARD_MOCKS.upcomingSessions.map((session) => (
@@ -220,30 +138,8 @@ export const AdminDashboard: React.FC = () => {
           </ListContainer>
         </Card>
       </MainContentGrid>
-
-      {/* Main Content Grid 2: Pending Reports & Career Requests */}
-      <MainContentGrid>
-        <Card title="Pending Student Reports" subtitle="Detailed list of specific pending reports">
-          <Table
-            data={DASHBOARD_MOCKS.pendingReports}
-            columns={reportColumns}
-            keyExtractor={(row) => row.id}
-          />
-        </Card>
-
-        <Card title="Career Library Requests">
-          <ListContainer>
-            {DASHBOARD_MOCKS.careerRequests.map((req) => (
-              <ListItem key={req.id}>
-                <ListItemTitle>{req.title}</ListItemTitle>
-                <ListItemMeta>
-                  Requested by: {req.requestedBy} • {req.date}
-                </ListItemMeta>
-              </ListItem>
-            ))}
-          </ListContainer>
-        </Card>
-      </MainContentGrid>
     </DashboardContainer>
   );
 };
+
+export default AdminDashboard;

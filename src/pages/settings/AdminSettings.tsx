@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 import {
-  RiBuilding4Line,
   RiShieldLine,
   RiPaletteLine,
   RiSaveLine,
@@ -13,7 +11,6 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { useToast } from '@/hooks';
 import { useThemeStore } from '@/store';
-import { settingsService } from '@/services/settings.service';
 import { ROUTES } from '@/constants';
 
 const TabsContainer = styled.div`
@@ -90,19 +87,10 @@ const ToggleInfo = styled.div`
 `;
 
 export const AdminSettings: React.FC = () => {
-  const queryClient = useQueryClient();
   const toast = useToast();
   const { theme, toggleTheme } = useThemeStore();
 
-  const [instTab, setInstTab] = useState<'institution' | 'security' | 'appearance'>('institution');
-
-  const [institutionForm, setInstitutionForm] = useState({
-    name: 'Phoenix Water Club Career Institute',
-    email: 'sarah.connor@pwc-global.com',
-    phone: '+1 (555) 234-5678',
-    address: '750 Academic Parkway, San Francisco, CA 94107',
-    website: 'https://careers.phoenixwaterclub.edu',
-  });
+  const [activeTab, setActiveTab] = useState<'security' | 'appearance'>('security');
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -110,87 +98,25 @@ export const AdminSettings: React.FC = () => {
     confirmPassword: '',
   });
 
-  const updateProfileMutation = useMutation({
-    mutationFn: settingsService.updateInstitutionProfile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['institution-profile'] });
-      toast.success('Profile Saved', 'Updated institution profile information.');
-    },
-  });
-
   return (
     <div>
       <PageHeader
         title="Settings"
-        subtitle="Manage your institution preferences, security, and appearance settings."
+        subtitle="Manage your security policies and appearance preferences."
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Settings' }]}
       />
 
       <TabsContainer>
-        <TabButton $active={instTab === 'institution'} onClick={() => setInstTab('institution')}>
-          <RiBuilding4Line size={18} /> Institution
-        </TabButton>
-        <TabButton $active={instTab === 'security'} onClick={() => setInstTab('security')}>
+        <TabButton $active={activeTab === 'security'} onClick={() => setActiveTab('security')}>
           <RiShieldLine size={18} /> Security
         </TabButton>
-        <TabButton $active={instTab === 'appearance'} onClick={() => setInstTab('appearance')}>
+        <TabButton $active={activeTab === 'appearance'} onClick={() => setActiveTab('appearance')}>
           <RiPaletteLine size={18} /> Appearance
         </TabButton>
       </TabsContainer>
 
-      {/* Tab 1: Institution */}
-      {instTab === 'institution' && (
-        <Card
-          title="Institution Details"
-          subtitle="Update public contact info and institution metadata"
-        >
-          <Form
-            onSubmit={e => {
-              e.preventDefault();
-              updateProfileMutation.mutate(institutionForm);
-            }}
-          >
-            <Input
-              label="Institution Name"
-              value={institutionForm.name}
-              onChange={e => setInstitutionForm(prev => ({ ...prev, name: e.target.value }))}
-            />
-            <Input
-              label="Primary Email"
-              type="email"
-              value={institutionForm.email}
-              onChange={e => setInstitutionForm(prev => ({ ...prev, email: e.target.value }))}
-            />
-            <Input
-              label="Phone Number"
-              value={institutionForm.phone}
-              onChange={e => setInstitutionForm(prev => ({ ...prev, phone: e.target.value }))}
-            />
-            <Input
-              label="Physical Address"
-              value={institutionForm.address}
-              onChange={e => setInstitutionForm(prev => ({ ...prev, address: e.target.value }))}
-            />
-            <Input
-              label="Website URL"
-              value={institutionForm.website}
-              onChange={e => setInstitutionForm(prev => ({ ...prev, website: e.target.value }))}
-            />
-            <div>
-              <Button
-                type="submit"
-                leftIcon={<RiSaveLine size={18} />}
-                isLoading={updateProfileMutation.isPending}
-              >
-                Save Changes
-              </Button>
-            </div>
-          </Form>
-        </Card>
-      )}
-
-      {/* Tab 2: Security */}
-      {instTab === 'security' && (
+      {/* Tab 1: Security */}
+      {activeTab === 'security' && (
         <Card
           title="Change Password"
           subtitle="Update your account password to maintain account security"
@@ -247,8 +173,8 @@ export const AdminSettings: React.FC = () => {
         </Card>
       )}
 
-      {/* Tab 3: Appearance */}
-      {instTab === 'appearance' && (
+      {/* Tab 2: Appearance */}
+      {activeTab === 'appearance' && (
         <Card
           title="Appearance & Theme Preferences"
           subtitle="Customize interface mode and visual styling"
@@ -271,3 +197,5 @@ export const AdminSettings: React.FC = () => {
     </div>
   );
 };
+
+export default AdminSettings;

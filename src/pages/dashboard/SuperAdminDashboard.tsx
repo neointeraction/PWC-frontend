@@ -15,7 +15,34 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Loader } from '@/components/Loader';
 import { dashboardService } from '@/services/dashboard.service';
+import { DASHBOARD_MOCKS } from '@/mocks/dashboard.mock';
 import { ROUTES } from '@/constants';
+
+const ListContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const ListItem = styled.div`
+  padding: ${({ theme }) => theme.spacing.md};
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.surface};
+`;
+
+const ListItemTitle = styled.h4`
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  color: ${({ theme }) => theme.colors.text};
+  margin: 0 0 4px 0;
+`;
+
+const ListItemMeta = styled.p`
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  margin: 0;
+`;
 
 const StatsGrid = styled.div`
   display: grid;
@@ -402,6 +429,21 @@ export const SuperAdminDashboard: React.FC = () => {
               </div>
             </QuickActionItem>
           </QuickActionsList>
+
+          <div style={{ marginTop: '24px' }}>
+            <Card title="Career Library Requests" subtitle="Pending requests for new career pathways">
+              <ListContainer>
+                {DASHBOARD_MOCKS.careerRequests.map(req => (
+                  <ListItem key={req.id}>
+                    <ListItemTitle>{req.title}</ListItemTitle>
+                    <ListItemMeta>
+                      Requested by: {req.requestedBy} • {req.date}
+                    </ListItemMeta>
+                  </ListItem>
+                ))}
+              </ListContainer>
+            </Card>
+          </div>
         </Card>
 
         <Card title="Notifications & Reminders" subtitle="System notifications and activity log">

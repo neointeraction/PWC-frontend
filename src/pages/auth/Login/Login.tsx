@@ -11,11 +11,11 @@ import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { LoginPayload } from '@/types';
+import logoImg from '@/assets/logo.png';
 import {
   LoginWrapper,
   LoginCard,
   LogoWrapper,
-  LogoIcon,
   LogoTextWrapper,
   LogoTitle,
   LogoSubtitle,
@@ -55,7 +55,11 @@ export const LoginPage: React.FC = () => {
     mutationFn: (payload: LoginPayload) => authService.login(payload),
     onSuccess: data => {
       login(data.user, data.token);
-      navigate(ROUTES.DASHBOARD);
+      if (data.user.role === 'counselor') {
+        navigate(ROUTES.RESET_PASSWORD);
+      } else {
+        navigate(ROUTES.DASHBOARD);
+      }
     },
   });
 
@@ -78,7 +82,7 @@ export const LoginPage: React.FC = () => {
     <LoginWrapper>
       <LoginCard>
         <LogoWrapper>
-          <LogoIcon>k</LogoIcon>
+          <img src={logoImg} alt="kREATE Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} />
           <LogoTextWrapper>
             <LogoTitle>kREATE Portal</LogoTitle>
             <LogoSubtitle>Career Counselling Platform</LogoSubtitle>
