@@ -127,6 +127,47 @@ export const TenantManagementPage: React.FC = () => {
 
   const columns: Column<UserRecord>[] = [
     {
+      key: 'actions',
+      header: 'Actions',
+      render: row => (
+        <ActionIconButtonGroup>
+          <Tooltip content="View Credentials">
+            <ActionIconButton
+              aria-label="View Credentials"
+              onClick={() => openCredentialsModal(row)}
+            >
+              <RiKeyLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip content="View Profile">
+            <ActionIconButton aria-label="View Profile" onClick={() => openViewModal(row)}>
+              <RiEyeLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip content="Edit Tenant">
+            <ActionIconButton aria-label="Edit Tenant" onClick={() => openEditModal(row)}>
+              <RiEditLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip
+            content={
+              (data?.total ?? data?.data?.length ?? 0) <= 1
+                ? 'Cannot delete the only tenant'
+                : 'Delete Tenant'
+            }
+          >
+            <ActionIconButton
+              aria-label="Delete Tenant"
+              disabled={(data?.total ?? data?.data?.length ?? 0) <= 1}
+              onClick={() => handleDeleteClick(row)}
+            >
+              <RiDeleteBinLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+        </ActionIconButtonGroup>
+      ),
+    },
+    {
       key: 'name',
       header: 'Tenant Name & Contact',
       render: row => (
@@ -164,51 +205,6 @@ export const TenantManagementPage: React.FC = () => {
       key: 'lastActive',
       header: 'Last Active',
       render: row => row.lastActive || 'N/A',
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: row => (
-        <ActionIconButtonGroup>
-          <Tooltip content="View Credentials">
-            <ActionIconButton
-              aria-label="View Credentials"
-              onClick={() => openCredentialsModal(row)}
-            >
-              <RiKeyLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip content="View Profile">
-            <ActionIconButton aria-label="View Profile" onClick={() => openViewModal(row)}>
-              <RiEyeLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip content="Edit Tenant">
-            <ActionIconButton aria-label="Edit Tenant" onClick={() => openEditModal(row)}>
-              <RiEditLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip
-            content={
-              (data?.total ?? data?.data?.length ?? 0) <= 1
-                ? 'Cannot delete the only tenant'
-                : 'Delete Tenant'
-            }
-          >
-            <ActionIconButton
-              aria-label="Delete Tenant"
-              disabled={(data?.total ?? data?.data?.length ?? 0) <= 1}
-              onClick={() => {
-                if ((data?.total ?? data?.data?.length ?? 0) > 1) {
-                  handleDeleteClick(row);
-                }
-              }}
-            >
-              <RiDeleteBinLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-        </ActionIconButtonGroup>
-      ),
     },
   ];
 

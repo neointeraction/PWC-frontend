@@ -194,14 +194,6 @@ export const ModifySessionModal: React.FC<ModifySessionModalProps> = ({
   };
 
   const studentColumns: Column<ProjectStudent>[] = [
-    { key: 'name', header: 'Student Name' },
-    { key: 'email', header: 'Email' },
-    { key: 'mobile', header: 'Mobile' },
-    {
-      key: 'grade',
-      header: 'Grade',
-      render: row => <Badge variant="default">{row.grade}</Badge>,
-    },
     {
       key: 'email',
       header: 'Action',
@@ -210,6 +202,14 @@ export const ModifySessionModal: React.FC<ModifySessionModalProps> = ({
           <RiCloseLine size={16} />
         </ActionBtn>
       ),
+    },
+    { key: 'name', header: 'Student Name' },
+    { key: 'email', header: 'Email' },
+    { key: 'mobile', header: 'Mobile' },
+    {
+      key: 'grade',
+      header: 'Grade',
+      render: row => <Badge variant="default">{row.grade}</Badge>,
     },
   ];
 

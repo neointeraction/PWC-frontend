@@ -92,6 +92,32 @@ export const CounselorsListPage: React.FC = () => {
 
   const columns: Column<Counselor>[] = [
     {
+      key: 'actions',
+      header: 'Actions',
+      width: '120px',
+      render: row => (
+        <ActionIconButtonGroup>
+          <Tooltip content="View Details">
+            <ActionIconButton aria-label="View Details" onClick={() => openViewModal(row)}>
+              <RiEyeLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+
+          <Tooltip content="Edit Counselor">
+            <ActionIconButton aria-label="Edit Counselor" onClick={() => openEditModal(row)}>
+              <RiEditLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+
+          <Tooltip content="Delete Counselor">
+            <ActionIconButton aria-label="Delete Counselor" onClick={() => setCounselorToDelete(row)}>
+              <RiDeleteBinLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+        </ActionIconButtonGroup>
+      ),
+    },
+    {
       key: 'counselorId',
       header: 'Counsellor ID',
       width: '120px',
@@ -139,32 +165,6 @@ export const CounselorsListPage: React.FC = () => {
         <Badge variant={row.status === 'active' ? 'success' : 'default'} dot>
           {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
         </Badge>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      width: '120px',
-      render: row => (
-        <ActionIconButtonGroup>
-          <Tooltip content="View Details">
-            <ActionIconButton aria-label="View Details" onClick={() => openViewModal(row)}>
-              <RiEyeLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-
-          <Tooltip content="Edit Counselor">
-            <ActionIconButton aria-label="Edit Counselor" onClick={() => openEditModal(row)}>
-              <RiEditLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-
-          <Tooltip content="Delete Counselor">
-            <ActionIconButton aria-label="Delete Counselor" onClick={() => setCounselorToDelete(row)}>
-              <RiDeleteBinLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-        </ActionIconButtonGroup>
       ),
     },
   ];

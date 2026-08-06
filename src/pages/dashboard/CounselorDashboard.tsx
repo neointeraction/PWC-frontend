@@ -44,19 +44,6 @@ export const CounselorDashboard: React.FC = () => {
   };
 
   const columns: Column<Student>[] = [
-    { key: 'name', header: 'Student Name' },
-    { key: 'email', header: 'Email' },
-    { key: 'school', header: 'School' },
-    { key: 'grade', header: 'Grade' },
-    {
-      key: 'formStatus',
-      header: 'Form Status',
-      render: (row) => (
-        <Badge variant={row.formStatus === 'submitted' ? 'success' : 'warning'}>
-          {row.formStatus === 'submitted' ? 'Submitted' : 'Pending'}
-        </Badge>
-      ),
-    },
     {
       key: 'actions',
       header: 'Actions',
@@ -86,6 +73,19 @@ export const CounselorDashboard: React.FC = () => {
             </Tooltip>
           )}
         </div>
+      ),
+    },
+    { key: 'name', header: 'Student Name' },
+    { key: 'email', header: 'Email' },
+    { key: 'school', header: 'School' },
+    { key: 'grade', header: 'Grade' },
+    {
+      key: 'formStatus',
+      header: 'Form Status',
+      render: (row) => (
+        <Badge variant={row.formStatus === 'submitted' ? 'success' : 'warning'}>
+          {row.formStatus === 'submitted' ? 'Submitted' : 'Pending'}
+        </Badge>
       ),
     },
   ];

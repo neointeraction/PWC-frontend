@@ -3,6 +3,8 @@ export const ROUTES = {
   RESET_PASSWORD: '/reset-password',
   DASHBOARD: '/dashboard',
   UPCOMING_SESSIONS: '/upcoming-sessions',
+  COUNSELOR_STUDENT_CHART: '/counselor/student-chart/:sessionId',
+  GENERATE_REPORT: '/counselor/report/:sessionId',
   STUDENT_PORTAL: '/student-portal',
   STUDENTS: '/students',
   STUDENTS_UPLOAD: '/students/upload',

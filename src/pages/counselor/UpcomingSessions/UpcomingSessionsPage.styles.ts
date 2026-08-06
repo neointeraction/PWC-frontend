@@ -127,3 +127,41 @@ export const TextareaInput = styled.textarea`
     border-color: ${({ theme }) => theme.colors.primary};
   }
 `;
+
+export const ActionIconButtonGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+export const ActionIconButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+  width: 32px;
+  height: 32px;
+  border: 1px solid
+    ${({ $variant, theme }) =>
+      $variant === 'primary' ? theme.colors.primary : theme.colors.border};
+  border-radius: 4px;
+  background-color: ${({ $variant, theme }) =>
+    $variant === 'primary' ? theme.colors.primary : theme.colors.surface};
+  color: ${({ $variant, theme }) =>
+    $variant === 'primary' ? '#FFFFFF' : theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ $variant, theme }) => ($variant === 'primary' ? '#FFFFFF' : theme.colors.primary)};
+    background-color: ${({ $variant, theme }) =>
+      $variant === 'primary'
+        ? theme.colors.primaryHover || theme.colors.primary
+        : theme.colors.primaryLight || 'rgba(79, 70, 229, 0.05)'};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;

@@ -102,6 +102,24 @@ export const ProjectsPage: React.FC = () => {
 
   const columns: Column<Project>[] = [
     {
+      key: 'actions',
+      header: 'Actions',
+      render: row => (
+        <ActionIconButtonGroup>
+          <Tooltip content="View Project">
+            <ActionIconButton aria-label="View Project">
+              <RiEyeLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip content="Delete Project">
+            <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
+              <RiDeleteBinLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+        </ActionIconButtonGroup>
+      ),
+    },
+    {
       key: 'name',
       header: 'Project',
       render: row => (
@@ -135,7 +153,6 @@ export const ProjectsPage: React.FC = () => {
         </Button>
       ),
     },
-
     {
       key: 'studentCount',
       header: 'Students',
@@ -154,24 +171,6 @@ export const ProjectsPage: React.FC = () => {
       key: 'status',
       header: 'Status',
       render: row => getStatusBadge(row.status),
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: row => (
-        <ActionIconButtonGroup>
-          <Tooltip content="View Project">
-            <ActionIconButton aria-label="View Project">
-              <RiEyeLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip content="Delete Project">
-            <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
-              <RiDeleteBinLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-        </ActionIconButtonGroup>
-      ),
     },
   ];
 

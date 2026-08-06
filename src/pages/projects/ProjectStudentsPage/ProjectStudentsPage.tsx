@@ -122,6 +122,20 @@ export const ProjectStudentsPage: React.FC = () => {
 
   const columns: Column<ProjectStudentDetail>[] = [
     {
+      key: 'id',
+      header: 'Actions',
+      width: '80px',
+      render: row => (
+        <ActionIconButtonGroup>
+          <Tooltip content="Edit Student & Sessions">
+            <ActionIconButton onClick={() => setEditingStudent(row)}>
+              <RiEditLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+        </ActionIconButtonGroup>
+      ),
+    },
+    {
       key: 'name',
       header: 'Student Info',
       width: '220px',
@@ -168,20 +182,6 @@ export const ProjectStudentsPage: React.FC = () => {
         <SessionTimeText>
           <RiTimeLine size={13} /> {row.session2.date} ({row.session2.timeSlot})
         </SessionTimeText>
-      ),
-    },
-    {
-      key: 'id',
-      header: 'Actions',
-      width: '80px',
-      render: row => (
-        <ActionIconButtonGroup>
-          <Tooltip content="Edit Student & Sessions">
-            <ActionIconButton onClick={() => setEditingStudent(row)}>
-              <RiEditLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-        </ActionIconButtonGroup>
       ),
     },
   ];

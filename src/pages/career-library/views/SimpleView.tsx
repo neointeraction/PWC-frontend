@@ -8,7 +8,6 @@ import {
 } from 'react-icons/ri';
 import { Select } from '@/components/Select';
 import { Input } from '@/components/Input';
-import { Badge } from '@/components/Badge';
 import {
   CareerCluster,
   CareerIndustry,
@@ -29,7 +28,6 @@ import {
   RoleItemCard,
   RoleItemHeader,
   RoleItemName,
-  RoleItemDesc,
   RightPanel,
   EmptyDetailCard,
 } from './SimpleView.styles';
@@ -237,12 +235,6 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
                     <RiStarLine size={15} color="#94A3B8" />
                   )}
                 </RoleItemHeader>
-                <RoleItemDesc>{roleItem.oneLineDescription}</RoleItemDesc>
-                <div style={{ marginTop: '4px' }}>
-                  <Badge variant={roleItem.aiResilienceGrading === 'High' ? 'success' : 'warning'}>
-                    AI Resilience: {roleItem.aiResilienceGrading}
-                  </Badge>
-                </div>
               </RoleItemCard>
             );
           })}
