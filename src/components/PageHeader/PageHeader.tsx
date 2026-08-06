@@ -20,16 +20,16 @@ const TopRow = styled.div`
   flex-wrap: wrap;
 `;
 
-const TitleGroup = styled.div`
+const HeaderLeft = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  gap: ${({ theme }) => theme.spacing.md};
 `;
 
-const TitleRow = styled.div`
+const TitleTextGroup = styled.div`
   display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
+  flex-direction: column;
+  gap: 4px;
 `;
 
 const BackButton = styled.button`
@@ -45,6 +45,7 @@ const BackButton = styled.button`
   cursor: pointer;
   transition: all ${({ theme }) => theme.transition.fast};
   flex-shrink: 0;
+  margin-top: 2px;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
@@ -95,19 +96,19 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       </BreadcrumbContainer>
     )}
     <TopRow>
-      <TitleGroup>
-        <TitleRow>
-          {onBack && (
-            <Tooltip content="Go back">
-              <BackButton onClick={onBack} aria-label="Go back">
-                <RiArrowLeftLine size={20} />
-              </BackButton>
-            </Tooltip>
-          )}
+      <HeaderLeft>
+        {onBack && (
+          <Tooltip content="Go back">
+            <BackButton onClick={onBack} aria-label="Go back">
+              <RiArrowLeftLine size={20} />
+            </BackButton>
+          </Tooltip>
+        )}
+        <TitleTextGroup>
           <Title>{title}</Title>
-        </TitleRow>
-        {subtitle && <Subtitle>{subtitle}</Subtitle>}
-      </TitleGroup>
+          {subtitle && <Subtitle>{subtitle}</Subtitle>}
+        </TitleTextGroup>
+      </HeaderLeft>
       {actions && <Actions>{actions}</Actions>}
     </TopRow>
   </PageHeaderWrapper>

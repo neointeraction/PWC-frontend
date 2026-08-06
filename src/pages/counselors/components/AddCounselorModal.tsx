@@ -17,6 +17,7 @@ const addCounselorSchema = z.object({
   name: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email address'),
   mobile: z.string().min(10, 'Mobile number must be at least 10 digits'),
+  meetingLink: z.string().optional(),
   pwd: z.string().optional(),
   status: z.enum(['active', 'inactive']),
 });
@@ -41,6 +42,7 @@ export const AddCounselorModal: React.FC = () => {
       name: '',
       email: '',
       mobile: '',
+      meetingLink: '',
       pwd: '',
       status: 'active',
     },
@@ -109,6 +111,13 @@ export const AddCounselorModal: React.FC = () => {
           placeholder="e.g. 9819093786"
           error={errors.mobile?.message}
           {...register('mobile')}
+        />
+
+        <Input
+          label="GMeet / Zoom Link"
+          placeholder="e.g. https://meet.google.com/abc-defg-hij"
+          error={errors.meetingLink?.message}
+          {...register('meetingLink')}
         />
 
         <Input

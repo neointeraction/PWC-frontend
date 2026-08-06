@@ -45,6 +45,24 @@ export const ViewCounselorModal: React.FC = () => {
         </DetailItem>
 
         <DetailItem>
+          <label>GMeet / Zoom Link</label>
+          <p>
+            {selectedCounselorForView.meetingLink ? (
+              <a
+                href={selectedCounselorForView.meetingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#5D2384', textDecoration: 'underline' }}
+              >
+                {selectedCounselorForView.meetingLink}
+              </a>
+            ) : (
+              'N/A'
+            )}
+          </p>
+        </DetailItem>
+
+        <DetailItem>
           <label>Account Status</label>
           <div>
             <Badge variant={selectedCounselorForView.status === 'active' ? 'success' : 'default'} dot>
