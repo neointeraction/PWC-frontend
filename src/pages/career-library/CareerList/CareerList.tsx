@@ -15,13 +15,45 @@ import { IndustriesView } from '../views/IndustriesView';
 import { DomainsView } from '../views/DomainsView';
 import { JobRolesView } from '../views/JobRolesView';
 import { JobRoleDetailView } from '../views/JobRoleDetailView';
+import { SimpleView } from '../views/SimpleView';
 import { AddEditModal, AddEditFormData } from '../modals/AddEditModal';
 import { BulkUploadModal } from './BulkUploadModal';
-import { RiAddLine, RiUploadCloudLine } from 'react-icons/ri';
+import { RiAddLine, RiUploadCloudLine, RiLayoutGridLine, RiListCheck2 } from 'react-icons/ri';
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
+`;
+
+const ViewToggleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+  padding: 3px;
+`;
+
+const ViewToggleButton = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: none;
+  background-color: ${({ $active, theme }) =>
+    $active ? theme.colors.primary : 'transparent'};
+  color: ${({ $active, theme }) =>
+    $active ? '#ffffff' : theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  cursor: pointer;
+  transition: all ${({ theme }) => theme.transition.fast};
+
+  &:hover {
+    color: ${({ $active }) => ($active ? '#ffffff' : '#5D2384')};
+  }
 `;
 
 const ContentCard = styled.div`
@@ -37,6 +69,7 @@ export const CareerListPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  const [viewMode, setViewMode] = useState<'card' | 'simple'>('card');
   const [level, setLevel] = useState<LevelType>('clusters');
   const [selectedCluster, setSelectedCluster] = useState<CareerCluster | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState<CareerIndustry | null>(null);
@@ -449,130 +482,174 @@ export const CareerListPage: React.FC = () => {
   return (
     <Container>
       <PageHeader
-        title={getHeaderTitle()}
-        subtitle={getHeaderSubtitle()}
+        title={viewMode === 'simple' ? 'Career Library Spec Browser' : getHeaderTitle()}
+        subtitle={
+          viewMode === 'simple'
+            ? 'Select hierarchy options on the left panel to inspect full job role specifications'
+            : getHeaderSubtitle()
+        }
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Career Library' }]}
-        onBack={level !== 'clusters' ? handleBack : undefined}
+        onBack={viewMode === 'card' && level !== 'clusters' ? handleBack : undefined}
         actions={
-          isSuperAdmin && level !== 'detail' ? (
-            <>
-              {level === 'clusters' && (
-                <Button
-                  variant="secondary"
-                  leftIcon={<RiUploadCloudLine size={18} />}
-                  onClick={() => setIsBulkUploadOpen(true)}
-                >
-                  Bulk Upload
-                </Button>
-              )}
-              {addLabel && (
-                <Button leftIcon={<RiAddLine size={18} />} onClick={handleOpenAddModal}>
-                  {addLabel}
-                </Button>
-              )}
-            </>
-          ) : undefined
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <ViewToggleContainer>
+              <ViewToggleButton
+                $active={viewMode === 'card'}
+                onClick={() => setViewMode('card')}
+              >
+                <RiLayoutGridLine size={16} /> Card View
+              </ViewToggleButton>
+              <ViewToggleButton
+                $active={viewMode === 'simple'}
+                onClick={() => {
+                  setViewMode('simple');
+                  if (!selectedCluster && clusters.length > 0) {
+                    setSelectedCluster(clusters[0]);
+                  }
+                }}
+              >
+                <RiListCheck2 size={16} /> Simple View
+              </ViewToggleButton>
+            </ViewToggleContainer>
+
+            {isSuperAdmin && viewMode === 'card' && level !== 'detail' && (
+              <>
+                {level === 'clusters' && (
+                  <Button
+                    variant="secondary"
+                    leftIcon={<RiUploadCloudLine size={18} />}
+                    onClick={() => setIsBulkUploadOpen(true)}
+                  >
+                    Bulk Upload
+                  </Button>
+                )}
+                {addLabel && (
+                  <Button leftIcon={<RiAddLine size={18} />} onClick={handleOpenAddModal}>
+                    {addLabel}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         }
       />
 
-      <ContentCard>
-        <BreadcrumbHeader
-          steps={getBreadcrumbs()}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+      {viewMode === 'simple' ? (
+        <SimpleView
+          clusters={clusters}
+          industries={industries}
+          domains={domains}
+          roles={roles}
+          entranceExams={entranceExams}
+          courses={courses}
+          institutions={institutions}
+          onToggleShortlist={id => toggleShortlistMutation.mutate(id)}
+          onToggleExamShortlist={id => toggleExamShortlistMutation.mutate(id)}
+          onToggleInstitutionShortlist={id => toggleInstShortlistMutation.mutate(id)}
+          onEditRole={
+            isSuperAdmin ? roleItem => handleOpenEditModal('role', roleItem) : undefined
+          }
         />
-
-        {level === 'clusters' && (
-          <ClustersView
-            clusters={clusters}
-            selectedClusterName={selectedCluster?.name || 'Arts, Design & Creative'}
-            onSelectCluster={cluster => {
-              setSelectedCluster(cluster);
-              setLevel('industries');
-            }}
-            onEditCluster={
-              isSuperAdmin ? cluster => handleOpenEditModal('cluster', cluster) : undefined
-            }
-            onDeleteCluster={
-              isSuperAdmin
-                ? cluster => setDeleteTarget({ type: 'cluster', id: cluster.id, name: cluster.name })
-                : undefined
-            }
+      ) : (
+        <ContentCard>
+          <BreadcrumbHeader
+            steps={getBreadcrumbs()}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
           />
-        )}
 
-        {level === 'industries' && (
-          <IndustriesView
-            industries={industries}
-            selectedIndustryName={selectedIndustry?.name || 'Applied Arts'}
-            onSelectIndustry={ind => {
-              setSelectedIndustry(ind);
-              setLevel('domains');
-            }}
-            onEditIndustry={
-              isSuperAdmin ? ind => handleOpenEditModal('industry', ind) : undefined
-            }
-            onDeleteIndustry={
-              isSuperAdmin
-                ? ind => setDeleteTarget({ type: 'industry', id: ind.id, name: ind.name })
-                : undefined
-            }
-          />
-        )}
+          {level === 'clusters' && (
+            <ClustersView
+              clusters={clusters}
+              selectedClusterName={selectedCluster?.name || 'Arts, Design & Creative'}
+              onSelectCluster={cluster => {
+                setSelectedCluster(cluster);
+                setLevel('industries');
+              }}
+              onEditCluster={
+                isSuperAdmin ? cluster => handleOpenEditModal('cluster', cluster) : undefined
+              }
+              onDeleteCluster={
+                isSuperAdmin
+                  ? cluster => setDeleteTarget({ type: 'cluster', id: cluster.id, name: cluster.name })
+                  : undefined
+              }
+            />
+          )}
 
-        {level === 'domains' && (
-          <DomainsView
-            domains={domains}
-            selectedDomainName={selectedDomain?.name || 'Digital Arts'}
-            onSelectDomain={dom => {
-              setSelectedDomain(dom);
-              setLevel('roles');
-            }}
-            onEditDomain={
-              isSuperAdmin ? dom => handleOpenEditModal('domain', dom) : undefined
-            }
-            onDeleteDomain={
-              isSuperAdmin
-                ? dom => setDeleteTarget({ type: 'domain', id: dom.id, name: dom.name })
-                : undefined
-            }
-          />
-        )}
+          {level === 'industries' && (
+            <IndustriesView
+              industries={industries}
+              selectedIndustryName={selectedIndustry?.name || 'Applied Arts'}
+              onSelectIndustry={ind => {
+                setSelectedIndustry(ind);
+                setLevel('domains');
+              }}
+              onEditIndustry={
+                isSuperAdmin ? ind => handleOpenEditModal('industry', ind) : undefined
+              }
+              onDeleteIndustry={
+                isSuperAdmin
+                  ? ind => setDeleteTarget({ type: 'industry', id: ind.id, name: ind.name })
+                  : undefined
+              }
+            />
+          )}
 
-        {level === 'roles' && (
-          <JobRolesView
-            roles={roles}
-            selectedRoleId={selectedRole?.id || 'role-ui-1'}
-            onSelectRole={role => {
-              setSelectedRole(role);
-              setLevel('detail');
-            }}
-            onEditRole={
-              isSuperAdmin ? role => handleOpenEditModal('role', role) : undefined
-            }
-            onDeleteRole={
-              isSuperAdmin
-                ? role => setDeleteTarget({ type: 'role', id: role.id, name: role.jobRole })
-                : undefined
-            }
-          />
-        )}
+          {level === 'domains' && (
+            <DomainsView
+              domains={domains}
+              selectedDomainName={selectedDomain?.name || 'Digital Arts'}
+              onSelectDomain={dom => {
+                setSelectedDomain(dom);
+                setLevel('roles');
+              }}
+              onEditDomain={
+                isSuperAdmin ? dom => handleOpenEditModal('domain', dom) : undefined
+              }
+              onDeleteDomain={
+                isSuperAdmin
+                  ? dom => setDeleteTarget({ type: 'domain', id: dom.id, name: dom.name })
+                  : undefined
+              }
+            />
+          )}
 
-        {level === 'detail' && selectedRole && (
-          <JobRoleDetailView
-            role={selectedRole}
-            entranceExams={entranceExams}
-            courses={courses}
-            institutions={institutions}
-            onToggleShortlist={() => toggleShortlistMutation.mutate(selectedRole.id)}
-            onToggleExamShortlist={id => toggleExamShortlistMutation.mutate(id)}
-            onToggleInstitutionShortlist={id => toggleInstShortlistMutation.mutate(id)}
-            onEditRole={
-              isSuperAdmin ? role => handleOpenEditModal('role', role) : undefined
-            }
-          />
-        )}
-      </ContentCard>
+          {level === 'roles' && (
+            <JobRolesView
+              roles={roles}
+              selectedRoleId={selectedRole?.id || 'role-ui-1'}
+              onSelectRole={role => {
+                setSelectedRole(role);
+                setLevel('detail');
+              }}
+              onEditRole={
+                isSuperAdmin ? role => handleOpenEditModal('role', role) : undefined
+              }
+              onDeleteRole={
+                isSuperAdmin
+                  ? role => setDeleteTarget({ type: 'role', id: role.id, name: role.jobRole })
+                  : undefined
+              }
+            />
+          )}
+
+          {level === 'detail' && selectedRole && (
+            <JobRoleDetailView
+              role={selectedRole}
+              entranceExams={entranceExams}
+              courses={courses}
+              institutions={institutions}
+              onToggleShortlist={() => toggleShortlistMutation.mutate(selectedRole.id)}
+              onToggleExamShortlist={id => toggleExamShortlistMutation.mutate(id)}
+              onToggleInstitutionShortlist={id => toggleInstShortlistMutation.mutate(id)}
+              onEditRole={
+                isSuperAdmin ? role => handleOpenEditModal('role', role) : undefined
+              }
+            />
+          )}
+        </ContentCard>
+      )}
 
       {/* Bulk Upload Modal */}
       <BulkUploadModal

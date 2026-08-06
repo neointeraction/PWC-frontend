@@ -14,7 +14,7 @@ import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
 import { Badge } from '@/components/Badge';
 import { useToast } from '@/hooks';
-import { UPCOMING_SESSIONS_MOCK, UpcomingSession } from '@/mocks/upcomingSessions.mock';
+import { getMockUpcomingSessions, UpcomingSession } from '@/mocks/upcomingSessions.mock';
 import {
   Container,
   StudentNameButton,
@@ -34,7 +34,7 @@ import {
 
 export const UpcomingSessionsPage: React.FC = () => {
   const toast = useToast();
-  const [sessions, setSessions] = useState<UpcomingSession[]>(UPCOMING_SESSIONS_MOCK);
+  const [sessions, setSessions] = useState<UpcomingSession[]>(() => getMockUpcomingSessions());
   const [selectedSession, setSelectedSession] = useState<UpcomingSession | null>(null);
 
   // Live notes form state for open modal
@@ -46,7 +46,7 @@ export const UpcomingSessionsPage: React.FC = () => {
     const now = new Date().getTime();
     const sessionTime = new Date(dateTimeStr).getTime();
     const diffMinutes = (sessionTime - now) / (1000 * 60);
-    return diffMinutes <= 30 && diffMinutes >= -90;
+    return diffMinutes <= 30 && diffMinutes >= -360;
   };
 
   const handleOpenAssessmentModal = (session: UpcomingSession) => {

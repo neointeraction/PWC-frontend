@@ -1,4 +1,4 @@
-import{g as n,j as s}from"./index-BIfikPqx.js";const l=n.div`
+import{g as n,j as s}from"./index-BlnJ6RPY.js";const l=n.div`
   background-color: ${({theme:o})=>o.colors.surface};
   border: 1px solid ${({theme:o})=>o.colors.border};
   border-radius: ${({theme:o})=>o.borderRadius.lg};

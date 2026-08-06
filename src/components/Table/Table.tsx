@@ -17,6 +17,8 @@ export interface Column<T> {
   key: string;
   header: string;
   render?: (row: T, index: number) => React.ReactNode;
+  cell?: (row: T, index: number) => React.ReactNode;
+  accessor?: string;
   sortable?: boolean;
   width?: string;
   sticky?: 'left' | 'right';
@@ -55,13 +57,7 @@ export function Table<T>({
   onSelectionChange,
   pagination,
 }: TableProps<T>) {
-  const orderedColumns = useMemo(() => {
-    const actionsCol = columns.find(
-      c => c.key === 'actions' || c.header.toLowerCase() === 'actions'
-    );
-    if (!actionsCol) return columns;
-    return [actionsCol, ...columns.filter(c => c !== actionsCol)];
-  }, [columns]);
+  const orderedColumns = useMemo(() => columns, [columns]);
 
   const allRowIds = useMemo(() => data.map(keyExtractor), [data, keyExtractor]);
   const isAllSelected = useMemo(
@@ -97,8 +93,9 @@ export function Table<T>({
       header: () => col.header,
       accessorFn: (row: T) => (row as Record<string, unknown>)[col.key],
       cell: info => {
-        if (col.render) {
-          return col.render(info.row.original, info.row.index);
+        const renderFn = col.render || col.cell;
+        if (renderFn) {
+          return renderFn(info.row.original, info.row.index);
         }
         const val = (info.row.original as Record<string, unknown>)[col.key];
         return val != null ? String(val) : '—';

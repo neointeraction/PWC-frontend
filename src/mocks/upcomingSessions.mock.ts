@@ -19,10 +19,10 @@ export interface UpcomingSession {
   };
 }
 
-// Generate realistic mock sessions with one starting soon (within 30 mins) for live JOIN button testing
-const getMockUpcomingSessions = (): UpcomingSession[] => {
+// Function to generate fresh mock sessions with an active session (starting in 10 mins) at runtime
+export const getMockUpcomingSessions = (): UpcomingSession[] => {
   const now = new Date();
-  const soonDate = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes from now
+  const soonDate = new Date(now.getTime() + 10 * 60 * 1000); // 10 mins from current time
   const tomorrowDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const nextWeekDate = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
