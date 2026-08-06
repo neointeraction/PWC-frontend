@@ -45,6 +45,9 @@ const StudentFormChartPage = lazy(() =>
 const StudentCareerIkigaiReportPage = lazy(() =>
   import('@/pages/counselor/StudentCareerIkigaiReport').then(m => ({ default: m.StudentCareerIkigaiReportPage }))
 );
+const StudentPortalPage = lazy(() =>
+  import('@/pages/student/StudentPortalPage').then(m => ({ default: m.StudentPortalPage }))
+);
 
 function ProtectedRoute({ children, allowResetOnly }: { children: React.ReactNode; allowResetOnly?: boolean }) {
   const { isAuthenticated, mustResetPassword } = useAuthStore();
@@ -76,6 +79,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     }
     if (role === 'counselor') {
       return <Navigate to={ROUTES.UPCOMING_SESSIONS} replace />;
+    }
+    if (role === 'student') {
+      return <Navigate to={ROUTES.STUDENT_PORTAL} replace />;
     }
     return <Navigate to={ROUTES.DASHBOARD} replace />;
   }
@@ -112,6 +118,7 @@ export const AppRoutes: React.FC = () => {
           }
         >
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+          <Route path={ROUTES.STUDENT_PORTAL} element={<StudentPortalPage />} />
           <Route path={ROUTES.UPCOMING_SESSIONS} element={<UpcomingSessionsPage />} />
           <Route path={ROUTES.COUNSELOR_STUDENT_CHART} element={<StudentFormChartPage />} />
           <Route path={ROUTES.GENERATE_REPORT} element={<StudentCareerIkigaiReportPage />} />

@@ -55,7 +55,7 @@ export const LoginPage: React.FC = () => {
     mutationFn: (payload: LoginPayload) => authService.login(payload),
     onSuccess: data => {
       login(data.user, data.token);
-      if (data.user.role === 'counselor') {
+      if (data.user.role === 'counselor' || data.user.role === 'student') {
         navigate(ROUTES.RESET_PASSWORD);
       } else {
         navigate(ROUTES.DASHBOARD);
@@ -76,6 +76,11 @@ export const LoginPage: React.FC = () => {
   const fillCounselor = () => {
     setValue('email', 'counselor@pwc.com');
     setValue('password', 'counselor123');
+  };
+
+  const fillStudent = () => {
+    setValue('email', 'student@pwc.com');
+    setValue('password', 'student123');
   };
 
   return (
@@ -148,6 +153,9 @@ export const LoginPage: React.FC = () => {
             </Button>
             <Button size="sm" variant="secondary" onClick={fillCounselor}>
               Counselor (counselor@pwc.com)
+            </Button>
+            <Button size="sm" variant="secondary" onClick={fillStudent}>
+              Student (student@pwc.com)
             </Button>
           </DemoButtons>
         </HintBox>

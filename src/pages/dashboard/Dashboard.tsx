@@ -16,6 +16,10 @@ export const DashboardPage: React.FC = () => {
     return <Navigate to={ROUTES.UPCOMING_SESSIONS} replace />;
   }
 
+  if (role === 'student') {
+    return <Navigate to={ROUTES.STUDENT_PORTAL} replace />;
+  }
+
   return <AdminDashboard />;
 };
 

@@ -35,7 +35,7 @@ export const useAuthStore = create<AuthStore>()(
             token,
             role: user.role,
             isAuthenticated: true,
-            mustResetPassword: user.role === 'counselor',
+            mustResetPassword: user.role === 'counselor' || user.role === 'student',
           }),
         logout: () =>
           set({

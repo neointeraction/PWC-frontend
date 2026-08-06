@@ -42,7 +42,7 @@ type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  const setMustResetPassword = useAuthStore(state => state.setMustResetPassword);
+  const { role, setMustResetPassword } = useAuthStore();
 
   const {
     register,
@@ -60,7 +60,13 @@ export const ResetPasswordPage: React.FC = () => {
       'Password Changed Successfully',
       'Your account security details have been updated. Welcome to your portal.'
     );
-    navigate(ROUTES.UPCOMING_SESSIONS);
+    if (role === 'counselor') {
+      navigate(ROUTES.UPCOMING_SESSIONS);
+    } else if (role === 'student') {
+      navigate(ROUTES.STUDENT_PORTAL);
+    } else {
+      navigate(ROUTES.DASHBOARD);
+    }
   };
 
   return (
@@ -77,14 +83,18 @@ export const ResetPasswordPage: React.FC = () => {
         <TitleWrapper>
           <Heading>Mandatory Password Change</Heading>
           <Subtext>
-            Counselor first-time login detected. Please update your temporary account password to proceed.
+            {role === 'student'
+              ? 'Student first-time login detected. Please update your temporary account password to proceed.'
+              : 'Counselor first-time login detected. Please update your temporary account password to proceed.'}
           </Subtext>
         </TitleWrapper>
 
         <SecurityAlertBox>
           <RiShieldKeyholeLine size={20} style={{ color: '#5D2384', flexShrink: 0, marginTop: '2px' }} />
           <AlertText>
-            For privacy and security regulations, counselors are required to set a unique personal password upon first login.
+            {role === 'student'
+              ? 'For privacy and security regulations, students are required to set a unique personal password upon first login.'
+              : 'For privacy and security regulations, counselors are required to set a unique personal password upon first login.'}
           </AlertText>
         </SecurityAlertBox>
 
