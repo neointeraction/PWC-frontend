@@ -92,38 +92,6 @@ export const CounselorsListPage: React.FC = () => {
 
   const columns: Column<Counselor>[] = [
     {
-      key: 'counselorId',
-      header: 'Counsellor ID',
-      width: '120px',
-      render: row => <strong>{row.counselorId}</strong>,
-    },
-    {
-      key: 'name',
-      header: 'Counsellor Name & Email',
-      render: row => (
-        <CounselorCell>
-          <CounselorNameText>{row.name}</CounselorNameText>
-          <CounselorEmailSubtext>{row.email}</CounselorEmailSubtext>
-        </CounselorCell>
-      ),
-    },
-    {
-      key: 'mobile',
-      header: 'Mobile No.',
-      width: '150px',
-      render: row => row.mobile || 'N/A',
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      width: '110px',
-      render: row => (
-        <Badge variant={row.status === 'active' ? 'success' : 'default'} dot>
-          {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
-        </Badge>
-      ),
-    },
-    {
       key: 'actions',
       header: 'Actions',
       width: '120px',
@@ -147,6 +115,56 @@ export const CounselorsListPage: React.FC = () => {
             </ActionIconButton>
           </Tooltip>
         </ActionIconButtonGroup>
+      ),
+    },
+    {
+      key: 'counselorId',
+      header: 'Counsellor ID',
+      width: '120px',
+      render: row => <strong>{row.counselorId}</strong>,
+    },
+    {
+      key: 'name',
+      header: 'Counsellor Name & Email',
+      render: row => (
+        <CounselorCell>
+          <CounselorNameText>{row.name}</CounselorNameText>
+          <CounselorEmailSubtext>{row.email}</CounselorEmailSubtext>
+        </CounselorCell>
+      ),
+    },
+    {
+      key: 'mobile',
+      header: 'Mobile No.',
+      width: '140px',
+      render: row => row.mobile || 'N/A',
+    },
+    {
+      key: 'meetingLink',
+      header: 'GMeet / Zoom Link',
+      width: '200px',
+      render: row =>
+        row.meetingLink ? (
+          <a
+            href={row.meetingLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#5D2384', textDecoration: 'underline', fontSize: '13px' }}
+          >
+            {row.meetingLink}
+          </a>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '100px',
+      render: row => (
+        <Badge variant={row.status === 'active' ? 'success' : 'default'} dot>
+          {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+        </Badge>
       ),
     },
   ];

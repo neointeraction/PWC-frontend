@@ -4,6 +4,7 @@ export interface Counselor {
   name: string;
   mobile: string;
   email: string;
+  meetingLink?: string;
   pwd?: string;
   status: 'active' | 'inactive';
   createdAt: string;
@@ -21,6 +22,7 @@ export interface CreateCounselorInput {
   name: string;
   mobile: string;
   email: string;
+  meetingLink?: string;
   pwd?: string;
   status?: 'active' | 'inactive';
 }
@@ -30,6 +32,7 @@ export interface UpdateCounselorInput {
   name?: string;
   mobile?: string;
   email?: string;
+  meetingLink?: string;
   pwd?: string;
   status?: 'active' | 'inactive';
 }

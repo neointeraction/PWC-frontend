@@ -7,7 +7,6 @@ import {
   RiSearchLine,
   RiEyeLine,
   RiDeleteBinLine,
-  RiCalendarLine,
   RiUserLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
@@ -31,7 +30,6 @@ import {
   ProjectNameCell,
   ProjectNameText,
   ProjectInstituteSubtext,
-  CountCell,
 } from './Projects.styles';
 import { AddProjectWizard } from './components/AddProjectWizard';
 
@@ -104,6 +102,24 @@ export const ProjectsPage: React.FC = () => {
 
   const columns: Column<Project>[] = [
     {
+      key: 'actions',
+      header: 'Actions',
+      render: row => (
+        <ActionIconButtonGroup>
+          <Tooltip content="View Project">
+            <ActionIconButton aria-label="View Project">
+              <RiEyeLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip content="Delete Project">
+            <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
+              <RiDeleteBinLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+        </ActionIconButtonGroup>
+      ),
+    },
+    {
       key: 'name',
       header: 'Project',
       render: row => (
@@ -124,25 +140,19 @@ export const ProjectsPage: React.FC = () => {
       render: row => (row.validTo ? dayjs(row.validTo).format('DD MMM YYYY') : '—'),
     },
     {
-      key: 'sessions',
-      header: 'Sessions',
+      key: 'counselors',
+      header: 'Counselor Sessions',
       render: row => (
         <Button
           size="sm"
           variant="secondary"
-          leftIcon={<RiCalendarLine size={16} />}
+          leftIcon={<RiUserLine size={16} />}
           onClick={() => navigate(`/projects/${row.id}/sessions`)}
         >
-          View Sessions
+          {row.counselorCount} Counselors
         </Button>
       ),
     },
-    {
-      key: 'counselorCount',
-      header: 'Counselors',
-      render: row => <CountCell>{row.counselorCount}</CountCell>,
-    },
-
     {
       key: 'studentCount',
       header: 'Students',
@@ -161,24 +171,6 @@ export const ProjectsPage: React.FC = () => {
       key: 'status',
       header: 'Status',
       render: row => getStatusBadge(row.status),
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: row => (
-        <ActionIconButtonGroup>
-          <Tooltip content="View Project">
-            <ActionIconButton aria-label="View Project">
-              <RiEyeLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip content="Delete Project">
-            <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
-              <RiDeleteBinLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-        </ActionIconButtonGroup>
-      ),
     },
   ];
 

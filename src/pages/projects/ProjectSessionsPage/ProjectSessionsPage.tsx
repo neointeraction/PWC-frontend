@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -57,21 +57,6 @@ interface CounselorSessionCardProps {
 }
 
 const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({ session, onModify }) => {
-  const [studentSearch, setStudentSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const limit = 5;
-
-  const filteredStudents = useMemo(() => {
-    if (!studentSearch) return session.assignedStudents;
-    const q = studentSearch.toLowerCase();
-    return session.assignedStudents.filter(
-      s =>
-        s.name.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
-        s.mobile.toLowerCase().includes(q)
-    );
-  }, [session.assignedStudents, studentSearch]);
-
   return (
     <CounselorCard key={session.id}>
       <CounselorHeader>
@@ -123,34 +108,16 @@ const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({ session, on
       <StudentsSection>
         <StudentsHeaderRow>
           <SectionTitle style={{ margin: 0 }}>
-            Assigned Students ({session.assignedStudents.length})
+            ASSIGNED STUDENT ({session.assignedStudents.length})
           </SectionTitle>
-          <div style={{ width: '240px' }}>
-            <Input
-              placeholder="Search students..."
-              leftIcon={<RiSearchLine size={14} />}
-              value={studentSearch}
-              onChange={e => {
-                setStudentSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
         </StudentsHeaderRow>
 
         <StudentsTableWrapper>
           <Table
             columns={studentColumns}
-            data={filteredStudents}
+            data={session.assignedStudents}
             keyExtractor={row => row.email}
-            emptyMessage="No students found."
-            pagination={{
-              page,
-              limit,
-              total: filteredStudents.length,
-              totalPages: Math.ceil(filteredStudents.length / limit) || 1,
-              onPageChange: setPage,
-            }}
+            emptyMessage="No student assigned."
           />
         </StudentsTableWrapper>
       </StudentsSection>
@@ -216,7 +183,7 @@ export const ProjectSessionsPage: React.FC = () => {
     <Container>
       <PageHeader
         title={`Project Sessions - ${project?.name || 'Career Guidance'}`}
-        subtitle="View counselor time slots and search through high-capacity assigned student lists."
+        subtitle="View counselor time slots and assigned student details."
         breadcrumbs={[
           { label: 'Dashboard', href: ROUTES.DASHBOARD },
           { label: 'Projects', href: ROUTES.PROJECTS },

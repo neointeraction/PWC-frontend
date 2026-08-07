@@ -63,35 +63,18 @@ export const SidebarWrapper = styled.aside<{ $collapsed: boolean }>`
 export const SidebarLogo = styled.div<{ $collapsed: boolean }>`
   display: flex;
   align-items: center;
-  gap: ${({ $collapsed }) => ($collapsed ? '0' : '12px')};
-  padding: 15px ${({ $collapsed, theme }) => ($collapsed ? '0' : theme.spacing.lg)};
   justify-content: ${({ $collapsed }) => ($collapsed ? 'center' : 'flex-start')};
+  padding: 12px ${({ $collapsed, theme }) => ($collapsed ? '0' : theme.spacing.md)};
   border-bottom: 1px solid ${({ theme }) => theme.colors.sidebarBorder};
   min-height: 64px;
   overflow: hidden;
 `;
 
-export const LogoIcon = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, ${({ theme }) => theme.colors.primaryHover} 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 800;
-  font-size: 15px;
+export const LogoImage = styled.img<{ $collapsed?: boolean }>`
+  height: ${({ $collapsed }) => ($collapsed ? '32px' : '38px')};
+  max-width: ${({ $collapsed }) => ($collapsed ? '32px' : '160px')};
+  object-fit: contain;
   flex-shrink: 0;
-`;
-
-export const LogoText = styled.span<{ $collapsed?: boolean }>`
-  font-size: ${({ theme }) => theme.fontSize.md};
-  font-weight: ${({ theme }) => theme.fontWeight.bold};
-  color: ${({ theme }) => theme.colors.text};
-  white-space: nowrap;
-  overflow: hidden;
-  display: ${({ $collapsed }) => ($collapsed ? 'none' : 'block')};
 `;
 
 export const SidebarNav = styled.nav<{ $collapsed?: boolean }>`

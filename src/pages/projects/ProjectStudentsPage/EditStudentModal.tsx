@@ -133,6 +133,19 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 { value: '12th', label: '12th Grade' },
               ]}
             />
+            <Select
+              label="Assigned Counselor"
+              value={formData.session1.counselorName || formData.session2.counselorName}
+              onChange={e => {
+                const val = e.target.value;
+                setFormData({
+                  ...formData,
+                  session1: { ...formData.session1, counselorName: val },
+                  session2: { ...formData.session2, counselorName: val },
+                });
+              }}
+              options={counselorsList.map(c => ({ value: c, label: c }))}
+            />
           </FormGrid>
         </SectionBox>
 
@@ -156,21 +169,6 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 { value: 'completed', label: 'Completed' },
                 { value: 'pending', label: 'Pending' },
               ]}
-            />
-
-            <Select
-              label="Assigned Counselor"
-              value={formData.session1.counselorName}
-              onChange={e =>
-                setFormData({
-                  ...formData,
-                  session1: {
-                    ...formData.session1,
-                    counselorName: e.target.value,
-                  },
-                })
-              }
-              options={counselorsList.map(c => ({ value: c, label: c }))}
             />
 
             <Input
@@ -219,21 +217,6 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 { value: 'completed', label: 'Completed' },
                 { value: 'pending', label: 'Pending' },
               ]}
-            />
-
-            <Select
-              label="Assigned Counselor"
-              value={formData.session2.counselorName}
-              onChange={e =>
-                setFormData({
-                  ...formData,
-                  session2: {
-                    ...formData.session2,
-                    counselorName: e.target.value,
-                  },
-                })
-              }
-              options={counselorsList.map(c => ({ value: c, label: c }))}
             />
 
             <Input

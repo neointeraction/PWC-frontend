@@ -5,10 +5,6 @@ import {
   RiSearchLine,
   RiTimeLine,
   RiUserLine,
-  RiPhoneLine,
-  RiMailLine,
-  RiArrowLeftSLine,
-  RiArrowRightSLine,
   RiEditLine,
   RiUserAddLine,
 } from 'react-icons/ri';
@@ -16,11 +12,12 @@ import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
+import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components';
 import { projectService } from '@/services/project.service';
-import { ProjectStudentDetail, StudentSessionDetail } from '@/types/project.types';
+import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
 import { EditStudentModal } from './EditStudentModal';
@@ -29,27 +26,13 @@ import {
   FilterBar,
   FiltersLeft,
   SearchWrapper,
-  StudentsGrid,
-  StudentCard,
-  CardHeader,
-  HeaderRight,
+  StudentCell,
+  StudentNameText,
+  StudentSubtext,
+  SessionTimeText,
+  CounselorSubtext,
+  ActionIconButtonGroup,
   ActionIconButton,
-  StudentIdentity,
-  StudentAvatar,
-  StudentDetails,
-  StudentNameRow,
-  StudentName,
-  StudentMeta,
-  SessionsGrid,
-  SessionCardBox,
-  SessionTitleRow,
-  SessionLabel,
-  SessionSlotText,
-  CounselorMeta,
-  PaginationContainer,
-  PaginationInfo,
-  PaginationControls,
-  PageButton,
 } from './ProjectStudentsPage.styles';
 
 export const ProjectStudentsPage: React.FC = () => {
@@ -64,7 +47,7 @@ export const ProjectStudentsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [editingStudent, setEditingStudent] = useState<ProjectStudentDetail | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const limit = 6;
+  const limit = 10;
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -118,30 +101,6 @@ export const ProjectStudentsPage: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
-  const renderStatusBadge = (session: StudentSessionDetail) => {
-    switch (session.status) {
-      case 'completed':
-        return (
-          <Badge variant="default" dot>
-            Completed
-          </Badge>
-        );
-      case 'scheduled':
-        return (
-          <Badge variant="info" dot>
-            Scheduled
-          </Badge>
-        );
-      case 'pending':
-      default:
-        return (
-          <Badge variant="warning" dot>
-            Pending
-          </Badge>
-        );
-    }
-  };
-
   const filteredStudents = students.filter(std => {
     if (gradeFilter !== 'all' && std.grade !== gradeFilter) return false;
     if (statusFilter === 's1_completed' && std.session1.status !== 'completed') return false;
@@ -153,6 +112,7 @@ export const ProjectStudentsPage: React.FC = () => {
       return (
         std.name.toLowerCase().includes(q) ||
         std.email.toLowerCase().includes(q) ||
+        std.mobile.toLowerCase().includes(q) ||
         std.session1.counselorName.toLowerCase().includes(q) ||
         std.session2.counselorName.toLowerCase().includes(q)
       );
@@ -160,8 +120,71 @@ export const ProjectStudentsPage: React.FC = () => {
     return true;
   });
 
-  const totalPages = Math.ceil(filteredStudents.length / limit) || 1;
-  const paginatedStudents = filteredStudents.slice((page - 1) * limit, page * limit);
+  const columns: Column<ProjectStudentDetail>[] = [
+    {
+      key: 'id',
+      header: 'Actions',
+      width: '80px',
+      render: row => (
+        <ActionIconButtonGroup>
+          <Tooltip content="Edit Student & Sessions">
+            <ActionIconButton onClick={() => setEditingStudent(row)}>
+              <RiEditLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+        </ActionIconButtonGroup>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Student Info',
+      width: '220px',
+      render: row => (
+        <StudentCell>
+          <StudentNameText>{row.name}</StudentNameText>
+          <StudentSubtext>
+            {row.email} • {row.mobile}
+          </StudentSubtext>
+        </StudentCell>
+      ),
+    },
+    {
+      key: 'grade',
+      header: 'Grade',
+      width: '80px',
+      render: row => <Badge variant="default">{row.grade}</Badge>,
+    },
+    {
+      key: 'counselor',
+      header: 'Counselor',
+      width: '180px',
+      render: row => (
+        <CounselorSubtext style={{ fontSize: '13px', color: '#1f2937' }}>
+          <RiUserLine size={14} /> {row.session1.counselorName || row.session2.counselorName}
+        </CounselorSubtext>
+      ),
+    },
+    {
+      key: 'session1',
+      header: 'Session 1',
+      width: '220px',
+      render: row => (
+        <SessionTimeText>
+          <RiTimeLine size={13} /> {row.session1.date} ({row.session1.timeSlot})
+        </SessionTimeText>
+      ),
+    },
+    {
+      key: 'session2',
+      header: 'Session 2',
+      width: '220px',
+      render: row => (
+        <SessionTimeText>
+          <RiTimeLine size={13} /> {row.session2.date} ({row.session2.timeSlot})
+        </SessionTimeText>
+      ),
+    },
+  ];
 
   return (
     <Container>
@@ -232,107 +255,20 @@ export const ProjectStudentsPage: React.FC = () => {
           </Button>
         </FilterBar>
 
-        {isLoading ? (
-          <p style={{ fontSize: '14px', color: '#6b7280' }}>Loading student cards...</p>
-        ) : filteredStudents.length === 0 ? (
-          <p style={{ fontSize: '14px', color: '#6b7280' }}>No students found matching filters.</p>
-        ) : (
-          <>
-            <StudentsGrid>
-              {paginatedStudents.map(student => (
-                <StudentCard key={student.id}>
-                  <CardHeader>
-                    <StudentIdentity>
-                      <StudentAvatar>
-                        {student.name
-                          .split(' ')
-                          .filter(Boolean)
-                          .map(n => n[0])
-                          .join('') || 'ST'}
-                      </StudentAvatar>
-                      <StudentDetails>
-                        <StudentNameRow>
-                          <StudentName>{student.name}</StudentName>
-                          <Badge variant="default">{student.grade}</Badge>
-                        </StudentNameRow>
-                        <StudentMeta>
-                          <RiMailLine size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                          {student.email}
-                        </StudentMeta>
-                      </StudentDetails>
-                    </StudentIdentity>
-
-                    <HeaderRight>
-                      <StudentMeta style={{ fontWeight: 500 }}>
-                        <RiPhoneLine size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                        {student.mobile}
-                      </StudentMeta>
-
-                      <Tooltip content="Edit Student & Sessions">
-                        <ActionIconButton onClick={() => setEditingStudent(student)}>
-                          <RiEditLine size={16} />
-                        </ActionIconButton>
-                      </Tooltip>
-                    </HeaderRight>
-                  </CardHeader>
-
-                  <SessionsGrid>
-                    <SessionCardBox>
-                      <SessionTitleRow>
-                        <SessionLabel>Session 1</SessionLabel>
-                        {renderStatusBadge(student.session1)}
-                      </SessionTitleRow>
-                      <SessionSlotText>
-                        <RiTimeLine size={14} />
-                        {student.session1.date} ({student.session1.timeSlot})
-                      </SessionSlotText>
-                      <CounselorMeta>
-                        <RiUserLine size={13} />
-                        Counselor: {student.session1.counselorName}
-                      </CounselorMeta>
-                    </SessionCardBox>
-
-                    <SessionCardBox>
-                      <SessionTitleRow>
-                        <SessionLabel>Session 2</SessionLabel>
-                        {renderStatusBadge(student.session2)}
-                      </SessionTitleRow>
-                      <SessionSlotText>
-                        <RiTimeLine size={14} />
-                        {student.session2.date} ({student.session2.timeSlot})
-                      </SessionSlotText>
-                      <CounselorMeta>
-                        <RiUserLine size={13} />
-                        Counselor: {student.session2.counselorName}
-                      </CounselorMeta>
-                    </SessionCardBox>
-                  </SessionsGrid>
-                </StudentCard>
-              ))}
-            </StudentsGrid>
-
-            <PaginationContainer>
-              <PaginationInfo>
-                Showing {(page - 1) * limit + 1}–
-                {Math.min(page * limit, filteredStudents.length)} of {filteredStudents.length} students
-              </PaginationInfo>
-
-              <PaginationControls>
-                <PageButton disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-                  <RiArrowLeftSLine size={16} />
-                </PageButton>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <PageButton key={p} $isActive={p === page} onClick={() => setPage(p)}>
-                    {p}
-                  </PageButton>
-                ))}
-                <PageButton disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
-                  <RiArrowRightSLine size={16} />
-                </PageButton>
-              </PaginationControls>
-            </PaginationContainer>
-          </>
-        )}
+        <Table
+          columns={columns}
+          data={filteredStudents.slice((page - 1) * limit, page * limit)}
+          isLoading={isLoading}
+          keyExtractor={row => row.id}
+          emptyMessage="No project students found matching filters."
+          pagination={{
+            page,
+            limit,
+            total: filteredStudents.length,
+            totalPages: Math.ceil(filteredStudents.length / limit) || 1,
+            onPageChange: setPage,
+          }}
+        />
       </Card>
 
       <EditStudentModal

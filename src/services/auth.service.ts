@@ -21,6 +21,13 @@ const MOCK_COUNSELOR_JOHN: User = {
   role: 'counselor',
 };
 
+const MOCK_STUDENT_ALEX: User = {
+  id: 'user-student-alex',
+  name: 'Alex Johnson',
+  email: 'student@pwc.com',
+  role: 'student',
+};
+
 const MOCK_TOKEN = 'mock-jwt-token-12345';
 
 export const authService = {
@@ -44,6 +51,13 @@ export const authService = {
     if (payload.email === 'counselor@pwc.com') {
       return {
         user: MOCK_COUNSELOR_JOHN,
+        token: MOCK_TOKEN,
+      };
+    }
+
+    if (payload.email === 'student@pwc.com') {
+      return {
+        user: MOCK_STUDENT_ALEX,
         token: MOCK_TOKEN,
       };
     }

@@ -1,8 +1,9 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store';
+import { ROUTES } from '@/constants';
 import { SuperAdminDashboard } from './SuperAdminDashboard';
 import { AdminDashboard } from './AdminDashboard';
-import { CounselorDashboard } from './CounselorDashboard';
 
 export const DashboardPage: React.FC = () => {
   const role = useAuthStore(state => state.role);
@@ -12,7 +13,11 @@ export const DashboardPage: React.FC = () => {
   }
 
   if (role === 'counselor') {
-    return <CounselorDashboard />;
+    return <Navigate to={ROUTES.UPCOMING_SESSIONS} replace />;
+  }
+
+  if (role === 'student') {
+    return <Navigate to={ROUTES.STUDENT_PORTAL} replace />;
   }
 
   return <AdminDashboard />;

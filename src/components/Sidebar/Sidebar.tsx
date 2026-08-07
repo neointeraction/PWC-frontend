@@ -9,14 +9,15 @@ import {
   RiUserHeartLine,
   RiArrowLeftSLine,
   RiFileChartLine,
+  RiCalendarEventLine,
 } from 'react-icons/ri';
 import { useSidebarStore, useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
+import logoImg from '@/assets/logo.png';
 import {
   SidebarWrapper,
   SidebarLogo,
-  LogoIcon,
-  LogoText,
+  LogoImage,
   SidebarNav,
   NavSection,
   NavSectionLabel,
@@ -27,8 +28,6 @@ import {
   TooltipPill,
 } from './Sidebar.styles';
 
-
-
 export const Sidebar: React.FC = () => {
   const { isCollapsed, toggleCollapse } = useSidebarStore();
   const { role } = useAuthStore();
@@ -36,7 +35,7 @@ export const Sidebar: React.FC = () => {
 
   const isSuperAdmin = role === 'super_admin';
   const isCounselor = role === 'counselor';
-  const portalLabel = isSuperAdmin ? 'Super Admin' : isCounselor ? 'Counselor' : 'Admin';
+  const isStudent = role === 'student';
 
   const superAdminNavItems = [
     {
@@ -96,9 +95,14 @@ export const Sidebar: React.FC = () => {
 
   const counselorNavItems = [
     {
-      label: 'Dashboard',
-      href: ROUTES.DASHBOARD,
-      icon: <RiDashboardLine size={18} />,
+      label: 'Upcoming Sessions',
+      href: ROUTES.UPCOMING_SESSIONS,
+      icon: <RiCalendarEventLine size={18} />,
+    },
+    {
+      label: 'Career Library',
+      href: ROUTES.CAREER_LIBRARY,
+      icon: <RiBookOpenLine size={18} />,
     },
     {
       label: 'Settings',
@@ -107,24 +111,53 @@ export const Sidebar: React.FC = () => {
     },
   ];
 
-  const navItems = isSuperAdmin ? superAdminNavItems : isCounselor ? counselorNavItems : adminNavItems;
+  const studentNavItems = [
+    {
+      label: 'Student Portal',
+      href: ROUTES.STUDENT_PORTAL,
+      icon: <RiDashboardLine size={18} />,
+    },
+    {
+      label: 'Career Library',
+      href: ROUTES.CAREER_LIBRARY,
+      icon: <RiBookOpenLine size={18} />,
+    },
+    {
+      label: 'Settings',
+      href: ROUTES.SETTINGS,
+      icon: <RiSettings4Line size={18} />,
+    },
+  ];
+
+  const navItems = isSuperAdmin
+    ? superAdminNavItems
+    : isCounselor
+    ? counselorNavItems
+    : isStudent
+    ? studentNavItems
+    : adminNavItems;
 
   const isActive = (href: string) => {
-    if (href === ROUTES.DASHBOARD) return pathname === href;
+    if (href === ROUTES.DASHBOARD || href === ROUTES.STUDENT_PORTAL) return pathname === href;
     return pathname.startsWith(href);
   };
 
   return (
     <SidebarWrapper $collapsed={isCollapsed} aria-label="Navigation sidebar">
       <SidebarLogo $collapsed={isCollapsed}>
-        <LogoIcon>k</LogoIcon>
-        <LogoText $collapsed={isCollapsed}>kREATE {portalLabel}</LogoText>
+        <LogoImage src={logoImg} alt="Logo" $collapsed={isCollapsed} />
       </SidebarLogo>
 
       <SidebarNav $collapsed={isCollapsed}>
         <NavSection>
           <NavSectionLabel $collapsed={isCollapsed}>
-            {isSuperAdmin ? 'Super Admin Menu' : isCounselor ? 'Counselor Menu' : 'Admin Menu'}
+            {isSuperAdmin
+              ? 'Super Admin Menu'
+              : isCounselor
+              ? 'Counselor Menu'
+              : isStudent
+              ? 'Student Menu'
+              : 'Admin Menu'}
           </NavSectionLabel>
           {navItems.map(item => (
             <NavItem
