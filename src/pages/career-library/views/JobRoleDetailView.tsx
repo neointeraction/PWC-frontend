@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Career, EntranceExam, CourseDetail, InstitutionDetail } from '@/types';
-import { Tooltip } from '@/components/Tooltip';
 import { Card } from '@/components/Card';
+import { Tooltip } from '@/components/Tooltip';
 import {
-  RiStarLine,
-  RiStarFill,
-  RiEditLine,
   RiFileTextLine,
   RiGraduationCapLine,
   RiFilePaperLine,
@@ -88,56 +85,6 @@ const RoleHeaderDesc = styled.p`
   color: rgba(255, 255, 255, 0.88);
   font-style: italic;
   margin: 0;
-`;
-
-const HeaderActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-
-const ShortlistButton = styled.button<{ $shortlisted?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 18px;
-  border-radius: 4px;
-  border: none;
-  background-color: ${({ $shortlisted }) => ($shortlisted ? '#C49419' : '#D99F26')};
-  color: #ffffff;
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  font-weight: ${({ theme }) => theme.fontWeight.bold};
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(217, 159, 38, 0.35);
-  transition: all ${({ theme }) => theme.transition.fast};
-
-  &:hover {
-    background-color: #b38510;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(217, 159, 38, 0.45);
-  }
-`;
-
-const GlassEditButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background-color: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(4px);
-  color: #ffffff;
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  font-weight: ${({ theme }) => theme.fontWeight.semibold};
-  cursor: pointer;
-  transition: all ${({ theme }) => theme.transition.fast};
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.28);
-    border-color: rgba(255, 255, 255, 0.6);
-    transform: translateY(-1px);
-  }
 `;
 
 const MetricsGrid = styled.div`
@@ -323,10 +270,6 @@ interface JobRoleDetailViewProps {
   entranceExams: EntranceExam[];
   courses: CourseDetail[];
   institutions: InstitutionDetail[];
-  onToggleShortlist: () => void;
-  onToggleExamShortlist: (id: string) => void;
-  onToggleInstitutionShortlist: (id: string) => void;
-  onEditRole?: (role: Career) => void;
 }
 
 type TabType = 'overview' | 'education' | 'exams' | 'courses' | 'institutions';
@@ -336,10 +279,6 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
   entranceExams,
   courses,
   institutions,
-  onToggleShortlist,
-  onToggleExamShortlist,
-  onToggleInstitutionShortlist,
-  onEditRole,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
@@ -361,22 +300,6 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
             </RoleHeaderInfo>
           </TitleGroup>
 
-          <HeaderActions>
-            <ShortlistButton
-              $shortlisted={role.isShortlisted}
-              onClick={onToggleShortlist}
-            >
-              {role.isShortlisted ? <RiStarFill size={16} /> : <RiStarLine size={16} />}
-              {role.isShortlisted ? 'Shortlisted' : 'Save to shortlist'}
-            </ShortlistButton>
-            {onEditRole && (
-              <Tooltip content="Edit Role Specification">
-                <GlassEditButton onClick={() => onEditRole(role)}>
-                  <RiEditLine size={16} /> Edit Role
-                </GlassEditButton>
-              </Tooltip>
-            )}
-          </HeaderActions>
         </BannerHeader>
 
         <MetricsGrid>
@@ -483,21 +406,11 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
 
           {activeTab === 'education' && <EducationPathTab role={role} />}
 
-          {activeTab === 'exams' && (
-            <EntranceExamsTab
-              exams={entranceExams}
-              onToggleShortlist={onToggleExamShortlist}
-            />
-          )}
+          {activeTab === 'exams' && <EntranceExamsTab exams={entranceExams} />}
 
           {activeTab === 'courses' && <CoursesTab courses={courses} />}
 
-          {activeTab === 'institutions' && (
-            <InstitutionsTab
-              institutions={institutions}
-              onToggleShortlist={onToggleInstitutionShortlist}
-            />
-          )}
+          {activeTab === 'institutions' && <InstitutionsTab institutions={institutions} />}
         </TabContentArea>
       </MainLayout>
     </Container>

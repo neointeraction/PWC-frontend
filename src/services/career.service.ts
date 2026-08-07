@@ -1,161 +1,296 @@
+import { apiClient } from './api';
 import {
   Career,
   CareerCluster,
   CareerIndustry,
   CareerDomain,
   PendingRatification,
-  CareerFilters,
-  PaginatedResponse,
   EntranceExam,
   CourseDetail,
   InstitutionDetail,
 } from '@/types';
-import {
-  mockCareers,
-  mockClusters,
-  mockIndustries,
-  mockDomains,
-  mockPendingRatifications,
-  mockEntranceExams,
-  mockCourses,
-  mockInstitutions,
-} from '@/mocks';
+import { mockPendingRatifications } from '@/mocks';
 
-let clustersDb: CareerCluster[] = [...mockClusters];
-let industriesDb: CareerIndustry[] = [...mockIndustries];
-let domainsDb: CareerDomain[] = [...mockDomains];
-let careersDb: Career[] = [...mockCareers];
+// ---- Backend response shapes (docs/api-list.md -> Career Library) ----
+
+interface ApiCareerEntry {
+  id: string;
+  cluster: string;
+  industry: string;
+  domain: string;
+  jobRole: string;
+  aiResilienceGrade: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+  aiResilienceComment: string;
+  oneLineDescription: string;
+  topCompanies: string[];
+  salaryIndiaRangeText: string;
+  salaryIndiaMinLPA: number | null;
+  salaryIndiaMaxLPA: number | null;
+  salaryGlobalRangeText: string;
+  salaryGlobalMinUSD: number | null;
+  salaryGlobalMaxUSD: number | null;
+  qualification10th12th: string;
+  qualificationGraduation: string;
+  qualificationPG: string;
+  entranceExamsUGDescription: string;
+  entranceExams: string[];
+  entranceExamsPG: string[];
+  certificationsStudent: string[];
+  certificationsUG: string[];
+  topCourses: string[];
+  status: 'ACTIVE' | 'DRAFT';
+  createdBy: string;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiUgInstitution {
+  id: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  type?: string | null;
+  category?: string | null;
+  programmesOffered?: string | null;
+  keyProgrammesOffered?: string | null;
+  primaryEntranceExams?: string | null;
+  nirfRanking?: string | null;
+  otherRankings?: string | null;
+  website?: string | null;
+}
+
+interface ApiUgCourse {
+  id: string;
+  courseName: string;
+  fullForm?: string | null;
+  level?: string | null;
+  stream12thRequirements?: string | null;
+  entranceExamsPrimary?: string | null;
+  entranceExamsAlternate?: string | null;
+  topSpecialisations?: string | null;
+  topGovtColleges?: string | null;
+  topPrivateColleges?: string | null;
+  furtherStudyOptions?: string | null;
+}
+
+interface ApiUgEntranceExam {
+  id: string;
+  examName: string;
+  fullForm?: string | null;
+  conductingBody?: string | null;
+  level?: string | null;
+  applicableFor?: string | null;
+  subjectRequirements12th?: string | null;
+  applicationWindow?: string | null;
+  examMonth?: string | null;
+  examMode?: string | null;
+  frequency?: string | null;
+  officialWebsite?: string | null;
+}
+
+interface CareerLibraryListResponse {
+  data: ApiCareerEntry[];
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+}
+
+interface CareerLibraryFiltersResponse {
+  clusters: string[];
+  industries: string[];
+  domains: string[];
+  aiResilienceGrades: string[];
+}
+
+interface CareerLibraryDetailResponse extends ApiCareerEntry {
+  relatedInstitutions: ApiUgInstitution[];
+  relatedCourses: ApiUgCourse[];
+  relatedEntranceExams: ApiUgEntranceExam[];
+}
+
+// ---- Mappers: API shape -> existing frontend shape (keeps views unchanged) ----
+
+const AI_GRADE_MAP: Record<ApiCareerEntry['aiResilienceGrade'], Career['aiResilienceGrading']> = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+  VERY_HIGH: 'Very High',
+};
+
+const mapCareerEntry = (entry: ApiCareerEntry): Career => ({
+  id: entry.id,
+  jobRole: entry.jobRole,
+  careerCluster: entry.cluster,
+  industry: entry.industry,
+  domain: entry.domain,
+  aiResilienceGrading: AI_GRADE_MAP[entry.aiResilienceGrade] || 'High',
+  aiResilienceComment: entry.aiResilienceComment,
+  oneLineDescription: entry.oneLineDescription,
+  topCompaniesRecruiting: entry.topCompanies || [],
+  approxSalaryRangeIndia:
+    entry.salaryIndiaMinLPA != null && entry.salaryIndiaMaxLPA != null
+      ? `₹${entry.salaryIndiaMinLPA}–${entry.salaryIndiaMaxLPA} LPA`
+      : entry.salaryIndiaRangeText,
+  globalSalaryRange:
+    entry.salaryGlobalMinUSD != null && entry.salaryGlobalMaxUSD != null
+      ? `$${entry.salaryGlobalMinUSD}–${entry.salaryGlobalMaxUSD}`
+      : entry.salaryGlobalRangeText,
+  minQual10th12thRecommendedSubjects: entry.qualification10th12th,
+  minQualGradRecommendedSubjects: entry.qualificationGraduation,
+  entranceExamsUG: entry.entranceExams?.join(', ') || entry.entranceExamsUGDescription,
+  minQualPGRecommendedSubjects: entry.qualificationPG,
+  entranceExamsPG: entry.entranceExamsPG?.join(', ') || '',
+  certificationsStudents: entry.certificationsStudent?.join('; ') || '',
+  certificationsUG: entry.certificationsUG?.join('; ') || '',
+  topCoursesToStudy: entry.topCourses?.join(', ') || '',
+  title: entry.jobRole,
+  category: entry.cluster,
+  description: entry.oneLineDescription,
+  status: entry.status === 'ACTIVE' ? 'active' : 'pending',
+  lastUpdated: (entry.updatedAt || entry.createdAt || '').slice(0, 10),
+  sourceTenant: entry.createdBy,
+});
+
+const mapInstitution = (inst: ApiUgInstitution): InstitutionDetail => ({
+  id: inst.id,
+  badge: inst.type || inst.category || 'Institution',
+  name: inst.name,
+  cityState: [inst.city, inst.state].filter(Boolean).join(', ') || '—',
+  entranceExam: inst.primaryEntranceExams || '—',
+  programsOffered: inst.keyProgrammesOffered || inst.programmesOffered || '—',
+  ranking: inst.nirfRanking || inst.otherRankings || '—',
+  website: inst.website || '',
+});
+
+const mapCourse = (course: ApiUgCourse): CourseDetail => ({
+  id: course.id,
+  badge: course.level || 'UG',
+  title: course.fullForm ? `${course.courseName} (${course.fullForm})` : course.courseName,
+  streamRequirement: course.stream12thRequirements || '—',
+  entranceExams: course.entranceExamsPrimary || course.entranceExamsAlternate || '—',
+  programsOffered: course.topSpecialisations || '—',
+  topColleges: [course.topGovtColleges, course.topPrivateColleges].filter(Boolean).join('; ') || '—',
+  furtherStudyOptions: course.furtherStudyOptions || '—',
+});
+
+const mapExam = (exam: ApiUgEntranceExam): EntranceExam => ({
+  id: exam.id,
+  name: exam.examName,
+  fullTitle: exam.fullForm || '',
+  level: exam.level === 'PG' ? 'PG' : 'UG',
+  conductedBy: exam.conductingBody || '—',
+  mode: exam.examMode || '—',
+  frequency: exam.frequency || '—',
+  applicableFor: exam.applicableFor || '—',
+  requirement12th: exam.subjectRequirements12th || '—',
+  website: exam.officialWebsite || '',
+  datesText: [exam.applicationWindow, exam.examMonth].filter(Boolean).join(' / ') || undefined,
+});
+
+// ---- Full-dataset cache: derives cluster/industry/domain browsing client-side
+// (the backend only exposes a flat, filterable list — there's no cluster/industry/
+// domain CRUD or hierarchy endpoint) ----
+
+let fullListCache: Promise<Career[]> | null = null;
+
+const fetchFullList = async (): Promise<Career[]> => {
+  const pageSize = 100;
+  let page = 1;
+  let totalPages = 1;
+  const all: ApiCareerEntry[] = [];
+
+  do {
+    const { data } = await apiClient.get<CareerLibraryListResponse>('/career-library', {
+      params: { page, pageSize },
+    });
+    all.push(...data.data);
+    totalPages = data.pagination.totalPages;
+    page += 1;
+  } while (page <= totalPages);
+
+  return all.map(mapCareerEntry);
+};
+
+const getFullList = (): Promise<Career[]> => {
+  if (!fullListCache) {
+    fullListCache = fetchFullList().catch(err => {
+      fullListCache = null;
+      throw err;
+    });
+  }
+  return fullListCache;
+};
+
 let ratificationsDb: PendingRatification[] = [...mockPendingRatifications];
-let examsDb: EntranceExam[] = [...mockEntranceExams];
-let coursesDb: CourseDetail[] = [...mockCourses];
-let institutionsDb: InstitutionDetail[] = [...mockInstitutions];
 
 export const careerService = {
-  // Cluster APIs
+  // Cluster / Industry / Domain browsing — derived client-side from the full list
   getClusters: async (search?: string): Promise<CareerCluster[]> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    if (!search) return [...clustersDb];
-    const q = search.toLowerCase();
-    return clustersDb.filter(c => c.name.toLowerCase().includes(q) || (c.description && c.description.toLowerCase().includes(q)));
+    const all = await getFullList();
+    const byName = new Map<string, { industries: Set<string> }>();
+    all.forEach(c => {
+      if (!byName.has(c.careerCluster)) byName.set(c.careerCluster, { industries: new Set() });
+      byName.get(c.careerCluster)!.industries.add(c.industry);
+    });
+    let clusters: CareerCluster[] = Array.from(byName.entries()).map(([name, v]) => ({
+      id: name,
+      name,
+      industryCount: v.industries.size,
+    }));
+    if (search) {
+      const q = search.toLowerCase();
+      clusters = clusters.filter(c => c.name.toLowerCase().includes(q));
+    }
+    return clusters.sort((a, b) => a.name.localeCompare(b.name));
   },
 
-  createCluster: async (payload: { name: string; description?: string }): Promise<CareerCluster> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const newCluster: CareerCluster = {
-      id: `cluster-${Date.now()}`,
-      name: payload.name,
-      description: payload.description || '',
-      industryCount: 0,
-    };
-    clustersDb.push(newCluster);
-    return newCluster;
-  },
-
-  updateCluster: async (id: string, payload: { name: string; description?: string }): Promise<CareerCluster> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const idx = clustersDb.findIndex(c => c.id === id);
-    if (idx === -1) throw new Error('Cluster not found');
-    clustersDb[idx] = { ...clustersDb[idx], ...payload };
-    return clustersDb[idx];
-  },
-
-  deleteCluster: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    clustersDb = clustersDb.filter(c => c.id !== id);
-  },
-
-  // Industry APIs
   getIndustries: async (clusterName?: string, search?: string): Promise<CareerIndustry[]> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    let result = [...industriesDb];
-    if (clusterName) {
-      result = result.filter(i => i.clusterName.toLowerCase() === clusterName.toLowerCase());
-    }
+    const all = await getFullList();
+    const filtered = clusterName ? all.filter(c => c.careerCluster === clusterName) : all;
+    const byName = new Map<string, { domains: Set<string> }>();
+    filtered.forEach(c => {
+      if (!byName.has(c.industry)) byName.set(c.industry, { domains: new Set() });
+      byName.get(c.industry)!.domains.add(c.domain);
+    });
+    let industries: CareerIndustry[] = Array.from(byName.entries()).map(([name, v]) => ({
+      id: name,
+      clusterId: clusterName || '',
+      clusterName: clusterName || '',
+      name,
+      domainCount: v.domains.size,
+    }));
     if (search) {
       const q = search.toLowerCase();
-      result = result.filter(i => i.name.toLowerCase().includes(q) || (i.description && i.description.toLowerCase().includes(q)));
+      industries = industries.filter(i => i.name.toLowerCase().includes(q));
     }
-    return result;
+    return industries.sort((a, b) => a.name.localeCompare(b.name));
   },
 
-  createIndustry: async (payload: { clusterName: string; name: string; description?: string }): Promise<CareerIndustry> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const cluster = clustersDb.find(c => c.name === payload.clusterName);
-    const newInd: CareerIndustry = {
-      id: `ind-${Date.now()}`,
-      clusterId: cluster?.id || 'cluster-1',
-      clusterName: payload.clusterName,
-      name: payload.name,
-      description: payload.description || '',
-      domainCount: 0,
-    };
-    industriesDb.push(newInd);
-    return newInd;
-  },
-
-  updateIndustry: async (id: string, payload: { name: string; description?: string }): Promise<CareerIndustry> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const idx = industriesDb.findIndex(i => i.id === id);
-    if (idx === -1) throw new Error('Industry not found');
-    industriesDb[idx] = { ...industriesDb[idx], ...payload };
-    return industriesDb[idx];
-  },
-
-  deleteIndustry: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    industriesDb = industriesDb.filter(i => i.id !== id);
-  },
-
-  // Domain APIs
   getDomains: async (industryName?: string, search?: string): Promise<CareerDomain[]> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    let result = [...domainsDb];
-    if (industryName) {
-      result = result.filter(d => d.industryName.toLowerCase() === industryName.toLowerCase());
-    }
+    const all = await getFullList();
+    const filtered = industryName ? all.filter(c => c.industry === industryName) : all;
+    const byName = new Map<string, { roles: Set<string> }>();
+    filtered.forEach(c => {
+      if (!byName.has(c.domain)) byName.set(c.domain, { roles: new Set() });
+      byName.get(c.domain)!.roles.add(c.id);
+    });
+    let domains: CareerDomain[] = Array.from(byName.entries()).map(([name, v]) => ({
+      id: name,
+      industryId: industryName || '',
+      industryName: industryName || '',
+      clusterName: filtered[0]?.careerCluster || '',
+      name,
+      roleCount: v.roles.size,
+    }));
     if (search) {
       const q = search.toLowerCase();
-      result = result.filter(d => d.name.toLowerCase().includes(q));
+      domains = domains.filter(d => d.name.toLowerCase().includes(q));
     }
-    return result;
+    return domains.sort((a, b) => a.name.localeCompare(b.name));
   },
 
-  createDomain: async (payload: { clusterName: string; industryName: string; name: string; description?: string }): Promise<CareerDomain> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const ind = industriesDb.find(i => i.name === payload.industryName);
-    const newDom: CareerDomain = {
-      id: `dom-${Date.now()}`,
-      industryId: ind?.id || 'ind-1',
-      industryName: payload.industryName,
-      clusterName: payload.clusterName,
-      name: payload.name,
-      description: payload.description || '',
-      roleCount: 0,
-    };
-    domainsDb.push(newDom);
-    return newDom;
-  },
-
-  updateDomain: async (id: string, payload: { name: string; description?: string }): Promise<CareerDomain> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const idx = domainsDb.findIndex(d => d.id === id);
-    if (idx === -1) throw new Error('Domain not found');
-    domainsDb[idx] = { ...domainsDb[idx], ...payload };
-    return domainsDb[idx];
-  },
-
-  deleteDomain: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    domainsDb = domainsDb.filter(d => d.id !== id);
-  },
-
-  // Career / Job Role APIs
   getJobRoles: async (domainName?: string, search?: string): Promise<Career[]> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    let result = [...careersDb];
-    if (domainName) {
-      result = result.filter(c => c.domain.toLowerCase() === domainName.toLowerCase());
-    }
+    const all = await getFullList();
+    let result = domainName ? all.filter(c => c.domain === domainName) : all;
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -169,162 +304,32 @@ export const careerService = {
     return result;
   },
 
-  toggleShortlist: async (id: string): Promise<Career> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    const idx = careersDb.findIndex(c => c.id === id);
-    if (idx === -1) throw new Error('Career role not found');
-    careersDb[idx] = {
-      ...careersDb[idx],
-      isShortlisted: !careersDb[idx].isShortlisted,
+  // GET /api/v1/career-library/{id} — includes related institutions/courses/exams
+  getById: async (
+    id: string
+  ): Promise<{
+    career: Career;
+    entranceExams: EntranceExam[];
+    courses: CourseDetail[];
+    institutions: InstitutionDetail[];
+  }> => {
+    const { data } = await apiClient.get<CareerLibraryDetailResponse>(`/career-library/${id}`);
+    return {
+      career: mapCareerEntry(data),
+      entranceExams: (data.relatedEntranceExams || []).map(mapExam),
+      courses: (data.relatedCourses || []).map(mapCourse),
+      institutions: (data.relatedInstitutions || []).map(mapInstitution),
     };
-    return careersDb[idx];
   },
 
-  // Entrance Exam APIs
-  getEntranceExams: async (): Promise<EntranceExam[]> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    return [...examsDb];
+  // GET /api/v1/career-library/filters
+  getFilters: async (): Promise<CareerLibraryFiltersResponse> => {
+    const { data } = await apiClient.get<CareerLibraryFiltersResponse>('/career-library/filters');
+    return data;
   },
 
-  toggleExamShortlist: async (id: string): Promise<EntranceExam> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    const idx = examsDb.findIndex(e => e.id === id);
-    if (idx === -1) throw new Error('Exam not found');
-    examsDb[idx] = {
-      ...examsDb[idx],
-      isShortlisted: !examsDb[idx].isShortlisted,
-    };
-    return examsDb[idx];
-  },
-
-  // Course APIs
-  getCourses: async (): Promise<CourseDetail[]> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    return [...coursesDb];
-  },
-
-  // Institution APIs
-  getInstitutions: async (): Promise<InstitutionDetail[]> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    return [...institutionsDb];
-  },
-
-  toggleInstitutionShortlist: async (id: string): Promise<InstitutionDetail> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    const idx = institutionsDb.findIndex(i => i.id === id);
-    if (idx === -1) throw new Error('Institution not found');
-    institutionsDb[idx] = {
-      ...institutionsDb[idx],
-      isShortlisted: !institutionsDb[idx].isShortlisted,
-    };
-    return institutionsDb[idx];
-  },
-
-  getAll: async (filters: CareerFilters = {}): Promise<PaginatedResponse<Career>> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    let results = [...careersDb];
-
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
-      results = results.filter(
-        c =>
-          c.jobRole.toLowerCase().includes(q) ||
-          (c.title ? c.title.toLowerCase().includes(q) : false) ||
-          c.careerCluster.toLowerCase().includes(q) ||
-          c.domain.toLowerCase().includes(q)
-      );
-    }
-    if (filters.status) {
-      results = results.filter(c => c.status === filters.status);
-    }
-    if (filters.category || filters.cluster) {
-      const cat = filters.category || filters.cluster;
-      results = results.filter(c => c.category === cat || c.careerCluster === cat);
-    }
-
-    const page = filters.page ?? 1;
-    const limit = filters.limit ?? 10;
-    const total = results.length;
-    const totalPages = Math.ceil(total / limit);
-    const start = (page - 1) * limit;
-
-    return { data: results.slice(start, start + limit), total, page, limit, totalPages };
-  },
-
-  getById: async (id: string): Promise<Career> => {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    const career = careersDb.find(c => c.id === id);
-    if (!career) throw new Error('Career not found');
-    return { ...career };
-  },
-
-  update: async (id: string, payload: Partial<Career>): Promise<Career> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const idx = careersDb.findIndex(c => c.id === id);
-    if (idx === -1) throw new Error('Career not found');
-    careersDb[idx] = {
-      ...careersDb[idx],
-      ...payload,
-      lastUpdated: new Date().toISOString().slice(0, 10),
-    };
-    return careersDb[idx];
-  },
-
-  create: async (payload: Partial<Career>): Promise<Career> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const roleName = payload.jobRole || payload.title || 'New Job Role';
-    const clusterName = payload.careerCluster || payload.category || 'Arts, Design & Creative';
-    const newCareer: Career = {
-      id: `role-${Date.now()}`,
-      jobRole: roleName,
-      title: roleName,
-      careerCluster: clusterName,
-      category: clusterName,
-      industry: payload.industry || 'Applied Arts',
-      domain: payload.domain || 'Digital Arts',
-      aiResilienceGrading: payload.aiResilienceGrading || 'High',
-      aiResilienceComment: payload.aiResilienceComment || 'Requires strategic human creativity.',
-      oneLineDescription: payload.oneLineDescription || payload.description || 'Designs user experiences.',
-      description: payload.description || payload.oneLineDescription || 'Designs user experiences.',
-      topCompaniesRecruiting: payload.topCompaniesRecruiting || ['Tech Firms', 'Startups'],
-      approxSalaryRangeIndia: payload.approxSalaryRangeIndia || '₹4–15 LPA',
-      globalSalaryRange: payload.globalSalaryRange || '$70k–$120k',
-      minQual10th12thRecommendedSubjects: payload.minQual10th12thRecommendedSubjects || '12th Standard Relevant Stream',
-      minQualGradRecommendedSubjects: payload.minQualGradRecommendedSubjects || 'Relevant Bachelor Degree',
-      entranceExamsUG: payload.entranceExamsUG || 'NID DAT, UCEED',
-      minQualPGRecommendedSubjects: payload.minQualPGRecommendedSubjects || 'Relevant Master Degree',
-      entranceExamsPG: payload.entranceExamsPG || 'CEED',
-      certificationsStudents: payload.certificationsStudents || 'Foundation Certifications',
-      certificationsUG: payload.certificationsUG || 'Professional Domain Certifications',
-      topCoursesToStudy: payload.topCoursesToStudy || 'Undergraduate & Postgraduate Degree Tracks',
-      status: payload.status || 'active',
-      lastUpdated: new Date().toISOString().slice(0, 10),
-      sourceTenant: payload.sourceTenant || 'Super Admin',
-      isShortlisted: false,
-    };
-    careersDb.unshift(newCareer);
-    return newCareer;
-  },
-
-  deleteJobRole: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    careersDb = careersDb.filter(c => c.id !== id);
-  },
-
-  bulkCreate: async (
-    items: Partial<Career>[]
-  ): Promise<{ count: number; careers: Career[] }> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    const created: Career[] = await Promise.all(items.map(item => careerService.create(item)));
-    return { count: created.length, careers: created };
-  },
-
-  syncUpdates: async (id: string): Promise<Career> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return careerService.update(id, { lastUpdated: new Date().toISOString().slice(0, 10) });
-  },
-
+  // Pending ratifications: no backend endpoint exists yet (career library is
+  // read-only) — kept on mock data until that module is built.
   getPendingRatifications: async (): Promise<PendingRatification[]> => {
     await new Promise(resolve => setTimeout(resolve, 200));
     return ratificationsDb.filter(r => r.status === 'pending');
@@ -334,20 +339,7 @@ export const careerService = {
     await new Promise(resolve => setTimeout(resolve, 200));
     const idx = ratificationsDb.findIndex(r => r.id === id);
     if (idx === -1) throw new Error('Pending ratification not found');
-
     ratificationsDb[idx] = { ...ratificationsDb[idx], status: 'ratified' };
-
-    await careerService.create({
-      jobRole: ratificationsDb[idx].careerName,
-      title: ratificationsDb[idx].careerName,
-      careerCluster: ratificationsDb[idx].suggestedCategory,
-      category: ratificationsDb[idx].suggestedCategory,
-      oneLineDescription: ratificationsDb[idx].description,
-      description: ratificationsDb[idx].description,
-      status: 'active',
-      sourceTenant: ratificationsDb[idx].sourceTenant,
-    });
-
     return ratificationsDb[idx];
   },
 
@@ -355,7 +347,6 @@ export const careerService = {
     await new Promise(resolve => setTimeout(resolve, 200));
     const idx = ratificationsDb.findIndex(r => r.id === id);
     if (idx === -1) throw new Error('Pending ratification not found');
-
     ratificationsDb[idx] = { ...ratificationsDb[idx], status: 'rejected' };
     return ratificationsDb[idx];
   },

@@ -5,7 +5,7 @@ export interface Career {
   careerCluster: string; // Text / Categorical
   industry: string; // Text / Categorical
   domain: string; // Text
-  aiResilienceGrading: 'Low' | 'Medium' | 'High'; // Categorical
+  aiResilienceGrading: 'Low' | 'Medium' | 'High' | 'Very High'; // Categorical
   aiResilienceComment: string; // Long Text
   oneLineDescription: string; // Text
   topCompaniesRecruiting: string[]; // Text / Array of Tags
@@ -27,7 +27,6 @@ export interface Career {
   status: 'active' | 'inactive' | 'pending';
   lastUpdated: string;
   sourceTenant?: string;
-  isShortlisted?: boolean;
 }
 
 export interface CareerCluster {
@@ -88,7 +87,6 @@ export interface EntranceExam {
   requirement12th: string;
   website: string;
   datesText?: string;
-  isShortlisted?: boolean;
 }
 
 export interface CourseDetail {
@@ -111,7 +109,4 @@ export interface InstitutionDetail {
   programsOffered: string;
   ranking: string;
   website: string;
-  isShortlisted?: boolean;
 }
-
-
