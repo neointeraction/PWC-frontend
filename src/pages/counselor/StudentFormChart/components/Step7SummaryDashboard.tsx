@@ -89,7 +89,7 @@ export const Step7SummaryDashboard: React.FC<Step7SummaryDashboardProps> = ({
 
       {/* Summary Highlights per Section */}
       <SectionBlock>
-        <SectionBlockTitle>Section A & B Synthesis Highlights</SectionBlockTitle>
+        <SectionBlockTitle>Academics, Strengths & Personality Synthesis Highlights</SectionBlockTitle>
         <FormGrid $cols={2}>
           <FormGroup>
             <FormLabel>Career Style & Signature</FormLabel>
@@ -107,7 +107,7 @@ export const Step7SummaryDashboard: React.FC<Step7SummaryDashboardProps> = ({
       </SectionBlock>
 
       <SectionBlock>
-        <SectionBlockTitle>Section C & D Stream Fit & Validity</SectionBlockTitle>
+        <SectionBlockTitle>Career Clarity & Reliability — Stream Fit & Validity</SectionBlockTitle>
         <FormGrid $cols={2}>
           <FormGroup>
             <FormLabel>Recommended Stream</FormLabel>
@@ -125,7 +125,7 @@ export const Step7SummaryDashboard: React.FC<Step7SummaryDashboardProps> = ({
       </SectionBlock>
 
       <SectionBlock>
-        <SectionBlockTitle>Section E Strategic 3-Phase Roadmap Summary</SectionBlockTitle>
+        <SectionBlockTitle>Strategic 3-Phase Roadmap Summary</SectionBlockTitle>
         <FormGrid $cols={3}>
           <FormGroup>
             <FormLabel>Now (Class 9-10)</FormLabel>

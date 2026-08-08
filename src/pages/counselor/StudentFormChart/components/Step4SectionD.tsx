@@ -20,11 +20,9 @@ interface Step4SectionDProps {
 }
 
 const synthesisRowsGDef = [
-  { code: 'G1', placeholder: 'G1 · Assessment validity and integrity observation...' },
-  { code: 'G2', placeholder: 'G2 · Consistency across test modules note...' },
-  { code: 'G3', placeholder: 'G3 · Self-awareness vs test alignment note...' },
-  { code: 'G4', placeholder: 'G4 · Diagnostic confidence for parent communication...' },
-  { code: 'G5', placeholder: 'G5 · Overall assessment reliability conclusion...' },
+  { code: 'G1', placeholder: "EIM follow-up : If below 75%, plan to gently re-probe Mirror Pair items conversationally, rather than presenting the personality profile as fixed." },
+  { code: 'G2', placeholder: "AAI / 'Don't Know' pattern : A high proportion of 'Don't Know' responses signals genuine uncertainty, low confidence, or disengagement, not necessarily low ability. Note which specific aptitude areas had the most 'Don't Know' responses and frame these as development opportunities if required in career planning or academics. Read this with ACI parameter also." },
+  { code: 'G3', placeholder: "Re-assessment Call : Based on the reliability picture, note whether a full re-assessment is warranted, or whether a supplementary conversation in-session is sufficient to firm up the profile." },
 ];
 
 export const Step4SectionD: React.FC<Step4SectionDProps> = ({
@@ -35,7 +33,7 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
   return (
     <>
       <StepHeaderCard>
-        <StepHeaderTitle>Section D · Reliability of the Assessment</StepHeaderTitle>
+        <StepHeaderTitle>Reliability of the Assessment</StepHeaderTitle>
         <StepHeaderDescription>
           Validates the integrity, consistency, and diagnostic reliability of the student psychometric test responses across 4 core indicators.
         </StepHeaderDescription>
@@ -70,7 +68,7 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
       ))}
 
       <SynthesisNotesPanel
-        title="Section D — Counsellor Synthesis Notes (G1–G5)"
+        title="Counsellor Synthesis Notes"
         rows={synthesisRowsGDef}
         notes={data.synthesisNotes}
         onChangeNote={onChangeNotes}

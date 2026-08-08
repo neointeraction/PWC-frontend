@@ -48,6 +48,24 @@ const StudentCareerIkigaiReportPage = lazy(() =>
 const StudentPortalPage = lazy(() =>
   import('@/pages/student/StudentPortalPage').then(m => ({ default: m.StudentPortalPage }))
 );
+const StudentCounselingPage = lazy(() =>
+  import('@/pages/student/StudentCounselingPage').then(m => ({ default: m.StudentCounselingPage }))
+);
+const StudentProfileFormPage = lazy(() =>
+  import('@/pages/student/StudentProfileFormPage').then(m => ({ default: m.StudentProfileFormPage }))
+);
+const PreCounsellingFormPage = lazy(() =>
+  import('@/pages/student/PreCounsellingFormPage').then(m => ({ default: m.PreCounsellingFormPage }))
+);
+const StudentFeedbackFormPage = lazy(() =>
+  import('@/pages/student/StudentFeedbackFormPage').then(m => ({ default: m.StudentFeedbackFormPage }))
+);
+const AssessmentFormPage = lazy(() =>
+  import('@/pages/student/AssessmentFormPage').then(m => ({ default: m.AssessmentFormPage }))
+);
+const BookSessionsPage = lazy(() =>
+  import('@/pages/student/BookSessionsPage').then(m => ({ default: m.BookSessionsPage }))
+);
 
 function ProtectedRoute({ children, allowResetOnly }: { children: React.ReactNode; allowResetOnly?: boolean }) {
   const { isAuthenticated, mustResetPassword } = useAuthStore();
@@ -119,6 +137,12 @@ export const AppRoutes: React.FC = () => {
         >
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
           <Route path={ROUTES.STUDENT_PORTAL} element={<StudentPortalPage />} />
+          <Route path={ROUTES.STUDENT_PROFILE_FORM} element={<StudentProfileFormPage />} />
+          <Route path={ROUTES.PRE_COUNSELLING_FORM} element={<PreCounsellingFormPage />} />
+          <Route path={ROUTES.STUDENT_FEEDBACK_FORM} element={<StudentFeedbackFormPage />} />
+          <Route path={ROUTES.ASSESSMENT_FORM} element={<AssessmentFormPage />} />
+          <Route path={ROUTES.BOOK_SESSIONS} element={<BookSessionsPage />} />
+          <Route path={ROUTES.COUNSELING} element={<StudentCounselingPage />} />
           <Route path={ROUTES.UPCOMING_SESSIONS} element={<UpcomingSessionsPage />} />
           <Route path={ROUTES.COUNSELOR_STUDENT_CHART} element={<StudentFormChartPage />} />
           <Route path={ROUTES.GENERATE_REPORT} element={<StudentCareerIkigaiReportPage />} />

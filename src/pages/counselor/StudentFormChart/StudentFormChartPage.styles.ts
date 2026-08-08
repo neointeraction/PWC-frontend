@@ -118,9 +118,8 @@ export const StepNavItem = styled.button<{ $active?: boolean; $completed?: boole
   width: 100%;
   padding: 10px 12px;
   border-radius: 4px;
-  border: 1px solid ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
-  background-color: ${({ $active, theme }) =>
-    $active ? theme.colors.primaryLight || 'rgba(79, 70, 229, 0.08)' : 'transparent'};
+  border: 1px solid transparent;
+  background-color: transparent;
   color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.text)};
   font-weight: ${({ $active }) => ($active ? 600 : 500)};
   font-size: 0.85rem;
@@ -129,27 +128,8 @@ export const StepNavItem = styled.button<{ $active?: boolean; $completed?: boole
   position: relative;
   transition: all 0.2s ease;
 
-  ${({ $active, theme }) =>
-    $active &&
-    `
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 4px;
-      bottom: 4px;
-      width: 4px;
-      background-color: ${theme.colors.primary};
-      border-radius: 4px;
-    }
-  `}
-
   &:hover {
-    color: ${({ theme }) => theme.colors.primary};
-    background-color: ${({ $active, theme }) =>
-      $active
-        ? theme.colors.primaryLight || 'rgba(79, 70, 229, 0.08)'
-        : theme.colors.primaryLight || 'rgba(79, 70, 229, 0.04)'};
+    background-color: ${({ theme }) => theme.colors.surface};
   }
 `;
 
@@ -157,12 +137,35 @@ export const StatusIconWrapper = styled.span<{ $completed?: boolean; $active?: b
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${({ $completed, $active, theme }) =>
-    $completed
-      ? theme.colors.success || '#10B981'
-      : $active
-        ? theme.colors.primary
-        : theme.colors.textSecondary};
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+
+  ${({ $completed, $active, theme }) => {
+    if ($completed) {
+      return `
+        background-color: transparent;
+        color: ${theme.colors.success || '#10B981'};
+        border: 1.5px solid ${theme.colors.success || '#10B981'};
+      `;
+    }
+    if ($active) {
+      return `
+        background-color: ${theme.colors.primary};
+        color: #fff;
+        border: 1.5px solid ${theme.colors.primary};
+      `;
+    }
+    return `
+      background-color: transparent;
+      color: ${theme.colors.textSecondary};
+      border: 1.5px solid ${theme.colors.textSecondary};
+    `;
+  }}
 `;
 
 export const StepLabelText = styled.span`
@@ -403,23 +406,23 @@ export const NaBadge = styled.span`
 
 // Full-Width Synthesis Notes Panel
 export const SynthesisPanel = styled.div`
-  background-color: ${({ theme }) => theme.colors.background};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.noteBackground};
+  border: 1px solid ${({ theme }) => theme.colors.warning};
+  border-left: 4px solid ${({ theme }) => theme.colors.warning};
   border-radius: 4px;
   overflow: hidden;
   width: 100%;
-  margin-top: 8px;
+  margin-top: 16px;
 `;
 
 export const SynthesisPanelHeader = styled.div`
   padding: 10px 16px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.warningLight};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.warning}40;
   font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-weight: 800;
   letter-spacing: 0.5px;
-  color: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.warning};
   display: flex;
   align-items: center;
   gap: 8px;
@@ -443,24 +446,36 @@ export const SynthesisRow = styled.div`
 `;
 
 export const SynthesisCodeLabel = styled.div`
-  width: 70px;
-  min-width: 70px;
-  padding: 8px 10px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  width: 42px;
+  min-width: 42px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  background-color: ${({ theme }) => theme.colors.warning};
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: ${({ theme }) => theme.colors.primary};
-  text-align: center;
+  color: #fff;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
 
   @media (max-width: 600px) {
     width: 100%;
-    text-align: left;
+    height: 26px;
   }
 `;
 
-export const SynthesisInput = styled.textarea`
+export const SynthesisInput = styled.textarea<{ $minHeight?: number }>`
   flex: 1;
   width: 100%;
   padding: 10px 12px;
@@ -469,7 +484,7 @@ export const SynthesisInput = styled.textarea`
   background-color: ${({ theme }) => theme.colors.surface};
   color: ${({ theme }) => theme.colors.text};
   font-size: 0.875rem;
-  min-height: 54px;
+  min-height: ${({ $minHeight }) => ($minHeight ? `${$minHeight}px` : '48px')};
   font-family: inherit;
   resize: vertical;
 
@@ -619,29 +634,67 @@ export const ScriDesc = styled.div`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
-export const SegmentedButtonGroup = styled.div`
+export const RadioGroup = styled.div`
   display: flex;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 4px;
-  overflow: hidden;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
 `;
 
-export const SegmentedButton = styled.button<{ $selected?: boolean }>`
-  padding: 6px 14px;
-  border: none;
-  background-color: ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.surface)};
-  color: ${({ $selected, theme }) => ($selected ? '#FFFFFF' : theme.colors.text)};
-  font-size: 0.8rem;
-  font-weight: 600;
+export const RadioLabel = styled.label<{ $checked?: boolean }>`
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  font-size: 0.85rem;
+  color: ${({ theme, $checked }) => ($checked ? theme.colors.primary : theme.colors.text)};
+  font-weight: ${({ $checked }) => ($checked ? 600 : 400)};
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid ${({ theme, $checked }) => ($checked ? theme.colors.primary : theme.colors.border)};
+  background-color: ${({ theme, $checked }) => ($checked ? `${theme.colors.primary}0D` : theme.colors.surface)};
+  transition: all 0.15s ease;
 
   &:hover {
-    background-color: ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.background)};
+    border-color: ${({ theme }) => theme.colors.primary};
+    background-color: ${({ theme, $checked }) => ($checked ? `${theme.colors.primary}12` : `${theme.colors.primary}08`)};
+  }
+`;
+
+export const RadioInput = styled.input`
+  display: none;
+
+  &:checked + span {
+    border-color: ${({ theme }) => theme.colors.primary};
   }
 
-  & + & {
-    border-left: 1px solid ${({ theme }) => theme.colors.border};
+  &:checked + span::after {
+    transform: scale(1);
+    opacity: 1;
+  }
+`;
+
+export const RadioCustom = styled.span`
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid ${({ theme }) => theme.colors.border};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background-color: ${({ theme }) => theme.colors.surface};
+
+  &::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: ${({ theme }) => theme.colors.primary};
+    transform: scale(0);
+    opacity: 0;
+    transition: all 0.2s ease;
   }
 `;
 

@@ -21,6 +21,7 @@ import { Step2SectionB } from './components/Step2SectionB';
 import { Step3SectionC } from './components/Step3SectionC';
 import { Step4SectionD } from './components/Step4SectionD';
 import { Step5SectionE } from './components/Step5SectionE';
+import { Step6SCRI } from './components/Step6SCRI';
 import { Step6SectionF } from './components/Step6SectionF';
 import { Step7SummaryDashboard } from './components/Step7SummaryDashboard';
 
@@ -32,14 +33,15 @@ import {
 } from './StudentFormChartPage.styles';
 
 const STEP_LABELS = [
-  { index: 0, label: 'Student Information', shortLabel: 'Info' },
-  { index: 1, label: 'Section A — Academics & Non-Academics', shortLabel: 'Sec A' },
-  { index: 2, label: 'Section B — Strengths & Personality', shortLabel: 'Sec B' },
-  { index: 3, label: 'Section C — Career Clarity & Awareness', shortLabel: 'Sec C' },
-  { index: 4, label: 'Section D — Reliability of Assessment', shortLabel: 'Sec D' },
-  { index: 5, label: 'Section E — Roadmap & Readiness', shortLabel: 'Sec E' },
-  { index: 6, label: 'Section F — Goals & Expectations', shortLabel: 'Sec F' },
-  { index: 7, label: 'Summary Dashboard', shortLabel: 'Summary' },
+  { index: 0, label: 'Our Champion', shortLabel: 'Info' },
+  { index: 1, label: 'Academics & Non-Academics', shortLabel: 'A' },
+  { index: 2, label: 'Strengths & Personality View', shortLabel: 'B' },
+  { index: 3, label: 'Setting the Compass – Career Direction', shortLabel: 'C' },
+  { index: 4, label: 'Reliability of Assessment', shortLabel: 'D' },
+  { index: 5, label: 'Roadmap', shortLabel: 'E' },
+  { index: 6, label: 'Student Career Readiness Index (SCRI) — Counsellor Rating', shortLabel: 'SCRI' },
+  { index: 7, label: 'Goals & Expectations', shortLabel: 'F' },
+  { index: 8, label: 'Summary Dashboard', shortLabel: 'Summary' },
 ];
 
 export const StudentFormChartPage: React.FC = () => {
@@ -129,6 +131,7 @@ export const StudentFormChartPage: React.FC = () => {
           {activeStep === 1 && (
             <Step1SectionA
               data={formData.sectionA}
+              studentInfo={formData.studentInfo}
               onChangeNotes={(code, val) =>
                 setFormData(prev => ({
                   ...prev,
@@ -140,6 +143,7 @@ export const StudentFormChartPage: React.FC = () => {
               }
             />
           )}
+
 
           {activeStep === 2 && (
             <Step2SectionB
@@ -176,6 +180,18 @@ export const StudentFormChartPage: React.FC = () => {
                     careerDnaNarrative: {
                       ...prev.sectionB.careerDnaNarrative,
                       [field]: val,
+                    },
+                  },
+                }))
+              }
+              onChangeRedFlags={(key, val) =>
+                setFormData(prev => ({
+                  ...prev,
+                  sectionB: {
+                    ...prev.sectionB,
+                    redFlags: {
+                      ...prev.sectionB.redFlags,
+                      [key]: val,
                     },
                   },
                 }))
@@ -243,6 +259,24 @@ export const StudentFormChartPage: React.FC = () => {
                   sectionC: { ...prev.sectionC, careerCompassTable: table },
                 }))
               }
+              onChangeEntranceExamsTable={table =>
+                setFormData(prev => ({
+                  ...prev,
+                  sectionC: { ...prev.sectionC, entranceExamsTable: table },
+                }))
+              }
+              onChangeCollegesTable={table =>
+                setFormData(prev => ({
+                  ...prev,
+                  sectionC: { ...prev.sectionC, collegesTable: table },
+                }))
+              }
+              onChangeCompassClusterTable={table =>
+                setFormData(prev => ({
+                  ...prev,
+                  sectionC: { ...prev.sectionC, careerCompassClusterTable: table },
+                }))
+              }
             />
           )}
 
@@ -284,6 +318,12 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
+            />
+          )}
+
+          {activeStep === 6 && (
+            <Step6SCRI
+              data={formData.sectionE}
               onChangeScriRating={(code, rating) =>
                 setFormData(prev => ({
                   ...prev,
@@ -313,7 +353,7 @@ export const StudentFormChartPage: React.FC = () => {
             />
           )}
 
-          {activeStep === 6 && (
+          {activeStep === 7 && (
             <Step6SectionF
               data={formData.sectionF}
               onChangeNotes={(code, val) =>
@@ -328,7 +368,7 @@ export const StudentFormChartPage: React.FC = () => {
             />
           )}
 
-          {activeStep === 7 && (
+          {activeStep === 8 && (
             <Step7SummaryDashboard
               formData={formData}
               onSaveFinal={handleSaveFormChart}
@@ -346,7 +386,7 @@ export const StudentFormChartPage: React.FC = () => {
             </Button>
 
             <span style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: 500 }}>
-              Step {activeStep + 1} of 8 — {STEP_LABELS[activeStep].label}
+              Step {activeStep + 1} of 9 — {STEP_LABELS[activeStep].label}
             </span>
 
             {activeStep < STEP_LABELS.length - 1 ? (

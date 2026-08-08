@@ -1,8 +1,10 @@
 export interface AcademicRecord {
   id: string;
-  classLevel: string;
   subject: string;
-  grade: string;
+  class7: string;
+  class8: string;
+  class9: string;
+  isOther?: boolean;
 }
 
 export interface ComparisonItem {
@@ -25,6 +27,7 @@ export interface TraitAssessmentItem {
   layerTrait: string;
   traitName: string;
   whatItMeasures: string;
+  percentage?: string;
   grade: string;
   gradeMeaning: string;
 }
@@ -35,6 +38,7 @@ export interface StreamFitItem {
   subStream: string;
   coreSubjects: string;
   electives: string;
+  streamRequirement: string;
   gradingLevel: string;
   meaning: string;
 }
@@ -42,10 +46,43 @@ export interface StreamFitItem {
 export interface GraduationItem {
   id: string;
   cluster: string;
-  degree: string;
-  specialisations: string;
-  additionalPath: string;
+  mainStream: string;
+  subStream: string;
+  specialization: string;
+  reasoning: string;
   keyExams: string;
+}
+
+export interface EntranceExamItem {
+  id: string;
+  fullName: string;
+  conductingBody: string;
+  level: string;
+  applicableFor: string;
+  subjectRequirements: string;
+  examMonth: string;
+  urlLink: string;
+}
+
+export interface CollegesAfterItem {
+  id: string;
+  collegeName: string;
+  location: string;
+  type: string;
+  course: string;
+  entranceExam: string;
+  ranking: string;
+  website: string;
+}
+
+export interface CareerCompassClusterItem {
+  id: string;
+  cluster: string;
+  industry: string;
+  domain: string;
+  streamRequirement: string;
+  gradingLevel: string;
+  meaning: string;
 }
 
 export interface CareerCompassItem {
@@ -93,8 +130,11 @@ export interface CounsellorFormChartData {
   studentInfo: {
     studentName: string;
     className: string;
-    parentName: string;
-    occupation: string;
+    instituteName: string;
+    fatherName: string;
+    fatherOccupation: string;
+    motherName: string;
+    motherOccupation: string;
     academicRecords: AcademicRecord[];
     academicTrend: 'Improving' | 'Stable' | 'Declining' | 'Not Assessed';
     academicTrendNotes: string;
@@ -114,15 +154,13 @@ export interface CounsellorFormChartData {
       personalSignature: string;
       thinkingMode: string;
     };
+    redFlags: Record<string, string>;
     careerDnaNarrative: {
       dnaDefinition: string;
       careerStyleReveals: string;
       personalityStyleReveals: string;
       thinkingModeReveals: string;
       aptitudeProfileReveals: string;
-      reinforcementAct1: string;
-      reinforcementAct2: string;
-      reinforcementAct3: string;
     };
   };
   // Step 3: Section C
@@ -135,6 +173,9 @@ export interface CounsellorFormChartData {
     graduationTable: GraduationItem[];
     whyThisStream2: string;
     synthesisNotesF: Record<string, string>; // F1..F5
+    entranceExamsTable: EntranceExamItem[];
+    collegesTable: CollegesAfterItem[];
+    careerCompassClusterTable: CareerCompassClusterItem[];
     careerCompassTable: CareerCompassItem[];
   };
   // Step 4: Section D
@@ -163,12 +204,19 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
     studentInfo: {
       studentName: 'Aarav Sharma',
       className: 'Class 10 - Section A',
-      parentName: 'Rajesh Sharma & Sunita Sharma',
-      occupation: 'Senior Software Engineer & High School Educator',
+      instituteName: 'Delhi Public School, R.K. Puram',
+      fatherName: 'Rajesh Sharma',
+      fatherOccupation: 'Senior Software Engineer, TechCorp',
+      motherName: 'Sunita Sharma',
+      motherOccupation: 'High School Educator, Kendriya Vidyalaya',
       academicRecords: [
-        { id: 'rec-1', classLevel: 'Class 7', subject: 'Mathematics & Science', grade: '96%' },
-        { id: 'rec-2', classLevel: 'Class 8', subject: 'Mathematics & Science', grade: '97%' },
-        { id: 'rec-3', classLevel: 'Class 9', subject: 'Mathematics, Physics & Computer Applications', grade: '98%' },
+        { id: 'rec-1', subject: 'English', class7: '90%', class8: '92%', class9: '91%' },
+        { id: 'rec-2', subject: 'Second Language', class7: '85%', class8: '88%', class9: '87%' },
+        { id: 'rec-3', subject: 'Science', class7: '95%', class8: '96%', class9: '98%' },
+        { id: 'rec-4', subject: 'Mathematics', class7: '98%', class8: '99%', class9: '100%' },
+        { id: 'rec-5', subject: 'Social Science', class7: '92%', class8: '90%', class9: '93%' },
+        { id: 'rec-6', subject: 'Computer Science', class7: '96%', class8: '97%', class9: '99%' },
+        { id: 'rec-7', subject: '', class7: '', class8: '', class9: '', isOther: true },
       ],
       academicTrend: 'Improving',
       academicTrendNotes: 'Consistently exceptional performance in quantitative and technical subjects across Class 7 to 9.',
@@ -183,29 +231,15 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
               id: 'a1-1',
               code: 'A1.1',
               parameter: 'Favourite Subject',
-              studentResponse: 'Mathematics, Physics & Computer Science',
-              parentResponse: 'Mathematics & Science',
+              studentResponse: '1 & 2',
+              parentResponse: '1',
             },
             {
               id: 'a1-2',
               code: 'A1.2',
-              parameter: 'Least Favourite Subject',
-              studentResponse: 'History & Languages',
-              parentResponse: 'History & Social Studies',
-            },
-            {
-              id: 'a1-3',
-              code: 'A1.3',
-              parameter: 'Subject Strengths',
-              studentResponse: 'Problem solving, Logical proofs, Coding in Python',
-              parentResponse: 'Analytical thinking, Numerical speed',
-            },
-            {
-              id: 'a1-4',
-              code: 'A1.4',
-              parameter: 'Academic Score Range',
-              studentResponse: '95% - 98%',
-              parentResponse: 'Above 95% consistently',
+              parameter: 'Least Liked Subject',
+              studentResponse: '1 & 3',
+              parentResponse: '2',
             },
           ],
         },
@@ -216,208 +250,323 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
             {
               id: 'a2-1',
               code: 'A2.1',
-              parameter: 'Extracurricular Activities',
-              studentResponse: 'Robotics Club Captain, School Chess Team Lead',
-              parentResponse: 'Robotics competitions, Inter-school Chess',
+              parameter: 'Non-academic / free-time activity',
+              studentResponse: '4',
+              parentResponse: '4',
             },
             {
               id: 'a2-2',
               code: 'A2.2',
-              parameter: 'Favorite Hobbies',
-              studentResponse: 'Building Arduino projects, 3D printing, Speedcubing',
-              parentResponse: 'Puzzles, Coding exercises at home',
+              parameter: 'First Hobby — Name & weekly hours spent',
+              studentResponse: '5',
+              parentResponse: 'NA',
             },
             {
               id: 'a2-3',
               code: 'A2.3',
-              parameter: 'Preferred Learning Style',
-              studentResponse: 'Kinesthetic & Hands-on Visual (building prototypes)',
-              parentResponse: 'Practical application & self-paced online videos',
+              parameter: 'Second Hobby — Name & weekly hours spent',
+              studentResponse: '5',
+              parentResponse: 'NA',
             },
             {
               id: 'a2-4',
               code: 'A2.4',
-              parameter: 'Time Spent on Self-Study',
-              studentResponse: '2.5 - 3 hours daily',
-              parentResponse: '3 hours structured evening study',
+              parameter: 'Most enjoyed school activity',
+              studentResponse: '7',
+              parentResponse: 'NA',
+            },
+            {
+              id: 'a2-5',
+              code: 'A2.5',
+              parameter: 'Preferred mode of learning at school',
+              studentResponse: '8',
+              parentResponse: 'NA',
             },
           ],
         },
       ],
       synthesisNotes: {
-        A1: 'High alignment between student and parent regarding quantitative interest. Student excels in technical subjects.',
-        A2: 'Demonstrates strong kinesthetic learning through practical engineering and coding hobbies.',
-        A3: 'Extracurricular involvement directly reinforces academic problem-solving capabilities.',
-        A4: 'Self-study discipline is high; candidate thrives with autonomous problem sets.',
-        A5: 'Overall academic profile indicates readiness for rigorous STEM entrance pathways.',
+        A1: '',
+        A2: '',
+        A3: '',
+        A4: '',
+        A5: '',
       },
     },
     sectionB: {
       comparisonGroups: [
         {
           id: 'sub-b1',
-          title: 'B1 · Key Strengths Identified',
+          title: 'B1 · Personal Strengths & Enjoyment',
           items: [
             {
               id: 'b1-1',
               code: 'B1.1',
-              parameter: 'Primary Core Strength',
-              studentResponse: 'Mathematical logic & Systems breakdown',
-              parentResponse: 'High concentration & perseverance on complex problems',
+              parameter: 'Top personal qualities / strengths — Definitely me or Clearly see this',
+              studentResponse: '9',
+              parentResponse: '3',
             },
             {
               id: 'b1-2',
               code: 'B1.2',
-              parameter: 'Secondary Strength',
-              studentResponse: 'Spatial visualization & structural design',
-              parentResponse: 'Methodical organization of daily routine',
+              parameter: 'Top personal qualities / strengths — Somewhat me or Sometimes',
+              studentResponse: '9',
+              parentResponse: '3',
+            },
+            {
+              id: 'b1-3',
+              code: 'B1.3',
+              parameter: 'Special skill or talent mentioned by parent — any unique ability noticed',
+              studentResponse: 'NA',
+              parentResponse: '5',
+            },
+            {
+              id: 'b1-4',
+              code: 'B1.4',
+              parameter: 'Consistency of interests over time — are the student\'s interests stable or frequently changing?',
+              studentResponse: '6',
+              parentResponse: '6',
             },
           ],
         },
         {
           id: 'sub-b2',
-          title: 'B2 · Key Personality Traits Identified',
+          title: 'B2 · Personality Type & Decision-Making',
           items: [
             {
               id: 'b2-1',
               code: 'B2.1',
-              parameter: 'Work & Thinking Style',
-              studentResponse: 'Introverted, analytical, detail-driven',
-              parentResponse: 'Calm under pressure, highly reflective',
+              parameter: 'Perceived personality type',
+              studentResponse: '11',
+              parentResponse: 'NA',
             },
             {
               id: 'b2-2',
               code: 'B2.2',
-              parameter: 'Social Interaction Style',
-              studentResponse: 'Prefers small technical team collaboration',
-              parentResponse: 'Selective communicator, active listener',
+              parameter: 'Primary character description by parent',
+              studentResponse: 'NA',
+              parentResponse: '7',
+            },
+            {
+              id: 'b2-3',
+              code: 'B2.3',
+              parameter: 'How student interacts with peers & teachers',
+              studentResponse: 'NA',
+              parentResponse: '8',
+            },
+            {
+              id: 'b2-4',
+              code: 'B2.4',
+              parameter: 'General approach to making important decisions',
+              studentResponse: '12',
+              parentResponse: '9',
             },
           ],
         },
         {
           id: 'sub-b3',
-          title: 'B3 · Areas for Development / Growth',
+          title: 'B3 · Obstacles & Response to Failure',
           items: [
             {
               id: 'b3-1',
               code: 'B3.1',
-              parameter: 'Communication & Expression',
-              studentResponse: 'Public speaking & non-technical essay writing',
-              parentResponse: 'Expressing subjective emotions in group settings',
+              parameter: 'Main obstacles during study',
+              studentResponse: '10',
+              parentResponse: '11',
+            },
+            {
+              id: 'b3-2',
+              code: 'B3.2',
+              parameter: 'Response to failure or negative feedback',
+              studentResponse: '13',
+              parentResponse: '10',
             },
           ],
         },
       ],
       synthesisNotesPre: {
-        B1: 'Strong synergy in strength identification; both recognize deep logical concentration.',
-        B2: 'Personality traits align with INTJ engineering profile.',
-        B3: 'Public speaking and verbal articulation identified as focus area for leadership development.',
-        B4: 'High emotional stability supports high-stakes exam preparation.',
-        B5: 'Recommended targeted debate or MUN workshops to build public confidence.',
+        B1: '',
+        B2: '',
+        B3: '',
+        B4: '',
+        B5: '',
       },
       traitsTable: [
-        { id: 't-1', no: 1, layerTrait: 'Layer 1 — Core Aptitude', traitName: 'Numerical Reasoning', whatItMeasures: 'Speed & accuracy in quantitative operations', grade: 'A+', gradeMeaning: '99th Percentile — Superior Mastery' },
-        { id: 't-2', no: 2, layerTrait: 'Layer 1 — Core Aptitude', traitName: 'Spatial Aptitude', whatItMeasures: '3D spatial rotation & visual assembly', grade: 'A+', gradeMeaning: '98th Percentile — High Structural Insight' },
-        { id: 't-3', no: 3, layerTrait: 'Layer 2 — Personality', traitName: 'Analytical Rigor', whatItMeasures: 'Tendency to evaluate facts objectively', grade: 'A', gradeMeaning: 'High Consistency & Logic Focus' },
-        { id: 't-4', no: 4, layerTrait: 'Layer 3 — Interest', traitName: 'Computational & Tech', whatItMeasures: 'Enthusiasm for algorithmic design', grade: 'A+', gradeMeaning: 'Primary Passion Driver' },
+        { id: 't-1', no: 1, layerTrait: 'RIASEC - Conventional', traitName: 'Systematic & Disciplined', whatItMeasures: 'Preference for structured work, planning, accuracy, routines, and systematic procedures', percentage: '83.36', grade: 'Highly Preferred', gradeMeaning: 'A strong trait with natural interest, you can expertise' },
+        { id: 't-2', no: 2, layerTrait: 'BIG Five - Openness', traitName: 'Intellectual Curiosity', whatItMeasures: 'Willingness to explore new ideas, experiences, perspectives, creativity, and intellectual curiosity.', percentage: '72.64', grade: 'Evident', gradeMeaning: 'This tendency is generally present and influences your behaviour in many situations' },
+        { id: 't-3', no: 3, layerTrait: 'Cognitive & Decision - Learning Ability', traitName: 'Knowledge Agility', whatItMeasures: 'Ability and willingness to learn new skills, adapt quickly, and absorb new concepts efficiently', percentage: '52.82', grade: 'Emerging', gradeMeaning: 'This behaviour appears occasionally but is not yet consistently demonstrated' },
+        { id: 't-4', no: 4, layerTrait: 'Aptitude - Verbal Reasoning', traitName: 'Textual Intelligence', whatItMeasures: 'Language comprehension, reading interpretation, analogy, argument analysis, and verbal logic', percentage: '47.33', grade: 'Developing Capability', gradeMeaning: 'Demonstrates moderate potential but may require additional training and exposure' },
       ],
       summaryStrip: {
-        careerStyle: 'Analytical Technologist',
-        personalSignature: 'INTJ — Strategic System Architect',
-        thinkingMode: 'Abstract & Deductive Logic',
+        careerStyle: 'RIASEC 120',
+        personalSignature: 'BIG FIVE 20',
+        thinkingMode: 'COG&DEC',
+      },
+      redFlags: {
+        riasec: 'RED FLAG if any — explained in Tie-break & Edge case Rules under RIASEC of Assessment Construct file',
+        bigFive: 'RED FLAG if any — explained in Tie-break & Edge case Rules under BIG Five of Assessment Construct file',
+        cogDec: 'RED FLAG if any — explained in Tie-break & Edge case Rules under Cognitive & Decision of Assessment Construct file',
+        aptitude: 'RED FLAG if any — explained in Tie-break & Edge case Rules under Aptitude of Assessment Construct file',
       },
       careerDnaNarrative: {
-        dnaDefinition: 'High-Velocity Technical Innovator with exceptional quantitative intuition and spatial modeling capabilities.',
-        careerStyleReveals: 'Thrives in structured engineering environments requiring deep problem decomposition and code optimization.',
-        personalityStyleReveals: 'Prefers clear objective metrics over ambiguous qualitative feedback. Displays high autonomous task execution.',
-        thinkingModeReveals: 'Applies rigorous deductive logic to break multi-variable problems into solvable modular units.',
-        aptitudeProfileReveals: 'Numerical reasoning and spatial visualization scores fall in the top 2% of national benchmark norms.',
-        reinforcementAct1: 'Participate in Olympiad Mathematical Problem Solving circles.',
-        reinforcementAct2: 'Lead the high school Robotics sensor integration sub-team.',
-        reinforcementAct3: 'Complete Python & Data Structures certification on kREATE portal.',
+        dnaDefinition: '',
+        careerStyleReveals: '',
+        personalityStyleReveals: '',
+        thinkingModeReveals: '',
+        aptitudeProfileReveals: '',
       },
     },
     sectionC: {
       comparisonGroups: [
         {
           id: 'sub-c1',
-          title: 'C1 · Awareness of Career Options',
+          title: 'C1 · Career Preferences & Motivations',
           items: [
             {
               id: 'c1-1',
               code: 'C1.1',
-              parameter: 'Domain Familiarity',
-              studentResponse: 'Computer Science, Artificial Intelligence, Robotics',
-              parentResponse: 'Software Engineering, Data Science',
+              parameter: 'Specific career goal or field',
+              studentResponse: '14',
+              parentResponse: '12',
             },
             {
               id: 'c1-2',
               code: 'C1.2',
-              parameter: 'Source of Awareness',
-              studentResponse: 'Tech blogs, GitHub projects, YouTube lecture series',
-              parentResponse: 'Industry colleagues, media & educational news',
+              parameter: 'Core reason for career interest',
+              studentResponse: '15',
+              parentResponse: '13',
             },
           ],
         },
         {
           id: 'sub-c2',
-          title: 'C2 · Primary Career Aspirations',
+          title: 'C2 · Influencers & Alternative Careers',
           items: [
             {
               id: 'c2-1',
               code: 'C2.1',
-              parameter: 'Dream Role / Target Field',
-              studentResponse: 'AI Research Engineer / Robotics Systems Lead',
-              parentResponse: 'Computer Science Engineer at top tier institute',
+              parameter: 'Biggest influencer on student\'s career choice',
+              studentResponse: '16',
+              parentResponse: 'NA',
+            },
+            {
+              id: 'c2-2',
+              code: 'C2.2',
+              parameter: 'How well parent understands the student\'s interests',
+              studentResponse: '17',
+              parentResponse: 'NA',
             },
           ],
         },
         {
           id: 'sub-c3',
-          title: 'C3 · Factors Influencing Career Choice',
+          title: 'C3 · Parental Stance, Constraints & Decision Dynamics',
           items: [
             {
               id: 'c3-1',
               code: 'C3.1',
-              parameter: 'Primary Motivator',
-              studentResponse: 'Building high-impact technology & solving hard math problems',
-              parentResponse: 'High growth industry, global mobility & stability',
+              parameter: 'Is parent open to exploring alternative or unconventional careers based on assessment?',
+              studentResponse: 'NA',
+              parentResponse: '14',
+            },
+            {
+              id: 'c3-2',
+              code: 'C3.2',
+              parameter: 'Financial constraints to be considered for future education',
+              studentResponse: 'NA',
+              parentResponse: '15',
+            },
+            {
+              id: 'c3-3',
+              code: 'C3.3',
+              parameter: 'Openness to studying outside the city — domestic relocation',
+              studentResponse: 'NA',
+              parentResponse: '16',
+            },
+            {
+              id: 'c3-4',
+              code: 'C3.4',
+              parameter: 'Openness to studying abroad — international',
+              studentResponse: 'NA',
+              parentResponse: '16',
+            },
+            {
+              id: 'c3-5',
+              code: 'C3.5',
+              parameter: 'Who makes the final major decisions about the child\'s education?',
+              studentResponse: 'NA',
+              parentResponse: '17',
+            },
+            {
+              id: 'c3-6',
+              code: 'C3.6',
+              parameter: 'Is the child actively involved in major education decisions?',
+              studentResponse: 'NA',
+              parentResponse: '18',
+            },
+            {
+              id: 'c3-7',
+              code: 'C3.7',
+              parameter: 'Parent\'s biggest concern about the child\'s academic & career future',
+              studentResponse: 'NA',
+              parentResponse: '19',
+            },
+            {
+              id: 'c3-8',
+              code: 'C3.8',
+              parameter: 'Any specific behavioural or academic issue the parent wants the counsellor to prioritise',
+              studentResponse: 'NA',
+              parentResponse: '20',
             },
           ],
         },
       ],
       synthesisNotesPre: {
-        D1: 'Student displays remarkably mature understanding of specialized CS fields (AI/Robotics).',
-        D2: 'Parents are supportive of CS direction and value long-term stability.',
-        D3: 'Intrinsic motivation (problem solving) dominates extrinsic factors.',
-        D4: 'Needs early exposure to core electrical/hardware aspects vs pure software.',
-        D5: 'High alignment between student dream role and aptitude test benchmarks.',
+        D1: '',
+        D2: '',
+        D3: '',
+        D4: '',
+        D5: '',
       },
       streamFitTable: [
-        { id: 'sf-1', mainStream: 'Science', subStream: 'PCM with Computer Science', coreSubjects: 'Physics, Chemistry, Mathematics', electives: 'Computer Science / Python', gradingLevel: 'Tier 1 Prime Fit', meaning: 'Ideal match for student cognitive strengths' },
+        { id: 'sf-1', mainStream: 'Humanities / Arts', subStream: 'Humanities with Psychology', coreSubjects: 'Psychology, Sociology, Political Science, English', electives: 'History, Physical Education', streamRequirement: 'Pick from traits & wtgs table', gradingLevel: 'Pick from table', meaning: 'Pick from table' },
+        { id: 'sf-2', mainStream: 'Humanities / Arts', subStream: 'Humanities with Fine Arts', coreSubjects: 'Fine Arts, History, English', electives: 'Sociology, Psychology', streamRequirement: 'Pick from traits & wtgs table', gradingLevel: 'Pick from table', meaning: 'Pick from table' },
+        { id: 'sf-3', mainStream: 'Humanities / Arts', subStream: 'Humanities with Mass Media', coreSubjects: 'Political Science, Sociology, English', electives: 'Psychology, Multimedia', streamRequirement: 'Pick from traits & wtgs table', gradingLevel: 'Pick from table', meaning: 'Pick from table' },
       ],
-      whyThisStream1: 'Science (PCM + CS) provides the foundational mathematical and physical principles essential for top engineering entrance exams (JEE Advanced, BITSAT) and future AI hardware/software design.',
+      whyThisStream1: 'Above is just an indicative example of filling the boxes, picked from Traits & Weightages file.',
       synthesisNotesE: {
-        E1: 'PCM + CS is unequivocally recommended as the primary Class 11 stream.',
-        E2: 'Mathematics rigor must be prioritized from Class 10 transition.',
-        E3: 'Physics conceptual clarity will support robotics sub-domain aspirations.',
-        E4: 'Computer Science elective gives immediate advantage in programming foundations.',
-        E5: 'No alternative stream required given clear quantitative dominance.',
+        E1: '',
+        E2: '',
+        E3: '',
+        E4: '',
+        E5: '',
+        E6: '',
       },
       graduationTable: [
-        { id: 'gr-1', cluster: 'Engineering & Technology', degree: 'B.Tech / B.E.', specialisations: 'Computer Science & Engineering (AI/ML)', additionalPath: 'Integrated M.Tech / Dual Degree', keyExams: 'JEE Main, JEE Advanced, BITSAT' },
+        { id: 'gr-1', cluster: 'Humanities', mainStream: 'Humanities & Social Sciences', subStream: 'BA Public Policy', specialization: 'Governance', reasoning: 'BA Public Policy is best suited to students who bring strong verbal and language skills, empathy and people skills, curiosity and openness to new ideas, warmth and cooperation, and the ability to work independently. This blend of strengths supports you in areas like Governance, where your strong verbal and language skills really makes the difference.', keyExams: 'CUET UG, Ashoka Aptitude Test, APU NET' },
+        { id: 'gr-2', cluster: 'Humanities', mainStream: 'Humanities & Social Sciences', subStream: 'BA International Relations', specialization: 'Diplomacy', reasoning: 'BA International Relations is best suited to students who bring strong verbal and language skills, empathy and people skills, curiosity and openness to new ideas, warmth and cooperation, and the ability to work independently. This blend of strengths supports you in areas like Diplomacy, where your strong verbal and language skills really makes the difference.', keyExams: 'CUET UG, Ashoka Aptitude Test, Christ University Entrance Test' },
+        { id: 'gr-3', cluster: 'Humanities', mainStream: 'Education & Teaching', subStream: 'Integrated B.Ed', specialization: 'BA/B.Sc B.Ed', reasoning: 'Integrated B.Ed is best suited to students who bring empathy and people skills, strong verbal and language skills, warmth and cooperation, discipline and reliability, and calmness and emotional balance. This blend of strengths supports you in areas like BA/B.Sc B.Ed, where your empathy and ability to connect with people really makes the difference.', keyExams: 'CUET UG' },
       ],
-      whyThisStream2: 'B.Tech in Computer Science with AI/ML specialization offers direct alignment with student interest in algorithms, robotics systems, and quantitative modeling.',
+      whyThisStream2: 'Data to be pulled from the Traits & Weightages file',
       synthesisNotesF: {
-        F1: 'Target degree: 4-year B.Tech CS / AI in premier engineering institutes.',
-        F2: 'Focus on top 15 IITs, NITs, and BITS Pilani.',
-        F3: 'Plan JEE Main & Advanced prep starting Class 11.',
-        F4: 'Explore foreign undergraduate options (US/UK) if SAT/AP exams are added.',
-        F5: 'Keep dual degree (CS + Economics/Math) as secondary high-value option.',
+        F1: '',
+        F2: '',
+        F3: '',
+        F4: '',
+        F5: '',
+        F6: '',
       },
+      entranceExamsTable: [
+        { id: 'ee-1', fullName: '[Full name of the exam]', conductingBody: '[Conducting organisation]', level: '[National / State / Institute]', applicableFor: '[Degree / Programme]', subjectRequirements: '[12th]', examMonth: '[Approx]', urlLink: '[Paste the URL link]' }
+      ],
+      collegesTable: [
+        { id: 'col-1', collegeName: '[College Name]', location: '[Location]', type: '[Board]', course: '[]', entranceExam: '[]', ranking: '[]', website: '[]' }
+      ],
+      careerCompassClusterTable: [
+        { id: 'ccc-1', cluster: 'Pick from table', industry: 'Pick from table', domain: 'Pick from table', streamRequirement: 'Pick from table', gradingLevel: 'Pick from table', meaning: 'Pick from table' }
+      ],
       careerCompassTable: [
-        { id: 'cc-1', domain: 'Artificial Intelligence', role: 'AI / Machine Learning Engineer', whyItFits: 'Matches top quantitative score & Python passion', topEmployers: 'Google Research, OpenAI, NVIDIA, Microsoft', aiResilience: 'Very High (Core Creator)', salaryIndia: '₹18 - ₹35 LPA (Fresh Graduate)', salaryAbroad: '$120,000 - $160,000/yr' },
-        { id: 'cc-2', domain: 'Robotics Engineering', role: 'Robotic Systems Engineer', whyItFits: 'Combines spatial rotation & hardware integration', topEmployers: 'Tesla, Boston Dynamics, ISRO, ABB', aiResilience: 'Very High (Physical AI)', salaryIndia: '₹14 - ₹28 LPA', salaryAbroad: '$110,000 - $150,000/yr' },
+        { id: 'cc-1', domain: 'Library & Information Science', role: 'Librarian / Information Specialist', whyItFits: 'Pick from traits & weightages table', topEmployers: 'School & University Libraries, Public Libraries (RRRLF), National Library of India, Digital Archives, NCERT, British Council', aiResilience: 'High. While digital cataloguing evolves, the role of curating knowledge, guiding readers, and managing community learning spaces requires deep human judgment and interpersonal skill.', salaryIndia: 'Rs. 3–10 LPA', salaryAbroad: '$45k–$75k' },
       ],
     },
     sectionD: {
@@ -425,98 +574,94 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         {
           code: 'EIM',
           name: 'Engagement Integrity Measure',
-          guidingQuestion: 'Did the student take adequate time and show active focus during psychometric testing?',
-          valueStatus: '98% — High Focus',
-          explanationText: 'Test completion pattern reveals steady pace without rapid clicking or automated guessing.',
+          guidingQuestion: 'How consistent were your personality answers?',
+          valueStatus: '% Grading',
+          explanationText: 'Grading meaning.',
         },
         {
           code: 'ACI',
-          name: 'Assessment Consistency Index',
-          guidingQuestion: 'Do responses across cross-validating questions match logically?',
-          valueStatus: '95% — Highly Consistent',
-          explanationText: 'Strong correlation across repeated logic questions and interest validation checks.',
+          name: 'Aptitude Test Coherence Index',
+          guidingQuestion: 'How logically did aptitude answers progress?',
+          valueStatus: '% Grading',
+          explanationText: 'Grading meaning..',
         },
         {
           code: 'AAI',
-          name: 'Aptitude Alignment Indicator',
-          guidingQuestion: 'Does self-reported skill level align with objective test results?',
-          valueStatus: '92% — Accurate Self-Awareness',
-          explanationText: 'Student self-ratings in quantitative ability accurately reflect high test output.',
+          name: 'Aptitude Accuracy Indicator',
+          guidingQuestion: "How many questions were marked 'Not Sure'?",
+          valueStatus: '% Grading',
+          explanationText: 'Grading meaning..',
         },
         {
           code: 'HRS',
-          name: 'Response Honesty & Reliability Score',
-          guidingQuestion: 'Are there signs of social desirability bias or fake response patterns?',
-          valueStatus: 'High Integrity',
-          explanationText: 'Honesty scale shows minimal defensive responding; data is highly dependable for session planning.',
+          name: 'Holistic Reliability Score',
+          guidingQuestion: 'Was the completion pace psychologically normal?',
+          valueStatus: '% Grading',
+          explanationText: 'Grading meaning.',
         },
       ],
       synthesisNotes: {
-        G1: 'Assessment results carry high diagnostic validity (>95% reliability across all 4 metrics).',
-        G2: 'No re-testing required for core quantitative or personality modules.',
-        G3: 'High alignment between subjective preference and objective psychometric indicators.',
-        G4: 'Data can be shared with parents with total confidence during PTM.',
-        G5: 'Validates proceeding directly to Class 11 subject selection and test roadmap.',
+        G1: '',
+        G2: '',
+        G3: '',
       },
     },
     sectionE: {
       roadmapGrid: {
-        nowSkills: 'Advanced Python, Calculus foundations, Speed Mathematics',
-        nowActivities: 'State Robotics Championship, Science Exhibition Lead',
-        nowHabits: 'Daily 45-min logic puzzle practice, Structured time blocking',
-        c11Stream: 'Science (PCM + CS)',
-        c11Exams: 'JEE Main Mock Series, Olympiad (KVPY/NSEP/NSEC)',
-        c11Electives: 'Computer Science (Python & SQL focus)',
-        afterDegrees: 'B.Tech CS / AI (IITs, NITs, BITS)',
-        afterCertifications: 'AWS Certified Machine Learning, TensorFlow Developer',
-        afterAbroad: 'GRE / TOEFL for US MS program (Carnegie Mellon, MIT)',
+        nowSkills: 'Communication, reading comprehension, basic digital literacy, and daily mental maths practice (15 min/day to address Numerical gap), do python coding class (one technology recommendation)',
+        nowActivities: 'Student council, school committees, peer tutoring, cultural events, community service.',
+        nowHabits: 'Daily reading (one editorial or chapter), weekly self-reflection journaling, planner use for study scheduling',
+        c11Stream: 'Humanities with Psychology',
+        c11Exams: 'CUET, IIMC Entrance, Symbiosis SNAP, CLAT (if Law interest develops), TISS NET',
+        c11Electives: 'Psychology or Sociology as elective within chosen stream; consider basic Economics for broader options',
+        afterDegrees: 'BA Psychology, BJMC, BA Sociology / Social Work',
+        afterCertifications: 'Coursera / NPTL courses in Communication, Social Psychology, or Public Speaking; MS Excel basics for career versatility',
+        afterAbroad: 'IELTS prep can begin in Class 12; UK, Australia, and Canada offer strong Psychology and Social Work programs',
       },
       scriItems: [
-        { code: 'S1', name: 'Academic Benchmark Alignment', description: 'Class 9/10 marks consistency with target stream requirements', rating: 4 },
-        { code: 'S2', name: 'Career Domain Awareness', description: 'Depth of understanding of target roles, skills, and industry', rating: 4 },
-        { code: 'S3', name: 'Aptitude-Choice Synergy', description: 'Psychometric test scores matching chosen career stream', rating: 4 },
-        { code: 'S4', name: 'Parental Support & Financial Readiness', description: 'Family consensus and alignment on education investment', rating: 3 },
-        { code: 'S5', name: 'Action Plan Clarity', description: 'Clarity on entrance exams, milestones, and backup options', rating: 3 },
-        { code: 'S6', name: 'Self-Efficacy & Motivation', description: 'Student ownership of learning goals and exam preparation drive', rating: 4 },
+        { code: 'S1', name: 'Confidence', description: 'Comfort discussing career topics', rating: 4 },
+        { code: 'S2', name: 'Reasoned Thinking', description: 'Personal vs. borrowed reasoning', rating: 4 },
+        { code: 'S3', name: 'Reduced Anxiety', description: 'Comfort with uncertainty', rating: 4 },
+        { code: 'S4', name: 'Self-Awareness', description: "Own interests vs. others' expectations", rating: 3 },
+        { code: 'S5', name: 'Career Curiosity', description: 'Active exploration between sessions', rating: 3 },
+        { code: 'S6', name: 'Decision Ownership', description: 'Who is driving the decision', rating: 4 },
       ],
       academicCareerAlignment: 'Strongly Aligned',
       synthesisNotes: {
-        H1: 'Total Readiness Index score of 22/24 places student in the Top Ready Band.',
-        H2: 'Prioritize building exam endurance and time management in Class 11.',
-        H3: 'Recommend parent discussion on coaching institute selection for JEE prep.',
-        H4: 'Ensure student maintains non-academic hobbies (chess/robotics) as stress busters.',
-        H5: 'Schedule quarterly progress check-in to monitor Class 11 transition.',
+        G1: '',
+        G2: '',
+        G3: '',
+        G4: '',
       },
     },
     sectionF: {
       comparisonGroups: [
         {
           id: 'sub-f1',
-          title: 'F1 · Counselling Goals & Programme Expectations',
+          title: 'D1 · Stated Counselling Objectives',
           items: [
             {
               id: 'f1-1',
-              code: 'F1.1',
+              code: 'D1.1',
               parameter: 'Primary counselling objective',
-              studentResponse: 'Clear roadmap for JEE prep alongside Class 11 school exams',
-              parentResponse: 'Guidance on top engineering colleges, entrance exams & coaching options',
+              studentResponse: '18',
+              parentResponse: '21',
             },
             {
               id: 'f1-2',
-              code: 'F1.2',
+              code: 'D1.2',
               parameter: 'Anything specific counsellor to know before session',
-              studentResponse: 'Wants to explore integrated B.Tech + M.Tech options in AI',
-              parentResponse: 'Wants guidance on balancing board exam focus with entrance prep',
+              studentResponse: '19',
+              parentResponse: '22',
             },
           ],
         },
       ],
       synthesisNotes: {
-        I1: 'Primary goal achieved: Delivered unified Class 11 stream & competitive exam strategy.',
-        I2: 'Addressed parent query regarding school board vs JEE prep balance.',
-        I3: 'Established clear timeline for Class 10 board completion and Class 11 transition.',
-        I4: 'Scheduled follow-up parent-teacher-counsellor meeting (PTM) after Class 10 pre-boards.',
-        I5: 'Finalized candidate enrollment in PWC Tier-1 Engineering Mentorship Programme.',
+        H1: '',
+        H2: '',
+        H3: '',
+        H4: '',
       },
     },
   };

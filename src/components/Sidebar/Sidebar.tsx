@@ -113,12 +113,12 @@ export const Sidebar: React.FC = () => {
 
   const studentNavItems = [
     {
-      label: 'Student Portal',
+      label: 'Dashboard',
       href: ROUTES.STUDENT_PORTAL,
       icon: <RiDashboardLine size={18} />,
     },
     {
-      label: 'Career Library',
+      label: 'Career library',
       href: ROUTES.CAREER_LIBRARY,
       icon: <RiBookOpenLine size={18} />,
     },

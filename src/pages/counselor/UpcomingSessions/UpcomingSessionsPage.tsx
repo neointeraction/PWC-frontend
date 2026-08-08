@@ -8,6 +8,7 @@ import {
   RiCheckDoubleLine,
   RiPrinterLine,
 } from 'react-icons/ri';
+import { Button } from '@/components/Button';
 import { PageHeader } from '@/components/PageHeader';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
@@ -15,12 +16,9 @@ import { getMockUpcomingSessions, UpcomingSession } from '@/mocks/upcomingSessio
 import { ROUTES } from '@/constants';
 import {
   Container,
-  StudentNameButton,
   TimeContainer,
   TimeText,
   StatusPill,
-  ActionIconButtonGroup,
-  ActionIconButton,
 } from './UpcomingSessionsPage.styles';
 
 export const UpcomingSessionsPage: React.FC = () => {
@@ -42,53 +40,19 @@ export const UpcomingSessionsPage: React.FC = () => {
   const columns: Column<UpcomingSession>[] = useMemo(
     () => [
       {
-        key: 'actions',
-        header: 'Action',
-        cell: (row: UpcomingSession) => {
-          const canJoin = checkCanJoin(row.dateTime);
-
-          return (
-            <ActionIconButtonGroup>
-              {canJoin ? (
-                <Tooltip content="Join video meeting">
-                  <ActionIconButton
-                    $variant="primary"
-                    aria-label="Join Meet"
-                    onClick={() => window.open(row.meetUrl, '_blank')}
-                  >
-                    <RiVideoChatLine size={16} />
-                  </ActionIconButton>
-                </Tooltip>
-              ) : (
-                <Tooltip content="Join button enables 30 minutes before session start time">
-                  <ActionIconButton disabled aria-label="Join disabled">
-                    <RiVideoChatLine size={16} />
-                  </ActionIconButton>
-                </Tooltip>
-              )}
-
-              <Tooltip content="Generate & view Student Career IKIGAI Report">
-                <ActionIconButton
-                  aria-label="Generate Report"
-                  onClick={() => navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', row.id))}
-                >
-                  <RiPrinterLine size={16} />
-                </ActionIconButton>
-              </Tooltip>
-            </ActionIconButtonGroup>
-          );
-        },
-      },
-      {
         key: 'studentName',
         header: 'Student Name',
         accessor: 'studentName',
         cell: (row: UpcomingSession) => (
           <Tooltip content="Click to open Counsellor Form Chart & add session notes">
-            <StudentNameButton type="button" onClick={() => handleOpenStudentChart(row)}>
-              <RiFileTextLine size={16} />
+            <Button
+              size="sm"
+              variant="secondary"
+              leftIcon={<RiFileTextLine size={16} />}
+              onClick={() => handleOpenStudentChart(row)}
+            >
               {row.studentName}
-            </StudentNameButton>
+            </Button>
           </Tooltip>
         ),
       },
@@ -121,6 +85,53 @@ export const UpcomingSessionsPage: React.FC = () => {
             </TimeContainer>
           );
         },
+      },
+      {
+        key: 'sessions',
+        header: 'Sessions',
+        cell: (row: UpcomingSession) => {
+          const canJoin = checkCanJoin(row.dateTime);
+
+          if (canJoin) {
+            return (
+              <Button
+                size="sm"
+                variant="primary"
+                leftIcon={<RiVideoChatLine size={16} />}
+                onClick={() => window.open(row.meetUrl, '_blank')}
+              >
+                Join Session
+              </Button>
+            );
+          }
+
+          return (
+            <Tooltip content="Join button enables 30 minutes before session start time">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled
+                leftIcon={<RiVideoChatLine size={16} />}
+              >
+                Join Session
+              </Button>
+            </Tooltip>
+          );
+        },
+      },
+      {
+        key: 'report',
+        header: 'Report',
+        cell: (row: UpcomingSession) => (
+          <Button
+            size="sm"
+            variant="secondary"
+            leftIcon={<RiPrinterLine size={16} />}
+            onClick={() => navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', row.id))}
+          >
+            Generate Report
+          </Button>
+        ),
       },
     ],
     []

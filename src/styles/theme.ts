@@ -22,6 +22,8 @@ export const lightTheme = {
     successLight: '#DCFCE7',
     warning: '#D97706',
     warningLight: '#FEF3C7',
+    noteBackground: '#FEFCE8',
+
     danger: '#DC2626',
     dangerLight: '#FEE2E2',
     info: '#0891B2',
@@ -123,6 +125,8 @@ export const darkTheme = {
     successLight: '#14532D',
     warning: '#F59E0B',
     warningLight: '#451A03',
+    noteBackground: '#2D2A1A',
+
     danger: '#EF4444',
     dangerLight: '#450A0A',
     info: '#22D3EE',

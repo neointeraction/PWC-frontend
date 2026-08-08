@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  RiCheckboxCircleLine,
-  RiCircleLine,
-  RiRadioButtonLine,
-} from 'react-icons/ri';
+import { RiCheckLine } from 'react-icons/ri';
 import {
   SidebarWrapper,
   OverallProgressContainer,
@@ -68,11 +64,9 @@ export const SidebarTracker: React.FC<SidebarTrackerProps> = ({
             >
               <StatusIconWrapper $completed={step.completed} $active={isActive}>
                 {step.completed ? (
-                  <RiCheckboxCircleLine size={18} />
-                ) : step.inProgress || isActive ? (
-                  <RiRadioButtonLine size={18} />
+                  <RiCheckLine size={14} style={{ strokeWidth: 1 }} />
                 ) : (
-                  <RiCircleLine size={18} />
+                  <span>{step.index + 1}</span>
                 )}
               </StatusIconWrapper>
               <StepLabelText>{step.label}</StepLabelText>

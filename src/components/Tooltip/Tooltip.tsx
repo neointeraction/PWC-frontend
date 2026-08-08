@@ -16,15 +16,18 @@ const TooltipWrapper = styled.div`
 const PortalTooltipBox = styled.div`
   position: fixed;
   z-index: 999999;
-  padding: 5px 9px;
+  padding: 8px 12px;
   font-size: ${({ theme }) => theme.fontSize.xs};
   font-weight: ${({ theme }) => theme.fontWeight.medium};
   color: ${({ theme }) => theme.colors.textInverse};
   background-color: ${({ theme }) => theme.colors.text};
   border-radius: 4px;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 360px;
+  line-height: 1.4;
+  word-break: break-word;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
   transition: opacity 120ms ease;
 `;
 

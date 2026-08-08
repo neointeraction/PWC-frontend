@@ -20,10 +20,10 @@ export const mockSubscriptionInfo: SubscriptionInfo = {
 };
 
 export const mockAdminUsers: AdminUser[] = [
-  { id: 'adm-01', name: 'Alex Rivera', email: 'alex.rivera@phoenixwaterclub.edu', role: 'super_admin', status: 'active', lastActive: 'Just now' },
-  { id: 'adm-02', name: 'Sarah Jenkins', email: 's.jenkins@phoenixwaterclub.edu', role: 'institution_admin', status: 'active', lastActive: '2 hours ago' },
-  { id: 'adm-03', name: 'Michael Chang', email: 'm.chang@phoenixwaterclub.edu', role: 'counselor', status: 'active', lastActive: 'Yesterday' },
-  { id: 'adm-04', name: 'Rachel Green', email: 'r.green@phoenixwaterclub.edu', role: 'counselor', status: 'active', lastActive: '3 days ago' },
+  { id: 'adm-01', name: 'Aarav Sharma', email: 'aarav.sharma@phoenixwaterclub.edu', role: 'super_admin', status: 'active', lastActive: 'Just now' },
+  { id: 'adm-02', name: 'Sunita Sharma', email: 's.sharma@phoenixwaterclub.edu', role: 'institution_admin', status: 'active', lastActive: '2 hours ago' },
+  { id: 'adm-03', name: 'Mahesh Pillai', email: 'm.pillai@phoenixwaterclub.edu', role: 'counselor', status: 'active', lastActive: 'Yesterday' },
+  { id: 'adm-04', name: 'Rohan Menon', email: 'r.menon@phoenixwaterclub.edu', role: 'counselor', status: 'active', lastActive: '3 days ago' },
 ];
 
 export const mockNotificationPreferences: NotificationPreferences = {

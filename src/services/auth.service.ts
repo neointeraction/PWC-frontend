@@ -2,28 +2,28 @@ import { LoginPayload, LoginResponse, User } from '@/types';
 
 const MOCK_SUPER_ADMIN: User = {
   id: 'user-super-admin',
-  name: 'Alex Rivera (Super Admin)',
+  name: 'Aarav Sharma (Super Admin)',
   email: 'admin@pwc.com',
   role: 'super_admin',
 };
 
-const MOCK_ADMIN_SARAH: User = {
-  id: 'user-admin-sarah',
-  name: 'Sarah Connor',
-  email: 'sarah.connor@pwc-global.com',
+const MOCK_ADMIN_SUNITA: User = {
+  id: 'user-admin-sunita',
+  name: 'Sunita Sharma',
+  email: 'sunita.sharma@pwc-global.com',
   role: 'admin',
 };
 
-const MOCK_COUNSELOR_JOHN: User = {
-  id: 'user-counselor-john',
-  name: 'John Doe',
+const MOCK_COUNSELOR_MAHESH: User = {
+  id: 'user-counselor-mahesh',
+  name: 'Mahesh Pillai',
   email: 'counselor@pwc.com',
   role: 'counselor',
 };
 
-const MOCK_STUDENT_ALEX: User = {
-  id: 'user-student-alex',
-  name: 'Alex Johnson',
+const MOCK_STUDENT_AARAV: User = {
+  id: 'user-student-aarav',
+  name: 'Aarav Sharma',
   email: 'student@pwc.com',
   role: 'student',
 };
@@ -41,23 +41,23 @@ export const authService = {
       };
     }
 
-    if (payload.email === 'sarah.connor@pwc-global.com') {
+    if (payload.email === 'sunita.sharma@pwc-global.com') {
       return {
-        user: MOCK_ADMIN_SARAH,
+        user: MOCK_ADMIN_SUNITA,
         token: MOCK_TOKEN,
       };
     }
 
     if (payload.email === 'counselor@pwc.com') {
       return {
-        user: MOCK_COUNSELOR_JOHN,
+        user: MOCK_COUNSELOR_MAHESH,
         token: MOCK_TOKEN,
       };
     }
 
     if (payload.email === 'student@pwc.com') {
       return {
-        user: MOCK_STUDENT_ALEX,
+        user: MOCK_STUDENT_AARAV,
         token: MOCK_TOKEN,
       };
     }

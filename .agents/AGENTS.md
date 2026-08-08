@@ -506,6 +506,7 @@ src/mocks/
 ```
 
 Do not hardcode mock data inside components.
+All imaginary/placeholder names (student names, parent names, counselor names, etc.) must strictly be Indian names.
 
 ---
 
@@ -576,7 +577,7 @@ When generating code:
 - Whenever showing alerts or confirmations, NEVER use native browser `alert()` or `confirm()`. Always use `AlertModal` component. If `AlertModal` component is not present, create a reusable `AlertModal` in `src/components/` and reuse it.
 - Whenever using select inputs, NEVER use native HTML `<select>` elements. Always use the custom `Select` component.
 - Always use `Tooltip` component for showing tooltips in table actions and other page-level hover items. If `Tooltip` is not present, create a reusable `Tooltip` component in `src/components/`.
-- NEVER use `div` or any HTML elements with inline styles (`style={{ ... }}`). Always create and use styled-components.
+- All placeholder/imaginary names used across the application (students, counselors, parents, teachers, mock data, etc.) must strictly be Indian names.
 - Keep components small and composable.
 - Prefer composition over inheritance.
 - Extract repeated logic into custom hooks.
