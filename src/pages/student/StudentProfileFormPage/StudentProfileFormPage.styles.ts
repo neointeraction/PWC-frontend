@@ -3,7 +3,6 @@ import styled from 'styled-components';
 export const FormPageContainer = styled.div`
   display: flex;
   flex-direction: column;
-  /* max-width: 960px; */
   margin: 0 auto;
   width: 100%;
 `;
@@ -26,7 +25,7 @@ export const DocumentHeaderRow = styled.div`
   gap: 8px;
   padding: 28px 28px 24px 28px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  background: linear-gradient(180deg, ${({ theme }) => theme.colors.surface} 0%, #FAFAFF 100%);
+  background: linear-gradient(180deg, ${({ theme }) => theme.colors.surface} 0%, #fafaff 100%);
 `;
 
 export const HeaderTopNavRow = styled.div`
@@ -95,6 +94,51 @@ export const DocNote = styled.p`
   font-size: 13px;
   color: ${({ theme }) => theme.colors.textSecondary};
   margin: 0;
+  max-width: 720px;
+  line-height: 1.5;
+`;
+
+export const IntroGreetingNotice = styled.div`
+  background-color: ${({ theme }) => theme.colors.background};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+  padding: 18px 24px;
+  margin: 24px 28px 8px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: ${({ theme }) => theme.colors.text};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    margin: 16px 16px 4px 16px;
+    padding: 14px 16px;
+  }
+`;
+
+export const GreetingHeadline = styled.p`
+  font-weight: 700;
+  font-size: 15px;
+  color: ${({ theme }) => theme.colors.text};
+  margin: 0;
+`;
+
+export const GreetingParagraph = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const GreetingHighlightParagraph = styled.p`
+  margin: 0;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.primary};
+`;
+
+export const GreetingActionText = styled.p`
+  margin: 4px 0 0 0;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 export const SectionBlock = styled.div`
@@ -105,6 +149,10 @@ export const SectionBlock = styled.div`
 
   &:last-of-type {
     border-bottom: none;
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    padding: 20px 16px;
   }
 `;
 
@@ -143,6 +191,33 @@ export const FormRow = styled.div`
   }
 `;
 
+export const FooterNoteBlock = styled.div`
+  margin: 32px 28px 24px 28px;
+  padding: 20px 24px;
+  background-color: ${({ theme }) => theme.colors.primaryLight};
+  border: 1px dashed ${({ theme }) => theme.colors.primary};
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    margin: 24px 16px 16px 16px;
+    padding: 16px;
+  }
+`;
+
+export const FooterNoteText = styled.p`
+  font-style: italic;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.primary};
+  margin: 0;
+  line-height: 1.5;
+`;
+
 export const FormFooterActions = styled.div`
   background-color: ${({ theme }) => theme.colors.background};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
@@ -155,5 +230,6 @@ export const FormFooterActions = styled.div`
   @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
     flex-direction: column-reverse;
     align-items: stretch;
+    padding: 16px;
   }
 `;

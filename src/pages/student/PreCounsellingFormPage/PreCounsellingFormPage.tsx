@@ -46,8 +46,8 @@ import {
   NumberCardTitle,
   NumberCardDesc,
   StatementParagraphCard,
-  StatementParagraphTitle,
-  StatementParagraphBody,
+  StatementList,
+  StatementListItem,
   GoldenRulesGrid,
   GoldenRuleCard,
   GoldenRuleIconBox,
@@ -81,6 +81,8 @@ import {
   MatrixRowCard,
   MatrixRowText,
   MatrixOptionsGroup,
+  OptionScoreBadge,
+  OptionText,
   WizardFooterNav,
   ClosingNoteCard,
 } from './PreCounsellingFormPage.styles';
@@ -368,17 +370,24 @@ export const PreCounsellingFormPage: React.FC = () => {
             </SectionTitleHeader>
 
             <StatementParagraphCard style={{ marginTop: 16 }}>
-              <StatementParagraphTitle>
-                <RiInformationLine size={20} style={{ color: '#5D2384' }} />
-                <span>This is not a quiz and it is not being graded. There are no right answers and no wrong answers.</span>
-              </StatementParagraphTitle>
-              <StatementParagraphBody>
-                This is not a psychometric test nor an aptitude exam. There are no right answers and no wrong answers — and nothing here will be graded.
-                <br /><br />
-                This form helps your counsellor get to know you before your session. The more honestly you fill it, the more personalised and useful your counselling session will be.
-                <br /><br />
-                Think of it as a conversation starter — not an assessment. You are not being judged. Your responses are completely confidential and will only be seen by your counsellor.
-              </StatementParagraphBody>
+              <StatementList>
+                <StatementListItem>
+                  <RiInformationLine size={20} />
+                  <span>This is not a quiz and it is not being graded. There are no right answers and no wrong answers.</span>
+                </StatementListItem>
+                <StatementListItem>
+                  <RiInformationLine size={20} />
+                  <span>This is not a psychometric test nor an aptitude exam. There are no right answers and no wrong answers — and nothing here will be graded.</span>
+                </StatementListItem>
+                <StatementListItem>
+                  <RiInformationLine size={20} />
+                  <span>This form helps your counsellor get to know you before your session. The more honestly you fill it, the more personalised and useful your counselling session will be.</span>
+                </StatementListItem>
+                <StatementListItem>
+                  <RiInformationLine size={20} />
+                  <span>Think of it as a conversation starter — not an assessment. You are not being judged. Your responses are completely confidential and will only be seen by your counsellor.</span>
+                </StatementListItem>
+              </StatementList>
             </StatementParagraphCard>
           </div>
 
@@ -642,14 +651,15 @@ export const PreCounsellingFormPage: React.FC = () => {
                       <MatrixRowCard key={stream.key}>
                         <MatrixRowText>{stream.title}</MatrixRowText>
                         <MatrixOptionsGroup>
-                          {['High Interest', 'Moderate', 'Low', 'Not Interested'].map(opt => (
+                          {['High Interest', 'Moderate', 'Low', 'Not Interested'].map((opt, index) => (
                             <ToggleButton
                               key={opt}
                               type="button"
                               $active={answers.q4_streamChoices?.[stream.key] === opt}
                               onClick={() => handleNestedSelect('q4_streamChoices', stream.key, opt)}
                             >
-                              {opt}
+                              <OptionScoreBadge $active={answers.q4_streamChoices?.[stream.key] === opt}>{index + 1}</OptionScoreBadge>
+                              <OptionText>{opt}</OptionText>
                             </ToggleButton>
                           ))}
                         </MatrixOptionsGroup>
@@ -739,14 +749,15 @@ export const PreCounsellingFormPage: React.FC = () => {
                       <MatrixRowCard key={item.key}>
                         <MatrixRowText>{item.title}</MatrixRowText>
                         <MatrixOptionsGroup>
-                          {['Love It', 'Like It', 'Neutral', 'Dislike'].map(opt => (
+                          {['Love It', 'Like It', 'Neutral', 'Dislike'].map((opt, index) => (
                             <ToggleButton
                               key={opt}
                               type="button"
                               $active={answers.q8_workActivityRatings?.[item.key] === opt}
                               onClick={() => handleNestedSelect('q8_workActivityRatings', item.key, opt)}
                             >
-                              {opt}
+                              <OptionScoreBadge $active={answers.q8_workActivityRatings?.[item.key] === opt}>{index + 1}</OptionScoreBadge>
+                              <OptionText>{opt}</OptionText>
                             </ToggleButton>
                           ))}
                         </MatrixOptionsGroup>
@@ -808,14 +819,15 @@ export const PreCounsellingFormPage: React.FC = () => {
                       <MatrixRowCard key={habit.key}>
                         <MatrixRowText>{habit.title}</MatrixRowText>
                         <MatrixOptionsGroup>
-                          {['Strongly Agree', 'Agree', 'Neutral', 'Disagree'].map(opt => (
+                          {['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'].map((opt, index) => (
                             <ToggleButton
                               key={opt}
                               type="button"
                               $active={answers.q12_studyHabitRatings?.[habit.key] === opt}
                               onClick={() => handleNestedSelect('q12_studyHabitRatings', habit.key, opt)}
                             >
-                              {opt}
+                              <OptionScoreBadge $active={answers.q12_studyHabitRatings?.[habit.key] === opt}>{index + 1}</OptionScoreBadge>
+                              <OptionText>{opt}</OptionText>
                             </ToggleButton>
                           ))}
                         </MatrixOptionsGroup>

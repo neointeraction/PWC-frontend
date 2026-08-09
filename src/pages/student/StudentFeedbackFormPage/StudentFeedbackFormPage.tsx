@@ -14,7 +14,6 @@ import {
   RiAwardLine,
   RiStarLine,
   RiChat3Line,
-  RiInformationLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
@@ -34,17 +33,10 @@ import {
   MetaItem,
   MetaLabel,
   MetaValue,
-  ScaleGuideBox,
-  ScaleGuideTitle,
-  ScalePillsGroup,
-  ScalePill,
-  ScaleBadgeNum,
-  ScaleLabelText,
   SectionBlock,
   SectionHeader,
   SectionHeaderIcon,
   SectionTitleText,
-  SectionSubCode,
   QuestionCard,
   QuestionTitle,
   RatingOptionsGroup,
@@ -197,42 +189,13 @@ export const StudentFeedbackFormPage: React.FC = () => {
             </MetaItem>
           </StudentMetaGrid>
 
-          {/* Reference Scale Guides */}
-          <ScaleGuideBox>
-            <ScaleGuideTitle>
-              <RiInformationLine size={16} /> Scale 1: Effectiveness Scale (Sections 1 & 4)
-            </ScaleGuideTitle>
-            <ScalePillsGroup>
-              {EFFECTIVENESS_SCALE.map(item => (
-                <ScalePill key={item.score}>
-                  <ScaleBadgeNum>{item.score}</ScaleBadgeNum>
-                  <ScaleLabelText>{item.label}</ScaleLabelText>
-                </ScalePill>
-              ))}
-            </ScalePillsGroup>
-
-            <ScaleGuideTitle style={{ marginTop: 8 }}>
-              <RiInformationLine size={16} /> Scale 2: Clarity & Decision Confidence Scale (Sections 2 & 3)
-            </ScaleGuideTitle>
-            <ScalePillsGroup>
-              {CLARITY_SCALE.map(item => (
-                <ScalePill key={item.score}>
-                  <ScaleBadgeNum>{item.score}</ScaleBadgeNum>
-                  <ScaleLabelText>{item.label}</ScaleLabelText>
-                </ScalePill>
-              ))}
-            </ScalePillsGroup>
-          </ScaleGuideBox>
-
           {/* Section 1: Session Experience */}
           <SectionBlock>
             <SectionHeader>
               <SectionHeaderIcon>
                 <RiEmotionHappyLine size={20} />
               </SectionHeaderIcon>
-              <SectionTitleText>
-                Section 1: Session Experience <SectionSubCode>[S-SE]</SectionSubCode>
-              </SectionTitleText>
+              <SectionTitleText>Session Experience</SectionTitleText>
             </SectionHeader>
 
             {[
@@ -288,9 +251,7 @@ export const StudentFeedbackFormPage: React.FC = () => {
               <SectionHeaderIcon>
                 <RiCompass3Line size={20} />
               </SectionHeaderIcon>
-              <SectionTitleText>
-                Section 2: Clarity & Decision Confidence <SectionSubCode>[S-CD]</SectionSubCode>
-              </SectionTitleText>
+              <SectionTitleText>Clarity & Decision Confidence</SectionTitleText>
             </SectionHeader>
 
             {[
@@ -345,9 +306,7 @@ export const StudentFeedbackFormPage: React.FC = () => {
               <SectionHeaderIcon>
                 <RiAwardLine size={20} />
               </SectionHeaderIcon>
-              <SectionTitleText>
-                Section 3: Outcome Quality <SectionSubCode>[S-OQ]</SectionSubCode>
-              </SectionTitleText>
+              <SectionTitleText>Outcome Quality</SectionTitleText>
             </SectionHeader>
 
             {[
@@ -397,9 +356,7 @@ export const StudentFeedbackFormPage: React.FC = () => {
               <SectionHeaderIcon>
                 <RiStarLine size={20} />
               </SectionHeaderIcon>
-              <SectionTitleText>
-                Section 4: Overall Satisfaction <SectionSubCode>[S-OS]</SectionSubCode>
-              </SectionTitleText>
+              <SectionTitleText>Overall Satisfaction</SectionTitleText>
             </SectionHeader>
 
             <QuestionCard>
@@ -459,9 +416,7 @@ export const StudentFeedbackFormPage: React.FC = () => {
               <SectionHeaderIcon>
                 <RiChat3Line size={20} />
               </SectionHeaderIcon>
-              <SectionTitleText>
-                Section 5: Open Feedback <SectionSubCode>[Not scored]</SectionSubCode>
-              </SectionTitleText>
+              <SectionTitleText>Open Feedback</SectionTitleText>
             </SectionHeader>
 
             <QuestionCard>

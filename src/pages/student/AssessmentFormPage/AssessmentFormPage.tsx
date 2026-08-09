@@ -89,6 +89,8 @@ import {
   QuestionSubtext,
   LikertScaleContainer,
   LikertButton,
+  LikertOptionScoreBadge,
+  LikertOptionText,
   AptitudeOptionsGrid,
   AptitudeOptionLabel,
   WizardFooterNav,
@@ -96,11 +98,11 @@ import {
 
 // 5-point Likert Options for Type A
 const LIKERT_OPTIONS = [
-  { val: 1, label: '1 - Strongly Disagree' },
-  { val: 2, label: '2 - Disagree' },
-  { val: 3, label: '3 - Neutral' },
-  { val: 4, label: '4 - Agree' },
-  { val: 5, label: '5 - Strongly Agree' },
+  { val: 1, label: 'Strongly Disagree' },
+  { val: 2, label: 'Disagree' },
+  { val: 3, label: 'Neutral' },
+  { val: 4, label: 'Agree' },
+  { val: 5, label: 'Strongly Agree' },
 ];
 
 // Step 1: RIASEC Questions (Q1 to Q24)
@@ -830,7 +832,8 @@ export const AssessmentFormPage: React.FC = () => {
                           $selected={answers[q.id] === opt.val}
                           onClick={() => handleSelectAnswer(q.id, opt.val)}
                         >
-                          {opt.label}
+                          <LikertOptionScoreBadge $selected={answers[q.id] === opt.val}>{opt.val}</LikertOptionScoreBadge>
+                          <LikertOptionText>{opt.label}</LikertOptionText>
                         </LikertButton>
                       ))}
                     </LikertScaleContainer>
@@ -859,7 +862,8 @@ export const AssessmentFormPage: React.FC = () => {
                           $selected={answers[q.id] === opt.val}
                           onClick={() => handleSelectAnswer(q.id, opt.val)}
                         >
-                          {opt.label}
+                          <LikertOptionScoreBadge $selected={answers[q.id] === opt.val}>{opt.val}</LikertOptionScoreBadge>
+                          <LikertOptionText>{opt.label}</LikertOptionText>
                         </LikertButton>
                       ))}
                     </LikertScaleContainer>
@@ -918,7 +922,8 @@ export const AssessmentFormPage: React.FC = () => {
                           $selected={answers[q.id] === opt.val}
                           onClick={() => handleSelectAnswer(q.id, opt.val)}
                         >
-                          {opt.label}
+                          <LikertOptionScoreBadge $selected={answers[q.id] === opt.val}>{opt.val}</LikertOptionScoreBadge>
+                          <LikertOptionText>{opt.label}</LikertOptionText>
                         </LikertButton>
                       ))}
                     </LikertScaleContainer>

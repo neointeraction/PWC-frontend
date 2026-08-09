@@ -5,7 +5,6 @@ export const FormPageContainer = styled.div`
   flex-direction: column;
   margin: 0 auto;
   width: 100%;
-  max-width: 1000px;
 `;
 
 export const SingleUnifiedCard = styled.div`

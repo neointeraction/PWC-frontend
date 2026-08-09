@@ -266,20 +266,26 @@ export const StatementParagraphCard = styled.div`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 `;
 
-export const StatementParagraphTitle = styled.div`
+export const StatementList = styled.div`
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.text};
+  flex-direction: column;
+  gap: 16px;
 `;
 
-export const StatementParagraphBody = styled.p`
-  font-size: 14px;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  line-height: 1.65;
-  margin: 0;
+export const StatementListItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.text};
+  line-height: 1.5;
+
+  svg {
+    margin-top: 2px;
+    flex-shrink: 0;
+    color: #5D2384;
+  }
 `;
 
 /* The Golden Rules Gold Accent Cards */
@@ -561,19 +567,48 @@ export const TableInput = styled.input`
 `;
 
 export const ToggleButton = styled.button<{ $active: boolean }>`
-  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 8px;
   border-radius: 4px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background-color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.surface)};
-  color: ${({ $active, theme }) => ($active ? '#ffffff' : theme.colors.text)};
-  font-size: 13px;
-  font-weight: 500;
+  border: 1px solid
+    ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.border)};
+  background-color: ${({ $active, theme }) =>
+    $active ? theme.colors.primaryLight : theme.colors.surface};
+  color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.text)};
   cursor: pointer;
   transition: all 0.2s ease;
+  text-align: center;
+  min-width: 80px;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
+    background-color: ${({ theme }) => theme.colors.primaryLight};
+    color: ${({ theme }) => theme.colors.primary};
   }
+`;
+
+export const OptionScoreBadge = styled.span<{ $active: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background-color: ${({ $active, theme }) =>
+    $active ? theme.colors.primary : theme.colors.border};
+  color: ${({ $active, theme }) => ($active ? '#ffffff' : theme.colors.text)};
+  font-size: 13px;
+  font-weight: 700;
+`;
+
+export const OptionText = styled.span`
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
 `;
 
 export const MatrixGrid = styled.div`

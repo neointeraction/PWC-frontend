@@ -601,37 +601,43 @@ export const LikertButton = styled.button<{ $selected: boolean; $ratingValue: nu
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   padding: 12px 8px;
   border-radius: 4px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background-color: ${({ theme }) => theme.colors.surface};
+  border: 1px solid
+    ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.border)};
+  background-color: ${({ $selected, theme }) =>
+    $selected ? theme.colors.primaryLight : theme.colors.surface};
+  color: ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.text)};
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 12px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.colors.textSecondary};
+  text-align: center;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme }) => theme.colors.primaryLight};
     color: ${({ theme }) => theme.colors.primary};
   }
+`;
 
-  ${({ $selected, theme }) =>
-    $selected &&
-    css`
-      background-color: ${theme.colors.primary};
-      color: #ffffff;
-      border-color: ${theme.colors.primary};
-      font-weight: 600;
-      box-shadow: 0 4px 12px rgba(93, 35, 132, 0.2);
+export const LikertOptionScoreBadge = styled.span<{ $selected: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background-color: ${({ $selected, theme }) =>
+    $selected ? theme.colors.primary : theme.colors.border};
+  color: ${({ $selected, theme }) => ($selected ? '#ffffff' : theme.colors.text)};
+  font-size: 13px;
+  font-weight: 700;
+`;
 
-      &:hover {
-        background-color: ${theme.colors.primaryHover || theme.colors.primary};
-        color: #ffffff;
-      }
-    `}
+export const LikertOptionText = styled.span`
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
 `;
 
 export const AptitudeOptionsGrid = styled.div`
