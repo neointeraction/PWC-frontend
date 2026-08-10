@@ -291,7 +291,57 @@ export const CounsellorMeta = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
-/* Date & Time Grids */
+/* Date & Time Grids & Carousel Navigation */
+export const DateCarouselWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  width: 100%;
+`;
+
+export const DateCarouselContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 6px 2px;
+  flex: 1;
+  width: 100%;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+`;
+
+export const CarouselNavButton = styled.button`
+  width: 36px;
+  height: 36px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+    background-color: ${({ theme }) => theme.colors.primaryLight};
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+`;
+
 export const DateGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -303,7 +353,9 @@ export const DateCard = styled.button<{ $selected: boolean }>`
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 14px 10px;
+  padding: 14px 16px;
+  min-width: 110px;
+  flex-shrink: 0;
   border-radius: 4px;
   border: 1px solid
     ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.border)};

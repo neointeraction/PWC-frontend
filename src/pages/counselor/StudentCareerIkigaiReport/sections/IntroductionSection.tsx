@@ -30,7 +30,7 @@ export const IntroductionSection: React.FC<IntroductionSectionProps> = ({ data }
       </SectionHeaderGroup>
 
       <ReportGrid $cols={2}>
-        <TextCard>
+        <TextCard style={{ borderLeft: '3px solid #4F46E5' }}>
           <TextCardTitle>
             <RiBookOpenLine size={18} />
             What is Career IKIGAI Report
@@ -38,7 +38,7 @@ export const IntroductionSection: React.FC<IntroductionSectionProps> = ({ data }
           <TextCardBody>{data.whatIsIkigai}</TextCardBody>
         </TextCard>
 
-        <TextCard>
+        <TextCard style={{ borderLeft: '3px solid #6366F1' }}>
           <TextCardTitle>
             <RiHeartPulseLine size={18} />
             How Each Component Relates to Career
@@ -48,16 +48,16 @@ export const IntroductionSection: React.FC<IntroductionSectionProps> = ({ data }
       </ReportGrid>
 
       <ReportGrid $cols={2}>
-        <TextCard style={{ backgroundColor: 'rgba(79, 70, 229, 0.03)' }}>
-          <TextCardTitle>
+        <TextCard style={{ borderLeft: '3px solid #4F46E5', backgroundColor: 'rgba(79, 70, 229, 0.03)' }}>
+          <TextCardTitle style={{ color: '#4F46E5' }}>
             <RiUserHeartLine size={18} />
             TO THE PARENT
           </TextCardTitle>
           <TextCardBody>{data.toParent}</TextCardBody>
         </TextCard>
 
-        <TextCard style={{ backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>
-          <TextCardTitle>
+        <TextCard style={{ borderLeft: '3px solid #10B981', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>
+          <TextCardTitle style={{ color: '#10B981' }}>
             <RiUserHeartLine size={18} />
             TO THE STUDENT
           </TextCardTitle>

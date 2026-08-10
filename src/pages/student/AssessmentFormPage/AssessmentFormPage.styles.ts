@@ -282,89 +282,42 @@ export const StatementParagraphBody = styled.p`
   margin: 0;
 `;
 
-/* Type A Scale Bar & Breakdown */
-export const ScaleBarRow = styled.div`
+/* Combined Type A Rating Scale Guide */
+export const CombinedScaleGuideGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  margin-top: 12px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-top: 14px;
 
-  @media (max-width: 640px) {
+  @media (max-width: 900px) {
     grid-template-columns: 1fr;
   }
 `;
 
-export const ScaleCell = styled.div<{ $bg: string; $color?: string }>`
-  background-color: ${({ $bg }) => $bg};
-  color: ${({ $color }) => $color || '#ffffff'};
-  padding: 12px 8px;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-`;
-
-export const ScaleCellNumber = styled.span`
-  font-size: 16px;
-  font-weight: 800;
-`;
-
-export const ScaleCellLabel = styled.span`
-  font-size: 12px;
-  font-weight: 600;
-`;
-
-export const TypeABreakdownStack = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-`;
-
-export const TypeABreakdownRow = styled.div<{ $bg: string }>`
-  display: flex;
-  border-radius: 4px;
-  overflow: hidden;
+export const CombinedScaleCard = styled.div<{ $borderTopColor: string; $bg: string }>`
   background-color: ${({ $bg }) => $bg};
   border: 1px solid ${({ theme }) => theme.colors.border};
-  transition: all 0.2s ease;
-
-  &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  }
-
-  @media (max-width: 640px) {
-    flex-direction: column;
-  }
+  border-top: 4px solid ${({ $borderTopColor }) => $borderTopColor};
+  border-radius: 4px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 `;
 
-export const TypeABadge = styled.div<{ $bg: string; $color?: string }>`
-  width: 170px;
-  background-color: ${({ $bg }) => $bg};
-  color: ${({ $color }) => $color || '#ffffff'};
-  padding: 14px 16px;
+export const CombinedScaleHeader = styled.div<{ $color: string }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-
-  @media (max-width: 640px) {
-    width: 100%;
-  }
+  color: ${({ $color }) => $color};
 `;
 
-export const TypeADescText = styled.div`
-  padding: 14px 18px;
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.text};
-  line-height: 1.5;
-  display: flex;
-  align-items: center;
+export const CombinedScaleDesc = styled.span`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  line-height: 1.45;
 `;
 
 /* Type B Guidance */

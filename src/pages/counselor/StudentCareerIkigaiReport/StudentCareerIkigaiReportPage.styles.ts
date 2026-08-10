@@ -111,6 +111,47 @@ export const TocSidebar = styled.aside<{ $isOpenOnMobile?: boolean }>`
   }
 `;
 
+// Student Details Profile Card prominently displayed above TOC
+export const StudentProfileSidebarCard = styled.div`
+  background-color: ${({ theme }) => theme.colors.background};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+  padding: 16px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+`;
+
+export const StudentAvatarCircle = styled.div`
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: ${({ theme }) => theme.colors.primaryLight || 'rgba(79, 70, 229, 0.1)'};
+  color: ${({ theme }) => theme.colors.primary};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border: 2px solid ${({ theme }) => theme.colors.primary};
+`;
+
+export const StudentNameTitle = styled.h3`
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.text};
+  margin: 0;
+`;
+
+export const StudentDetailSubtext = styled.span`
+  font-size: 0.775rem;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  line-height: 1.35;
+`;
+
 export const TocHeader = styled.div`
   font-size: 0.75rem;
   font-weight: 700;
@@ -119,6 +160,8 @@ export const TocHeader = styled.div`
   color: ${({ theme }) => theme.colors.textSecondary};
   margin-bottom: 12px;
   padding-left: 8px;
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  padding-top: 14px;
 `;
 
 export const TocList = styled.div`
@@ -175,21 +218,22 @@ export const ReportSectionBlock = styled.section`
   background-color: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
-  padding: 24px;
+  padding: 28px 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   scroll-margin-top: 80px;
 
   @media print {
     box-shadow: none;
     border: 1px solid #e5e7eb;
     page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   @media (max-width: 768px) {
-    padding: 16px;
+    padding: 18px 16px;
     gap: 16px;
   }
 `;
@@ -215,11 +259,14 @@ export const SectionSubtitle = styled.p`
   margin: 0;
 `;
 
-// Text Card Container
+// Text Card Container (PDF Document Seamless Style without double heavy borders)
 export const TextCard = styled.div`
   background-color: ${({ theme }) => theme.colors.background};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 4px;
+  border-left: 3px solid ${({ theme }) => theme.colors.primary};
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0 4px 4px 0;
   padding: 16px 20px;
   display: flex;
   flex-direction: column;

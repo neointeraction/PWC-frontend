@@ -7,6 +7,8 @@ import {
   RiTimeLine,
   RiCheckDoubleLine,
   RiPrinterLine,
+  RiArrowUpLine,
+  RiArrowDownLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { PageHeader } from '@/components/PageHeader';
@@ -19,11 +21,27 @@ import {
   TimeContainer,
   TimeText,
   StatusPill,
+  StudentCellWrapper,
+  StudentInstiText,
+  SortHeaderButton,
 } from './UpcomingSessionsPage.styles';
 
 export const UpcomingSessionsPage: React.FC = () => {
   const navigate = useNavigate();
   const [sessions] = useState<UpcomingSession[]>(() => getMockUpcomingSessions());
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+      const timeA = new Date(a.dateTime).getTime();
+      const timeB = new Date(b.dateTime).getTime();
+      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+    });
+  }, [sessions, sortOrder]);
+
+  const handleToggleDateSort = () => {
+    setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+  };
 
   // Helper to check if join button should be enabled (30 mins before start until session end)
   const checkCanJoin = (dateTimeStr: string): boolean => {
@@ -44,28 +62,33 @@ export const UpcomingSessionsPage: React.FC = () => {
         header: 'Student Name',
         accessor: 'studentName',
         cell: (row: UpcomingSession) => (
-          <Tooltip content="Click to open Counsellor Form Chart & add session notes">
-            <Button
-              size="sm"
-              variant="secondary"
-              leftIcon={<RiFileTextLine size={16} />}
-              onClick={() => handleOpenStudentChart(row)}
-            >
-              {row.studentName}
-            </Button>
-          </Tooltip>
+          <StudentCellWrapper>
+            <Tooltip content="Click to open Counsellor Form Chart & add session notes">
+              <Button
+                size="sm"
+                variant="secondary"
+                leftIcon={<RiFileTextLine size={16} />}
+                onClick={() => handleOpenStudentChart(row)}
+              >
+                {row.studentName}
+              </Button>
+            </Tooltip>
+            <StudentInstiText>
+              {row.institutionName} • {row.studentGrade}
+            </StudentInstiText>
+          </StudentCellWrapper>
         ),
       },
       {
-        key: 'sessionTitle',
-        header: 'Session Title',
-        accessor: 'sessionTitle',
-        cell: (row: UpcomingSession) => <span style={{ fontWeight: 500 }}>{row.sessionTitle}</span>,
-      },
-      {
         key: 'dateTime',
-        header: 'Date & Time',
+        header: (
+          <SortHeaderButton type="button" onClick={handleToggleDateSort}>
+            Date & Time
+            {sortOrder === 'asc' ? <RiArrowUpLine size={14} /> : <RiArrowDownLine size={14} />}
+          </SortHeaderButton>
+        ),
         accessor: 'dateTime',
+        sortable: true,
         cell: (row: UpcomingSession) => {
           const canJoin = checkCanJoin(row.dateTime);
           return (
@@ -134,7 +157,7 @@ export const UpcomingSessionsPage: React.FC = () => {
         ),
       },
     ],
-    []
+    [sortOrder]
   );
 
   return (
@@ -145,9 +168,10 @@ export const UpcomingSessionsPage: React.FC = () => {
         breadcrumbs={[{ label: 'Upcoming Sessions' }]}
       />
 
-      <Table data={sessions} columns={columns} keyExtractor={row => row.id} />
+      <Table data={sortedSessions} columns={columns} keyExtractor={row => row.id} />
     </Container>
   );
 };
 
 export default UpcomingSessionsPage;
+

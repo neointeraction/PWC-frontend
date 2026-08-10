@@ -30,24 +30,64 @@ interface Step2SectionBProps {
   onChangeNotesPre: (code: string, value: string) => void;
   onChangeTraits: (traits: TraitAssessmentItem[]) => void;
   onChangeSummary: (summary: Partial<CounsellorFormChartData['sectionB']['summaryStrip']>) => void;
-  onChangeDna: (field: keyof CounsellorFormChartData['sectionB']['careerDnaNarrative'], value: string) => void;
+  onChangeDna: (
+    field: keyof CounsellorFormChartData['sectionB']['careerDnaNarrative'],
+    value: string
+  ) => void;
   onChangeRedFlags: (key: string, value: string) => void;
 }
 
 const synthesisRowsPreDef = [
-  { code: 'B1', placeholder: "Strength Alignment : Compare student self-rated strengths (B1.1–B1.2) with the parent's view and any special talent the parent alone noticed (B1.3); flag strengths the student may be underselling or overselling." },
-  { code: 'B2', placeholder: "Personality Synthesis : Reconcile the student's perceived personality type (B2.1) with the parent's character description (B2.2/B2.3); note if the two paint a consistent or conflicting picture. Cross check with BIG Five scores." },
-  { code: 'B3', placeholder: "Decision-making Style : Note whether the student's approach (B2.4) is independent, consultative, or impulsive, and whether the parent's account (B2.4 parent column) matches." },
-  { code: 'B4', placeholder: "Resilience Pattern : From B3.1–B3.2, note how the student typically handles setbacks (reflective vs deflecting vs demotivated). This shapes how directly to deliver assessment feedback in-session." },
-  { code: 'B5', placeholder: "Divergence Flag : Record any notable gap between student self-image and parent observation in this section that needs sensitive handling in the session." },
+  {
+    code: 'B1',
+    placeholder:
+      "Strength Alignment : Compare student self-rated strengths (1.1–1.2) with the parent's view and any special talent the parent alone noticed (1.3); flag strengths the student may be underselling or overselling.",
+  },
+  {
+    code: 'B2',
+    placeholder:
+      "Personality Synthesis : Reconcile the student's perceived personality type (2.1) with the parent's character description (2.2/2.3); note if the two paint a consistent or conflicting picture. Cross check with BIG Five scores.",
+  },
+  {
+    code: 'B3',
+    placeholder:
+      "Decision-making Style : Note whether the student's approach (2.4) is independent, consultative, or impulsive, and whether the parent's account (2.4 parent column) matches.",
+  },
+  {
+    code: 'B4',
+    placeholder:
+      'Resilience Pattern : From 3.1–3.2, note how the student typically handles setbacks (reflective vs deflecting vs demotivated). This shapes how directly to deliver assessment feedback in-session.',
+  },
+  {
+    code: 'B5',
+    placeholder:
+      'Divergence Flag : Record any notable gap between student self-image and parent observation in this section that needs sensitive handling in the session.',
+  },
 ];
 
 const dnaRowsDef = [
-  { code: 'dnaDefinition', placeholder: 'Activity in or outside school which can reinforce CAREER STYLE' },
-  { code: 'careerStyleReveals', placeholder: 'Activity or skill which can reinforce PERSONAL SIGNATURE' },
-  { code: 'personalityStyleReveals', placeholder: 'Activity or skill which can reinforce THINKING MODE' },
-  { code: 'thinkingModeReveals', placeholder: 'If either is flagged "No Strong RIASEC Preference Emerging" or "Highly Undifferentiated Profile", treat the Career Style output as a starting point for exploration, not a settled preference, and plan a qualitative follow-up conversation.' },
-  { code: 'aptitudeProfileReveals', placeholder: 'If the Big Five profile triggered either flag: "Stress Vulnerability - Flag for Counsellor Attention" or "Balanced Personality Profile, Low Differentiation", then the first warrants a gentle, non-clinical check-in during the session; the second means the Personal Signature label should be held loosely' },
+  {
+    code: 'dnaDefinition',
+    placeholder: 'Activity in or outside school which can reinforce CAREER STYLE',
+  },
+  {
+    code: 'careerStyleReveals',
+    placeholder: 'Activity or skill which can reinforce PERSONAL SIGNATURE',
+  },
+  {
+    code: 'personalityStyleReveals',
+    placeholder: 'Activity or skill which can reinforce THINKING MODE',
+  },
+  {
+    code: 'thinkingModeReveals',
+    placeholder:
+      'If either is flagged "No Strong RIASEC Preference Emerging" or "Highly Undifferentiated Profile", treat the Career Style output as a starting point for exploration, not a settled preference, and plan a qualitative follow-up conversation.',
+  },
+  {
+    code: 'aptitudeProfileReveals',
+    placeholder:
+      'If the Big Five profile triggered either flag: "Stress Vulnerability - Flag for Counsellor Attention" or "Balanced Personality Profile, Low Differentiation", then the first warrants a gentle, non-clinical check-in during the session; the second means the Personal Signature label should be held loosely',
+  },
 ];
 
 export const Step2SectionB: React.FC<Step2SectionBProps> = ({
@@ -82,9 +122,16 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
   };
 
   const riasecTraits = data.traitsTable.filter(t => t.layerTrait.toLowerCase().includes('riasec'));
-  const bigFiveTraits = data.traitsTable.filter(t => t.layerTrait.toLowerCase().includes('big five'));
-  const cogDecTraits = data.traitsTable.filter(t => t.layerTrait.toLowerCase().includes('cognitive') || t.layerTrait.toLowerCase().includes('cog'));
-  const aptitudeTraits = data.traitsTable.filter(t => t.layerTrait.toLowerCase().includes('aptitude'));
+  const bigFiveTraits = data.traitsTable.filter(t =>
+    t.layerTrait.toLowerCase().includes('big five')
+  );
+  const cogDecTraits = data.traitsTable.filter(
+    t =>
+      t.layerTrait.toLowerCase().includes('cognitive') || t.layerTrait.toLowerCase().includes('cog')
+  );
+  const aptitudeTraits = data.traitsTable.filter(t =>
+    t.layerTrait.toLowerCase().includes('aptitude')
+  );
 
   const renderCategoryBlock = (
     categoryTitle: string,
@@ -92,8 +139,23 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
     traits: TraitAssessmentItem[],
     redFlagPlaceholder: string
   ) => (
-    <div style={{ marginTop: '20px', border: '1px solid #E5E7EB', borderRadius: '4px', padding: '16px', backgroundColor: '#F9FAFB' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+    <div
+      style={{
+        marginTop: '20px',
+        border: '1px solid #E5E7EB',
+        borderRadius: '4px',
+        padding: '16px',
+        backgroundColor: '#F9FAFB',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '12px',
+        }}
+      >
         <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>{categoryTitle}</h4>
         <Button
           size="sm"
@@ -106,7 +168,12 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
       </div>
 
       <CompTableContainer style={{ overflowX: 'auto', marginBottom: '12px' }}>
-        <CompTableHeaderRow style={{ gridTemplateColumns: '50px 180px 1fr 100px 140px 200px 60px', minWidth: '900px' }}>
+        <CompTableHeaderRow
+          style={{
+            gridTemplateColumns: '50px 180px 1fr 100px 140px 200px 60px',
+            minWidth: '900px',
+          }}
+        >
           <CompTableHeaderCell>No</CompTableHeaderCell>
           <CompTableHeaderCell>Trait Name</CompTableHeaderCell>
           <CompTableHeaderCell>What It Measures</CompTableHeaderCell>
@@ -117,12 +184,20 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
         </CompTableHeaderRow>
 
         {traits.length === 0 ? (
-          <div style={{ padding: '12px', textAlign: 'center', color: '#6B7280', fontSize: '0.875rem' }}>
+          <div
+            style={{ padding: '12px', textAlign: 'center', color: '#6B7280', fontSize: '0.875rem' }}
+          >
             No traits added in this category. Click "Add Row" to add one.
           </div>
         ) : (
           traits.map((t, idx) => (
-            <CompDataRow key={t.id} style={{ gridTemplateColumns: '50px 180px 1fr 100px 140px 200px 60px', minWidth: '900px' }}>
+            <CompDataRow
+              key={t.id}
+              style={{
+                gridTemplateColumns: '50px 180px 1fr 100px 140px 200px 60px',
+                minWidth: '900px',
+              }}
+            >
               <CompParamCell>{idx + 1}</CompParamCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>
                 <FormInput
@@ -160,7 +235,14 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
                   style={{ width: '100%' }}
                 />
               </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <CompResponseCell
+                style={{
+                  borderLeft: 'none',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
                 <Tooltip content="Delete Trait">
                   <TableActionButton type="button" onClick={() => handleDeleteTrait(t.id)}>
                     <RiDeleteBinLine size={16} />
@@ -177,7 +259,13 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
           value={data.redFlags?.[categoryKey] || ''}
           onChange={e => onChangeRedFlags(categoryKey, e.target.value)}
           placeholder={redFlagPlaceholder}
-          style={{ width: '100%', fontStyle: 'italic', color: '#DC2626', borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }}
+          style={{
+            width: '100%',
+            fontStyle: 'italic',
+            color: '#DC2626',
+            borderColor: '#FCA5A5',
+            backgroundColor: '#FEF2F2',
+          }}
         />
       </div>
     </div>
@@ -188,7 +276,8 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
       <StepHeaderCard>
         <StepHeaderTitle>Strengths & Personality View</StepHeaderTitle>
         <StepHeaderDescription>
-          Analyzes student self-perception vs parent feedback, psychometric layer-wise trait results, summary cards, and Career DNA narrative synthesis.
+          Analyzes student self-perception vs parent feedback, psychometric layer-wise trait
+          results, summary cards, and Career DNA narrative synthesis.
         </StepHeaderDescription>
       </StepHeaderCard>
 
@@ -208,7 +297,9 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
       {/* Sub-Block 2: Assessment Result View */}
       <SectionBlock>
         <SectionBlockTitle>Assessment Result View</SectionBlockTitle>
-        <SectionBlockSubtitle>Records the 18 traits assessed layer-wise under each respective heads.</SectionBlockSubtitle>
+        <SectionBlockSubtitle>
+          Records the 18 traits assessed layer-wise under each respective heads.
+        </SectionBlockSubtitle>
 
         {renderCategoryBlock(
           'RIASEC',

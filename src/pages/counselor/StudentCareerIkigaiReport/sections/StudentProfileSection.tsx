@@ -32,9 +32,9 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
       </SectionHeaderGroup>
 
       {/* Career Personality Snapshot */}
-      <TextCard style={{ backgroundColor: 'rgba(79, 70, 229, 0.04)', border: '1px solid rgba(79, 70, 229, 0.2)' }}>
+      <TextCard style={{ backgroundColor: 'rgba(79, 70, 229, 0.04)', borderLeft: '4px solid #4F46E5' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <TextCardTitle style={{ fontSize: '1.05rem' }}>
+          <TextCardTitle style={{ fontSize: '1.05rem', color: '#4F46E5' }}>
             <RiAwardLine size={20} />
             Career Personality Snapshot
           </TextCardTitle>
@@ -47,7 +47,7 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
 
       {/* Observations - Academics & Non-Academics */}
       <ReportGrid $cols={2}>
-        <TextCard>
+        <TextCard style={{ borderLeft: '3px solid #4F46E5' }}>
           <TextCardTitle>
             <RiBrainLine size={18} />
             Academic Performance Observations
@@ -55,7 +55,7 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
           <TextCardBody>{data.academicObservations}</TextCardBody>
         </TextCard>
 
-        <TextCard>
+        <TextCard style={{ borderLeft: '3px solid #6366F1' }}>
           <TextCardTitle>
             <RiBrainLine size={18} />
             Non-Academic & Hobby Observations
@@ -66,7 +66,7 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
 
       {/* Strengths & Personality Clusters */}
       <ReportGrid $cols={3}>
-        <TextCard>
+        <TextCard style={{ borderLeft: '3px solid #10B981', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>
           <TextCardTitle style={{ color: '#10B981' }}>
             <RiCheckLine size={18} />
             Core Strengths
@@ -78,7 +78,7 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
           </BulletList>
         </TextCard>
 
-        <TextCard>
+        <TextCard style={{ borderLeft: '3px solid #4F46E5', backgroundColor: 'rgba(79, 70, 229, 0.03)' }}>
           <TextCardTitle style={{ color: '#4F46E5' }}>
             <RiBrainLine size={18} />
             Personality Traits
@@ -90,7 +90,7 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
           </BulletList>
         </TextCard>
 
-        <TextCard>
+        <TextCard style={{ borderLeft: '3px solid #F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.03)' }}>
           <TextCardTitle style={{ color: '#F59E0B' }}>
             <RiErrorWarningLine size={18} />
             Areas for Growth

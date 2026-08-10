@@ -302,6 +302,46 @@ export const ItemSubtext = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
+export const WaitingParentNotification = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: ${({ theme }) => theme.colors.warningLight};
+  color: #B45309;
+  border: 1px solid #FCD34D;
+`;
+
+export const AttachedStatusBadge = styled.div<{ $variant?: 'warning' | 'success' | 'info' }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: ${({ $variant, theme }) =>
+    $variant === 'success'
+      ? '#DCFCE7'
+      : $variant === 'warning'
+      ? theme.colors.warningLight
+      : theme.colors.primaryLight};
+  color: ${({ $variant, theme }) =>
+    $variant === 'success'
+      ? '#15803D'
+      : $variant === 'warning'
+      ? '#B45309'
+      : theme.colors.primary};
+  border: 1px solid
+    ${({ $variant }) =>
+      $variant === 'success' ? '#86EFAC' : $variant === 'warning' ? '#FCD34D' : '#DDD6FE'};
+`;
+
 export const SessionsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);

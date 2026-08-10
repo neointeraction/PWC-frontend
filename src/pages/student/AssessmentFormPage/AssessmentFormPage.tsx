@@ -55,14 +55,10 @@ import {
   StatementParagraphCard,
   StatementParagraphTitle,
   StatementParagraphBody,
-  ScaleBarRow,
-  ScaleCell,
-  ScaleCellNumber,
-  ScaleCellLabel,
-  TypeABreakdownStack,
-  TypeABreakdownRow,
-  TypeABadge,
-  TypeADescText,
+  CombinedScaleGuideGrid,
+  CombinedScaleCard,
+  CombinedScaleHeader,
+  CombinedScaleDesc,
   TypeBStack,
   TypeBRow,
   TypeBBadge,
@@ -613,69 +609,53 @@ export const AssessmentFormPage: React.FC = () => {
                   You will see a statement and choose how much it describes you, on a scale of 1 to 5.
                 </p>
 
-                {/* 5-Color Rating Scale Bar */}
-                <ScaleBarRow>
-                  <ScaleCell $bg="#DC2626">
-                    <ScaleCellNumber>1</ScaleCellNumber>
-                    <ScaleCellLabel>Strongly Disagree</ScaleCellLabel>
-                  </ScaleCell>
-                  <ScaleCell $bg="#EA580C">
-                    <ScaleCellNumber>2</ScaleCellNumber>
-                    <ScaleCellLabel>Disagree</ScaleCellLabel>
-                  </ScaleCell>
-                  <ScaleCell $bg="#64748B">
-                    <ScaleCellNumber>3</ScaleCellNumber>
-                    <ScaleCellLabel>Neutral</ScaleCellLabel>
-                  </ScaleCell>
-                  <ScaleCell $bg="#0D9488">
-                    <ScaleCellNumber>4</ScaleCellNumber>
-                    <ScaleCellLabel>Agree</ScaleCellLabel>
-                  </ScaleCell>
-                  <ScaleCell $bg="#059669">
-                    <ScaleCellNumber>5</ScaleCellNumber>
-                    <ScaleCellLabel>Strongly Agree</ScaleCellLabel>
-                  </ScaleCell>
-                </ScaleBarRow>
+                {/* Unified 5-Card Rating Scale Guide */}
+                <CombinedScaleGuideGrid>
+                  <CombinedScaleCard $borderTopColor="#DC2626" $bg="#FEF2F2">
+                    <CombinedScaleHeader $color="#DC2626">
+                      <RiCloseCircleLine size={16} /> 1 - Strongly Disagree
+                    </CombinedScaleHeader>
+                    <CombinedScaleDesc>
+                      You are certain this statement does not apply to you.
+                    </CombinedScaleDesc>
+                  </CombinedScaleCard>
 
-                {/* Breakdown Rows with Icons */}
-                <TypeABreakdownStack>
-                  <TypeABreakdownRow $bg="#ECFDF5">
-                    <TypeABadge $bg="#059669">
-                      <RiThumbUpLine size={16} /> Strongly Agree (5)
-                    </TypeABadge>
-                    <TypeADescText>You really feel this describes you. You are sure about it.</TypeADescText>
-                  </TypeABreakdownRow>
+                  <CombinedScaleCard $borderTopColor="#EA580C" $bg="#FFF7ED">
+                    <CombinedScaleHeader $color="#EA580C">
+                      <RiThumbDownLine size={16} /> 2 - Disagree
+                    </CombinedScaleHeader>
+                    <CombinedScaleDesc>
+                      This does not describe you, though not with extreme certainty.
+                    </CombinedScaleDesc>
+                  </CombinedScaleCard>
 
-                  <TypeABreakdownRow $bg="#F0FDF4">
-                    <TypeABadge $bg="#0D9488">
-                      <RiCheckDoubleLine size={16} /> Agree (4)
-                    </TypeABadge>
-                    <TypeADescText>It does describe you — but not as strongly. You generally feel this way.</TypeADescText>
-                  </TypeABreakdownRow>
+                  <CombinedScaleCard $borderTopColor="#64748B" $bg="#F8FAFC">
+                    <CombinedScaleHeader $color="#64748B">
+                      <RiSubtractLine size={16} /> 3 - Neutral
+                    </CombinedScaleHeader>
+                    <CombinedScaleDesc>
+                      Genuinely unsure. If you even slightly agree or disagree, choose that option.
+                    </CombinedScaleDesc>
+                  </CombinedScaleCard>
 
-                  <TypeABreakdownRow $bg="#F8FAFC">
-                    <TypeABadge $bg="#64748B">
-                      <RiSubtractLine size={16} /> Neutral (3)
-                    </TypeABadge>
-                    <TypeADescText>
-                      You are genuinely unsure — you cannot say yes or no. Overuse of Neutral flattens your profile and reduces the accuracy of your results. If you even slightly agree or slightly disagree, choose that.
-                    </TypeADescText>
-                  </TypeABreakdownRow>
+                  <CombinedScaleCard $borderTopColor="#0D9488" $bg="#F0FDF4">
+                    <CombinedScaleHeader $color="#0D9488">
+                      <RiCheckDoubleLine size={16} /> 4 - Agree
+                    </CombinedScaleHeader>
+                    <CombinedScaleDesc>
+                      It describes you — you generally feel this way.
+                    </CombinedScaleDesc>
+                  </CombinedScaleCard>
 
-                  <TypeABreakdownRow $bg="#FFF7ED">
-                    <TypeABadge $bg="#EA580C">
-                      <RiThumbDownLine size={16} /> Disagree (2)
-                    </TypeABadge>
-                    <TypeADescText>This does not describe you — but not strongly. You generally do not feel this way.</TypeADescText>
-                  </TypeABreakdownRow>
-
-                  <TypeABreakdownRow $bg="#FEF2F2">
-                    <TypeABadge $bg="#DC2626">
-                      <RiCloseCircleLine size={16} /> Strongly Disagree (1)
-                    </TypeABadge>
-                    <TypeADescText>This really does not describe you. You are certain it does not apply.</TypeADescText>
-                  </TypeABreakdownRow>
-                </TypeABreakdownStack>
+                  <CombinedScaleCard $borderTopColor="#059669" $bg="#ECFDF5">
+                    <CombinedScaleHeader $color="#059669">
+                      <RiThumbUpLine size={16} /> 5 - Strongly Agree
+                    </CombinedScaleHeader>
+                    <CombinedScaleDesc>
+                      You are confident and completely sure this describes you.
+                    </CombinedScaleDesc>
+                  </CombinedScaleCard>
+                </CombinedScaleGuideGrid>
               </div>
 
               {/* TYPE B */}

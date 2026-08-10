@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   RiArrowLeftLine,
@@ -9,7 +9,6 @@ import {
   RiMailSendLine,
   RiSparklingLine,
   RiVideoChatLine,
-  RiWhatsappLine,
   RiArrowRightLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
@@ -37,12 +36,9 @@ import {
   SectionHeader,
   SectionTitle,
   SectionSubtext,
-  CounsellorBadgeCard,
-  CounsellorAvatar,
-  CounsellorInfo,
-  CounsellorName,
-  CounsellorMeta,
-  DateGrid,
+  DateCarouselWrapper,
+  DateCarouselContainer,
+  CarouselNavButton,
   DateCard,
   DateDay,
   DateNumber,
@@ -54,8 +50,6 @@ import {
   SummaryValue,
   ConfirmationCard,
   ConfirmationRow,
-  NotificationBadgeRow,
-  NotificationBadge,
   NavigationFooter,
 } from './BookSessionsPage.styles';
 
@@ -67,6 +61,21 @@ const AVAILABLE_DATES = [
   { fullDate: '2026-05-16', day: 'Sat', number: 'May 16' },
   { fullDate: '2026-05-18', day: 'Mon', number: 'May 18' },
   { fullDate: '2026-05-19', day: 'Tue', number: 'May 19' },
+  { fullDate: '2026-05-20', day: 'Wed', number: 'May 20' },
+  { fullDate: '2026-05-21', day: 'Thu', number: 'May 21' },
+  { fullDate: '2026-05-22', day: 'Fri', number: 'May 22' },
+  { fullDate: '2026-05-23', day: 'Sat', number: 'May 23' },
+  { fullDate: '2026-05-25', day: 'Mon', number: 'May 25' },
+  { fullDate: '2026-05-26', day: 'Tue', number: 'May 26' },
+  { fullDate: '2026-05-27', day: 'Wed', number: 'May 27' },
+  { fullDate: '2026-05-28', day: 'Thu', number: 'May 28' },
+  { fullDate: '2026-05-29', day: 'Fri', number: 'May 29' },
+  { fullDate: '2026-05-30', day: 'Sat', number: 'May 30' },
+  { fullDate: '2026-06-01', day: 'Mon', number: 'Jun 01' },
+  { fullDate: '2026-06-02', day: 'Tue', number: 'Jun 02' },
+  { fullDate: '2026-06-03', day: 'Wed', number: 'Jun 03' },
+  { fullDate: '2026-06-04', day: 'Thu', number: 'Jun 04' },
+  { fullDate: '2026-06-05', day: 'Fri', number: 'Jun 05' },
 ];
 
 const AVAILABLE_SLOTS = [
@@ -83,7 +92,8 @@ export const BookSessionsPage: React.FC = () => {
   const toast = useToast();
 
   const [isParentCompleted, setIsParentCompleted] = useState<boolean>(false);
-  const [step, setStep] = useState<number>(1); // 1 = Session 1, 2 = Session 2, 3 = Confirmation
+  // State step: 1 = Dual Session Slot Selection, 2 = Final Confirmation
+  const [step, setStep] = useState<number>(1);
 
   // Session 1 Selection
   const [s1Date, setS1Date] = useState<string>('2026-05-12');
@@ -93,10 +103,30 @@ export const BookSessionsPage: React.FC = () => {
   const [s2Date, setS2Date] = useState<string>('2026-05-15');
   const [s2Time, setS2Time] = useState<string>('05:00 PM - 06:00 PM');
 
+  const s1DateRef = useRef<HTMLDivElement>(null);
+  const s2DateRef = useRef<HTMLDivElement>(null);
+
+  const scrollDates = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
+    if (ref.current) {
+      const scrollAmount = direction === 'left' ? -220 : 220;
+      ref.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
   useEffect(() => {
     const parentDone = localStorage.getItem('pwc_parent_form_submitted') === 'true';
     setIsParentCompleted(parentDone);
   }, []);
+
+  const handleSelectS1Date = (dateStr: string) => {
+    setS1Date(dateStr);
+    if (s2Date <= dateStr) {
+      const nextAvailable = AVAILABLE_DATES.find(d => d.fullDate > dateStr);
+      if (nextAvailable) {
+        setS2Date(nextAvailable.fullDate);
+      }
+    }
+  };
 
   const handleSimulateParentForm = () => {
     localStorage.setItem('pwc_parent_form_submitted', 'true');
@@ -111,22 +141,17 @@ export const BookSessionsPage: React.FC = () => {
     toast.info('Parent Assessment Link Sent', 'Form link sent to parent email & WhatsApp number.');
   };
 
-  const handleConfirmS1 = () => {
+  const handleProceedToConfirmation = () => {
     if (!s1Date || !s1Time) {
-      toast.warning('Select Time Slot', 'Please choose a date and time slot for Session 1.');
+      toast.warning('Select Session 1 Slot', 'Please choose a date and time slot for Session 1.');
       return;
     }
-    toast.success('Session 1 Slot Saved', `Selected: ${s1Date} at ${s1Time}`);
-    setStep(2);
-  };
-
-  const handleConfirmS2 = () => {
     if (!s2Date || !s2Time) {
-      toast.warning('Select Time Slot', 'Please choose a date and time slot for Session 2.');
+      toast.warning('Select Session 2 Slot', 'Please choose a date and time slot for Session 2.');
       return;
     }
-    toast.success('Session 2 Slot Saved', `Selected: ${s2Date} at ${s2Time}`);
-    setStep(3);
+    toast.success('Session Slots Saved', `Session 1: ${s1Date} • Session 2: ${s2Date}`);
+    setStep(2);
   };
 
   const handleFinalBooking = () => {
@@ -198,7 +223,7 @@ export const BookSessionsPage: React.FC = () => {
             </WarningBox>
           </LockWarningContainer>
         ) : (
-          /* WIZARD STEPS 1 - 3 WHEN PARENT FORM IS COMPLETED */
+          /* UNIFIED DUAL SLOT SELECTION & CONFIRMATION */
           <WizardBody>
             {/* Steps Indicator Bar */}
             <StepIndicatorBar>
@@ -207,7 +232,7 @@ export const BookSessionsPage: React.FC = () => {
                   {step > 1 ? <RiCheckLine size={14} /> : '1'}
                 </StepBadge>
                 <StepLabel $active={step === 1} $completed={step > 1}>
-                  Session 1 Slot
+                  Select Session Slots (Session 1 & 2)
                 </StepLabel>
               </StepItem>
 
@@ -215,39 +240,18 @@ export const BookSessionsPage: React.FC = () => {
 
               <StepItem $active={step === 2} $completed={step > 2}>
                 <StepBadge $active={step === 2} $completed={step > 2}>
-                  {step > 2 ? <RiCheckLine size={14} /> : '2'}
+                  2
                 </StepBadge>
                 <StepLabel $active={step === 2} $completed={step > 2}>
-                  Session 2 Slot
-                </StepLabel>
-              </StepItem>
-
-              <StepConnector $completed={step > 2} />
-
-              <StepItem $active={step === 3} $completed={step > 3}>
-                <StepBadge $active={step === 3} $completed={step > 3}>
-                  3
-                </StepBadge>
-                <StepLabel $active={step === 3} $completed={step > 3}>
                   Final Confirmation
                 </StepLabel>
               </StepItem>
             </StepIndicatorBar>
 
-            {/* Counsellor Allotment Badge */}
-            <CounsellorBadgeCard>
-              <CounsellorAvatar>SJ</CounsellorAvatar>
-              <CounsellorInfo>
-                <CounsellorName>Sarah Jenkins, M.Sc Psych</CounsellorName>
-                <CounsellorMeta>
-                  Senior Career Counsellor • Assigned to your profile for Session 1 & 2 continuity
-                </CounsellorMeta>
-              </CounsellorInfo>
-            </CounsellorBadgeCard>
-
-            {/* STEP 1: SELECT SESSION 1 SLOT */}
+            {/* STEP 1: UNIFIED SESSION 1 AND SESSION 2 SLOT SELECTION */}
             {step === 1 && (
               <>
+                {/* SECTION 1: SESSION 1 SLOT */}
                 <SectionHeader>
                   <SectionTitle>
                     <RiCalendarEventLine size={20} style={{ color: '#2563EB' }} />
@@ -256,32 +260,48 @@ export const BookSessionsPage: React.FC = () => {
                     </span>
                   </SectionTitle>
                   <SectionSubtext>
-                    Choose an available date and 1-hour time slot for your initial 1-on-1 video
-                    call.
+                    Choose an available date and 1-hour time slot for your initial 1-on-1 video call.
                   </SectionSubtext>
                 </SectionHeader>
 
                 <div>
                   <SectionSubtext style={{ fontWeight: 700, marginBottom: 8, color: '#1E293B' }}>
-                    Available Dates:
+                    Available Dates for Session 1:
                   </SectionSubtext>
-                  <DateGrid>
-                    {AVAILABLE_DATES.map(d => (
-                      <DateCard
-                        key={d.fullDate}
-                        $selected={s1Date === d.fullDate}
-                        onClick={() => setS1Date(d.fullDate)}
-                      >
-                        <DateDay>{d.day}</DateDay>
-                        <DateNumber>{d.number}</DateNumber>
-                      </DateCard>
-                    ))}
-                  </DateGrid>
+                  <DateCarouselWrapper>
+                    <CarouselNavButton
+                      type="button"
+                      aria-label="Scroll dates left"
+                      onClick={() => scrollDates(s1DateRef, 'left')}
+                    >
+                      <RiArrowLeftLine size={18} />
+                    </CarouselNavButton>
+                    <DateCarouselContainer ref={s1DateRef}>
+                      {AVAILABLE_DATES.map(d => (
+                        <DateCard
+                          key={d.fullDate}
+                          $selected={s1Date === d.fullDate}
+                          onClick={() => handleSelectS1Date(d.fullDate)}
+                          style={{ minWidth: 120, flexShrink: 0 }}
+                        >
+                          <DateDay>{d.day}</DateDay>
+                          <DateNumber>{d.number}</DateNumber>
+                        </DateCard>
+                      ))}
+                    </DateCarouselContainer>
+                    <CarouselNavButton
+                      type="button"
+                      aria-label="Scroll dates right"
+                      onClick={() => scrollDates(s1DateRef, 'right')}
+                    >
+                      <RiArrowRightLine size={18} />
+                    </CarouselNavButton>
+                  </DateCarouselWrapper>
                 </div>
 
                 <div>
                   <SectionSubtext style={{ fontWeight: 700, marginBottom: 8, color: '#1E293B' }}>
-                    Available Time Slots for {s1Date}:
+                    Available Time Slots for Session 1 ({s1Date}):
                   </SectionSubtext>
                   <SlotGrid>
                     {AVAILABLE_SLOTS.map(s => (
@@ -293,38 +313,16 @@ export const BookSessionsPage: React.FC = () => {
                   </SlotGrid>
                 </div>
 
-                {s1Date && s1Time && (
-                  <SelectionSummaryCard>
-                    <SummaryTextGroup>
-                      <SummaryLabel>Selected Session 1 Slot</SummaryLabel>
-                      <SummaryValue>
-                        {s1Date} • {s1Time}
-                      </SummaryValue>
-                    </SummaryTextGroup>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      rightIcon={<RiArrowRightLine size={16} />}
-                      onClick={handleConfirmS1}
-                    >
-                      Confirm Session 1 Slot
-                    </Button>
-                  </SelectionSummaryCard>
-                )}
-              </>
-            )}
-
-            {/* STEP 2: SELECT SESSION 2 SLOT */}
-            {step === 2 && (
-              <>
-                <SectionHeader>
+                {/* SECTION 2: SESSION 2 SLOT */}
+                <SectionHeader style={{ marginTop: 32 }}>
                   <SectionTitle>
-                    <RiCalendarEventLine size={20} style={{ color: '#2563EB' }} />
-                    <span>Select Date & Time Slot for Session 2 (Roadmap & Recommendations)</span>
+                    <RiCalendarEventLine size={20} style={{ color: '#5D2384' }} />
+                    <span>
+                      Select Date & Time Slot for Session 2 (Roadmap & Recommendations)
+                    </span>
                   </SectionTitle>
                   <SectionSubtext>
-                    Choose a date for your second session with Sarah Jenkins (Recommended 3–5 days
-                    after Session 1).
+                    Choose a date for your second session (Recommended 3–5 days after Session 1).
                   </SectionSubtext>
                 </SectionHeader>
 
@@ -332,23 +330,40 @@ export const BookSessionsPage: React.FC = () => {
                   <SectionSubtext style={{ fontWeight: 700, marginBottom: 8, color: '#1E293B' }}>
                     Available Dates for Session 2:
                   </SectionSubtext>
-                  <DateGrid>
-                    {AVAILABLE_DATES.filter(d => d.fullDate > s1Date).map(d => (
-                      <DateCard
-                        key={d.fullDate}
-                        $selected={s2Date === d.fullDate}
-                        onClick={() => setS2Date(d.fullDate)}
-                      >
-                        <DateDay>{d.day}</DateDay>
-                        <DateNumber>{d.number}</DateNumber>
-                      </DateCard>
-                    ))}
-                  </DateGrid>
+                  <DateCarouselWrapper>
+                    <CarouselNavButton
+                      type="button"
+                      aria-label="Scroll dates left"
+                      onClick={() => scrollDates(s2DateRef, 'left')}
+                    >
+                      <RiArrowLeftLine size={18} />
+                    </CarouselNavButton>
+                    <DateCarouselContainer ref={s2DateRef}>
+                      {AVAILABLE_DATES.filter(d => d.fullDate > s1Date).map(d => (
+                        <DateCard
+                          key={d.fullDate}
+                          $selected={s2Date === d.fullDate}
+                          onClick={() => setS2Date(d.fullDate)}
+                          style={{ minWidth: 120, flexShrink: 0 }}
+                        >
+                          <DateDay>{d.day}</DateDay>
+                          <DateNumber>{d.number}</DateNumber>
+                        </DateCard>
+                      ))}
+                    </DateCarouselContainer>
+                    <CarouselNavButton
+                      type="button"
+                      aria-label="Scroll dates right"
+                      onClick={() => scrollDates(s2DateRef, 'right')}
+                    >
+                      <RiArrowRightLine size={18} />
+                    </CarouselNavButton>
+                  </DateCarouselWrapper>
                 </div>
 
                 <div>
                   <SectionSubtext style={{ fontWeight: 700, marginBottom: 8, color: '#1E293B' }}>
-                    Available Time Slots for {s2Date}:
+                    Available Time Slots for Session 2 ({s2Date}):
                   </SectionSubtext>
                   <SlotGrid>
                     {AVAILABLE_SLOTS.map(s => (
@@ -360,19 +375,22 @@ export const BookSessionsPage: React.FC = () => {
                   </SlotGrid>
                 </div>
 
-                {s2Date && s2Time && (
+                {/* UNIFIED SELECTION SUMMARY CARD FOR S1 & S2 */}
+                {s1Date && s1Time && s2Date && s2Time && (
                   <SelectionSummaryCard>
                     <SummaryTextGroup>
-                      <SummaryLabel>Selected Session 2 Slot</SummaryLabel>
-                      <SummaryValue>
-                        {s2Date} • {s2Time}
+                      <SummaryLabel>Selected Counselling Sessions</SummaryLabel>
+                      <SummaryValue style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
+                        <strong>Session 1:</strong> {s1Date} • {s1Time}
+                        <br />
+                        <strong>Session 2:</strong> {s2Date} • {s2Time}
                       </SummaryValue>
                     </SummaryTextGroup>
                     <Button
                       variant="primary"
                       size="md"
                       rightIcon={<RiArrowRightLine size={16} />}
-                      onClick={handleConfirmS2}
+                      onClick={handleProceedToConfirmation}
                     >
                       Proceed to Final Confirmation
                     </Button>
@@ -381,8 +399,8 @@ export const BookSessionsPage: React.FC = () => {
               </>
             )}
 
-            {/* STEP 3: CONFIRMATION SUMMARY & NOTIFICATIONS */}
-            {step === 3 && (
+            {/* STEP 2: FINAL CONFIRMATION SUMMARY */}
+            {step === 2 && (
               <ConfirmationCard>
                 <SectionHeader>
                   <SectionTitle>
@@ -405,10 +423,6 @@ export const BookSessionsPage: React.FC = () => {
                     <span>
                       Date: {s1Date} • Time: {s1Time}
                     </span>
-                    <br />
-                    <span style={{ fontSize: 13, color: '#64748B' }}>
-                      Counsellor: Sarah Jenkins, M.Sc Psych
-                    </span>
                   </div>
                 </ConfirmationRow>
 
@@ -423,29 +437,8 @@ export const BookSessionsPage: React.FC = () => {
                     <span>
                       Date: {s2Date} • Time: {s2Time}
                     </span>
-                    <br />
-                    <span style={{ fontSize: 13, color: '#64748B' }}>
-                      Counsellor: Sarah Jenkins, M.Sc Psych
-                    </span>
                   </div>
                 </ConfirmationRow>
-
-                <div>
-                  <strong style={{ fontSize: 14, color: '#1E293B' }}>
-                    Automated Notification Dispatch:
-                  </strong>
-                  <NotificationBadgeRow>
-                    <NotificationBadge $bg="#DBEAFE" $color="#1E40AF">
-                      <RiMailSendLine size={14} /> Student Email Invite
-                    </NotificationBadge>
-                    <NotificationBadge $bg="#F3E8FF" $color="#6B21A8">
-                      <RiMailSendLine size={14} /> Parent Email Invite
-                    </NotificationBadge>
-                    <NotificationBadge $bg="#D1FAE5" $color="#047857">
-                      <RiWhatsappLine size={14} /> WhatsApp Confirmation
-                    </NotificationBadge>
-                  </NotificationBadgeRow>
-                </div>
 
                 <NavigationFooter>
                   <Button
@@ -453,9 +446,9 @@ export const BookSessionsPage: React.FC = () => {
                     variant="secondary"
                     size="md"
                     leftIcon={<RiArrowLeftLine size={16} />}
-                    onClick={() => setStep(2)}
+                    onClick={() => setStep(1)}
                   >
-                    Back to Session 2 Slot
+                    Back to Slot Selection
                   </Button>
                   <Button
                     type="button"

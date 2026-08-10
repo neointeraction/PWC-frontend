@@ -19,6 +19,7 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
+import { Modal } from '@/components/Modal';
 import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
 import {
@@ -218,13 +219,20 @@ export const PreCounsellingFormPage: React.FC = () => {
     }));
   };
 
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState<boolean>(false);
+
   const handleSubmitForm = () => {
+    setIsCompletionModalOpen(true);
+  };
+
+  const handleConfirmCompletion = () => {
     localStorage.setItem('pwc_precounselling_submitted', 'true');
     localStorage.setItem('pwc_student_precounseling_form_submitted', 'true');
     toast.success(
       'Pre-Counselling Form Submitted!',
       'Thank you for completing the form. Your counsellor will review your responses before Session 1.'
     );
+    setIsCompletionModalOpen(false);
     navigate(ROUTES.STUDENT_PORTAL);
   };
 
@@ -493,12 +501,12 @@ export const PreCounsellingFormPage: React.FC = () => {
           <WizardProgressHeader>
             <WizardStepInfoRow>
               <span>
-                {currentStep === 1 && 'SECTION 1 — ACADEMIC SUBJECT PREFERENCES (Q1 to Q3)'}
-                {currentStep === 2 && 'SECTION 2 — STREAM & CAREER EXPLORATION (Q4 to Q7)'}
-                {currentStep === 3 && 'SECTION 3 — WORK ACTIVITIES & STRENGTHS (Q8 to Q10)'}
-                {currentStep === 4 && 'SECTION 4 — STUDY HABITS & LEARNING STYLE (Q11 & Q12)'}
-                {currentStep === 5 && 'SECTION 5 — CO-CURRICULAR & PERSONALITY (Q13 & Q14)'}
-                {currentStep === 6 && 'SECTION 6 — COUNSELLING GOALS & FINAL QUESTIONS (Q15 & Q16)'}
+                {currentStep === 1 && 'SECTION 1 — ACADEMIC SUBJECT PREFERENCES (1 to 3)'}
+                {currentStep === 2 && 'SECTION 2 — STREAM & CAREER EXPLORATION (4 to 7)'}
+                {currentStep === 3 && 'SECTION 3 — WORK ACTIVITIES & STRENGTHS (8 to 10)'}
+                {currentStep === 4 && 'SECTION 4 — STUDY HABITS & LEARNING STYLE (11 & 12)'}
+                {currentStep === 5 && 'SECTION 5 — CO-CURRICULAR & PERSONALITY (13 & 14)'}
+                {currentStep === 6 && 'SECTION 6 — COUNSELLING GOALS & FINAL QUESTIONS (15 & 16)'}
               </span>
               <span>Step {currentStep} of {totalSteps} ({progressPercent}%)</span>
             </WizardStepInfoRow>
@@ -513,7 +521,7 @@ export const PreCounsellingFormPage: React.FC = () => {
             {currentStep === 1 && (
               <>
                 <QuestionBox>
-                  <QuestionTitle>Q1. Which statement best describes your overall academic standing?</QuestionTitle>
+                  <QuestionTitle>1. Which statement best describes your overall academic standing?</QuestionTitle>
                   <OptionList>
                     {[
                       'Top performer — consistently among the highest scorers in class',
@@ -559,7 +567,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q2. Which subjects do you genuinely ENJOY studying the most? (Select up to 3)</QuestionTitle>
+                  <QuestionTitle>2. Which subjects do you genuinely ENJOY studying the most? (Select up to 3)</QuestionTitle>
                   <OptionList>
                     {[
                       'Mathematics',
@@ -604,7 +612,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q3. Which subjects do you find MOST CHALLENGING or least interesting? (Select up to 3)</QuestionTitle>
+                  <QuestionTitle>3. Which subjects do you find MOST CHALLENGING or least interesting? (Select up to 3)</QuestionTitle>
                   <OptionList>
                     {[
                       'Mathematics',
@@ -637,7 +645,7 @@ export const PreCounsellingFormPage: React.FC = () => {
             {currentStep === 2 && (
               <>
                 <QuestionBox>
-                  <QuestionTitle>Q4. Rank your preference for Class 11 & 12 Academic Streams:</QuestionTitle>
+                  <QuestionTitle>4. Rank your preference for Class 11 & 12 Academic Streams:</QuestionTitle>
                   <QuestionSubtext>Rate your interest level for each stream option below.</QuestionSubtext>
                   <MatrixGrid>
                     {[
@@ -669,7 +677,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q5. How confident do you feel about your stream choice for Class 11?</QuestionTitle>
+                  <QuestionTitle>5. How confident do you feel about your stream choice for Class 11?</QuestionTitle>
                   <OptionList>
                     {[
                       'Very Confident — I know exactly which stream I want and why',
@@ -693,7 +701,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q6. Which Career Clusters interest you the most? (Select up to 3)</QuestionTitle>
+                  <QuestionTitle>6. Which Career Clusters interest you the most? (Select up to 3)</QuestionTitle>
                   <OptionList>
                     {[
                       'Engineering, Technology & AI',
@@ -721,7 +729,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q7. Do you have any specific dream careers or professions in mind?</QuestionTitle>
+                  <QuestionTitle>7. Do you have any specific dream careers or professions in mind?</QuestionTitle>
                   <QuestionSubtext>Write any specific roles or occupations you currently aspire to pursue (e.g. Aeronautical Engineer, Neurosurgeon, Corporate Lawyer, Graphic Designer).</QuestionSubtext>
                   <CustomTextInput
                     placeholder="Enter your dream careers or professions (or write 'Still Exploring')..."
@@ -736,7 +744,7 @@ export const PreCounsellingFormPage: React.FC = () => {
             {currentStep === 3 && (
               <>
                 <QuestionBox>
-                  <QuestionTitle>Q8. Rate your enjoyment for the following work activities:</QuestionTitle>
+                  <QuestionTitle>8. Rate your enjoyment for the following work activities:</QuestionTitle>
                   <MatrixGrid>
                     {[
                       { key: 'act1', title: 'Solving complex mathematical or logical problems' },
@@ -767,7 +775,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q9. Select your TOP STRENGTHS & SKILLS (Select up to 5 items from the list below):</QuestionTitle>
+                  <QuestionTitle>9. Select your TOP STRENGTHS & SKILLS (Select up to 5 items from the list below):</QuestionTitle>
                   <OptionList style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {STRENGTH_ITEMS.map(str => (
                       <OptionLabel key={str} $selected={answers.q9_strengthSelections?.includes(str)}>
@@ -785,7 +793,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q10. In your own words, what are your 3 biggest personal strengths?</QuestionTitle>
+                  <QuestionTitle>10. In your own words, what are your 3 biggest personal strengths?</QuestionTitle>
                   <CustomTextInput
                     placeholder="Describe your top 3 personal strengths..."
                     value={answers.q10_top3StrengthsInput || ''}
@@ -799,7 +807,7 @@ export const PreCounsellingFormPage: React.FC = () => {
             {currentStep === 4 && (
               <>
                 <QuestionBox>
-                  <QuestionTitle>Q11. What areas would you like to improve or develop further?</QuestionTitle>
+                  <QuestionTitle>11. What areas would you like to improve or develop further?</QuestionTitle>
                   <CustomTextInput
                     placeholder="Describe areas you want to improve (e.g. time management, exam anxiety, focus)..."
                     value={answers.q11_growthAreasInput || ''}
@@ -808,7 +816,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q12. Rate your agreement with the following study habit statements:</QuestionTitle>
+                  <QuestionTitle>12. Rate your agreement with the following study habit statements:</QuestionTitle>
                   <MatrixGrid>
                     {[
                       { key: 'h1', title: 'I follow a daily study schedule consistently' },
@@ -842,7 +850,7 @@ export const PreCounsellingFormPage: React.FC = () => {
             {currentStep === 5 && (
               <>
                 <QuestionBox>
-                  <QuestionTitle>Q13. List your key Co-Curricular & Extracurricular Activities:</QuestionTitle>
+                  <QuestionTitle>13. List your key Co-Curricular & Extracurricular Activities:</QuestionTitle>
                   <DataTableWrapper>
                     <StyledTable>
                       <thead>
@@ -887,7 +895,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q14. How do you spend your free time outside academics? (Select all that apply)</QuestionTitle>
+                  <QuestionTitle>14. How do you spend your free time outside academics? (Select all that apply)</QuestionTitle>
                   <OptionList>
                     {[
                       'Reading books, novels, or articles',
@@ -917,7 +925,7 @@ export const PreCounsellingFormPage: React.FC = () => {
             {currentStep === 6 && (
               <>
                 <QuestionBox>
-                  <QuestionTitle>Q15. What are your primary goals for this Career Counselling Session? (Select up to 3)</QuestionTitle>
+                  <QuestionTitle>15. What are your primary goals for this Career Counselling Session? (Select up to 3)</QuestionTitle>
                   <OptionList>
                     {[
                       'Clear guidance on selecting Class 11 & 12 Academic Stream',
@@ -941,7 +949,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </QuestionBox>
 
                 <QuestionBox>
-                  <QuestionTitle>Q16. Do you have any specific questions or concerns for your senior career counsellor?</QuestionTitle>
+                  <QuestionTitle>16. Do you have any specific questions or concerns for your senior career counsellor?</QuestionTitle>
                   <QuestionSubtext>Write any specific questions you would like addressed during your 1-on-1 video call session.</QuestionSubtext>
                   <CustomTextInput
                     placeholder="Enter any specific questions or topics for your counsellor..."
@@ -950,10 +958,6 @@ export const PreCounsellingFormPage: React.FC = () => {
                   />
                 </QuestionBox>
 
-                <ClosingNoteCard>
-                  <strong>Thank you for completing your Student Pre-Counselling Form!</strong>
-                  <span>Your responses will be thoroughly analyzed by your senior career counsellor before your 1-on-1 video session. Click &apos;Submit Form&apos; below to finish.</span>
-                </ClosingNoteCard>
               </>
             )}
           </WizardStepBody>
@@ -995,6 +999,33 @@ export const PreCounsellingFormPage: React.FC = () => {
           </WizardFooterNav>
         </WizardContainer>
       )}
+
+      {/* Completion Confirmation Popup Modal */}
+      <Modal
+        isOpen={isCompletionModalOpen}
+        onClose={() => setIsCompletionModalOpen(false)}
+        title="Form Submission Successful"
+        size="md"
+        footer={
+          <Button
+            variant="primary"
+            size="md"
+            rightIcon={<RiArrowRightLine size={16} />}
+            onClick={handleConfirmCompletion}
+          >
+            Go to Student Portal
+          </Button>
+        }
+      >
+        <ClosingNoteCard>
+          <strong style={{ fontSize: 16 }}>
+            Thank you for completing your Student Pre-Counselling Form!
+          </strong>
+          <span style={{ fontSize: 14, lineHeight: 1.55 }}>
+            Your responses will be thoroughly analyzed by your senior career counsellor before your 1-on-1 video session.
+          </span>
+        </ClosingNoteCard>
+      </Modal>
     </FormPageContainer>
   );
 };

@@ -12,6 +12,8 @@ import {
   RiRouteLine,
   RiUserHeartLine,
   RiFileTextLine,
+  RiPrinterLine,
+  RiNotification3Line,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
@@ -40,6 +42,7 @@ import {
   ItemTextGroup,
   ItemTitle,
   ItemSubtext,
+  AttachedStatusBadge,
   IconBox,
 } from './StudentPortalPage.styles';
 
@@ -90,6 +93,11 @@ export const StudentPortalPage: React.FC = () => {
   }, []);
 
   const handleStartSession = (sessionNum: number) => {
+    const meetUrl =
+      sessionNum === 1
+        ? 'https://meet.google.com/abc-defg-hij'
+        : 'https://meet.google.com/xyz-uvwx-rst';
+    window.open(meetUrl, '_blank');
     toast.info(
       `Launching Video Session ${sessionNum}`,
       `Connecting to video counseling room with Sarah Jenkins (M.Sc Psych)...`
@@ -136,7 +144,7 @@ export const StudentPortalPage: React.FC = () => {
     );
   };
 
-  // Build the 12 timeline steps
+  // Build the 8 primary student timeline steps
   const getTimelineSteps = () => {
     // 1. Student Profile Form
     const s1Status: 'completed' | 'current' | 'upcoming' = isProfileCompleted
@@ -150,63 +158,43 @@ export const StudentPortalPage: React.FC = () => {
       ? 'current'
       : 'upcoming';
 
-    // 3. Pre-Counselling Form Parent
-    const s3Status: 'completed' | 'current' | 'upcoming' = isParentFormSubmitted
+    // 3. Assessment Form
+    const s3Status: 'completed' | 'current' | 'upcoming' = isAssessmentSubmitted
       ? 'completed'
       : isPreCounsellingSubmitted
       ? 'current'
       : 'upcoming';
 
-    // 4. Assessment Form
-    const s4Status: 'completed' | 'current' | 'upcoming' = isAssessmentSubmitted
-      ? 'completed'
-      : isParentFormSubmitted
-      ? 'current'
-      : 'upcoming';
-
-    // 5. Booking session 1 & 2
-    const s5Status: 'completed' | 'current' | 'upcoming' = isBooked
+    // 4. Booking session 1 & 2
+    const s4Status: 'completed' | 'current' | 'upcoming' = isBooked
       ? 'completed'
       : isAssessmentSubmitted
       ? 'current'
       : 'upcoming';
 
-    // 6. Video session 1 (12May 5pm-6pm)
-    const s6Status: 'completed' | 'current' | 'upcoming' = isSession1Completed
+    // 5. Video session 1 (12May 5pm-6pm)
+    const s5Status: 'completed' | 'current' | 'upcoming' = isSession1Completed
       ? 'completed'
       : isBooked
       ? 'current'
       : 'upcoming';
 
-    // 7. Counsellor adding notes
-    const s7Status: 'completed' | 'current' | 'upcoming' = isSession1Completed ? 'completed' : 'upcoming';
-
-    // 8. Video session 2 (15May 5pm-6pm)
-    const s8Status: 'completed' | 'current' | 'upcoming' = isSession2Completed
+    // 6. Video session 2 (15May 5pm-6pm)
+    const s6Status: 'completed' | 'current' | 'upcoming' = isSession2Completed
       ? 'completed'
       : isSession1Completed
       ? 'current'
       : 'upcoming';
 
-    // 9. Counsellor adding notes
-    const s9Status: 'completed' | 'current' | 'upcoming' = isSession2Completed ? 'completed' : 'upcoming';
-
-    // 10. Student Feedback Form
-    const s10Status: 'completed' | 'current' | 'upcoming' = isStudentFeedbackSubmitted
+    // 7. Student Feedback Form
+    const s7Status: 'completed' | 'current' | 'upcoming' = isStudentFeedbackSubmitted
       ? 'completed'
       : isSession2Completed
       ? 'current'
       : 'upcoming';
 
-    // 11. Parent Feedback Form
-    const s11Status: 'completed' | 'current' | 'upcoming' = isParentFeedbackSubmitted
-      ? 'completed'
-      : isStudentFeedbackSubmitted
-      ? 'current'
-      : 'upcoming';
-
-    // 12. IKigai Report
-    const s12Status: 'completed' | 'current' | 'upcoming' = isParentFeedbackSubmitted
+    // 8. IKigai Report
+    const s8Status: 'completed' | 'current' | 'upcoming' = isStudentFeedbackSubmitted
       ? 'current'
       : 'upcoming';
 
@@ -216,6 +204,7 @@ export const StudentPortalPage: React.FC = () => {
         title: 'Student Profile Form',
         subtext: isProfileCompleted ? 'Completed' : 'Mandatory Step 1 — Personal & Parent Details',
         status: s1Status,
+        attachedStatus: null,
         action: !isProfileCompleted ? (
           <Button
             variant="primary"
@@ -236,47 +225,53 @@ export const StudentPortalPage: React.FC = () => {
           ? 'Step 2 — Ready to start 20-min interest assessment'
           : 'Locked — Complete Student Profile Form first',
         status: s2Status,
-        action: isProfileCompleted && !isPreCounsellingSubmitted ? (
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<RiPlayCircleLine size={16} />}
-            onClick={() => navigate(ROUTES.PRE_COUNSELLING_FORM)}
-          >
-            Start Student Form
-          </Button>
-        ) : null,
+        attachedStatus: !isParentFormSubmitted ? (
+          <AttachedStatusBadge $variant="warning">
+            <RiNotification3Line size={13} style={{ color: '#D97706' }} />
+            <span>waiting for parent to fill the pre counselling form</span>
+          </AttachedStatusBadge>
+        ) : (
+          <AttachedStatusBadge $variant="success">
+            <RiCheckLine size={13} />
+            <span>Parent Form Completed</span>
+          </AttachedStatusBadge>
+        ),
+        action: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {isProfileCompleted && !isPreCounsellingSubmitted && (
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<RiPlayCircleLine size={16} />}
+                onClick={() => navigate(ROUTES.PRE_COUNSELLING_FORM)}
+              >
+                Start Student Form
+              </Button>
+            )}
+            {isPreCounsellingSubmitted && !isParentFormSubmitted && (
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<RiUserHeartLine size={16} />}
+                onClick={handleParentFormSubmit}
+              >
+                Complete Parent Form
+              </Button>
+            )}
+          </div>
+        ),
       },
       {
         id: 3,
-        title: 'Pre-Counselling Form Parent',
-        subtext: isParentFormSubmitted
-          ? 'Completed (Submitted via email link)'
-          : isPreCounsellingSubmitted
-          ? 'Step 3 — Form link sent via email to parent. Click to complete.'
-          : 'Locked — Complete Student Form first',
-        status: s3Status,
-        action: isPreCounsellingSubmitted && !isParentFormSubmitted ? (
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<RiUserHeartLine size={16} />}
-            onClick={handleParentFormSubmit}
-          >
-            Complete Parent Form
-          </Button>
-        ) : null,
-      },
-      {
-        id: 4,
         title: 'Assessment Form',
         subtext: isAssessmentSubmitted
           ? 'Completed'
-          : isParentFormSubmitted
-          ? 'Step 4 — Psychometric abilities & career interest assessment'
-          : 'Locked — Complete Pre-Counselling Form Parent first',
-        status: s4Status,
-        action: isParentFormSubmitted && !isAssessmentSubmitted ? (
+          : isPreCounsellingSubmitted
+          ? 'Step 3 — Psychometric abilities & career interest assessment'
+          : 'Locked — Complete Pre-Counselling Form first',
+        status: s3Status,
+        attachedStatus: null,
+        action: isPreCounsellingSubmitted && !isAssessmentSubmitted ? (
           <Button
             variant="primary"
             size="sm"
@@ -288,14 +283,15 @@ export const StudentPortalPage: React.FC = () => {
         ) : null,
       },
       {
-        id: 5,
+        id: 4,
         title: 'Booking session 1 & 2',
         subtext: isBooked
           ? 'Sessions Scheduled'
           : isAssessmentSubmitted
           ? 'Select dates and book 1-on-1 counseling video calls'
           : 'Locked — Complete Assessment Form first',
-        status: s5Status,
+        status: s4Status,
+        attachedStatus: null,
         action: isAssessmentSubmitted && !isBooked ? (
           <Button
             variant="primary"
@@ -308,14 +304,15 @@ export const StudentPortalPage: React.FC = () => {
         ) : null,
       },
       {
-        id: 6,
+        id: 5,
         title: 'Video session 1',
         subtext: isSession1Completed
-          ? `Completed (${s1SlotStr || 'May 12, 5pm-6pm'})`
+          ? `Completed (${s1SlotStr || 'May 12, 5pm-6pm'}) • Counsellor Notes Added by Sarah Jenkins`
           : isBooked
           ? `Scheduled (${s1SlotStr || 'May 12, 5pm-6pm'}) • Email & WA Reminders Dispatched`
           : 'Initial Career Exploration Call',
-        status: s6Status,
+        status: s5Status,
+        attachedStatus: null,
         action: isBooked && !isSession1Completed ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Button
@@ -338,20 +335,15 @@ export const StudentPortalPage: React.FC = () => {
         ) : null,
       },
       {
-        id: 7,
-        title: 'Counsellor adding notes',
-        subtext: isSession1Completed ? 'Session 1 Notes Added by Sarah Jenkins' : 'Session 1 summary & counselor insights',
-        status: s7Status,
-      },
-      {
-        id: 8,
+        id: 6,
         title: 'Video session 2',
         subtext: isSession2Completed
-          ? `Completed (${s2SlotStr || 'May 15, 5pm-6pm'})`
+          ? `Completed (${s2SlotStr || 'May 15, 5pm-6pm'}) • Final Stream & Roadmap Notes Added`
           : isSession1Completed
           ? `Active Session 2 (${s2SlotStr || 'May 15, 5pm-6pm'}) • Email & WA Reminders Dispatched`
           : 'Ikigai & Stream Review Call',
-        status: s8Status,
+        status: s6Status,
+        attachedStatus: null,
         action: isSession1Completed && !isSession2Completed ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Button
@@ -374,58 +366,71 @@ export const StudentPortalPage: React.FC = () => {
         ) : null,
       },
       {
-        id: 9,
-        title: 'Counsellor adding notes',
-        subtext: 'Final stream recommendations & roadmap',
-        status: s9Status,
-      },
-      {
-        id: 10,
+        id: 7,
         title: 'Student Feedback Form',
         subtext: isStudentFeedbackSubmitted
           ? 'Completed'
           : isSession2Completed
           ? 'Share your feedback on the counseling experience'
           : 'Locked — Complete Session 2 first',
-        status: s10Status,
-        action: isSession2Completed && !isStudentFeedbackSubmitted ? (
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<RiFileTextLine size={16} />}
-            onClick={() => navigate(ROUTES.STUDENT_FEEDBACK_FORM)}
-          >
-            Complete Student Feedback
-          </Button>
-        ) : null,
+        status: s7Status,
+        attachedStatus: !isParentFeedbackSubmitted ? (
+          <AttachedStatusBadge $variant="warning">
+            <RiNotification3Line size={13} style={{ color: '#D97706' }} />
+            <span>waiting for parent feedback</span>
+          </AttachedStatusBadge>
+        ) : (
+          <AttachedStatusBadge $variant="success">
+            <RiCheckLine size={13} />
+            <span>Parent Feedback Completed</span>
+          </AttachedStatusBadge>
+        ),
+        action: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {isSession2Completed && !isStudentFeedbackSubmitted && (
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<RiFileTextLine size={16} />}
+                onClick={() => navigate(ROUTES.STUDENT_FEEDBACK_FORM)}
+              >
+                Complete Student Feedback
+              </Button>
+            )}
+            {isStudentFeedbackSubmitted && !isParentFeedbackSubmitted && (
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<RiFileTextLine size={16} />}
+                onClick={handleParentFeedbackSubmit}
+              >
+                Complete Parent Feedback
+              </Button>
+            )}
+          </div>
+        ),
       },
       {
-        id: 11,
-        title: 'Parent Feedback Form',
-        subtext: isParentFeedbackSubmitted
-          ? 'Completed'
-          : isStudentFeedbackSubmitted
-          ? 'Share your feedback on the counseling experience'
-          : 'Locked — Complete Student Feedback first',
-        status: s11Status,
-        action: isStudentFeedbackSubmitted && !isParentFeedbackSubmitted ? (
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<RiFileTextLine size={16} />}
-            onClick={handleParentFeedbackSubmit}
-          >
-            Complete Parent Feedback
-          </Button>
-        ) : null,
-      },
-      {
-        id: 12,
+        id: 8,
         title: 'IKigai Report',
-        subtext: isParentFeedbackSubmitted
-          ? 'Unlock your official Ikigai career roadmap report'
-          : 'Locked — Complete Feedback Forms first',
-        status: s12Status,
+        subtext: isStudentFeedbackSubmitted
+          ? 'Your official Ikigai career roadmap report is ready to view'
+          : 'Unlock your official Ikigai career roadmap report',
+        status: s8Status,
+        attachedStatus: null,
+        action:
+          s8Status !== 'upcoming' ? (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<RiPrinterLine size={16} />}
+              onClick={() =>
+                navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'))
+              }
+            >
+              View Ikigai Report
+            </Button>
+          ) : null,
       },
     ];
   };
@@ -470,7 +475,7 @@ export const StudentPortalPage: React.FC = () => {
             <div>
               <TimelineTitle>Your Counseling Journey Progress</TimelineTitle>
               <TimelineSubtitle>
-                Follow the 12 milestone steps to complete your counseling and receive your Ikigai Report.
+                Follow the 8 milestone steps to complete your counseling and receive your Ikigai Report.
               </TimelineSubtitle>
             </div>
           </TimelineTitleGroup>
@@ -517,6 +522,7 @@ export const StudentPortalPage: React.FC = () => {
                         </Badge>
                       </span>
                     )}
+                    {step.attachedStatus}
                   </ItemTitle>
                   <ItemSubtext>{step.subtext}</ItemSubtext>
                 </ItemTextGroup>

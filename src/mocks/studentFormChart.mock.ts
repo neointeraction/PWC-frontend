@@ -94,6 +94,7 @@ export interface CareerCompassItem {
   aiResilience: string;
   salaryIndia: string;
   salaryAbroad: string;
+  approvalStatus?: 'Approved' | 'Pending Admin Approval';
 }
 
 export interface ReliabilityCardData {
@@ -187,7 +188,8 @@ export interface CounsellorFormChartData {
   sectionE: {
     roadmapGrid: RoadmapGridData;
     scriItems: SCRIItemData[];
-    academicCareerAlignment: 'Strongly Aligned' | 'Partially Aligned' | 'Misaligned' | 'Not Yet Assessed';
+    academicCareerAlignment:
+      'Strongly Aligned' | 'Partially Aligned' | 'Misaligned' | 'Not Yet Assessed';
     synthesisNotes: Record<string, string>; // H1..H5
   };
   // Step 6: Section F
@@ -197,7 +199,9 @@ export interface CounsellorFormChartData {
   };
 }
 
-export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-1'): CounsellorFormChartData => {
+export const getMockStudentFormChartData = (
+  sessionId: string = 'sess-counselor-1'
+): CounsellorFormChartData => {
   return {
     sessionId,
     studentId: 'stud-101',
@@ -219,24 +223,25 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         { id: 'rec-7', subject: '', class7: '', class8: '', class9: '', isOther: true },
       ],
       academicTrend: 'Improving',
-      academicTrendNotes: 'Consistently exceptional performance in quantitative and technical subjects across Class 7 to 9.',
+      academicTrendNotes:
+        'Consistently exceptional performance in quantitative and technical subjects across Class 7 to 9.',
     },
     sectionA: {
       comparisonGroups: [
         {
           id: 'sub-a1',
-          title: 'A1 · Subject Preferences & Academic Performance',
+          title: 'Subject Preferences & Academic Performance',
           items: [
             {
               id: 'a1-1',
-              code: 'A1.1',
+              code: '1.1',
               parameter: 'Favourite Subject',
               studentResponse: '1 & 2',
               parentResponse: '1',
             },
             {
               id: 'a1-2',
-              code: 'A1.2',
+              code: '1.2',
               parameter: 'Least Liked Subject',
               studentResponse: '1 & 3',
               parentResponse: '2',
@@ -245,39 +250,39 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         },
         {
           id: 'sub-a2',
-          title: 'A2 · Non-Academic Activities, Hobbies & Learning Mode',
+          title: 'Non-Academic Activities, Hobbies & Learning Mode',
           items: [
             {
               id: 'a2-1',
-              code: 'A2.1',
+              code: '2.1',
               parameter: 'Non-academic / free-time activity',
               studentResponse: '4',
               parentResponse: '4',
             },
             {
               id: 'a2-2',
-              code: 'A2.2',
+              code: '2.2',
               parameter: 'First Hobby — Name & weekly hours spent',
               studentResponse: '5',
               parentResponse: 'NA',
             },
             {
               id: 'a2-3',
-              code: 'A2.3',
+              code: '2.3',
               parameter: 'Second Hobby — Name & weekly hours spent',
               studentResponse: '5',
               parentResponse: 'NA',
             },
             {
               id: 'a2-4',
-              code: 'A2.4',
+              code: '2.4',
               parameter: 'Most enjoyed school activity',
               studentResponse: '7',
               parentResponse: 'NA',
             },
             {
               id: 'a2-5',
-              code: 'A2.5',
+              code: '2.5',
               parameter: 'Preferred mode of learning at school',
               studentResponse: '8',
               parentResponse: 'NA',
@@ -297,33 +302,34 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
       comparisonGroups: [
         {
           id: 'sub-b1',
-          title: 'B1 · Personal Strengths & Enjoyment',
+          title: 'Personal Strengths & Enjoyment',
           items: [
             {
               id: 'b1-1',
-              code: 'B1.1',
+              code: '1.1',
               parameter: 'Top personal qualities / strengths — Definitely me or Clearly see this',
               studentResponse: '9',
               parentResponse: '3',
             },
             {
               id: 'b1-2',
-              code: 'B1.2',
+              code: '1.2',
               parameter: 'Top personal qualities / strengths — Somewhat me or Sometimes',
               studentResponse: '9',
               parentResponse: '3',
             },
             {
               id: 'b1-3',
-              code: 'B1.3',
+              code: '1.3',
               parameter: 'Special skill or talent mentioned by parent — any unique ability noticed',
               studentResponse: 'NA',
               parentResponse: '5',
             },
             {
               id: 'b1-4',
-              code: 'B1.4',
-              parameter: 'Consistency of interests over time — are the student\'s interests stable or frequently changing?',
+              code: '1.4',
+              parameter:
+                "Consistency of interests over time — are the student's interests stable or frequently changing?",
               studentResponse: '6',
               parentResponse: '6',
             },
@@ -331,32 +337,32 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         },
         {
           id: 'sub-b2',
-          title: 'B2 · Personality Type & Decision-Making',
+          title: 'Personality Type & Decision-Making',
           items: [
             {
               id: 'b2-1',
-              code: 'B2.1',
+              code: '2.1',
               parameter: 'Perceived personality type',
               studentResponse: '11',
               parentResponse: 'NA',
             },
             {
               id: 'b2-2',
-              code: 'B2.2',
+              code: '2.2',
               parameter: 'Primary character description by parent',
               studentResponse: 'NA',
               parentResponse: '7',
             },
             {
               id: 'b2-3',
-              code: 'B2.3',
+              code: '2.3',
               parameter: 'How student interacts with peers & teachers',
               studentResponse: 'NA',
               parentResponse: '8',
             },
             {
               id: 'b2-4',
-              code: 'B2.4',
+              code: '2.4',
               parameter: 'General approach to making important decisions',
               studentResponse: '12',
               parentResponse: '9',
@@ -365,18 +371,18 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         },
         {
           id: 'sub-b3',
-          title: 'B3 · Obstacles & Response to Failure',
+          title: 'Obstacles & Response to Failure',
           items: [
             {
               id: 'b3-1',
-              code: 'B3.1',
+              code: '3.1',
               parameter: 'Main obstacles during study',
               studentResponse: '10',
               parentResponse: '11',
             },
             {
               id: 'b3-2',
-              code: 'B3.2',
+              code: '3.2',
               parameter: 'Response to failure or negative feedback',
               studentResponse: '13',
               parentResponse: '10',
@@ -392,10 +398,53 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         B5: '',
       },
       traitsTable: [
-        { id: 't-1', no: 1, layerTrait: 'RIASEC - Conventional', traitName: 'Systematic & Disciplined', whatItMeasures: 'Preference for structured work, planning, accuracy, routines, and systematic procedures', percentage: '83.36', grade: 'Highly Preferred', gradeMeaning: 'A strong trait with natural interest, you can expertise' },
-        { id: 't-2', no: 2, layerTrait: 'BIG Five - Openness', traitName: 'Intellectual Curiosity', whatItMeasures: 'Willingness to explore new ideas, experiences, perspectives, creativity, and intellectual curiosity.', percentage: '72.64', grade: 'Evident', gradeMeaning: 'This tendency is generally present and influences your behaviour in many situations' },
-        { id: 't-3', no: 3, layerTrait: 'Cognitive & Decision - Learning Ability', traitName: 'Knowledge Agility', whatItMeasures: 'Ability and willingness to learn new skills, adapt quickly, and absorb new concepts efficiently', percentage: '52.82', grade: 'Emerging', gradeMeaning: 'This behaviour appears occasionally but is not yet consistently demonstrated' },
-        { id: 't-4', no: 4, layerTrait: 'Aptitude - Verbal Reasoning', traitName: 'Textual Intelligence', whatItMeasures: 'Language comprehension, reading interpretation, analogy, argument analysis, and verbal logic', percentage: '47.33', grade: 'Developing Capability', gradeMeaning: 'Demonstrates moderate potential but may require additional training and exposure' },
+        {
+          id: 't-1',
+          no: 1,
+          layerTrait: 'RIASEC - Conventional',
+          traitName: 'Systematic & Disciplined',
+          whatItMeasures:
+            'Preference for structured work, planning, accuracy, routines, and systematic procedures',
+          percentage: '83.36',
+          grade: 'Highly Preferred',
+          gradeMeaning: 'A strong trait with natural interest, you can expertise',
+        },
+        {
+          id: 't-2',
+          no: 2,
+          layerTrait: 'BIG Five - Openness',
+          traitName: 'Intellectual Curiosity',
+          whatItMeasures:
+            'Willingness to explore new ideas, experiences, perspectives, creativity, and intellectual curiosity.',
+          percentage: '72.64',
+          grade: 'Evident',
+          gradeMeaning:
+            'This tendency is generally present and influences your behaviour in many situations',
+        },
+        {
+          id: 't-3',
+          no: 3,
+          layerTrait: 'Cognitive & Decision - Learning Ability',
+          traitName: 'Knowledge Agility',
+          whatItMeasures:
+            'Ability and willingness to learn new skills, adapt quickly, and absorb new concepts efficiently',
+          percentage: '52.82',
+          grade: 'Emerging',
+          gradeMeaning:
+            'This behaviour appears occasionally but is not yet consistently demonstrated',
+        },
+        {
+          id: 't-4',
+          no: 4,
+          layerTrait: 'Aptitude - Verbal Reasoning',
+          traitName: 'Textual Intelligence',
+          whatItMeasures:
+            'Language comprehension, reading interpretation, analogy, argument analysis, and verbal logic',
+          percentage: '47.33',
+          grade: 'Developing Capability',
+          gradeMeaning:
+            'Demonstrates moderate potential but may require additional training and exposure',
+        },
       ],
       summaryStrip: {
         careerStyle: 'RIASEC 120',
@@ -403,10 +452,14 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         thinkingMode: 'COG&DEC',
       },
       redFlags: {
-        riasec: 'RED FLAG if any — explained in Tie-break & Edge case Rules under RIASEC of Assessment Construct file',
-        bigFive: 'RED FLAG if any — explained in Tie-break & Edge case Rules under BIG Five of Assessment Construct file',
-        cogDec: 'RED FLAG if any — explained in Tie-break & Edge case Rules under Cognitive & Decision of Assessment Construct file',
-        aptitude: 'RED FLAG if any — explained in Tie-break & Edge case Rules under Aptitude of Assessment Construct file',
+        riasec:
+          'RED FLAG if any — explained in Tie-break & Edge case Rules under RIASEC of Assessment Construct file',
+        bigFive:
+          'RED FLAG if any — explained in Tie-break & Edge case Rules under BIG Five of Assessment Construct file',
+        cogDec:
+          'RED FLAG if any — explained in Tie-break & Edge case Rules under Cognitive & Decision of Assessment Construct file',
+        aptitude:
+          'RED FLAG if any — explained in Tie-break & Edge case Rules under Aptitude of Assessment Construct file',
       },
       careerDnaNarrative: {
         dnaDefinition: '',
@@ -420,18 +473,18 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
       comparisonGroups: [
         {
           id: 'sub-c1',
-          title: 'C1 · Career Preferences & Motivations',
+          title: 'Career Preferences & Motivations',
           items: [
             {
               id: 'c1-1',
-              code: 'C1.1',
+              code: '1.1',
               parameter: 'Specific career goal or field',
               studentResponse: '14',
               parentResponse: '12',
             },
             {
               id: 'c1-2',
-              code: 'C1.2',
+              code: '1.2',
               parameter: 'Core reason for career interest',
               studentResponse: '15',
               parentResponse: '13',
@@ -440,19 +493,19 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         },
         {
           id: 'sub-c2',
-          title: 'C2 · Influencers & Alternative Careers',
+          title: 'Influencers & Alternative Careers',
           items: [
             {
               id: 'c2-1',
-              code: 'C2.1',
-              parameter: 'Biggest influencer on student\'s career choice',
+              code: '2.1',
+              parameter: "Biggest influencer on student's career choice",
               studentResponse: '16',
               parentResponse: 'NA',
             },
             {
               id: 'c2-2',
-              code: 'C2.2',
-              parameter: 'How well parent understands the student\'s interests',
+              code: '2.2',
+              parameter: "How well parent understands the student's interests",
               studentResponse: '17',
               parentResponse: 'NA',
             },
@@ -460,61 +513,63 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         },
         {
           id: 'sub-c3',
-          title: 'C3 · Parental Stance, Constraints & Decision Dynamics',
+          title: 'Parental Stance, Constraints & Decision Dynamics',
           items: [
             {
               id: 'c3-1',
-              code: 'C3.1',
-              parameter: 'Is parent open to exploring alternative or unconventional careers based on assessment?',
+              code: '3.1',
+              parameter:
+                'Is parent open to exploring alternative or unconventional careers based on assessment?',
               studentResponse: 'NA',
               parentResponse: '14',
             },
             {
               id: 'c3-2',
-              code: 'C3.2',
+              code: '3.2',
               parameter: 'Financial constraints to be considered for future education',
               studentResponse: 'NA',
               parentResponse: '15',
             },
             {
               id: 'c3-3',
-              code: 'C3.3',
+              code: '3.3',
               parameter: 'Openness to studying outside the city — domestic relocation',
               studentResponse: 'NA',
               parentResponse: '16',
             },
             {
               id: 'c3-4',
-              code: 'C3.4',
+              code: '3.4',
               parameter: 'Openness to studying abroad — international',
               studentResponse: 'NA',
               parentResponse: '16',
             },
             {
               id: 'c3-5',
-              code: 'C3.5',
-              parameter: 'Who makes the final major decisions about the child\'s education?',
+              code: '3.5',
+              parameter: "Who makes the final major decisions about the child's education?",
               studentResponse: 'NA',
               parentResponse: '17',
             },
             {
               id: 'c3-6',
-              code: 'C3.6',
-              parameter: 'Is the child actively involved in major education decisions?',
+              code: '3.6',
+              parameter: "Is the child actively involved in major education decisions?",
               studentResponse: 'NA',
               parentResponse: '18',
             },
             {
               id: 'c3-7',
-              code: 'C3.7',
-              parameter: 'Parent\'s biggest concern about the child\'s academic & career future',
+              code: '3.7',
+              parameter: "Parent's biggest concern about the child's academic & career future",
               studentResponse: 'NA',
               parentResponse: '19',
             },
             {
               id: 'c3-8',
-              code: 'C3.8',
-              parameter: 'Any specific behavioural or academic issue the parent wants the counsellor to prioritise',
+              code: '3.8',
+              parameter:
+                'Any specific behavioural or academic issue the parent wants the counsellor to prioritise',
               studentResponse: 'NA',
               parentResponse: '20',
             },
@@ -529,11 +584,39 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         D5: '',
       },
       streamFitTable: [
-        { id: 'sf-1', mainStream: 'Humanities / Arts', subStream: 'Humanities with Psychology', coreSubjects: 'Psychology, Sociology, Political Science, English', electives: 'History, Physical Education', streamRequirement: 'Pick from traits & wtgs table', gradingLevel: 'Pick from table', meaning: 'Pick from table' },
-        { id: 'sf-2', mainStream: 'Humanities / Arts', subStream: 'Humanities with Fine Arts', coreSubjects: 'Fine Arts, History, English', electives: 'Sociology, Psychology', streamRequirement: 'Pick from traits & wtgs table', gradingLevel: 'Pick from table', meaning: 'Pick from table' },
-        { id: 'sf-3', mainStream: 'Humanities / Arts', subStream: 'Humanities with Mass Media', coreSubjects: 'Political Science, Sociology, English', electives: 'Psychology, Multimedia', streamRequirement: 'Pick from traits & wtgs table', gradingLevel: 'Pick from table', meaning: 'Pick from table' },
+        {
+          id: 'sf-1',
+          mainStream: 'Humanities / Arts',
+          subStream: 'Humanities with Psychology',
+          coreSubjects: 'Psychology, Sociology, Political Science, English',
+          electives: 'History, Physical Education',
+          streamRequirement: 'Pick from traits & wtgs table',
+          gradingLevel: 'Pick from table',
+          meaning: 'Pick from table',
+        },
+        {
+          id: 'sf-2',
+          mainStream: 'Humanities / Arts',
+          subStream: 'Humanities with Fine Arts',
+          coreSubjects: 'Fine Arts, History, English',
+          electives: 'Sociology, Psychology',
+          streamRequirement: 'Pick from traits & wtgs table',
+          gradingLevel: 'Pick from table',
+          meaning: 'Pick from table',
+        },
+        {
+          id: 'sf-3',
+          mainStream: 'Humanities / Arts',
+          subStream: 'Humanities with Mass Media',
+          coreSubjects: 'Political Science, Sociology, English',
+          electives: 'Psychology, Multimedia',
+          streamRequirement: 'Pick from traits & wtgs table',
+          gradingLevel: 'Pick from table',
+          meaning: 'Pick from table',
+        },
       ],
-      whyThisStream1: 'Above is just an indicative example of filling the boxes, picked from Traits & Weightages file.',
+      whyThisStream1:
+        'Above is just an indicative example of filling the boxes, picked from Traits & Weightages file.',
       synthesisNotesE: {
         E1: '',
         E2: '',
@@ -543,9 +626,36 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         E6: '',
       },
       graduationTable: [
-        { id: 'gr-1', cluster: 'Humanities', mainStream: 'Humanities & Social Sciences', subStream: 'BA Public Policy', specialization: 'Governance', reasoning: 'BA Public Policy is best suited to students who bring strong verbal and language skills, empathy and people skills, curiosity and openness to new ideas, warmth and cooperation, and the ability to work independently. This blend of strengths supports you in areas like Governance, where your strong verbal and language skills really makes the difference.', keyExams: 'CUET UG, Ashoka Aptitude Test, APU NET' },
-        { id: 'gr-2', cluster: 'Humanities', mainStream: 'Humanities & Social Sciences', subStream: 'BA International Relations', specialization: 'Diplomacy', reasoning: 'BA International Relations is best suited to students who bring strong verbal and language skills, empathy and people skills, curiosity and openness to new ideas, warmth and cooperation, and the ability to work independently. This blend of strengths supports you in areas like Diplomacy, where your strong verbal and language skills really makes the difference.', keyExams: 'CUET UG, Ashoka Aptitude Test, Christ University Entrance Test' },
-        { id: 'gr-3', cluster: 'Humanities', mainStream: 'Education & Teaching', subStream: 'Integrated B.Ed', specialization: 'BA/B.Sc B.Ed', reasoning: 'Integrated B.Ed is best suited to students who bring empathy and people skills, strong verbal and language skills, warmth and cooperation, discipline and reliability, and calmness and emotional balance. This blend of strengths supports you in areas like BA/B.Sc B.Ed, where your empathy and ability to connect with people really makes the difference.', keyExams: 'CUET UG' },
+        {
+          id: 'gr-1',
+          cluster: 'Humanities',
+          mainStream: 'Humanities & Social Sciences',
+          subStream: 'BA Public Policy',
+          specialization: 'Governance',
+          reasoning:
+            'BA Public Policy is best suited to students who bring strong verbal and language skills, empathy and people skills, curiosity and openness to new ideas, warmth and cooperation, and the ability to work independently. This blend of strengths supports you in areas like Governance, where your strong verbal and language skills really makes the difference.',
+          keyExams: 'CUET UG, Ashoka Aptitude Test, APU NET',
+        },
+        {
+          id: 'gr-2',
+          cluster: 'Humanities',
+          mainStream: 'Humanities & Social Sciences',
+          subStream: 'BA International Relations',
+          specialization: 'Diplomacy',
+          reasoning:
+            'BA International Relations is best suited to students who bring strong verbal and language skills, empathy and people skills, curiosity and openness to new ideas, warmth and cooperation, and the ability to work independently. This blend of strengths supports you in areas like Diplomacy, where your strong verbal and language skills really makes the difference.',
+          keyExams: 'CUET UG, Ashoka Aptitude Test, Christ University Entrance Test',
+        },
+        {
+          id: 'gr-3',
+          cluster: 'Humanities',
+          mainStream: 'Education & Teaching',
+          subStream: 'Integrated B.Ed',
+          specialization: 'BA/B.Sc B.Ed',
+          reasoning:
+            'Integrated B.Ed is best suited to students who bring empathy and people skills, strong verbal and language skills, warmth and cooperation, discipline and reliability, and calmness and emotional balance. This blend of strengths supports you in areas like BA/B.Sc B.Ed, where your empathy and ability to connect with people really makes the difference.',
+          keyExams: 'CUET UG',
+        },
       ],
       whyThisStream2: 'Data to be pulled from the Traits & Weightages file',
       synthesisNotesF: {
@@ -557,16 +667,54 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
         F6: '',
       },
       entranceExamsTable: [
-        { id: 'ee-1', fullName: '[Full name of the exam]', conductingBody: '[Conducting organisation]', level: '[National / State / Institute]', applicableFor: '[Degree / Programme]', subjectRequirements: '[12th]', examMonth: '[Approx]', urlLink: '[Paste the URL link]' }
+        {
+          id: 'ee-1',
+          fullName: '[Full name of the exam]',
+          conductingBody: '[Conducting organisation]',
+          level: '[National / State / Institute]',
+          applicableFor: '[Degree / Programme]',
+          subjectRequirements: '[12th]',
+          examMonth: '[Approx]',
+          urlLink: '[Paste the URL link]',
+        },
       ],
       collegesTable: [
-        { id: 'col-1', collegeName: '[College Name]', location: '[Location]', type: '[Board]', course: '[]', entranceExam: '[]', ranking: '[]', website: '[]' }
+        {
+          id: 'col-1',
+          collegeName: '[College Name]',
+          location: '[Location]',
+          type: '[Board]',
+          course: '[]',
+          entranceExam: '[]',
+          ranking: '[]',
+          website: '[]',
+        },
       ],
       careerCompassClusterTable: [
-        { id: 'ccc-1', cluster: 'Pick from table', industry: 'Pick from table', domain: 'Pick from table', streamRequirement: 'Pick from table', gradingLevel: 'Pick from table', meaning: 'Pick from table' }
+        {
+          id: 'ccc-1',
+          cluster: 'Pick from table',
+          industry: 'Pick from table',
+          domain: 'Pick from table',
+          streamRequirement: 'Pick from table',
+          gradingLevel: 'Pick from table',
+          meaning: 'Pick from table',
+        },
       ],
       careerCompassTable: [
-        { id: 'cc-1', domain: 'Library & Information Science', role: 'Librarian / Information Specialist', whyItFits: 'Pick from traits & weightages table', topEmployers: 'School & University Libraries, Public Libraries (RRRLF), National Library of India, Digital Archives, NCERT, British Council', aiResilience: 'High. While digital cataloguing evolves, the role of curating knowledge, guiding readers, and managing community learning spaces requires deep human judgment and interpersonal skill.', salaryIndia: 'Rs. 3–10 LPA', salaryAbroad: '$45k–$75k' },
+        {
+          id: 'cc-1',
+          domain: 'Library & Information Science',
+          role: 'Librarian / Information Specialist',
+          whyItFits: 'Pick from traits & weightages table',
+          topEmployers:
+            'School & University Libraries, Public Libraries (RRRLF), National Library of India, Digital Archives, NCERT, British Council',
+          aiResilience:
+            'High. While digital cataloguing evolves, the role of curating knowledge, guiding readers, and managing community learning spaces requires deep human judgment and interpersonal skill.',
+          salaryIndia: 'Rs. 3–10 LPA',
+          salaryAbroad: '$45k–$75k',
+          approvalStatus: 'Approved',
+        },
       ],
     },
     sectionD: {
@@ -608,23 +756,54 @@ export const getMockStudentFormChartData = (sessionId: string = 'sess-counselor-
     },
     sectionE: {
       roadmapGrid: {
-        nowSkills: 'Communication, reading comprehension, basic digital literacy, and daily mental maths practice (15 min/day to address Numerical gap), do python coding class (one technology recommendation)',
-        nowActivities: 'Student council, school committees, peer tutoring, cultural events, community service.',
-        nowHabits: 'Daily reading (one editorial or chapter), weekly self-reflection journaling, planner use for study scheduling',
+        nowSkills:
+          'Communication, reading comprehension, basic digital literacy, and daily mental maths practice (15 min/day to address Numerical gap), do python coding class (one technology recommendation)',
+        nowActivities:
+          'Student council, school committees, peer tutoring, cultural events, community service.',
+        nowHabits:
+          'Daily reading (one editorial or chapter), weekly self-reflection journaling, planner use for study scheduling',
         c11Stream: 'Humanities with Psychology',
         c11Exams: 'CUET, IIMC Entrance, Symbiosis SNAP, CLAT (if Law interest develops), TISS NET',
-        c11Electives: 'Psychology or Sociology as elective within chosen stream; consider basic Economics for broader options',
+        c11Electives:
+          'Psychology or Sociology as elective within chosen stream; consider basic Economics for broader options',
         afterDegrees: 'BA Psychology, BJMC, BA Sociology / Social Work',
-        afterCertifications: 'Coursera / NPTL courses in Communication, Social Psychology, or Public Speaking; MS Excel basics for career versatility',
-        afterAbroad: 'IELTS prep can begin in Class 12; UK, Australia, and Canada offer strong Psychology and Social Work programs',
+        afterCertifications:
+          'Coursera / NPTL courses in Communication, Social Psychology, or Public Speaking; MS Excel basics for career versatility',
+        afterAbroad:
+          'IELTS prep can begin in Class 12; UK, Australia, and Canada offer strong Psychology and Social Work programs',
       },
       scriItems: [
-        { code: 'S1', name: 'Confidence', description: 'Comfort discussing career topics', rating: 4 },
-        { code: 'S2', name: 'Reasoned Thinking', description: 'Personal vs. borrowed reasoning', rating: 4 },
+        {
+          code: 'S1',
+          name: 'Confidence',
+          description: 'Comfort discussing career topics',
+          rating: 4,
+        },
+        {
+          code: 'S2',
+          name: 'Reasoned Thinking',
+          description: 'Personal vs. borrowed reasoning',
+          rating: 4,
+        },
         { code: 'S3', name: 'Reduced Anxiety', description: 'Comfort with uncertainty', rating: 4 },
-        { code: 'S4', name: 'Self-Awareness', description: "Own interests vs. others' expectations", rating: 3 },
-        { code: 'S5', name: 'Career Curiosity', description: 'Active exploration between sessions', rating: 3 },
-        { code: 'S6', name: 'Decision Ownership', description: 'Who is driving the decision', rating: 4 },
+        {
+          code: 'S4',
+          name: 'Self-Awareness',
+          description: "Own interests vs. others' expectations",
+          rating: 3,
+        },
+        {
+          code: 'S5',
+          name: 'Career Curiosity',
+          description: 'Active exploration between sessions',
+          rating: 3,
+        },
+        {
+          code: 'S6',
+          name: 'Decision Ownership',
+          description: 'Who is driving the decision',
+          rating: 4,
+        },
       ],
       academicCareerAlignment: 'Strongly Aligned',
       synthesisNotes: {
