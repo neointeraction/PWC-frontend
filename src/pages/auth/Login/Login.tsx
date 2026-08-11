@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
-import { RiUser3Line, RiLockLine } from 'react-icons/ri';
+import { RiUser3Line, RiLockLine, RiMailLine } from 'react-icons/ri';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { authService } from '@/services/auth.service';
@@ -156,6 +156,18 @@ export const LoginPage: React.FC = () => {
             </Button>
             <Button size="sm" variant="secondary" onClick={fillStudent}>
               Student (student@pwc.com)
+            </Button>
+          </DemoButtons>
+        </HintBox>
+
+        <HintBox>
+          <HintTitle>Mail Shortcuts</HintTitle>
+          <DemoButtons>
+            <Button size="sm" variant="primary" leftIcon={<RiMailLine size={16} />} onClick={() => navigate(ROUTES.PARENT_PRE_COUNSELLING_FORM)}>
+              Mail 1
+            </Button>
+            <Button size="sm" variant="primary" leftIcon={<RiMailLine size={16} />} onClick={() => navigate(ROUTES.PARENT_FEEDBACK_FORM)}>
+              Mail 2
             </Button>
           </DemoButtons>
         </HintBox>

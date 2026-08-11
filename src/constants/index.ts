@@ -11,6 +11,8 @@ export const ROUTES = {
   STUDENT_FEEDBACK_FORM: '/student-feedback-form',
   ASSESSMENT_FORM: '/assessment-form',
   BOOK_SESSIONS: '/book-sessions',
+  PARENT_PRE_COUNSELLING_FORM: '/parent-pre-counselling-form',
+  PARENT_FEEDBACK_FORM: '/parent-feedback-form',
   COUNSELING: '/counseling',
   STUDENTS: '/students',
   STUDENTS_UPLOAD: '/students/upload',

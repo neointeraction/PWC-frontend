@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import {
   RiVideoChatLine,
-  RiFileTextLine,
+  RiUser3Line,
   RiTimeLine,
   RiCheckDoubleLine,
   RiPrinterLine,
@@ -67,7 +67,7 @@ export const UpcomingSessionsPage: React.FC = () => {
               <Button
                 size="sm"
                 variant="secondary"
-                leftIcon={<RiFileTextLine size={16} />}
+                leftIcon={<RiUser3Line size={16} />}
                 onClick={() => handleOpenStudentChart(row)}
               >
                 {row.studentName}

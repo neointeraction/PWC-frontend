@@ -14,9 +14,13 @@ import {
   RiFileTextLine,
   RiPrinterLine,
   RiNotification3Line,
+  RiCalendarLine,
+  RiCloseCircleLine,
+  RiRefreshLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
+import { AlertModal } from '@/components/AlertModal';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
@@ -44,6 +48,19 @@ import {
   ItemSubtext,
   AttachedStatusBadge,
   IconBox,
+  TestWidgetCard,
+  TestWidgetContent,
+  TestWidgetInfo,
+  TestWidgetTitle,
+  TestWidgetDesc,
+  SessionCardWrapper,
+  SessionCardHeader,
+  SessionCardTitle,
+  SessionJoinButton,
+  SessionDateTimeRow,
+  SessionActionLinksRow,
+  SessionActionLink,
+  SessionLinkDivider,
 } from './StudentPortalPage.styles';
 
 export const StudentPortalPage: React.FC = () => {
@@ -63,6 +80,9 @@ export const StudentPortalPage: React.FC = () => {
   const [s2SlotStr, setS2SlotStr] = useState<string>('');
   const [isStudentFeedbackSubmitted, setIsStudentFeedbackSubmitted] = useState<boolean>(false);
   const [isParentFeedbackSubmitted, setIsParentFeedbackSubmitted] = useState<boolean>(false);
+
+  // Cancel Session AlertModal State
+  const [cancelModalSessionNum, setCancelModalSessionNum] = useState<number | null>(null);
 
   useEffect(() => {
     const profileDone = localStorage.getItem('pwc_student_profile_completed') === 'true';
@@ -190,11 +210,6 @@ export const StudentPortalPage: React.FC = () => {
     const s7Status: 'completed' | 'current' | 'upcoming' = isStudentFeedbackSubmitted
       ? 'completed'
       : isSession2Completed
-      ? 'current'
-      : 'upcoming';
-
-    // 8. IKigai Report
-    const s8Status: 'completed' | 'current' | 'upcoming' = isStudentFeedbackSubmitted
       ? 'current'
       : 'upcoming';
 
@@ -410,34 +425,37 @@ export const StudentPortalPage: React.FC = () => {
           </div>
         ),
       },
-      {
-        id: 8,
-        title: 'IKigai Report',
-        subtext: isStudentFeedbackSubmitted
-          ? 'Your official Ikigai career roadmap report is ready to view'
-          : 'Unlock your official Ikigai career roadmap report',
-        status: s8Status,
-        attachedStatus: null,
-        action:
-          s8Status !== 'upcoming' ? (
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<RiPrinterLine size={16} />}
-              onClick={() =>
-                navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'))
-              }
-            >
-              View Ikigai Report
-            </Button>
-          ) : null,
-      },
     ];
   };
 
   const steps = getTimelineSteps();
   const completedCount = steps.filter(s => s.status === 'completed').length;
   const overallPercent = Math.round((completedCount / steps.length) * 100);
+
+  const handleRescheduleSession = (sessionNum: number) => {
+    navigate(ROUTES.BOOK_SESSIONS);
+    toast.info(
+      `Reschedule Video Session ${sessionNum}`,
+      'Select a new date and time slot for your counseling video session.'
+    );
+  };
+
+  const handleConfirmCancelSession = () => {
+    if (cancelModalSessionNum === 1) {
+      setIsBooked(false);
+      localStorage.removeItem('pwc_sessions_booked');
+      toast.warning(
+        'Session 1 Cancelled',
+        'Your Video Session 1 has been cancelled. You can book a new slot anytime.'
+      );
+    } else if (cancelModalSessionNum === 2) {
+      toast.warning(
+        'Session 2 Cancelled',
+        'Your Video Session 2 has been cancelled. You can reschedule a new slot anytime.'
+      );
+    }
+    setCancelModalSessionNum(null);
+  };
 
   return (
     <PortalContainer>
@@ -475,7 +493,7 @@ export const StudentPortalPage: React.FC = () => {
             <div>
               <TimelineTitle>Your Counseling Journey Progress</TimelineTitle>
               <TimelineSubtitle>
-                Follow the 8 milestone steps to complete your counseling and receive your Ikigai Report.
+                Follow the 7 milestone steps to complete your counseling journey.
               </TimelineSubtitle>
             </div>
           </TimelineTitleGroup>
@@ -486,53 +504,200 @@ export const StudentPortalPage: React.FC = () => {
         </TimelineWidgetHeader>
 
         <TimelineList>
-          {steps.map((step, idx) => (
-            <TimelineItem key={step.id}>
-              <NodeColumn>
-                <NodeDot $status={step.status}>
-                  {step.status === 'completed' ? (
-                    <RiCheckLine size={14} />
-                  ) : step.status === 'current' ? (
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
-                  ) : (
-                    <span style={{ fontSize: 10 }}>{step.id}</span>
+          {steps.map((step, idx) => {
+            const isSessionCard = step.id === 5 || step.id === 6;
+            const sessionNum = step.id === 5 ? 1 : 2;
+
+            return (
+              <TimelineItem key={step.id}>
+                <NodeColumn>
+                  <NodeDot $status={step.status}>
+                    {step.status === 'completed' ? (
+                      <RiCheckLine size={14} />
+                    ) : step.status === 'current' ? (
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+                    ) : (
+                      <span style={{ fontSize: 10 }}>{step.id}</span>
+                    )}
+                  </NodeDot>
+
+                  {idx < steps.length - 1 && (
+                    <LineStem $completed={step.status === 'completed'} />
                   )}
-                </NodeDot>
+                </NodeColumn>
 
-                {idx < steps.length - 1 && (
-                  <LineStem $completed={step.status === 'completed'} />
-                )}
-              </NodeColumn>
+                <ItemContent>
+                  {isSessionCard ? (
+                    /* Render Card layout matching user hand-drawn wireframe */
+                    <SessionCardWrapper $status={step.status}>
+                      <SessionCardHeader>
+                        <SessionCardTitle>
+                          Session {sessionNum}
+                          {step.status === 'completed' && (
+                            <Badge variant="success" size="sm">
+                              Completed
+                            </Badge>
+                          )}
+                          {step.status === 'current' && (
+                            <Badge variant="primary" size="sm">
+                              In Progress
+                            </Badge>
+                          )}
+                        </SessionCardTitle>
 
-              <ItemContent>
-                <ItemTextGroup>
-                  <ItemTitle $status={step.status}>
-                    {step.title}
-                    {step.status === 'completed' && (
-                      <span style={{ marginLeft: 8 }}>
-                        <Badge variant="success" size="sm">
-                          Completed
-                        </Badge>
-                      </span>
-                    )}
-                    {step.status === 'current' && (
-                      <span style={{ marginLeft: 8 }}>
-                        <Badge variant="primary" size="sm">
-                          In Progress
-                        </Badge>
-                      </span>
-                    )}
-                    {step.attachedStatus}
-                  </ItemTitle>
-                  <ItemSubtext>{step.subtext}</ItemSubtext>
-                </ItemTextGroup>
+                        {step.status === 'current' ? (
+                          <SessionJoinButton
+                            type="button"
+                            onClick={() => handleStartSession(sessionNum)}
+                          >
+                            <RiVideoChatLine size={13} />
+                            Join
+                          </SessionJoinButton>
+                        ) : step.status === 'upcoming' ? (
+                          <SessionJoinButton
+                            type="button"
+                            $disabled
+                            title="Locked — Reach this step to join video call"
+                          >
+                            Join
+                          </SessionJoinButton>
+                        ) : null}
+                      </SessionCardHeader>
 
-                {step.action && <div>{step.action}</div>}
-              </ItemContent>
-            </TimelineItem>
-          ))}
+                      <SessionDateTimeRow>
+                        <RiCalendarLine size={13} style={{ color: '#6B7280', flexShrink: 0 }} />
+                        <span>
+                          {isBooked || step.status === 'completed'
+                            ? (sessionNum === 1 ? s1SlotStr : s2SlotStr) ||
+                              (sessionNum === 1
+                                ? 'May 12, 2026 • 05:00 PM - 06:00 PM'
+                                : 'May 15, 2026 • 05:00 PM - 06:00 PM')
+                            : sessionNum === 1
+                            ? 'Initial Career Exploration Call'
+                            : 'Ikigai & Stream Review Call'}
+                        </span>
+                      </SessionDateTimeRow>
+
+                      {step.status === 'current' && (
+                        <SessionActionLinksRow>
+                          <SessionActionLink
+                            type="button"
+                            $danger
+                            onClick={() => setCancelModalSessionNum(sessionNum)}
+                          >
+                            <RiCloseCircleLine size={12} />
+                            Cancel
+                          </SessionActionLink>
+                          <SessionLinkDivider>|</SessionLinkDivider>
+                          <SessionActionLink
+                            type="button"
+                            onClick={() => handleRescheduleSession(sessionNum)}
+                          >
+                            <RiRefreshLine size={12} />
+                            Reschedule
+                          </SessionActionLink>
+                          <SessionLinkDivider>|</SessionLinkDivider>
+                          <SessionActionLink
+                            type="button"
+                            onClick={
+                              sessionNum === 1 ? handleCompleteSession1 : handleCompleteSession2
+                            }
+                            style={{ color: '#16A34A' }}
+                          >
+                            <RiCheckLine size={12} />
+                            Mark Completed
+                          </SessionActionLink>
+                        </SessionActionLinksRow>
+                      )}
+                    </SessionCardWrapper>
+                  ) : (
+                    /* Regular timeline step layout */
+                    <>
+                      <ItemTextGroup>
+                        <ItemTitle $status={step.status}>
+                          {step.title}
+                          {step.status === 'completed' && (
+                            <span style={{ marginLeft: 8 }}>
+                              <Badge variant="success" size="sm">
+                                Completed
+                              </Badge>
+                            </span>
+                          )}
+                          {step.status === 'current' && (
+                            <span style={{ marginLeft: 8 }}>
+                              <Badge variant="primary" size="sm">
+                                In Progress
+                              </Badge>
+                            </span>
+                          )}
+                          {step.attachedStatus}
+                        </ItemTitle>
+                        <ItemSubtext>{step.subtext}</ItemSubtext>
+                      </ItemTextGroup>
+
+                      {step.action && <div>{step.action}</div>}
+                    </>
+                  )}
+                </ItemContent>
+              </TimelineItem>
+            );
+          })}
         </TimelineList>
       </TimelineWidgetCard>
+
+      {/* SEPARATE IKIGAI REPORT WIDGET BLOCK */}
+      <TestWidgetCard style={{ borderLeftColor: isSession1Completed ? '#16A34A' : '#9CA3AF' }}>
+        <TestWidgetContent>
+          <IconBox
+            $color={isSession1Completed ? '#16A34A' : '#6B7280'}
+            $bg={isSession1Completed ? '#DCFCE7' : '#F3F4F6'}
+          >
+            <RiPrinterLine size={24} />
+          </IconBox>
+          <TestWidgetInfo>
+            <TestWidgetTitle>
+              Ikigai Counseling Report
+              {isSession1Completed ? (
+                <Badge variant="success" size="sm">
+                  Unlocked
+                </Badge>
+              ) : (
+                <Badge variant="default" size="sm">
+                  Locked
+                </Badge>
+              )}
+            </TestWidgetTitle>
+            <TestWidgetDesc>
+              {isSession1Completed
+                ? 'Your comprehensive Ikigai career roadmap report is generated and ready to view or download.'
+                : 'Complete Session 1 (Initial Career Exploration Call) to unlock your official Ikigai report.'}
+            </TestWidgetDesc>
+          </TestWidgetInfo>
+        </TestWidgetContent>
+
+        {isSession1Completed ? (
+          <Button
+            variant="primary"
+            size="md"
+            leftIcon={<RiPrinterLine size={18} />}
+            onClick={() =>
+              navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'))
+            }
+          >
+            View Ikigai Report
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size="md"
+            leftIcon={<RiPrinterLine size={18} />}
+            disabled
+            title="Complete Session 1 to unlock report"
+          >
+            View Ikigai Report (Locked)
+          </Button>
+        )}
+      </TestWidgetCard>
 
       {/* Student Profile Form Modal */}
       <StudentProfileFormModal
@@ -544,6 +709,18 @@ export const StudentPortalPage: React.FC = () => {
           setIsProfileCompleted(true);
           localStorage.setItem('pwc_student_profile_completed', 'true');
         }}
+      />
+
+      {/* Cancel Session AlertModal */}
+      <AlertModal
+        isOpen={cancelModalSessionNum !== null}
+        onClose={() => setCancelModalSessionNum(null)}
+        onConfirm={handleConfirmCancelSession}
+        title={`Cancel Video Session ${cancelModalSessionNum}?`}
+        description={`Are you sure you want to cancel your Video Session ${cancelModalSessionNum}? You can re-book or reschedule a new time slot anytime.`}
+        variant="danger"
+        confirmText="Cancel Session"
+        cancelText="Keep Session"
       />
     </PortalContainer>
   );

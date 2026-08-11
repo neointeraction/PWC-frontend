@@ -66,6 +66,12 @@ const AssessmentFormPage = lazy(() =>
 const BookSessionsPage = lazy(() =>
   import('@/pages/student/BookSessionsPage').then(m => ({ default: m.BookSessionsPage }))
 );
+const ParentPreCounsellingFormPage = lazy(() =>
+  import('@/pages/student/ParentPreCounsellingFormPage').then(m => ({ default: m.ParentPreCounsellingFormPage }))
+);
+const ParentFeedbackFormPage = lazy(() =>
+  import('@/pages/student/ParentFeedbackFormPage').then(m => ({ default: m.ParentFeedbackFormPage }))
+);
 
 function ProtectedRoute({ children, allowResetOnly }: { children: React.ReactNode; allowResetOnly?: boolean }) {
   const { isAuthenticated, mustResetPassword } = useAuthStore();
@@ -119,6 +125,14 @@ export const AppRoutes: React.FC = () => {
               <LoginPage />
             </PublicRoute>
           }
+        />
+        <Route
+          path={ROUTES.PARENT_PRE_COUNSELLING_FORM}
+          element={<ParentPreCounsellingFormPage />}
+        />
+        <Route
+          path={ROUTES.PARENT_FEEDBACK_FORM}
+          element={<ParentFeedbackFormPage />}
         />
         <Route
           path={ROUTES.RESET_PASSWORD}

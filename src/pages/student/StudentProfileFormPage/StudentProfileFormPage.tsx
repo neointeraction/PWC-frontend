@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
+import { SuccessModal } from '@/components/SuccessModal';
 import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
 import {
@@ -37,8 +38,6 @@ import {
   SectionHeaderIcon,
   SectionBody,
   FormRow,
-  FooterNoteBlock,
-  FooterNoteText,
   FormFooterActions,
 } from './StudentProfileFormPage.styles';
 
@@ -96,9 +95,16 @@ export const StudentProfileFormPage: React.FC = () => {
     },
   });
 
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
   const onSubmit = async (_data: StudentProfileFormData) => {
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await new Promise(resolve => setTimeout(resolve, 400));
     localStorage.setItem('pwc_student_profile_completed', 'true');
+    setIsSuccessModalOpen(true);
+  };
+
+  const handleProceedToDashboard = () => {
+    setIsSuccessModalOpen(false);
     toast.success(
       'Profile Saved Successfully!',
       'Your profile details have been saved. You can now proceed to the Pre-Counselling Form.'
@@ -125,26 +131,25 @@ export const StudentProfileFormPage: React.FC = () => {
               <DocHeaderBadge>Student Onboarding · Class 9 & 10</DocHeaderBadge>
             </HeaderTopNavRow>
 
-            <DocTitle>CHAMPION&apos;S PROFILE</DocTitle>
-            <DocSubtitle>Career Counselling Programme — Class 9 & 10</DocSubtitle>
+            <DocTitle>Student Profile Form</DocTitle>
+            <DocSubtitle>
+              Please complete all section details accurately. Information collected here will be used
+              for your personalized counseling sessions.
+            </DocSubtitle>
           </DocumentHeaderRow>
 
-          {/* Intro Greeting Notice */}
+          {/* Notice Card */}
           <IntroGreetingNotice>
-            <GreetingHeadline>Hello Champion,</GreetingHeadline>
+            <GreetingHeadline>Dear Student,</GreetingHeadline>
             <GreetingParagraph>
-              Before you get started, a quick note on why this page matters.
-            </GreetingParagraph>
-            <GreetingParagraph>
-              Everything from here on reminders, links, forms and updates, will be sent to you only through WhatsApp and Email, based on the details you enter below.
+              Welcome to the Phoenix Water Club Career Counselling program! To help us serve you
+              better, please fill in your details carefully.
             </GreetingParagraph>
             <GreetingHighlightParagraph>
-              We won&apos;t be calling you at any point in the programme.
+              <GreetingActionText>
+                It will take only 5–7 minutes to complete this profile form.
+              </GreetingActionText>
             </GreetingHighlightParagraph>
-            <GreetingParagraph>
-              So please take a moment to enter accurate details. It&apos;s the only way we&apos;ll be able to reach you at the right time, with the right information.
-            </GreetingParagraph>
-            <GreetingActionText>Let&apos;s get started!</GreetingActionText>
           </IntroGreetingNotice>
 
           {/* SECTION 1 — FEW DETAILS ABOUT YOU */}
@@ -158,15 +163,16 @@ export const StudentProfileFormPage: React.FC = () => {
             <SectionBody>
               <FormRow>
                 <Input
-                  label="Full Name"
-                  placeholder="Name in full, this is how the name will appear in the final report"
+                  label="Full Name of the Student"
+                  placeholder="e.g. Alex Johnson"
                   leftIcon={<RiUser3Line size={18} />}
                   error={errors.studentFullName?.message}
                   {...register('studentFullName')}
                 />
                 <Input
-                  label="Mobile Number"
-                  placeholder="Contact number for calling in case we require"
+                  label="Student Mobile Number"
+                  type="tel"
+                  placeholder="10-digit mobile number"
                   leftIcon={<RiPhoneLine size={18} />}
                   error={errors.studentMobile?.message}
                   {...register('studentMobile')}
@@ -175,16 +181,17 @@ export const StudentProfileFormPage: React.FC = () => {
 
               <FormRow>
                 <Input
-                  label="WhatsApp Number (if different)"
-                  placeholder="All communication and reminders will be sent here only"
+                  label="Student WhatsApp Number"
+                  type="tel"
+                  placeholder="WhatsApp mobile number"
                   leftIcon={<RiPhoneLine size={18} />}
                   error={errors.studentWhatsapp?.message}
                   {...register('studentWhatsapp')}
                 />
                 <Input
-                  label="Email ID"
+                  label="Student Email ID"
                   type="email"
-                  placeholder="All communication and reminders will be sent here only"
+                  placeholder="For session links & updates"
                   leftIcon={<RiMailLine size={18} />}
                   error={errors.studentEmail?.message}
                   {...register('studentEmail')}
@@ -193,16 +200,17 @@ export const StudentProfileFormPage: React.FC = () => {
 
               <FormRow>
                 <Input
-                  label="Alternate Mobile Number (WhatsApp Number)"
-                  placeholder="Used only if credentials need to be reset. Information will be sent here only. It should be of your parent in case your number is lost."
+                  label="Alternate Mobile Number (Optional)"
+                  type="tel"
+                  placeholder="Backup contact number"
                   leftIcon={<RiPhoneLine size={18} />}
                   error={errors.alternateMobile?.message}
                   {...register('alternateMobile')}
                 />
                 <Input
-                  label="Alternate Email ID"
+                  label="Alternate Email ID (Optional)"
                   type="email"
-                  placeholder="Used only if credentials need to be reset. Information will be sent here only. It should be of your parent in case your number is lost."
+                  placeholder="Backup email address"
                   leftIcon={<RiMailLine size={18} />}
                   error={errors.alternateEmail?.message}
                   {...register('alternateEmail')}
@@ -239,14 +247,15 @@ export const StudentProfileFormPage: React.FC = () => {
 
               <FormRow>
                 <Input
-                  label="Organisation / Employer (if applicable)"
+                  label="Organisation / Employer"
                   placeholder="Name of the company or organisation"
                   leftIcon={<RiBuilding4Line size={18} />}
                   error={errors.fatherEmployer?.message}
                   {...register('fatherEmployer')}
                 />
                 <Input
-                  label="WhatsApp Number"
+                  label="WhatsApp Mobile Number"
+                  type="tel"
                   placeholder="For communication to be sent for Pre-counselling form & Feedback form"
                   leftIcon={<RiPhoneLine size={18} />}
                   error={errors.fatherWhatsapp?.message}
@@ -305,13 +314,6 @@ export const StudentProfileFormPage: React.FC = () => {
             </SectionBody>
           </SectionBlock>
 
-          {/* Footer Note */}
-          <FooterNoteBlock>
-            <FooterNoteText>
-              Thank you for taking the time to fill this form carefully. Let’s move on to the next step.
-            </FooterNoteText>
-          </FooterNoteBlock>
-
           {/* Card Footer Actions */}
           <FormFooterActions>
             <Button
@@ -335,6 +337,17 @@ export const StudentProfileFormPage: React.FC = () => {
           </FormFooterActions>
         </SingleUnifiedCard>
       </form>
+
+      {/* Submission Success Modal with Animated Icon Treatment */}
+      <SuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={handleProceedToDashboard}
+        title="Profile Submitted Successfully"
+        message="Thank you for taking the time to fill this form carefully. Let’s move on to the next step."
+        confirmText="Proceed to Dashboard"
+        onConfirm={handleProceedToDashboard}
+        size="md"
+      />
     </FormPageContainer>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   RiArrowLeftLine,
@@ -26,8 +26,8 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
+import { SuccessModal } from '@/components';
 import { ROUTES } from '@/constants';
-import { useToast } from '@/hooks';
 import {
   FormPageContainer,
   HeroHeaderCard,
@@ -392,7 +392,6 @@ const COGNITIVE_QUESTIONS = [
 
 export const AssessmentFormPage: React.FC = () => {
   const navigate = useNavigate();
-  const toast = useToast();
   const [isFormStarted, setIsFormStarted] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const totalSteps = 4;
@@ -429,14 +428,17 @@ export const AssessmentFormPage: React.FC = () => {
     setAnswers(prev => ({ ...prev, [qId]: value }));
   };
 
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+
   const handleSubmitAssessment = () => {
     localStorage.setItem('pwc_assessment_form_submitted', 'true');
-    toast.success(
-      'Career Assessment Submitted!',
-      'Thank you! Your 73 answers have been saved and your Ikigai profile report is generating.'
-    );
-    navigate(ROUTES.STUDENT_PORTAL);
+    setIsCompletionModalOpen(true);
   };
+
+  const handleConfirmCompletion = useCallback(() => {
+    setIsCompletionModalOpen(false);
+    navigate(ROUTES.STUDENT_PORTAL);
+  }, [navigate]);
 
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
 
@@ -778,10 +780,10 @@ export const AssessmentFormPage: React.FC = () => {
           <WizardProgressHeader>
             <WizardStepInfoRow>
               <span>
-                {currentStep === 1 && 'SECTION 1 — RIASEC INTEREST INVENTORY (Q1 to Q24)'}
-                {currentStep === 2 && 'SECTION 2 — BIG FIVE PERSONALITY TRAITS (Q25 to Q44)'}
-                {currentStep === 3 && 'SECTION 3 — APTITUDE & REASONING (Q45 to Q64)'}
-                {currentStep === 4 && 'SECTION 4 — COGNITIVE & DECISION STYLE (Q65 to Q73)'}
+                {currentStep === 1 && 'RIASEC INTEREST INVENTORY (Q1 to Q24)'}
+                {currentStep === 2 && 'BIG FIVE PERSONALITY TRAITS (Q25 to Q44)'}
+                {currentStep === 3 && 'APTITUDE & REASONING (Q45 to Q64)'}
+                {currentStep === 4 && 'COGNITIVE & DECISION STYLE (Q65 to Q73)'}
               </span>
               <span>Step {currentStep} of {totalSteps} ({progressPercent}%)</span>
             </WizardStepInfoRow>
@@ -801,7 +803,7 @@ export const AssessmentFormPage: React.FC = () => {
 
                 {RIASEC_QUESTIONS.map(q => (
                   <QuestionBox key={q.id}>
-                    <QuestionTitle>{q.id}. {q.text}</QuestionTitle>
+                    <QuestionTitle>{q.id.replace('Q', '')}. {q.text}</QuestionTitle>
 
                     <LikertScaleContainer>
                       {LIKERT_OPTIONS.map(opt => (
@@ -831,7 +833,7 @@ export const AssessmentFormPage: React.FC = () => {
 
                 {BIG_FIVE_QUESTIONS.map(q => (
                   <QuestionBox key={q.id}>
-                    <QuestionTitle>{q.id}. {q.text}</QuestionTitle>
+                    <QuestionTitle>{q.id.replace('Q', '')}. {q.text}</QuestionTitle>
 
                     <LikertScaleContainer>
                       {LIKERT_OPTIONS.map(opt => (
@@ -861,7 +863,7 @@ export const AssessmentFormPage: React.FC = () => {
 
                 {APTITUDE_QUESTIONS.map(q => (
                   <QuestionBox key={q.id}>
-                    <QuestionTitle>{q.id}. {q.text}</QuestionTitle>
+                    <QuestionTitle>{q.id.replace('Q', '')}. {q.text}</QuestionTitle>
 
                     <AptitudeOptionsGrid>
                       {q.options.map(opt => (
@@ -873,7 +875,7 @@ export const AssessmentFormPage: React.FC = () => {
                             checked={answers[q.id] === opt.label}
                             onChange={() => handleSelectAnswer(q.id, opt.label)}
                           />
-                          <span><strong>{opt.label})</strong> {opt.text}</span>
+                          <span>{opt.text}</span>
                         </AptitudeOptionLabel>
                       ))}
                     </AptitudeOptionsGrid>
@@ -891,7 +893,7 @@ export const AssessmentFormPage: React.FC = () => {
 
                 {COGNITIVE_QUESTIONS.map(q => (
                   <QuestionBox key={q.id}>
-                    <QuestionTitle>{q.id}. {q.text}</QuestionTitle>
+                    <QuestionTitle>{q.id.replace('Q', '')}. {q.text}</QuestionTitle>
 
                     <LikertScaleContainer>
                       {LIKERT_OPTIONS.map(opt => (
@@ -943,7 +945,6 @@ export const AssessmentFormPage: React.FC = () => {
                 size="md"
                 leftIcon={<RiCheckLine size={18} />}
                 onClick={handleSubmitAssessment}
-                style={{ backgroundColor: '#16A34A', borderColor: '#16A34A' }}
               >
                 Submit Assessment
               </Button>
@@ -951,6 +952,15 @@ export const AssessmentFormPage: React.FC = () => {
           </WizardFooterNav>
         </WizardContainer>
       )}
+      {/* Completion Confirmation Popup Modal */}
+      <SuccessModal
+        isOpen={isCompletionModalOpen}
+        onClose={() => setIsCompletionModalOpen(false)}
+        title="Thank you for completing your Career Assessment!"
+        message="Your 73 answers have been saved and your Ikigai profile report is generating."
+        confirmText="Go to Student Portal"
+        onConfirm={handleConfirmCompletion}
+      />
     </FormPageContainer>
   );
 };

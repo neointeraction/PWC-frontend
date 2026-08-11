@@ -285,6 +285,14 @@ export const RatingOptionButton = styled.button<{ $isSelected: boolean }>`
   transition: all 0.2s ease;
   text-align: center;
 
+  @media (max-width: 768px) {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 10px 14px;
+    gap: 10px;
+    text-align: left;
+  }
+
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme }) => theme.colors.primaryLight};
@@ -304,6 +312,7 @@ export const OptionScoreBadge = styled.span<{ $isSelected: boolean }>`
   color: ${({ $isSelected, theme }) => ($isSelected ? '#ffffff' : theme.colors.text)};
   font-size: 12px;
   font-weight: 700;
+  flex-shrink: 0;
 `;
 
 export const OptionText = styled.span`

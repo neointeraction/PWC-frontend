@@ -219,6 +219,7 @@ export const NodeColumn = styled.div`
   position: relative;
   width: 24px;
   flex-shrink: 0;
+  align-self: stretch;
 `;
 
 export const NodeDot = styled.div<{ $status: 'completed' | 'current' | 'upcoming' }>`
@@ -261,11 +262,11 @@ export const NodeDot = styled.div<{ $status: 'completed' | 'current' | 'upcoming
 export const LineStem = styled.div<{ $completed?: boolean }>`
   width: 2px;
   flex: 1;
-  min-height: 28px;
+  min-height: 16px;
   background-color: ${({ $completed, theme }) =>
     $completed ? '#16A34A' : theme.colors.border};
-  margin-top: 2px;
-  margin-bottom: 2px;
+  margin: 0;
+  z-index: 1;
 `;
 
 export const ItemContent = styled.div`
@@ -340,6 +341,109 @@ export const AttachedStatusBadge = styled.div<{ $variant?: 'warning' | 'success'
   border: 1px solid
     ${({ $variant }) =>
       $variant === 'success' ? '#86EFAC' : $variant === 'warning' ? '#FCD34D' : '#DDD6FE'};
+`;
+
+// Hand-drawn Session Card Stepper Styles (Ultra-Compact)
+export const SessionCardWrapper = styled.div<{ $status: 'completed' | 'current' | 'upcoming' }>`
+  background-color: ${({ $status }) =>
+    $status === 'current' ? '#FAF5FF' : $status === 'completed' ? '#F0FDF4' : '#F9FAFB'};
+  border: 1px solid
+    ${({ $status, theme }) =>
+      $status === 'current' ? '#D8B4FE' : $status === 'completed' ? '#BBF7D0' : theme.colors.border};
+  border-radius: 4px;
+  padding: 6px 12px;
+  margin-top: 0px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+`;
+
+export const SessionCardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+`;
+
+export const SessionCardTitle = styled.h3`
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.text};
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+`;
+
+export const SessionJoinButton = styled.button<{ $disabled?: boolean }>`
+  background-color: ${({ $disabled }) => ($disabled ? '#9CA3AF' : '#16A34A')};
+  color: #ffffff;
+  border: 1px solid ${({ $disabled }) => ($disabled ? '#9CA3AF' : '#15803D')};
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    ${({ $disabled }) =>
+      !$disabled &&
+      css`
+        background-color: #15803D;
+        box-shadow: 0 2px 4px rgba(22, 163, 74, 0.3);
+      `}
+  }
+`;
+
+export const SessionDateTimeRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.775rem;
+  color: #4B5563;
+  font-weight: 500;
+`;
+
+export const SessionActionLinksRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.725rem;
+  margin-top: 1px;
+  padding-top: 3px;
+  border-top: 1px dashed #E5E7EB;
+  flex-wrap: wrap;
+`;
+
+export const SessionActionLink = styled.button<{ $danger?: boolean }>`
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: ${({ $danger, theme }) => ($danger ? '#DC2626' : theme.colors.primary)};
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+
+  &:hover {
+    text-decoration: underline;
+    color: ${({ $danger, theme }) => ($danger ? '#991B1B' : theme.colors.primaryHover || '#4C1D95')};
+  }
+`;
+
+export const SessionLinkDivider = styled.span`
+  color: #9CA3AF;
+  font-size: 0.725rem;
+  font-weight: 400;
 `;
 
 export const SessionsGrid = styled.div`

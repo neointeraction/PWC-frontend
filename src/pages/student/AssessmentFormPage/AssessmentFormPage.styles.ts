@@ -169,8 +169,6 @@ export const SectionTitleHeader = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 export const SectionHeaderIcon = styled.div<{ $color?: string }>`
@@ -417,33 +415,34 @@ export const GoldenRuleDesc = styled.span`
 
 /* Ready Encouragement Hero Banner */
 export const ReadyEncouragementBanner = styled.div`
-  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, #1E3A8A 100%);
+  background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
+  border: 1px solid #E9D5FF;
+  border-left: 4px solid ${({ theme }) => theme.colors.primary};
   border-radius: 4px;
-  padding: 32px 24px;
-  color: #ffffff;
+  padding: 24px;
+  color: ${({ theme }) => theme.colors.text};
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
   text-align: center;
-  box-shadow: 0 6px 20px rgba(93, 35, 132, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 `;
 
 export const ReadyBannerTitle = styled.h3`
-  font-size: 20px;
-  font-weight: 800;
-  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.primary};
   margin: 0;
   letter-spacing: -0.2px;
 `;
 
 export const ReadyBannerSubtext = styled.p`
   font-size: 14px;
-  color: #ffffff;
+  color: ${({ theme }) => theme.colors.textSecondary};
   margin: 0;
-  opacity: 0.95;
-  font-weight: 400;
+  line-height: 1.5;
 `;
 
 export const StartCtaBox = styled.div`

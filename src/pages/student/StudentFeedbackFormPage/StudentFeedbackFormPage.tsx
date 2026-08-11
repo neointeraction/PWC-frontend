@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
 import { ROUTES } from '@/constants';
-import { useToast } from '@/hooks';
+import { SuccessModal } from '@/components';
 import {
   FormPageContainer,
   SingleUnifiedCard,
@@ -102,7 +102,6 @@ type StudentFeedbackFormData = z.infer<typeof studentFeedbackSchema>;
 
 export const StudentFeedbackFormPage: React.FC = () => {
   const navigate = useNavigate();
-  const toast = useToast();
 
   const {
     control,
@@ -130,17 +129,21 @@ export const StudentFeedbackFormPage: React.FC = () => {
     },
   });
 
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+
   const onSubmit = async (_data: StudentFeedbackFormData) => {
     await new Promise(resolve => setTimeout(resolve, 500));
     localStorage.setItem('pwc_student_feedback_submitted', 'true');
-    toast.success(
-      'Feedback Submitted Successfully!',
-      'Thank you for your valuable feedback on the counselling session.'
-    );
-    navigate(ROUTES.STUDENT_PORTAL);
+    setIsCompletionModalOpen(true);
   };
 
+  const handleConfirmCompletion = useCallback(() => {
+    setIsCompletionModalOpen(false);
+    navigate(ROUTES.STUDENT_PORTAL);
+  }, [navigate]);
+
   return (
+    <>
     <FormPageContainer>
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <SingleUnifiedCard>
@@ -458,6 +461,17 @@ export const StudentFeedbackFormPage: React.FC = () => {
         </SingleUnifiedCard>
       </form>
     </FormPageContainer>
+
+    {/* Completion Confirmation Popup Modal */}
+    <SuccessModal
+      isOpen={isCompletionModalOpen}
+      onClose={() => setIsCompletionModalOpen(false)}
+      title="Feedback Submitted Successfully!"
+      message="Thank you for your valuable feedback on the counselling session."
+      confirmText="Go to Student Portal"
+      onConfirm={handleConfirmCompletion}
+    />
+    </>
   );
 };
 

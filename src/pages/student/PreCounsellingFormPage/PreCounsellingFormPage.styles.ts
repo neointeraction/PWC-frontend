@@ -169,8 +169,6 @@ export const SectionTitleHeader = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 export const SectionHeaderIcon = styled.div<{ $color?: string }>`
@@ -348,33 +346,34 @@ export const GoldenRuleDesc = styled.span`
 
 /* Ready Encouragement Hero Banner */
 export const ReadyEncouragementBanner = styled.div`
-  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, #1E3A8A 100%);
+  background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
+  border: 1px solid #E9D5FF;
+  border-left: 4px solid ${({ theme }) => theme.colors.primary};
   border-radius: 4px;
-  padding: 32px 24px;
-  color: #ffffff;
+  padding: 24px;
+  color: ${({ theme }) => theme.colors.text};
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
   text-align: center;
-  box-shadow: 0 6px 20px rgba(93, 35, 132, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 `;
 
 export const ReadyBannerTitle = styled.h3`
-  font-size: 20px;
-  font-weight: 800;
-  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.primary};
   margin: 0;
   letter-spacing: -0.2px;
 `;
 
 export const ReadyBannerSubtext = styled.p`
   font-size: 14px;
-  color: #ffffff;
+  color: ${({ theme }) => theme.colors.textSecondary};
   margin: 0;
-  opacity: 0.95;
-  font-weight: 400;
+  line-height: 1.5;
 `;
 
 export const StartCtaBox = styled.div`
@@ -384,12 +383,22 @@ export const StartCtaBox = styled.div`
   justify-content: center;
   gap: 10px;
   padding-top: 12px;
+
+  @media (max-width: 640px) {
+    width: 100%;
+
+    button {
+      min-width: 0 !important;
+      width: 100% !important;
+    }
+  }
 `;
 
 export const CtaSubtext = styled.span`
   font-size: 13px;
   color: ${({ theme }) => theme.colors.textSecondary};
   font-weight: 500;
+  text-align: center;
 `;
 
 /* Wizard Styles */
@@ -410,6 +419,10 @@ export const WizardProgressHeader = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.sm};
+
+  @media (max-width: 640px) {
+    padding: 16px;
+  }
 `;
 
 export const WizardStepInfoRow = styled.div`
@@ -420,6 +433,13 @@ export const WizardStepInfoRow = styled.div`
   font-weight: ${({ theme }) => theme.fontWeight.semibold};
   letter-spacing: 0.5px;
   text-transform: uppercase;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 12px;
+  }
 `;
 
 export const ProgressTrack = styled.div`
@@ -443,6 +463,11 @@ export const WizardStepBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: 28px;
+
+  @media (max-width: 640px) {
+    padding: 16px;
+    gap: 18px;
+  }
 `;
 
 export const QuestionBox = styled.div`
@@ -453,6 +478,11 @@ export const QuestionBox = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
+
+  @media (max-width: 640px) {
+    padding: 16px;
+    gap: 12px;
+  }
 `;
 
 export const QuestionTitle = styled.h3`
@@ -485,6 +515,17 @@ export const OptionLabel = styled.label<{ $selected?: boolean }>`
   background-color: ${({ theme }) => theme.colors.surface};
   cursor: pointer;
   transition: all 0.2s ease;
+  width: 100%;
+
+  @media (max-width: 640px) {
+    padding: 12px;
+    gap: 10px;
+
+    &[style*="alignItems: 'center'"],
+    &[style*="align-items: center"] {
+      align-items: flex-start !important;
+    }
+  }
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
@@ -495,6 +536,7 @@ export const OptionLabel = styled.label<{ $selected?: boolean }>`
   input[type='checkbox'] {
     accent-color: ${({ theme }) => theme.colors.primary};
     margin-top: 3px;
+    flex-shrink: 0;
   }
 `;
 
@@ -502,16 +544,43 @@ export const OptionTextGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
+`;
+
+export const InlineOptionTextGroup = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+
+    input {
+      width: 100% !important;
+      min-width: 0 !important;
+    }
+  }
 `;
 
 export const OptionTitle = styled.span`
   font-size: 14px;
   font-weight: 500;
   color: ${({ theme }) => theme.colors.text};
+  white-space: normal;
+  word-break: break-word;
+  flex-shrink: 0;
 `;
 
 export const CustomTextInput = styled.input`
   width: 100%;
+  min-width: 0;
   padding: 10px 14px;
   border-radius: 4px;
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -519,6 +588,11 @@ export const CustomTextInput = styled.input`
   font-size: 14px;
   color: ${({ theme }) => theme.colors.text};
   transition: border-color 0.2s ease;
+
+  @media (max-width: 640px) {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
 
   &:focus {
     outline: none;
@@ -652,15 +726,190 @@ export const WizardFooterNav = styled.div`
   padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
   background-color: ${({ theme }) => theme.colors.background};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
+
+  @media (max-width: 640px) {
+    padding: 16px;
+    flex-direction: column-reverse;
+    gap: 12px;
+
+    button {
+      width: 100% !important;
+      margin-left: 0 !important;
+      justify-content: center;
+    }
+  }
 `;
 
 export const ClosingNoteCard = styled.div`
-  background-color: ${({ theme }) => theme.colors.primaryLight};
-  border: 1px solid ${({ theme }) => theme.colors.primary};
-  border-radius: 4px;
-  padding: 20px;
+  background-color: #FBF7FF;
+  border: 1px solid #7E22CE;
+  border-radius: 6px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+`;
+
+export const ClosingNoteTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 700;
+  color: #581C87;
+  margin: 0;
+  line-height: 1.4;
+`;
+
+export const ClosingNoteText = styled.p`
+  font-size: 14px;
+  line-height: 1.55;
+  color: #6B21A8;
+  margin: 0;
+`;
+
+export const SuccessPortalButton = styled.button`
+  background-color: #581C87;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  color: ${({ theme }) => theme.colors.primary};
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #4C1D95;
+  }
+`;
+
+export const MarksTableContainer = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: ${({ theme }) => theme.spacing.sm};
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+`;
+
+export const MarksTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  th,
+  td {
+    padding: 10px 14px;
+    border: 1px solid #CBD5E1;
+
+    @media (max-width: 640px) {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+  }
+
+  th {
+    background-color: #DCE7F5;
+    font-weight: 700;
+    color: #1E293B;
+  }
+
+  tr:nth-child(even) {
+    background-color: #F8FAFC;
+  }
+
+  tr:nth-child(odd) {
+    background-color: #FFFFFF;
+  }
+`;
+
+export const SubjectCellText = styled.span`
+  font-weight: 600;
+  color: #1E293B;
+  font-size: 14px;
+`;
+
+export const OtherSubjectInput = styled.input`
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.surface};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.text};
+  width: 150px;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+export const SectionBannerBar = styled.div`
+  background-color: #1E3A8A;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+`;
+
+export const InlineLabelRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+
+    input {
+      width: 100% !important;
+      min-width: 0 !important;
+    }
+  }
+
+  label {
+    font-size: 14px;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+    white-space: nowrap;
+  }
+`;
+
+export const ReasonLabel = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.text};
+  margin-top: 12px;
+  margin-bottom: 8px;
+`;
+
+export const InlineReasonInput = styled.input`
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.surface};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.text};
+  width: 320px;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
 `;

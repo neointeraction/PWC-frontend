@@ -30,6 +30,12 @@ import {
   ListItemMeta,
 } from './AdminDashboard.styles';
 
+import {
+  ProjectStudentStatsWidget,
+  ProjectCounselorStatsWidget,
+  DataPurgingLogWidget,
+} from './components';
+
 export const AdminDashboard: React.FC = () => {
   const theme = useTheme();
 
@@ -122,6 +128,15 @@ export const AdminDashboard: React.FC = () => {
           </ChartContainer>
         </Card>
       </ChartsGrid>
+
+      {/* Project Wise Student Stats Widget */}
+      <ProjectStudentStatsWidget />
+
+      {/* Project Wise Counsellor Stats Widget */}
+      <ProjectCounselorStatsWidget />
+
+      {/* Project Wise Data Purging Log Widget */}
+      <DataPurgingLogWidget />
 
       {/* Main Content Grid: Upcoming Counseling Sessions */}
       <MainContentGrid style={{ gridTemplateColumns: '1fr' }}>
