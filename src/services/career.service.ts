@@ -246,15 +246,17 @@ export const careerService = {
   getIndustries: async (clusterName?: string, search?: string): Promise<CareerIndustry[]> => {
     const all = await getFullList();
     const filtered = clusterName ? all.filter(c => c.careerCluster === clusterName) : all;
-    const byName = new Map<string, { domains: Set<string> }>();
+    const byName = new Map<string, { clusterName: string; domains: Set<string> }>();
     filtered.forEach(c => {
-      if (!byName.has(c.industry)) byName.set(c.industry, { domains: new Set() });
+      if (!byName.has(c.industry)) {
+        byName.set(c.industry, { clusterName: c.careerCluster, domains: new Set() });
+      }
       byName.get(c.industry)!.domains.add(c.domain);
     });
     let industries: CareerIndustry[] = Array.from(byName.entries()).map(([name, v]) => ({
       id: name,
-      clusterId: clusterName || '',
-      clusterName: clusterName || '',
+      clusterId: v.clusterName,
+      clusterName: v.clusterName,
       name,
       domainCount: v.domains.size,
     }));
@@ -268,16 +270,18 @@ export const careerService = {
   getDomains: async (industryName?: string, search?: string): Promise<CareerDomain[]> => {
     const all = await getFullList();
     const filtered = industryName ? all.filter(c => c.industry === industryName) : all;
-    const byName = new Map<string, { roles: Set<string> }>();
+    const byName = new Map<string, { clusterName: string; industryName: string; roles: Set<string> }>();
     filtered.forEach(c => {
-      if (!byName.has(c.domain)) byName.set(c.domain, { roles: new Set() });
+      if (!byName.has(c.domain)) {
+        byName.set(c.domain, { clusterName: c.careerCluster, industryName: c.industry, roles: new Set() });
+      }
       byName.get(c.domain)!.roles.add(c.id);
     });
     let domains: CareerDomain[] = Array.from(byName.entries()).map(([name, v]) => ({
       id: name,
-      industryId: industryName || '',
-      industryName: industryName || '',
-      clusterName: filtered[0]?.careerCluster || '',
+      industryId: v.industryName,
+      industryName: v.industryName,
+      clusterName: v.clusterName,
       name,
       roleCount: v.roles.size,
     }));

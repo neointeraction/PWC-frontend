@@ -13,6 +13,7 @@ import { useAuthStore, useThemeStore, useSidebarStore } from '@/store';
 import { Avatar } from '@/components/Avatar';
 import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
+import { authService } from '@/services/auth.service';
 import {
   HeaderWrapper,
   HeaderLeft,
@@ -69,6 +70,9 @@ export const Header: React.FC = () => {
     logout();
     toast.info('Logged out', 'You have been successfully logged out.');
     navigate(ROUTES.LOGIN);
+    // Revoke the refresh token server-side; local session is already cleared above
+    // so this doesn't need to block navigation or handle failure.
+    authService.logout().catch(() => {});
   };
 
   return (

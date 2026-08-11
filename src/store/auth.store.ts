@@ -14,6 +14,7 @@ export interface AuthActions {
   login: (user: User, token: string) => void;
   logout: () => void;
   setUser: (user: User) => void;
+  setToken: (token: string) => void;
   setMustResetPassword: (mustReset: boolean) => void;
   clearSession: () => void;
 }
@@ -35,7 +36,8 @@ export const useAuthStore = create<AuthStore>()(
             token,
             role: user.role,
             isAuthenticated: true,
-            mustResetPassword: user.role === 'counselor' || user.role === 'student',
+            mustResetPassword:
+              user.mustChangePassword ?? (user.role === 'counselor' || user.role === 'student'),
           }),
         logout: () =>
           set({
@@ -50,6 +52,7 @@ export const useAuthStore = create<AuthStore>()(
             user,
             role: user.role,
           }),
+        setToken: token => set({ token }),
         setMustResetPassword: mustReset =>
           set({
             mustResetPassword: mustReset,

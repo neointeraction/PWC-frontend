@@ -1,22 +1,14 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   RiFilter3Line,
   RiSearchLine,
   RiBriefcaseLine,
-  RiStarLine,
-  RiStarFill,
 } from 'react-icons/ri';
 import { Select } from '@/components/Select';
 import { Input } from '@/components/Input';
-import {
-  CareerCluster,
-  CareerIndustry,
-  CareerDomain,
-  Career,
-  EntranceExam,
-  CourseDetail,
-  InstitutionDetail,
-} from '@/types';
+import { CareerCluster, CareerIndustry, CareerDomain, Career } from '@/types';
+import { careerService } from '@/services/career.service';
 import { JobRoleDetailView } from './JobRoleDetailView';
 import {
   SimpleViewContainer,
@@ -37,13 +29,6 @@ export interface SimpleViewProps {
   industries: CareerIndustry[];
   domains: CareerDomain[];
   roles: Career[];
-  entranceExams: EntranceExam[];
-  courses: CourseDetail[];
-  institutions: InstitutionDetail[];
-  onToggleShortlist: (roleId: string) => void;
-  onToggleExamShortlist: (id: string) => void;
-  onToggleInstitutionShortlist: (id: string) => void;
-  onEditRole?: (role: Career) => void;
 }
 
 export const SimpleView: React.FC<SimpleViewProps> = ({
@@ -51,13 +36,6 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
   industries,
   domains,
   roles,
-  entranceExams,
-  courses,
-  institutions,
-  onToggleShortlist,
-  onToggleExamShortlist,
-  onToggleInstitutionShortlist,
-  onEditRole,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -176,6 +154,12 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
     setSelectedRoleId('');
   };
 
+  const { data: roleDetail } = useQuery({
+    queryKey: ['careerDetail', activeRole?.id],
+    queryFn: () => careerService.getById(activeRole!.id),
+    enabled: !!activeRole,
+  });
+
   return (
     <SimpleViewContainer>
       {/* Left Control Panel */}
@@ -229,11 +213,6 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
               >
                 <RoleItemHeader>
                   <RoleItemName $active={isSelected}>{roleItem.jobRole}</RoleItemName>
-                  {roleItem.isShortlisted ? (
-                    <RiStarFill size={15} color="#D99F26" />
-                  ) : (
-                    <RiStarLine size={15} color="#94A3B8" />
-                  )}
                 </RoleItemHeader>
               </RoleItemCard>
             );
@@ -248,16 +227,12 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
 
       {/* Right Detail Panel */}
       <RightPanel>
-        {activeRole ? (
+        {activeRole && roleDetail ? (
           <JobRoleDetailView
-            role={activeRole}
-            entranceExams={entranceExams}
-            courses={courses}
-            institutions={institutions}
-            onToggleShortlist={() => onToggleShortlist(activeRole.id)}
-            onToggleExamShortlist={onToggleExamShortlist}
-            onToggleInstitutionShortlist={onToggleInstitutionShortlist}
-            onEditRole={onEditRole}
+            role={roleDetail.career}
+            entranceExams={roleDetail.entranceExams}
+            courses={roleDetail.courses}
+            institutions={roleDetail.institutions}
           />
         ) : (
           <EmptyDetailCard>

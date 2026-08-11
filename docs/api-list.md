@@ -7,10 +7,12 @@ companion to the interactive Swagger UI.
 - Interactive docs (Swagger UI): `GET /docs`
 - Raw OpenAPI spec: `GET /docs/openapi.json`
 - Base path for all API routes below: `/api/v1` (except `/health`, which is unprefixed)
-- Auth: none of these endpoints are protected yet — role-based authorization
-  middleware is still pending (see `CLAUDE.md`)
+- Auth: login/refresh/logout exist (see Auth section), but **no endpoint requires a
+  token yet** — `authenticate`/`requireRole` middleware exists
+  (`src/common/middlewares/auth.ts`) but isn't wired into any route. Every endpoint
+  below is still open with no credentials, in dev.
 
-Last updated: 2026-08-06 (after adding the 28 email reminder/session-status templates — see Email section).
+Last updated: 2026-08-07 (after adding the Auth module — see Auth section).
 
 ## Health
 
@@ -20,7 +22,24 @@ Last updated: 2026-08-06 (after adding the 28 email reminder/session-status temp
 
 ## Auth
 
-Stub module — no endpoints implemented yet (register/login/refresh/logout pending).
+JWT access token (short-lived, returned in the response body) + refresh token
+(long-lived, httpOnly cookie, rotated on every use — `RefreshToken` table tracks
+revocation). **No self-register endpoint** — every `User` (Student, Counsellor, Super
+Admin) is created by an admin or seed script with a generated/configured temp
+password, never by signing up. The one Super Admin login is bootstrapped by
+`pnpm db:seed` (`SEED_SUPER_ADMIN_EMAIL`/`SEED_SUPER_ADMIN_PASSWORD` env vars, defaults
+`superadmin@kreate.local` / `ChangeMe123!` — see `.env.example`).
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/v1/auth/login` | Body: `{ email, password }`. 401 on wrong password, unknown email, or an inactive (`isActive: false`) user — same generic "Invalid email or password" message either way (doesn't leak which). 200 with `{ accessToken, user }`; sets the `refreshToken` httpOnly cookie (path `/api/v1/auth`). |
+| POST | `/api/v1/auth/refresh` | No body — reads the `refreshToken` cookie. 401 if missing, expired, already used (rotation), or revoked (logged out). 200 with a new `{ accessToken, user }`; rotates the refresh token (new cookie, old one revoked — single use). |
+| POST | `/api/v1/auth/logout` | No body — reads the `refreshToken` cookie, revokes it, clears the cookie. 204 either way — idempotent, doesn't error on a missing/already-invalid cookie. |
+
+**Not wired up yet**: no route in any other module requires a token. The
+`authenticate`/`requireRole` middleware (`src/common/middlewares/auth.ts`) is built and
+ready, but applying it — and deciding which roles can hit which endpoint — is separate
+follow-up work per module.
 
 ## Institutes
 
@@ -103,12 +122,49 @@ ratification request flow) yet.
 | GET | `/api/v1/career-library/filters` | Distinct `clusters`, `industries`, `domains` (from `ACTIVE` entries) plus the fixed `aiResilienceGrades` list — for populating UI filter dropdowns. |
 | GET | `/api/v1/career-library/{id}` | Get one entry, plus `relatedInstitutions` (`UgInstitution` rows matching the entry's `industry`), `relatedCourses` (`UgCourse` rows matching `cluster`), and `relatedEntranceExams` (`UgEntranceExam` rows matching the extracted UG `entranceExams` list). 404 if not found. |
 
+## Sessions
+
+Implements the blind, first-available-slot booking flow resolved in
+`docs/session-scheduling-use-cases.md`. Institutes upload counsellor availability as a
+discrete, per-date slot sheet once at project creation; Session 1 & 2 are booked
+together, blind (no counsellor shown), with Session 2 locked to Session 1's assigned
+counsellor and at least 2 calendar days later. No auth/role gating is implemented yet —
+these endpoints are open like the rest of the API.
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/v1/sessions/slots/import` | One-time bulk import of a project's counsellor slot sheet. Body: `projectId, slots: [{ counsellorId, date, startTime, endTime }]`. 409 if the project already has slots imported (single upload, ever). 400 if any `counsellorId` isn't assigned to the project via `ProjectCounsellor`. |
+| GET | `/api/v1/sessions/slots` | List counsellor slots (oversight). Query: `projectId?, counsellorId?, status?` (`OPEN`\|`BOOKED`). |
+| GET | `/api/v1/sessions/students/{studentId}/booking-options` | Blind Session 1 options — deduped `{ slotDate, startTime, endTime }` list across all open slots for the student's project. Query: `sessionNumber` (`SESSION_1`\|`SESSION_2`). For `SESSION_2`, also pass `session1Date, session1StartTime` — resolves the counsellor that pick would assign (first-available, upload order) and returns only that counsellor's remaining open slots at least 2 calendar days after `session1Date`. |
+| POST | `/api/v1/sessions/students/{studentId}/book` | Book Session 1 & 2 together, atomically. Body: `session1: { date, startTime }, session2: { date, startTime }`. Blind-assigns the counsellor from the first-available slot matching the Session 1 pick; Session 2's pick must belong to that same counsellor and be ≥2 calendar days later. Requires `workflowStatus >= ASSESSMENT_COMPLETED` — 400 otherwise. 409 if the student already has sessions booked, or if either slot was claimed by someone else in a race. Advances `workflowStatus` to `SESSION_SCHEDULED`. Sends `SESSION_SCHEDULED_CONFIRMATION_STUDENT`/`_PARENT`/`_COUNSELLOR` emails. |
+| GET | `/api/v1/sessions/students/{studentId}` | List a student's sessions (dashboard cards). |
+| GET | `/api/v1/sessions/counsellors/{counsellorId}` | List a counsellor's sessions (dashboard). Query: `status?`. |
+| POST | `/api/v1/sessions` | Admin manual creation for edge cases outside self-service booking — bypasses the slot inventory entirely. Body: `studentId, counsellorId, sessionNumber, date, startTime, endTime`. |
+| GET | `/api/v1/sessions` | Admin oversight list. Query: `projectId?, instituteId?, studentId?, counsellorId?, status?, from?, to?` (date range on `scheduledDate`). |
+| GET | `/api/v1/sessions/{id}` | Get one session. |
+| PATCH | `/api/v1/sessions/{id}/meeting-link` | Manually set/replace `meetingLink` (plain string — no Calendly/Google Meet integration; also what's shared with the parent). Body: `{ meetingLink }` (URL). |
+| POST | `/api/v1/sessions/{id}/join` | "Join Now" — records `studentJoinedAt`/`counsellorJoinedAt` and returns the `meetingLink`. Body: `{ role }` (`STUDENT`\|`COUNSELLOR`). Window: from 10 minutes before `startTime` through `endTime`; 400 outside that window. |
+| POST | `/api/v1/sessions/{id}/complete` | Marks the session `COMPLETED` (the "Session Completed" confirmation button). Advances `workflowStatus` to `SESSION_1_COMPLETED` / `SESSION_2_COMPLETED`. |
+| PATCH | `/api/v1/sessions/{id}/notes` | Counsellor adds/updates session notes — independent of the booking/join flow. Body: `{ notes }`. |
+| POST | `/api/v1/sessions/{id}/reschedule` | Move to a new date/time for the same (already-locked) counsellor. Body: `{ date, startTime, initiatedBy }` (`STUDENT`\|`COUNSELLOR`\|`ADMIN`). `STUDENT`-initiated requests are rejected within 24 hours of the current `startTime`. Re-validates the ≥2-day gap against the student's other session. Releases the old slot back to `OPEN`, claims the new one. Sends `SESSION_RESCHEDULED_STUDENT`/`_PARENT`. |
+| POST | `/api/v1/sessions/{id}/cancel` | Cancels a session and releases its slot back to `OPEN`. Body: `{ reason, notes?, initiatedBy }` (`reason`: `STUDENT_UNAVAILABLE`\|`COUNSELLOR_UNAVAILABLE`\|`INSTITUTION_REQUEST`\|`OTHER`). Sends `SESSION_CANCELLED_STUDENT`/`_PARENT`. |
+| POST | `/api/v1/sessions/{id}/send-day-reminder` | Manually triggers the same-day reminder email to student + parent + counsellor (`SESSION_1_DAY_REMINDER_*` / `SESSION_2_DAY_REMINDER_*`, `*` = `STUDENT`\|`PARENT`\|`COUNSELLOR`). No scheduler/cron exists to fire this automatically — same gap as the rest of the Email module. Body: `{ portalLink? }`. |
+
+**No-show tracking**: `studentNoShow`/`counsellorNoShow` are reconciled lazily — the
+first read of a `SCHEDULED` session after its `endTime` has passed, with no matching
+join timestamp, flips the flag (best-effort, doesn't block the read).
+
+**Not implemented**: role-based access control (any caller can act as any role via the
+`role`/`initiatedBy` body fields — there's no auth check that the caller actually is
+that student/counsellor), real Calendly/Google Meet link generation, and automatic
+(cron-driven) reminder sends.
+
 ## Email
 
 Sends transactional email via a configurable provider (`EMAIL_PROVIDER` env var —
 `console` logs instead of sending, the local-dev default; `mailgun` sends for real
-through Mailgun's API). 37 templates: the 9 kREATE lifecycle communications from
-`docs/11.Class 910_Communication EMail Templates.pdf`, plus 28 reminder/session-status
+through Mailgun's API). 40 templates: the 9 kREATE lifecycle communications from
+`docs/11.Class 910_Communication EMail Templates.pdf`, plus 31 reminder/session-status
 templates that are the email equivalents of `docs/Class 910_Workflow Prompts for
 Watsapp.xlsx` (that sheet is WhatsApp copy — WhatsApp sending itself isn't
 implemented). **Full reference, including every `templateKey` and its required `data`
@@ -129,8 +185,8 @@ fields: [`src/modules/email/README.md`](../src/modules/email/README.md).**
 ## Not yet built
 
 For context on what's deliberately missing — see `CLAUDE.md` → "What's not built yet"
-and `docs/db-design.md` → "Deliberate scope gaps". Notably: auth endpoints, counsellor
-CRUD, project CRUD, session booking (design finalized — see
-`docs/session-scheduling-use-cases.md` — not yet implemented), career library
-create/edit/delete + counsellor ratification-request flow, assessment
-result/scoring computation, report generation, and any role-based access control.
+and `docs/db-design.md` → "Deliberate scope gaps". Notably: counsellor CRUD, project
+CRUD, career library create/edit/delete + counsellor ratification-request flow,
+assessment result/scoring computation, report generation, Counsellor Chart editing, and
+any route-level role-based access control (the Auth module issues tokens, but nothing
+checks them yet).

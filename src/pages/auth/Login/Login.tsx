@@ -55,7 +55,7 @@ export const LoginPage: React.FC = () => {
     mutationFn: (payload: LoginPayload) => authService.login(payload),
     onSuccess: data => {
       login(data.user, data.token);
-      if (data.user.role === 'counselor' || data.user.role === 'student') {
+      if (data.user.mustChangePassword) {
         navigate(ROUTES.RESET_PASSWORD);
       } else {
         navigate(ROUTES.DASHBOARD);
@@ -63,24 +63,13 @@ export const LoginPage: React.FC = () => {
     },
   });
 
-  const fillPwcUser = () => {
-    setValue('email', 'sarah.connor@pwc-global.com');
-    setValue('password', 'PWC@User2026!');
-  };
-
+  // Only the Super Admin account is seeded automatically (pnpm db:seed, backend
+  // SEED_SUPER_ADMIN_EMAIL/SEED_SUPER_ADMIN_PASSWORD, default shown below).
+  // Counsellor/Student accounts only exist once created via the app (no
+  // self-register), so there's nothing real to shortcut for them yet.
   const fillSuperAdmin = () => {
-    setValue('email', 'admin@pwc.com');
-    setValue('password', 'admin123');
-  };
-
-  const fillCounselor = () => {
-    setValue('email', 'counselor@pwc.com');
-    setValue('password', 'counselor123');
-  };
-
-  const fillStudent = () => {
-    setValue('email', 'student@pwc.com');
-    setValue('password', 'student123');
+    setValue('email', 'superadmin@kreate.local');
+    setValue('password', 'ChangeMe123!');
   };
 
   return (
@@ -146,16 +135,7 @@ export const LoginPage: React.FC = () => {
           <HintTitle>Quick Demo Login Shortcuts</HintTitle>
           <DemoButtons>
             <Button size="sm" variant="secondary" onClick={fillSuperAdmin}>
-              Super Admin (admin@pwc.com)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillPwcUser}>
-              kREATE User / Admin (sarah.connor@pwc-global.com)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillCounselor}>
-              Counselor (counselor@pwc.com)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillStudent}>
-              Student (student@pwc.com)
+              Super Admin (superadmin@kreate.local)
             </Button>
           </DemoButtons>
         </HintBox>

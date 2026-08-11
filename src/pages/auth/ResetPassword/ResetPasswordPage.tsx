@@ -83,18 +83,15 @@ export const ResetPasswordPage: React.FC = () => {
         <TitleWrapper>
           <Heading>Mandatory Password Change</Heading>
           <Subtext>
-            {role === 'student'
-              ? 'Student first-time login detected. Please update your temporary account password to proceed.'
-              : 'Counselor first-time login detected. Please update your temporary account password to proceed.'}
+            First-time login detected. Please update your temporary account password to proceed.
           </Subtext>
         </TitleWrapper>
 
         <SecurityAlertBox>
           <RiShieldKeyholeLine size={20} style={{ color: '#5D2384', flexShrink: 0, marginTop: '2px' }} />
           <AlertText>
-            {role === 'student'
-              ? 'For privacy and security regulations, students are required to set a unique personal password upon first login.'
-              : 'For privacy and security regulations, counselors are required to set a unique personal password upon first login.'}
+            For privacy and security regulations, you're required to set a unique personal
+            password upon first login.
           </AlertText>
         </SecurityAlertBox>
 

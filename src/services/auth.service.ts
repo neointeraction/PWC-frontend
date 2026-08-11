@@ -1,91 +1,56 @@
-import { LoginPayload, LoginResponse, User } from '@/types';
+import { apiClient } from './api';
+import { LoginPayload, LoginResponse, User, Role } from '@/types';
 
-const MOCK_SUPER_ADMIN: User = {
-  id: 'user-super-admin',
-  name: 'Alex Rivera (Super Admin)',
-  email: 'admin@pwc.com',
-  role: 'super_admin',
+interface ApiUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: 'STUDENT' | 'COUNSELLOR' | 'ADMIN' | 'SUPER_ADMIN';
+  isActive: boolean;
+  mustChangePassword: boolean;
+}
+
+interface ApiAuthResponse {
+  accessToken: string;
+  user: ApiUser;
+}
+
+const ROLE_MAP: Record<ApiUser['role'], Role> = {
+  STUDENT: 'student',
+  COUNSELLOR: 'counselor',
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin',
 };
 
-const MOCK_ADMIN_SARAH: User = {
-  id: 'user-admin-sarah',
-  name: 'Sarah Connor',
-  email: 'sarah.connor@pwc-global.com',
-  role: 'admin',
-};
+const mapUser = (u: ApiUser): User => ({
+  id: u.id,
+  name: `${u.firstName} ${u.lastName}`.trim(),
+  email: u.email,
+  role: ROLE_MAP[u.role],
+  mustChangePassword: u.mustChangePassword,
+});
 
-const MOCK_COUNSELOR_JOHN: User = {
-  id: 'user-counselor-john',
-  name: 'John Doe',
-  email: 'counselor@pwc.com',
-  role: 'counselor',
-};
-
-const MOCK_STUDENT_ALEX: User = {
-  id: 'user-student-alex',
-  name: 'Alex Johnson',
-  email: 'student@pwc.com',
-  role: 'student',
-};
-
-const MOCK_TOKEN = 'mock-jwt-token-12345';
+const mapAuthResponse = (data: ApiAuthResponse): LoginResponse => ({
+  user: mapUser(data.user),
+  token: data.accessToken,
+});
 
 export const authService = {
+  // POST /api/v1/auth/login — sets the refreshToken httpOnly cookie as a side effect.
   login: async (payload: LoginPayload): Promise<LoginResponse> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-
-    if (payload.email === 'admin@pwc.com') {
-      return {
-        user: MOCK_SUPER_ADMIN,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.email === 'sarah.connor@pwc-global.com') {
-      return {
-        user: MOCK_ADMIN_SARAH,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.email === 'counselor@pwc.com') {
-      return {
-        user: MOCK_COUNSELOR_JOHN,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.email === 'student@pwc.com') {
-      return {
-        user: MOCK_STUDENT_ALEX,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.password.length > 0) {
-      return {
-        user: {
-          id: 'user-admin',
-          name: payload.email.split('@')[0].replace('.', ' ') || 'kREATE Admin',
-          email: payload.email,
-          role: 'admin',
-        },
-        token: MOCK_TOKEN,
-      };
-    }
-
-    throw new Error('Invalid email or password');
+    const { data } = await apiClient.post<ApiAuthResponse>('/auth/login', payload);
+    return mapAuthResponse(data);
   },
 
+  // POST /api/v1/auth/logout — reads/revokes the refreshToken cookie server-side.
   logout: async (): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await apiClient.post('/auth/logout');
   },
 
-  refreshToken: async (token: string): Promise<string> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    if (token === MOCK_TOKEN) {
-      return MOCK_TOKEN;
-    }
-    throw new Error('Invalid token');
+  // POST /api/v1/auth/refresh — no body, reads the refreshToken cookie; rotates it.
+  refresh: async (): Promise<LoginResponse> => {
+    const { data } = await apiClient.post<ApiAuthResponse>('/auth/refresh');
+    return mapAuthResponse(data);
   },
 };
