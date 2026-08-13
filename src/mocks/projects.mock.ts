@@ -67,4 +67,16 @@ export const mockProjects: Project[] = [
     validTo: '2027-02-28',
     createdAt: '2026-07-18',
   },
+  {
+    id: 'proj-007',
+    name: 'Vocational Training Initiative 2025',
+    instituteName: 'Christ University, Bengaluru',
+    counselorCount: 2,
+    studentCount: 45,
+    status: 'deleted',
+    previousStatus: 'active',
+    validFrom: '2025-05-01',
+    validTo: '2025-11-30',
+    createdAt: '2025-05-01',
+  },
 ];

@@ -130,9 +130,42 @@ export const projectService = {
     return newProject;
   },
 
+  update: async (id: string, updates: Partial<Project>): Promise<Project> => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    projectDb = projectDb.map(p => (p.id === id ? { ...p, ...updates } : p));
+    const updated = projectDb.find(p => p.id === id);
+    if (!updated) throw new Error('Project not found');
+    return updated;
+  },
+
   delete: async (id: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 300));
-    projectDb = projectDb.filter(p => p.id !== id);
+    projectDb = projectDb.map(p => {
+      if (p.id === id) {
+        return {
+          ...p,
+          previousStatus: p.status !== 'deleted' ? p.status : 'active',
+          status: 'deleted',
+        };
+      }
+      return p;
+    });
+  },
+
+  restore: async (id: string): Promise<Project> => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    projectDb = projectDb.map(p => {
+      if (p.id === id) {
+        return {
+          ...p,
+          status: p.previousStatus || 'active',
+        };
+      }
+      return p;
+    });
+    const restored = projectDb.find(p => p.id === id);
+    if (!restored) throw new Error('Project not found');
+    return restored;
   },
 
   validateCounselors: async (

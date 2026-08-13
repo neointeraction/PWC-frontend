@@ -28,6 +28,7 @@ import { GraduationPathwaysSection } from './sections/GraduationPathwaysSection'
 import { CareerCompassSection } from './sections/CareerCompassSection';
 import { RoadmapSection } from './sections/RoadmapSection';
 
+import { Badge } from '@/components/Badge';
 import {
   ReportContainer,
   ReportBodyLayout,
@@ -36,6 +37,10 @@ import {
   TocList,
   TocItemLink,
   ReportMainContent,
+  StudentProfileSidebarCard,
+  StudentAvatarCircle,
+  StudentNameTitle,
+  StudentDetailSubtext,
 } from './StudentCareerIkigaiReportPage.styles';
 
 const TOC_SECTIONS = [
@@ -101,6 +106,12 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
     };
   }, []);
 
+  const getInitials = (name: string) => {
+    const parts = name.split(' ');
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  };
+
   return (
     <ReportContainer>
       <PageHeader
@@ -111,7 +122,7 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
           { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
           { label: `IKIGAI Report (${reportData.studentInfo.studentName})` },
         ]}
-        onBack={() => navigate(ROUTES.UPCOMING_SESSIONS)}
+        onBack={() => navigate(-1)}
         actions={
           <Button
             variant="primary"
@@ -126,6 +137,23 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
       <ReportBodyLayout>
         {/* Persistent Left Sidebar Table of Contents */}
         <TocSidebar $isOpenOnMobile={mobileTocOpen}>
+          {/* Prominent Student Profile Card above TOC */}
+          <StudentProfileSidebarCard>
+            <StudentAvatarCircle>
+              {getInitials(reportData.studentInfo.studentName)}
+            </StudentAvatarCircle>
+            <div>
+              <StudentNameTitle>{reportData.studentInfo.studentName}</StudentNameTitle>
+              <StudentDetailSubtext>{reportData.studentInfo.gradeClass}</StudentDetailSubtext>
+            </div>
+            <StudentDetailSubtext style={{ fontWeight: 500 }}>
+              {reportData.studentInfo.schoolName}
+            </StudentDetailSubtext>
+            <Badge variant="success" size="sm">
+              IKIGAI Report Generated
+            </Badge>
+          </StudentProfileSidebarCard>
+
           <TocHeader>Table of Contents</TocHeader>
           <TocList>
             {TOC_SECTIONS.map(item => (

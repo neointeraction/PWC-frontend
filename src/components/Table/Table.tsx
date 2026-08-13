@@ -15,7 +15,7 @@ import {
 
 export interface Column<T> {
   key: string;
-  header: string;
+  header: React.ReactNode;
   render?: (row: T, index: number) => React.ReactNode;
   cell?: (row: T, index: number) => React.ReactNode;
   accessor?: string;

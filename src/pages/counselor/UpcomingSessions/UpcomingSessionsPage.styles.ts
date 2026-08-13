@@ -3,7 +3,6 @@ import styled from 'styled-components';
 export const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.lg};
 `;
 
 export const StudentNameButton = styled.button`
@@ -46,6 +45,39 @@ export const StatusPill = styled.span<{ $canJoin: boolean }>`
   align-items: center;
   gap: 4px;
 `;
+
+export const StudentCellWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+`;
+
+export const StudentInstiText = styled.span`
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-weight: ${({ theme }) => theme.fontWeight.normal};
+`;
+
+export const SortHeaderButton = styled.button`
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
 
 export const ModalSection = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.lg};

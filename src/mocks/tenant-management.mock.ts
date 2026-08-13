@@ -3,9 +3,9 @@ import { UserRecord } from '@/types/tenant-management.types';
 export const mockUserRecords: UserRecord[] = [
   {
     id: 'usr-101',
-    name: 'Sarah Connor',
-    email: 'sarah.connor@pwc-global.com',
-    username: 'sarah.connor@pwc-global.com',
+    name: 'Sunita Sharma',
+    email: 'sunita.sharma@pwc-global.com',
+    username: 'sunita.sharma@pwc-global.com',
     phone: '+1 (555) 019-2834',
     userCategory: 'pwc',
     roleLabel: 'Super Admin',

@@ -21,3 +21,4 @@ export * from './Tabs';
 export * from './ErrorBoundary';
 export * from './Stepper';
 export * from './FileUpload';
+export * from './SuccessModal';

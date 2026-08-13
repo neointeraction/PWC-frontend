@@ -1,5 +1,6 @@
 import React from 'react';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { SuccessModal } from '../SuccessModal';
 
 export interface AlertModalProps {
   isOpen: boolean;
@@ -31,6 +32,19 @@ export const AlertModal: React.FC<AlertModalProps> = ({
       onClose();
     }
   };
+
+  if (variant === 'success') {
+    return (
+      <SuccessModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={title}
+        message={description}
+        confirmText={confirmText || 'OK'}
+        onConfirm={handleConfirm}
+      />
+    );
+  }
 
   return (
     <ConfirmDialog

@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import {
   RiVideoChatLine,
-  RiFileTextLine,
+  RiUser3Line,
   RiTimeLine,
   RiCheckDoubleLine,
-  RiPrinterLine,
+  RiArrowUpLine,
+  RiArrowDownLine,
 } from 'react-icons/ri';
+import { Button } from '@/components/Button';
 import { PageHeader } from '@/components/PageHeader';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
@@ -15,17 +17,30 @@ import { getMockUpcomingSessions, UpcomingSession } from '@/mocks/upcomingSessio
 import { ROUTES } from '@/constants';
 import {
   Container,
-  StudentNameButton,
   TimeContainer,
   TimeText,
   StatusPill,
-  ActionIconButtonGroup,
-  ActionIconButton,
+  StudentCellWrapper,
+  StudentInstiText,
+  SortHeaderButton,
 } from './UpcomingSessionsPage.styles';
 
 export const UpcomingSessionsPage: React.FC = () => {
   const navigate = useNavigate();
   const [sessions] = useState<UpcomingSession[]>(() => getMockUpcomingSessions());
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+      const timeA = new Date(a.dateTime).getTime();
+      const timeB = new Date(b.dateTime).getTime();
+      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+    });
+  }, [sessions, sortOrder]);
+
+  const handleToggleDateSort = () => {
+    setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+  };
 
   // Helper to check if join button should be enabled (30 mins before start until session end)
   const checkCanJoin = (dateTimeStr: string): boolean => {
@@ -42,66 +57,37 @@ export const UpcomingSessionsPage: React.FC = () => {
   const columns: Column<UpcomingSession>[] = useMemo(
     () => [
       {
-        key: 'actions',
-        header: 'Action',
-        cell: (row: UpcomingSession) => {
-          const canJoin = checkCanJoin(row.dateTime);
-
-          return (
-            <ActionIconButtonGroup>
-              {canJoin ? (
-                <Tooltip content="Join video meeting">
-                  <ActionIconButton
-                    $variant="primary"
-                    aria-label="Join Meet"
-                    onClick={() => window.open(row.meetUrl, '_blank')}
-                  >
-                    <RiVideoChatLine size={16} />
-                  </ActionIconButton>
-                </Tooltip>
-              ) : (
-                <Tooltip content="Join button enables 30 minutes before session start time">
-                  <ActionIconButton disabled aria-label="Join disabled">
-                    <RiVideoChatLine size={16} />
-                  </ActionIconButton>
-                </Tooltip>
-              )}
-
-              <Tooltip content="Generate & view Student Career IKIGAI Report">
-                <ActionIconButton
-                  aria-label="Generate Report"
-                  onClick={() => navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', row.id))}
-                >
-                  <RiPrinterLine size={16} />
-                </ActionIconButton>
-              </Tooltip>
-            </ActionIconButtonGroup>
-          );
-        },
-      },
-      {
         key: 'studentName',
         header: 'Student Name',
         accessor: 'studentName',
         cell: (row: UpcomingSession) => (
-          <Tooltip content="Click to open Counsellor Form Chart & add session notes">
-            <StudentNameButton type="button" onClick={() => handleOpenStudentChart(row)}>
-              <RiFileTextLine size={16} />
-              {row.studentName}
-            </StudentNameButton>
-          </Tooltip>
+          <StudentCellWrapper>
+            <Tooltip content="Click to open Counsellor Form Chart & add session notes">
+              <Button
+                size="sm"
+                variant="secondary"
+                leftIcon={<RiUser3Line size={16} />}
+                onClick={() => handleOpenStudentChart(row)}
+              >
+                {row.studentName}
+              </Button>
+            </Tooltip>
+            <StudentInstiText>
+              {row.institutionName} • {row.studentGrade}
+            </StudentInstiText>
+          </StudentCellWrapper>
         ),
       },
       {
-        key: 'sessionTitle',
-        header: 'Session Title',
-        accessor: 'sessionTitle',
-        cell: (row: UpcomingSession) => <span style={{ fontWeight: 500 }}>{row.sessionTitle}</span>,
-      },
-      {
         key: 'dateTime',
-        header: 'Date & Time',
+        header: (
+          <SortHeaderButton type="button" onClick={handleToggleDateSort}>
+            Date & Time
+            {sortOrder === 'asc' ? <RiArrowUpLine size={14} /> : <RiArrowDownLine size={14} />}
+          </SortHeaderButton>
+        ),
         accessor: 'dateTime',
+        sortable: true,
         cell: (row: UpcomingSession) => {
           const canJoin = checkCanJoin(row.dateTime);
           return (
@@ -122,8 +108,41 @@ export const UpcomingSessionsPage: React.FC = () => {
           );
         },
       },
+      {
+        key: 'sessions',
+        header: 'Sessions',
+        cell: (row: UpcomingSession) => {
+          const canJoin = checkCanJoin(row.dateTime);
+
+          if (canJoin) {
+            return (
+              <Button
+                size="sm"
+                variant="primary"
+                leftIcon={<RiVideoChatLine size={16} />}
+                onClick={() => window.open(row.meetUrl, '_blank')}
+              >
+                Join Session
+              </Button>
+            );
+          }
+
+          return (
+            <Tooltip content="Join button enables 30 minutes before session start time">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled
+                leftIcon={<RiVideoChatLine size={16} />}
+              >
+                Join Session
+              </Button>
+            </Tooltip>
+          );
+        },
+      },
     ],
-    []
+    [sortOrder]
   );
 
   return (
@@ -134,9 +153,10 @@ export const UpcomingSessionsPage: React.FC = () => {
         breadcrumbs={[{ label: 'Upcoming Sessions' }]}
       />
 
-      <Table data={sessions} columns={columns} keyExtractor={row => row.id} />
+      <Table data={sortedSessions} columns={columns} keyExtractor={row => row.id} />
     </Container>
   );
 };
 
 export default UpcomingSessionsPage;
+

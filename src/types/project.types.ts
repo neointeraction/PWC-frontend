@@ -1,4 +1,4 @@
-export type ProjectStatus = 'active' | 'draft' | 'completed';
+export type ProjectStatus = 'active' | 'draft' | 'completed' | 'deleted';
 
 export interface Project {
   id: string;
@@ -7,6 +7,7 @@ export interface Project {
   counselorCount: number;
   studentCount: number;
   status: ProjectStatus;
+  previousStatus?: ProjectStatus;
   validFrom: string;
   validTo: string;
   createdAt?: string;

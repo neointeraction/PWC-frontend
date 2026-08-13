@@ -52,7 +52,7 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
       </TraitMapTableContainer>
 
       {/* Why These Streams Text Block */}
-      <TextCard style={{ backgroundColor: 'rgba(79, 70, 229, 0.04)', border: '1px solid rgba(79, 70, 229, 0.2)' }}>
+      <TextCard style={{ backgroundColor: 'rgba(79, 70, 229, 0.04)', borderLeft: '4px solid #4F46E5' }}>
         <TextCardTitle style={{ color: '#4F46E5', fontSize: '1.05rem' }}>
           Why These Streams? — Detailed Rationale
         </TextCardTitle>

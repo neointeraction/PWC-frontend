@@ -7,7 +7,6 @@ import {
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
-import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
 import {
   getMockStudentFormChartData,
@@ -21,8 +20,10 @@ import { Step2SectionB } from './components/Step2SectionB';
 import { Step3SectionC } from './components/Step3SectionC';
 import { Step4SectionD } from './components/Step4SectionD';
 import { Step5SectionE } from './components/Step5SectionE';
+import { Step6SCRI } from './components/Step6SCRI';
 import { Step6SectionF } from './components/Step6SectionF';
 import { Step7SummaryDashboard } from './components/Step7SummaryDashboard';
+import { ChartSuccessModal } from './components/ChartSuccessModal';
 
 import {
   Container,
@@ -32,32 +33,54 @@ import {
 } from './StudentFormChartPage.styles';
 
 const STEP_LABELS = [
-  { index: 0, label: 'Student Information', shortLabel: 'Info' },
-  { index: 1, label: 'Section A — Academics & Non-Academics', shortLabel: 'Sec A' },
-  { index: 2, label: 'Section B — Strengths & Personality', shortLabel: 'Sec B' },
-  { index: 3, label: 'Section C — Career Clarity & Awareness', shortLabel: 'Sec C' },
-  { index: 4, label: 'Section D — Reliability of Assessment', shortLabel: 'Sec D' },
-  { index: 5, label: 'Section E — Roadmap & Readiness', shortLabel: 'Sec E' },
-  { index: 6, label: 'Section F — Goals & Expectations', shortLabel: 'Sec F' },
-  { index: 7, label: 'Summary Dashboard', shortLabel: 'Summary' },
+  { index: 0, label: 'Our Champion', shortLabel: 'Info' },
+  { index: 1, label: 'Academics & Non-Academics', shortLabel: 'A' },
+  { index: 2, label: 'Strengths & Personality View', shortLabel: 'B' },
+  {
+    index: 3,
+    label: 'Setting the Compass – Career Direction',
+    shortLabel: 'C',
+    sublinks: [
+      { id: 'sec-c-pre-counselling', label: 'Pre-Counselling View' },
+      { id: 'sec-c-stream-fit', label: 'Stream Fit & Pathways' },
+      { id: 'sec-c-graduation-fit', label: 'Graduation Fit' },
+      { id: 'sec-c-colleges', label: 'Colleges After Class 11&12' },
+      { id: 'sec-c-entrance-exams', label: 'Entrance Exams' },
+      { id: 'sec-c-target-roles', label: 'Target Roles & Compass' },
+    ],
+  },
+  { index: 4, label: 'Reliability of Assessment', shortLabel: 'D' },
+  { index: 5, label: 'Roadmap', shortLabel: 'E' },
+  { index: 6, label: 'Student Career Readiness Index (SCRI) — Counsellor Rating', shortLabel: 'SCRI' },
+  { index: 7, label: 'Goals & Expectations', shortLabel: 'F' },
+  { index: 8, label: 'Summary Dashboard', shortLabel: 'Summary' },
 ];
 
 export const StudentFormChartPage: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const toast = useToast();
 
   const [activeStep, setActiveStep] = useState(0);
+  const [activeSublinkId, setActiveSublinkId] = useState<string | undefined>();
   const [visitedSteps, setVisitedSteps] = useState<number[]>([0]);
 
   const [formData, setFormData] = useState<CounsellorFormChartData>(() =>
     getMockStudentFormChartData(sessionId || 'sess-counselor-1')
   );
 
-  const handleStepChange = (stepIndex: number) => {
+  const handleStepChange = (stepIndex: number, sublinkId?: string) => {
     setActiveStep(stepIndex);
+    setActiveSublinkId(sublinkId);
     if (!visitedSteps.includes(stepIndex)) {
       setVisitedSteps(prev => [...prev, stepIndex]);
+    }
+    if (sublinkId) {
+      setTimeout(() => {
+        const el = document.getElementById(sublinkId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
     }
   };
 
@@ -75,12 +98,10 @@ export const StudentFormChartPage: React.FC = () => {
     }
   };
 
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
   const handleSaveFormChart = () => {
-    toast.success(
-      'Counsellor Form Chart Saved',
-      `Synthesis notes and assessment data for ${formData.studentInfo.studentName} have been recorded.`
-    );
-    navigate(ROUTES.UPCOMING_SESSIONS);
+    setIsSuccessModalOpen(true);
   };
 
   // Construct step definitions for sidebar
@@ -90,6 +111,7 @@ export const StudentFormChartPage: React.FC = () => {
     shortLabel: s.shortLabel,
     completed: visitedSteps.includes(s.index) && s.index < activeStep,
     inProgress: visitedSteps.includes(s.index),
+    sublinks: s.sublinks,
   }));
 
   return (
@@ -109,6 +131,7 @@ export const StudentFormChartPage: React.FC = () => {
         <SidebarTracker
           steps={stepDefs}
           activeStep={activeStep}
+          activeSublinkId={activeSublinkId}
           onSelectStep={handleStepChange}
         />
 
@@ -129,6 +152,7 @@ export const StudentFormChartPage: React.FC = () => {
           {activeStep === 1 && (
             <Step1SectionA
               data={formData.sectionA}
+              studentInfo={formData.studentInfo}
               onChangeNotes={(code, val) =>
                 setFormData(prev => ({
                   ...prev,
@@ -140,6 +164,7 @@ export const StudentFormChartPage: React.FC = () => {
               }
             />
           )}
+
 
           {activeStep === 2 && (
             <Step2SectionB
@@ -176,6 +201,18 @@ export const StudentFormChartPage: React.FC = () => {
                     careerDnaNarrative: {
                       ...prev.sectionB.careerDnaNarrative,
                       [field]: val,
+                    },
+                  },
+                }))
+              }
+              onChangeRedFlags={(key, val) =>
+                setFormData(prev => ({
+                  ...prev,
+                  sectionB: {
+                    ...prev.sectionB,
+                    redFlags: {
+                      ...prev.sectionB.redFlags,
+                      [key]: val,
                     },
                   },
                 }))
@@ -243,6 +280,24 @@ export const StudentFormChartPage: React.FC = () => {
                   sectionC: { ...prev.sectionC, careerCompassTable: table },
                 }))
               }
+              onChangeEntranceExamsTable={table =>
+                setFormData(prev => ({
+                  ...prev,
+                  sectionC: { ...prev.sectionC, entranceExamsTable: table },
+                }))
+              }
+              onChangeCollegesTable={table =>
+                setFormData(prev => ({
+                  ...prev,
+                  sectionC: { ...prev.sectionC, collegesTable: table },
+                }))
+              }
+              onChangeCompassClusterTable={table =>
+                setFormData(prev => ({
+                  ...prev,
+                  sectionC: { ...prev.sectionC, careerCompassClusterTable: table },
+                }))
+              }
             />
           )}
 
@@ -284,6 +339,12 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
+            />
+          )}
+
+          {activeStep === 6 && (
+            <Step6SCRI
+              data={formData.sectionE}
               onChangeScriRating={(code, rating) =>
                 setFormData(prev => ({
                   ...prev,
@@ -313,7 +374,7 @@ export const StudentFormChartPage: React.FC = () => {
             />
           )}
 
-          {activeStep === 6 && (
+          {activeStep === 7 && (
             <Step6SectionF
               data={formData.sectionF}
               onChangeNotes={(code, val) =>
@@ -328,10 +389,9 @@ export const StudentFormChartPage: React.FC = () => {
             />
           )}
 
-          {activeStep === 7 && (
+          {activeStep === 8 && (
             <Step7SummaryDashboard
               formData={formData}
-              onSaveFinal={handleSaveFormChart}
             />
           )}
 
@@ -346,7 +406,7 @@ export const StudentFormChartPage: React.FC = () => {
             </Button>
 
             <span style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: 500 }}>
-              Step {activeStep + 1} of 8 — {STEP_LABELS[activeStep].label}
+              Step {activeStep + 1} of 9 — {STEP_LABELS[activeStep].label}
             </span>
 
             {activeStep < STEP_LABELS.length - 1 ? (
@@ -369,6 +429,12 @@ export const StudentFormChartPage: React.FC = () => {
           </StickyFooterNav>
         </MainContentPanel>
       </LayoutWrapper>
+      <ChartSuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        studentName={formData.studentInfo.studentName}
+        sessionId={formData.sessionId}
+      />
     </Container>
   );
 };
