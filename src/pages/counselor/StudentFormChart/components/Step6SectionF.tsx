@@ -18,12 +18,12 @@ const synthesisRowsHDef = [
   {
     code: 'H1',
     placeholder:
-      "Shared vs. Distinct Priorities : Compare the student's and parent's primary objectives (D1.1); note what is shared and what is unique to each, so the session can address both.",
+      "Shared vs. Distinct Priorities : Compare the student's and parent's primary objectives (1.1); note what is shared and what is unique to each, so the session can address both.",
   },
   {
     code: 'H2',
     placeholder:
-      'Sensitive Flags : Note any specific pre-session flag raised by either party (D1.2) that needs careful, private handling during the session.',
+      'Sensitive Flags : Note any specific pre-session flag raised by either party (1.2) that needs careful, private handling during the session.',
   },
   {
     code: 'H3',

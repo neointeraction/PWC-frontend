@@ -7,7 +7,6 @@ import {
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
-import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
 import {
   getMockStudentFormChartData,
@@ -24,6 +23,7 @@ import { Step5SectionE } from './components/Step5SectionE';
 import { Step6SCRI } from './components/Step6SCRI';
 import { Step6SectionF } from './components/Step6SectionF';
 import { Step7SummaryDashboard } from './components/Step7SummaryDashboard';
+import { ChartSuccessModal } from './components/ChartSuccessModal';
 
 import {
   Container,
@@ -36,7 +36,19 @@ const STEP_LABELS = [
   { index: 0, label: 'Our Champion', shortLabel: 'Info' },
   { index: 1, label: 'Academics & Non-Academics', shortLabel: 'A' },
   { index: 2, label: 'Strengths & Personality View', shortLabel: 'B' },
-  { index: 3, label: 'Setting the Compass – Career Direction', shortLabel: 'C' },
+  {
+    index: 3,
+    label: 'Setting the Compass – Career Direction',
+    shortLabel: 'C',
+    sublinks: [
+      { id: 'sec-c-pre-counselling', label: 'Pre-Counselling View' },
+      { id: 'sec-c-stream-fit', label: 'Stream Fit & Pathways' },
+      { id: 'sec-c-graduation-fit', label: 'Graduation Fit' },
+      { id: 'sec-c-colleges', label: 'Colleges After Class 11&12' },
+      { id: 'sec-c-entrance-exams', label: 'Entrance Exams' },
+      { id: 'sec-c-target-roles', label: 'Target Roles & Compass' },
+    ],
+  },
   { index: 4, label: 'Reliability of Assessment', shortLabel: 'D' },
   { index: 5, label: 'Roadmap', shortLabel: 'E' },
   { index: 6, label: 'Student Career Readiness Index (SCRI) — Counsellor Rating', shortLabel: 'SCRI' },
@@ -47,19 +59,28 @@ const STEP_LABELS = [
 export const StudentFormChartPage: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const toast = useToast();
 
   const [activeStep, setActiveStep] = useState(0);
+  const [activeSublinkId, setActiveSublinkId] = useState<string | undefined>();
   const [visitedSteps, setVisitedSteps] = useState<number[]>([0]);
 
   const [formData, setFormData] = useState<CounsellorFormChartData>(() =>
     getMockStudentFormChartData(sessionId || 'sess-counselor-1')
   );
 
-  const handleStepChange = (stepIndex: number) => {
+  const handleStepChange = (stepIndex: number, sublinkId?: string) => {
     setActiveStep(stepIndex);
+    setActiveSublinkId(sublinkId);
     if (!visitedSteps.includes(stepIndex)) {
       setVisitedSteps(prev => [...prev, stepIndex]);
+    }
+    if (sublinkId) {
+      setTimeout(() => {
+        const el = document.getElementById(sublinkId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
     }
   };
 
@@ -77,12 +98,10 @@ export const StudentFormChartPage: React.FC = () => {
     }
   };
 
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
   const handleSaveFormChart = () => {
-    toast.success(
-      'Counsellor Form Chart Saved',
-      `Synthesis notes and assessment data for ${formData.studentInfo.studentName} have been recorded.`
-    );
-    navigate(ROUTES.UPCOMING_SESSIONS);
+    setIsSuccessModalOpen(true);
   };
 
   // Construct step definitions for sidebar
@@ -92,6 +111,7 @@ export const StudentFormChartPage: React.FC = () => {
     shortLabel: s.shortLabel,
     completed: visitedSteps.includes(s.index) && s.index < activeStep,
     inProgress: visitedSteps.includes(s.index),
+    sublinks: s.sublinks,
   }));
 
   return (
@@ -111,6 +131,7 @@ export const StudentFormChartPage: React.FC = () => {
         <SidebarTracker
           steps={stepDefs}
           activeStep={activeStep}
+          activeSublinkId={activeSublinkId}
           onSelectStep={handleStepChange}
         />
 
@@ -371,7 +392,6 @@ export const StudentFormChartPage: React.FC = () => {
           {activeStep === 8 && (
             <Step7SummaryDashboard
               formData={formData}
-              onSaveFinal={handleSaveFormChart}
             />
           )}
 
@@ -409,6 +429,12 @@ export const StudentFormChartPage: React.FC = () => {
           </StickyFooterNav>
         </MainContentPanel>
       </LayoutWrapper>
+      <ChartSuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        studentName={formData.studentInfo.studentName}
+        sessionId={formData.sessionId}
+      />
     </Container>
   );
 };

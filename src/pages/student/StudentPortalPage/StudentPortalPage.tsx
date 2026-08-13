@@ -17,6 +17,7 @@ import {
   RiCalendarLine,
   RiCloseCircleLine,
   RiRefreshLine,
+  RiFileCopyLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
@@ -146,6 +147,24 @@ export const StudentPortalPage: React.FC = () => {
     );
   };
 
+  const handleCopyParentLink = () => {
+    const parentLink = `${window.location.origin}${ROUTES.PARENT_PRE_COUNSELLING_FORM}`;
+    navigator.clipboard.writeText(parentLink);
+    toast.success(
+      'Parent Form Link Copied!',
+      'Pre-Counselling Form Parent link copied to clipboard.'
+    );
+  };
+
+  const handleCopyParentFeedbackLink = () => {
+    const parentFeedbackLink = `${window.location.origin}${ROUTES.PARENT_FEEDBACK_FORM}`;
+    navigator.clipboard.writeText(parentFeedbackLink);
+    toast.success(
+      'Parent Feedback Link Copied!',
+      'Parent Feedback Form link copied to clipboard.'
+    );
+  };
+
   const handleParentFormSubmit = () => {
     setIsParentFormSubmitted(true);
     localStorage.setItem('pwc_parent_form_submitted', 'true');
@@ -263,9 +282,19 @@ export const StudentPortalPage: React.FC = () => {
                 Start Student Form
               </Button>
             )}
-            {isPreCounsellingSubmitted && !isParentFormSubmitted && (
+            {isProfileCompleted && (
               <Button
                 variant="secondary"
+                size="sm"
+                leftIcon={<RiFileCopyLine size={16} />}
+                onClick={handleCopyParentLink}
+              >
+                Copy Pre-Counselling Form Parent Link
+              </Button>
+            )}
+            {isPreCounsellingSubmitted && !isParentFormSubmitted && (
+              <Button
+                variant="primary"
                 size="sm"
                 leftIcon={<RiUserHeartLine size={16} />}
                 onClick={handleParentFormSubmit}
@@ -412,9 +441,19 @@ export const StudentPortalPage: React.FC = () => {
                 Complete Student Feedback
               </Button>
             )}
-            {isStudentFeedbackSubmitted && !isParentFeedbackSubmitted && (
+            {isSession2Completed && (
               <Button
                 variant="secondary"
+                size="sm"
+                leftIcon={<RiFileCopyLine size={16} />}
+                onClick={handleCopyParentFeedbackLink}
+              >
+                Copy Parent Feedback Form Link
+              </Button>
+            )}
+            {isStudentFeedbackSubmitted && !isParentFeedbackSubmitted && (
+              <Button
+                variant="primary"
                 size="sm"
                 leftIcon={<RiFileTextLine size={16} />}
                 onClick={handleParentFeedbackSubmit}
@@ -580,15 +619,19 @@ export const StudentPortalPage: React.FC = () => {
 
                       {step.status === 'current' && (
                         <SessionActionLinksRow>
-                          <SessionActionLink
-                            type="button"
-                            $danger
-                            onClick={() => setCancelModalSessionNum(sessionNum)}
-                          >
-                            <RiCloseCircleLine size={12} />
-                            Cancel
-                          </SessionActionLink>
-                          <SessionLinkDivider>|</SessionLinkDivider>
+                          {sessionNum !== 2 && (
+                            <>
+                              <SessionActionLink
+                                type="button"
+                                $danger
+                                onClick={() => setCancelModalSessionNum(sessionNum)}
+                              >
+                                <RiCloseCircleLine size={12} />
+                                Cancel
+                              </SessionActionLink>
+                              <SessionLinkDivider>|</SessionLinkDivider>
+                            </>
+                          )}
                           <SessionActionLink
                             type="button"
                             onClick={() => handleRescheduleSession(sessionNum)}

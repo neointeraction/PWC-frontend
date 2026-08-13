@@ -5,7 +5,8 @@ import {
   StepHeaderCard,
   StepHeaderTitle,
   StepHeaderDescription,
-  ReliabilityCard,
+  SectionBlock,
+  IndicatorBlock,
   ReliabilityCardHeader,
   IndicatorTitle,
   IndicatorQuestion,
@@ -39,33 +40,35 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
         </StepHeaderDescription>
       </StepHeaderCard>
 
-      {data.indicators.map(item => (
-        <ReliabilityCard key={item.code}>
-          <ReliabilityCardHeader>
-            <div>
-              <IndicatorTitle>
-                {item.code} — {item.name}
-              </IndicatorTitle>
-              <IndicatorQuestion>{item.guidingQuestion}</IndicatorQuestion>
-            </div>
-            <div style={{ minWidth: '220px' }}>
-              <FormInput
-                value={item.valueStatus}
-                onChange={e => onChangeIndicator(item.code, { valueStatus: e.target.value })}
-                placeholder="e.g. 95% — High / Not Provided"
-                style={{ fontWeight: 700 }}
-              />
-            </div>
-          </ReliabilityCardHeader>
+      <SectionBlock>
+        {data.indicators.map(item => (
+          <IndicatorBlock key={item.code}>
+            <ReliabilityCardHeader>
+              <div>
+                <IndicatorTitle>
+                  {item.code} — {item.name}
+                </IndicatorTitle>
+                <IndicatorQuestion>{item.guidingQuestion}</IndicatorQuestion>
+              </div>
+              <div style={{ minWidth: '220px' }}>
+                <FormInput
+                  value={item.valueStatus}
+                  onChange={e => onChangeIndicator(item.code, { valueStatus: e.target.value })}
+                  placeholder="e.g. 95% — High / Not Provided"
+                  style={{ fontWeight: 700 }}
+                />
+              </div>
+            </ReliabilityCardHeader>
 
-          <FormTextarea
-            value={item.explanationText}
-            onChange={e => onChangeIndicator(item.code, { explanationText: e.target.value })}
-            placeholder={`Explanatory analysis for ${item.name}...`}
-            style={{ minHeight: '60px' }}
-          />
-        </ReliabilityCard>
-      ))}
+            <FormTextarea
+              value={item.explanationText}
+              onChange={e => onChangeIndicator(item.code, { explanationText: e.target.value })}
+              placeholder={`Explanatory analysis for ${item.name}...`}
+              style={{ minHeight: '60px' }}
+            />
+          </IndicatorBlock>
+        ))}
+      </SectionBlock>
 
       <SynthesisNotesPanel
         title="Counsellor Synthesis Notes"

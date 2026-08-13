@@ -6,7 +6,6 @@ import {
   RiUser3Line,
   RiTimeLine,
   RiCheckDoubleLine,
-  RiPrinterLine,
   RiArrowUpLine,
   RiArrowDownLine,
 } from 'react-icons/ri';
@@ -141,20 +140,6 @@ export const UpcomingSessionsPage: React.FC = () => {
             </Tooltip>
           );
         },
-      },
-      {
-        key: 'report',
-        header: 'Report',
-        cell: (row: UpcomingSession) => (
-          <Button
-            size="sm"
-            variant="secondary"
-            leftIcon={<RiPrinterLine size={16} />}
-            onClick={() => navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', row.id))}
-          >
-            Generate Report
-          </Button>
-        ),
       },
     ],
     [sortOrder]

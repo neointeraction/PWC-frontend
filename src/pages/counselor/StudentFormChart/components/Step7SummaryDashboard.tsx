@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RiCheckDoubleLine, RiSaveLine, RiFileTextLine } from 'react-icons/ri';
+import { RiFileTextLine } from 'react-icons/ri';
 import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
@@ -22,12 +22,10 @@ import {
 
 interface Step7SummaryDashboardProps {
   formData: CounsellorFormChartData;
-  onSaveFinal: () => void;
 }
 
 export const Step7SummaryDashboard: React.FC<Step7SummaryDashboardProps> = ({
   formData,
-  onSaveFinal,
 }) => {
   const navigate = useNavigate();
 
@@ -140,24 +138,6 @@ export const Step7SummaryDashboard: React.FC<Step7SummaryDashboardProps> = ({
             <div style={{ fontSize: '0.85rem' }}>{formData.sectionE.roadmapGrid.afterDegrees}</div>
           </FormGroup>
         </FormGrid>
-      </SectionBlock>
-
-      <SectionBlock style={{ alignItems: 'center', textAlign: 'center', padding: '32px' }}>
-        <RiCheckDoubleLine size={48} color="#10B981" />
-        <h3 style={{ margin: '8px 0 4px 0', fontSize: '1.2rem', fontWeight: 700 }}>
-          Counsellor Form Chart Complete
-        </h3>
-        <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: '#6B7280' }}>
-          All sections A through F have been reviewed and transcribed. Click below to finalize and record this chart.
-        </p>
-        <Button
-          variant="primary"
-          size="lg"
-          leftIcon={<RiSaveLine size={18} />}
-          onClick={onSaveFinal}
-        >
-          Save & Finalize Counsellor Form Chart
-        </Button>
       </SectionBlock>
     </>
   );

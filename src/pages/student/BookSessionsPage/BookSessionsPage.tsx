@@ -10,6 +10,7 @@ import {
   RiSparklingLine,
   RiVideoChatLine,
   RiArrowRightLine,
+  RiFileCopyLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { ROUTES } from '@/constants';
@@ -141,6 +142,15 @@ export const BookSessionsPage: React.FC = () => {
     toast.info('Parent Assessment Link Sent', 'Form link sent to parent email & WhatsApp number.');
   };
 
+  const handleCopyParentLink = () => {
+    const parentLink = `${window.location.origin}${ROUTES.PARENT_PRE_COUNSELLING_FORM}`;
+    navigator.clipboard.writeText(parentLink);
+    toast.success(
+      'Parent Form Link Copied!',
+      'Pre-Counselling Form Parent link copied to clipboard.'
+    );
+  };
+
   const handleProceedToConfirmation = () => {
     if (!s1Date || !s1Time) {
       toast.warning('Select Session 1 Slot', 'Please choose a date and time slot for Session 1.');
@@ -203,6 +213,14 @@ export const BookSessionsPage: React.FC = () => {
                 workspace will unlock automatically.
               </WarningDesc>
               <ActionsButtonGroup>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  leftIcon={<RiFileCopyLine size={16} />}
+                  onClick={handleCopyParentLink}
+                >
+                  Copy Pre-Counselling Form Parent Link
+                </Button>
                 <Button
                   variant="secondary"
                   size="md"

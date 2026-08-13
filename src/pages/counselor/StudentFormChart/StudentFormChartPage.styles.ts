@@ -133,6 +133,48 @@ export const StepNavItem = styled.button<{ $active?: boolean; $completed?: boole
   }
 `;
 
+export const SublinkContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  margin-bottom: 6px;
+  padding-left: 24px;
+  margin-left: 12px;
+  border-left: 1.5px solid ${({ theme }) => theme.colors.border};
+`;
+
+export const SublinkItem = styled.button<{ $active?: boolean }>`
+  background: none;
+  border: none;
+  padding: 5px 8px;
+  font-size: 0.78rem;
+  font-weight: ${({ $active }) => ($active ? 600 : 400)};
+  color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+    background-color: ${({ theme }) => theme.colors.primaryLight || '#F3F4F6'};
+  }
+
+  &::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
+    opacity: ${({ $active }) => ($active ? 1 : 0.5)};
+    flex-shrink: 0;
+  }
+`;
+
 export const StatusIconWrapper = styled.span<{ $completed?: boolean; $active?: boolean }>`
   display: flex;
   align-items: center;
@@ -532,6 +574,12 @@ export const ReliabilityCard = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
   padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+export const IndicatorBlock = styled.div`
   display: flex;
   flex-direction: column;
   gap: 10px;
