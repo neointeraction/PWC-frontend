@@ -13,7 +13,7 @@ import {
 } from 'react-icons/ri';
 import { useSidebarStore, useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
-import logoImg from '@/assets/logo.png';
+import logoImg from '@/assets/logo.jpg';
 import {
   SidebarWrapper,
   SidebarLogo,
@@ -132,10 +132,10 @@ export const Sidebar: React.FC = () => {
   const navItems = isSuperAdmin
     ? superAdminNavItems
     : isCounselor
-    ? counselorNavItems
-    : isStudent
-    ? studentNavItems
-    : adminNavItems;
+      ? counselorNavItems
+      : isStudent
+        ? studentNavItems
+        : adminNavItems;
 
   const isActive = (href: string) => {
     if (href === ROUTES.DASHBOARD || href === ROUTES.STUDENT_PORTAL) return pathname === href;
@@ -154,10 +154,10 @@ export const Sidebar: React.FC = () => {
             {isSuperAdmin
               ? 'Super Admin Menu'
               : isCounselor
-              ? 'Counselor Menu'
-              : isStudent
-              ? 'Student Menu'
-              : 'Admin Menu'}
+                ? 'Counselor Menu'
+                : isStudent
+                  ? 'Student Menu'
+                  : 'Admin Menu'}
           </NavSectionLabel>
           {navItems.map(item => (
             <NavItem

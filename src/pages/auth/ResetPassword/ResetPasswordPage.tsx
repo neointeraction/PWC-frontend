@@ -9,7 +9,7 @@ import { Button } from '@/components/Button';
 import { useToast } from '@/hooks';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
-import logoImg from '@/assets/logo.png';
+import logoImg from '@/assets/logo.jpg';
 import {
   ResetPasswordWrapper,
   ResetPasswordCard,
@@ -73,7 +73,11 @@ export const ResetPasswordPage: React.FC = () => {
     <ResetPasswordWrapper>
       <ResetPasswordCard>
         <LogoWrapper>
-          <img src={logoImg} alt="kREATE Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+          <img
+            src={logoImg}
+            alt="kREATE Logo"
+            style={{ width: 40, height: 40, objectFit: 'contain' }}
+          />
           <LogoTextWrapper>
             <LogoTitle>kREATE Portal</LogoTitle>
             <LogoSubtitle>Career Counselling Platform</LogoSubtitle>
@@ -90,7 +94,10 @@ export const ResetPasswordPage: React.FC = () => {
         </TitleWrapper>
 
         <SecurityAlertBox>
-          <RiShieldKeyholeLine size={20} style={{ color: '#5D2384', flexShrink: 0, marginTop: '2px' }} />
+          <RiShieldKeyholeLine
+            size={20}
+            style={{ color: '#5D2384', flexShrink: 0, marginTop: '2px' }}
+          />
           <AlertText>
             {role === 'student'
               ? 'For privacy and security regulations, students are required to set a unique personal password upon first login.'

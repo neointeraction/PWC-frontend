@@ -11,7 +11,7 @@ import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { LoginPayload } from '@/types';
-import logoImg from '@/assets/logo.png';
+import logoImg from '@/assets/logo.jpg';
 import {
   LoginWrapper,
   LoginCard,
@@ -87,7 +87,11 @@ export const LoginPage: React.FC = () => {
     <LoginWrapper>
       <LoginCard>
         <LogoWrapper>
-          <img src={logoImg} alt="kREATE Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+          <img
+            src={logoImg}
+            alt="kREATE Logo"
+            style={{ width: 40, height: 40, objectFit: 'contain' }}
+          />
           <LogoTextWrapper>
             <LogoTitle>kREATE Portal</LogoTitle>
             <LogoSubtitle>Career Counselling Platform</LogoSubtitle>
@@ -163,10 +167,20 @@ export const LoginPage: React.FC = () => {
         <HintBox>
           <HintTitle>Mail Shortcuts</HintTitle>
           <DemoButtons>
-            <Button size="sm" variant="primary" leftIcon={<RiMailLine size={16} />} onClick={() => navigate(ROUTES.PARENT_PRE_COUNSELLING_FORM)}>
+            <Button
+              size="sm"
+              variant="primary"
+              leftIcon={<RiMailLine size={16} />}
+              onClick={() => navigate(ROUTES.PARENT_PRE_COUNSELLING_FORM)}
+            >
               Mail 1
             </Button>
-            <Button size="sm" variant="primary" leftIcon={<RiMailLine size={16} />} onClick={() => navigate(ROUTES.PARENT_FEEDBACK_FORM)}>
+            <Button
+              size="sm"
+              variant="primary"
+              leftIcon={<RiMailLine size={16} />}
+              onClick={() => navigate(ROUTES.PARENT_FEEDBACK_FORM)}
+            >
               Mail 2
             </Button>
           </DemoButtons>
