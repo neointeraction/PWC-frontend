@@ -7,7 +7,14 @@ let userDb: UserRecord[] = mockUserRecords.filter(
 );
 
 const generateRandomPassword = (category: string) => {
-  const prefix = category === 'pwc' ? 'kREATE' : category === 'counselor' ? 'Cnslt' : 'Inst';
+  const prefix =
+    category === 'pwc'
+      ? 'kREATE'
+      : category === 'view_only'
+      ? 'ViewOnly'
+      : category === 'counselor'
+      ? 'Cnslt'
+      : 'Inst';
   const num = Math.floor(1000 + Math.random() * 9000);
   return `${prefix}@Key${num}!`;
 };

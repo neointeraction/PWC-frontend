@@ -13,7 +13,6 @@ import {
   RiWifiLine,
   RiSmartphoneLine,
   RiInformationLine,
-  RiQuestionnaireLine,
   RiStarLine,
   RiSparklingLine,
   RiThumbUpLine,
@@ -21,7 +20,6 @@ import {
   RiSubtractLine,
   RiThumbDownLine,
   RiCloseCircleLine,
-  RiLightbulbLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
@@ -55,14 +53,6 @@ import {
   StatementParagraphCard,
   StatementParagraphTitle,
   StatementParagraphBody,
-  CombinedScaleGuideGrid,
-  CombinedScaleCard,
-  CombinedScaleHeader,
-  CombinedScaleDesc,
-  TypeBStack,
-  TypeBRow,
-  TypeBBadge,
-  TypeBDescText,
   GoldenRulesGrid,
   GoldenRuleCard,
   GoldenRuleIconBox,
@@ -85,67 +75,152 @@ import {
   QuestionSubtext,
   LikertScaleContainer,
   LikertButton,
-  LikertOptionScoreBadge,
-  LikertOptionText,
+  LikertOptionHeader,
+  LikertOptionDesc,
   AptitudeOptionsGrid,
   AptitudeOptionLabel,
   WizardFooterNav,
 } from './AssessmentFormPage.styles';
 
-// 5-point Likert Options for Type A
-const LIKERT_OPTIONS = [
-  { val: 1, label: 'Strongly Disagree' },
-  { val: 2, label: 'Disagree' },
-  { val: 3, label: 'Neutral' },
-  { val: 4, label: 'Agree' },
-  { val: 5, label: 'Strongly Agree' },
+// 5-point Likert Options with detailed descriptions & icons for Type A questions
+const DETAILED_LIKERT_OPTIONS = [
+  {
+    val: 1,
+    label: 'Strongly Disagree',
+    desc: 'This really does not describe you. You are certain it does not apply to you at all.',
+    icon: RiCloseCircleLine,
+  },
+  {
+    val: 2,
+    label: 'Disagree',
+    desc: 'This does not describe you. You generally do not feel this way.',
+    icon: RiThumbDownLine,
+  },
+  {
+    val: 3,
+    label: 'Neutral',
+    desc: 'You are genuinely unsure, you cannot say yes or no. Overuse of Neutral reduces the accuracy of your results. If you even slightly agree or slightly disagree, choose that.',
+    icon: RiSubtractLine,
+  },
+  {
+    val: 4,
+    label: 'Agree',
+    desc: 'It does describe you but not as strongly. You generally feel this way.',
+    icon: RiCheckDoubleLine,
+  },
+  {
+    val: 5,
+    label: 'Strongly Agree',
+    desc: 'You really feel this describes you. You are sure about it.',
+    icon: RiThumbUpLine,
+  },
 ];
 
 // Step 1: RIASEC Questions (Q1 to Q24)
 const RIASEC_QUESTIONS = [
-  { id: 'Q1', text: 'I enjoy building or fixing things with my hands like putting together models eg Lego, rubiks cube, etc or playing with gadgets, or figuring out how everyday objects work.' },
+  {
+    id: 'Q1',
+    text: 'I enjoy building or fixing things with my hands like putting together models eg Lego, rubiks cube, etc or playing with gadgets, or figuring out how everyday objects work.',
+  },
   { id: 'Q2', text: 'I like working outdoors with plants, animals, or nature.' },
   { id: 'Q3', text: 'I enjoy operating tools, machinery, or technical equipment.' },
   { id: 'Q4', text: 'I like physical activities and working with tangible materials.' },
-  { id: 'Q5', text: "I love asking 'why' and trying to understand the science or logic behind things I observe." },
+  {
+    id: 'Q5',
+    text: "I love asking 'why' and trying to understand the science or logic behind things I observe.",
+  },
   { id: 'Q6', text: 'I enjoy solving complex mathematical equations or scientific puzzles.' },
   { id: 'Q7', text: 'I like reading research papers, scientific articles, or analyzing data.' },
   { id: 'Q8', text: 'I prefer working independently to investigate and solve technical problems.' },
   { id: 'Q9', text: 'I love creative writing, painting, graphic design, or performing arts.' },
   { id: 'Q10', text: 'I enjoy designing original visual layouts, music, or digital artwork.' },
-  { id: 'Q11', text: 'I prefer unstructured environments where I can express my imagination freely.' },
-  { id: 'Q12', text: 'I like expressing my emotions and ideas through literature, drama, or media.' },
+  {
+    id: 'Q11',
+    text: 'I prefer unstructured environments where I can express my imagination freely.',
+  },
+  {
+    id: 'Q12',
+    text: 'I like expressing my emotions and ideas through literature, drama, or media.',
+  },
   { id: 'Q13', text: 'I enjoy helping, teaching, or mentoring other students with their studies.' },
-  { id: 'Q14', text: "I like listening to people's personal problems and offering supportive advice." },
-  { id: 'Q15', text: 'I enjoy participating in community service, volunteering, or social causes.' },
+  {
+    id: 'Q14',
+    text: "I like listening to people's personal problems and offering supportive advice.",
+  },
+  {
+    id: 'Q15',
+    text: 'I enjoy participating in community service, volunteering, or social causes.',
+  },
   { id: 'Q16', text: 'I prefer working in team settings focused on human welfare and education.' },
   { id: 'Q17', text: 'I enjoy taking charge of team projects and leading group discussions.' },
   { id: 'Q18', text: 'I like pitching ideas, persuading others, or debating competitive topics.' },
-  { id: 'Q19', text: 'I am interested in entrepreneurship, business management, and marketing strategy.' },
+  {
+    id: 'Q19',
+    text: 'I am interested in entrepreneurship, business management, and marketing strategy.',
+  },
   { id: 'Q20', text: 'I enjoy setting goals, taking calculated risks, and driving team success.' },
-  { id: 'Q21', text: 'I like organizing spreadsheets, keeping accurate records, and filing documents.' },
-  { id: 'Q22', text: 'I prefer clear step-by-step guidelines and established rules when doing tasks.' },
-  { id: 'Q23', text: 'I enjoy working with financial calculations, budgets, or administrative data.' },
-  { id: 'Q24', text: 'I take pride in attention to detail, precision, and systematic record-keeping.' },
+  {
+    id: 'Q21',
+    text: 'I like organizing spreadsheets, keeping accurate records, and filing documents.',
+  },
+  {
+    id: 'Q22',
+    text: 'I prefer clear step-by-step guidelines and established rules when doing tasks.',
+  },
+  {
+    id: 'Q23',
+    text: 'I enjoy working with financial calculations, budgets, or administrative data.',
+  },
+  {
+    id: 'Q24',
+    text: 'I take pride in attention to detail, precision, and systematic record-keeping.',
+  },
 ];
 
 // Step 2: BIG FIVE Personality Questions (Q25 to Q44)
 const BIG_FIVE_QUESTIONS = [
-  { id: 'Q25', text: 'I enjoy exploring new ideas, topics or areas of knowledge even when they are not related to my studies.' },
-  { id: 'Q26', text: 'I am open to trying unfamiliar approaches and thinking outside traditional boundaries.' },
-  { id: 'Q27', text: 'I enjoy abstract thinking, philosophy, and discussing big-picture concepts.' },
-  { id: 'Q28', text: 'I am deeply curious about how different cultures, technology, and art evolve.' },
+  {
+    id: 'Q25',
+    text: 'I enjoy exploring new ideas, topics or areas of knowledge even when they are not related to my studies.',
+  },
+  {
+    id: 'Q26',
+    text: 'I am open to trying unfamiliar approaches and thinking outside traditional boundaries.',
+  },
+  {
+    id: 'Q27',
+    text: 'I enjoy abstract thinking, philosophy, and discussing big-picture concepts.',
+  },
+  {
+    id: 'Q28',
+    text: 'I am deeply curious about how different cultures, technology, and art evolve.',
+  },
   { id: 'Q29', text: 'I keep my study space neat, organized, and well-structured.' },
   { id: 'Q30', text: 'I prepare thoroughly for tests and follow a strict study plan.' },
-  { id: 'Q31', text: 'I pay close attention to minor details and take responsibility for my work.' },
-  { id: 'Q32', text: 'I often leave tasks till the last minute and find it hard to stick to a schedule or plan.' },
-  { id: 'Q33', text: 'I feel energized when interacting in large groups, clubs, or social events.' },
-  { id: 'Q34', text: 'I speak up confidently in class discussions and express my thoughts easily.' },
+  {
+    id: 'Q31',
+    text: 'I pay close attention to minor details and take responsibility for my work.',
+  },
+  {
+    id: 'Q32',
+    text: 'I often leave tasks till the last minute and find it hard to stick to a schedule or plan.',
+  },
+  {
+    id: 'Q33',
+    text: 'I feel energized when interacting in large groups, clubs, or social events.',
+  },
+  {
+    id: 'Q34',
+    text: 'I speak up confidently in class discussions and express my thoughts easily.',
+  },
   { id: 'Q35', text: 'I initiate conversations easily when meeting new people.' },
   { id: 'Q36', text: 'I prefer quiet individual work over high-energy social gatherings.' },
   { id: 'Q37', text: 'I am considerate, empathetic, and polite toward classmates and teachers.' },
   { id: 'Q38', text: 'I value cooperation and try to avoid unnecessary arguments with others.' },
-  { id: 'Q39', text: 'I willingly help peers when they are struggling without expecting anything in return.' },
+  {
+    id: 'Q39',
+    text: 'I willingly help peers when they are struggling without expecting anything in return.',
+  },
   { id: 'Q40', text: 'I trust that most people have good intentions.' },
   { id: 'Q41', text: 'I often feel anxious or worried when facing upcoming exams or deadlines.' },
   { id: 'Q42', text: 'My mood changes quickly depending on my surroundings or academic results.' },
@@ -379,24 +454,108 @@ const APTITUDE_QUESTIONS = [
 
 // Step 4: COGNITIVE & DECISION STYLE Questions (Q65 to Q73)
 const COGNITIVE_QUESTIONS = [
-  { id: 'Q65', text: 'When I encounter a new subject or skill, I pick it up quickly and enjoy the challenge of learning something unfamiliar.' },
-  { id: 'Q66', text: 'I break complex problems down into smaller manageable components before deciding on a solution.' },
-  { id: 'Q67', text: 'I evaluate multiple perspectives and gather evidence before drawing conclusions.' },
-  { id: 'Q68', text: 'I am comfortable adapting my plans when new information contradicts my initial assumptions.' },
-  { id: 'Q69', text: 'I make decisions based on logical reasoning rather than impulse or emotional pressure.' },
-  { id: 'Q70', text: 'When there is no clear plan or I cannot predict what will happen next, I feel very unsettled and find it difficult to take any action.' },
-  { id: 'Q71', text: 'I reflect on past mistakes to refine my strategy and decision-making approach.' },
-  { id: 'Q72', text: 'I enjoy brainstorming creative solutions to open-ended problems with no single right answer.' },
-  { id: 'Q73', text: 'I stay focused on long-term career goals even when faced with immediate minor setbacks.' },
+  {
+    id: 'Q65',
+    text: 'When I encounter a new subject or skill, I pick it up quickly and enjoy the challenge of learning something unfamiliar.',
+  },
+  {
+    id: 'Q66',
+    text: 'I break complex problems down into smaller manageable components before deciding on a solution.',
+  },
+  {
+    id: 'Q67',
+    text: 'I evaluate multiple perspectives and gather evidence before drawing conclusions.',
+  },
+  {
+    id: 'Q68',
+    text: 'I am comfortable adapting my plans when new information contradicts my initial assumptions.',
+  },
+  {
+    id: 'Q69',
+    text: 'I make decisions based on logical reasoning rather than impulse or emotional pressure.',
+  },
+  {
+    id: 'Q70',
+    text: 'When there is no clear plan or I cannot predict what will happen next, I feel very unsettled and find it difficult to take any action.',
+  },
+  {
+    id: 'Q71',
+    text: 'I reflect on past mistakes to refine my strategy and decision-making approach.',
+  },
+  {
+    id: 'Q72',
+    text: 'I enjoy brainstorming creative solutions to open-ended problems with no single right answer.',
+  },
+  {
+    id: 'Q73',
+    text: 'I stay focused on long-term career goals even when faced with immediate minor setbacks.',
+  },
+];
+
+// Consolidated 73 Questions List
+interface QuestionItem {
+  id: string;
+  num: number;
+  text: string;
+  type: 'likert' | 'aptitude';
+  options?: { label: string; text: string }[];
+  sectionNum: number;
+  sectionTitle: string;
+  sectionInstruction: string;
+}
+
+const ALL_QUESTIONS: QuestionItem[] = [
+  ...RIASEC_QUESTIONS.map((q, idx) => ({
+    id: q.id,
+    num: idx + 1,
+    text: q.text,
+    type: 'likert' as const,
+    sectionNum: 1,
+    sectionTitle: 'RIASEC INTEREST INVENTORY',
+    sectionInstruction:
+      'Instructions: Rate how much you agree with each statement on a scale of 1 (Strongly Disagree) to 5 (Strongly Agree).',
+  })),
+  ...BIG_FIVE_QUESTIONS.map((q, idx) => ({
+    id: q.id,
+    num: RIASEC_QUESTIONS.length + idx + 1,
+    text: q.text,
+    type: 'likert' as const,
+    sectionNum: 2,
+    sectionTitle: 'BIG FIVE PERSONALITY TRAITS',
+    sectionInstruction:
+      'Instructions: Rate your agreement with each personality statement from 1 (Strongly Disagree) to 5 (Strongly Agree).',
+  })),
+  ...APTITUDE_QUESTIONS.map((q, idx) => ({
+    id: q.id,
+    num: RIASEC_QUESTIONS.length + BIG_FIVE_QUESTIONS.length + idx + 1,
+    text: q.text,
+    type: 'aptitude' as const,
+    options: q.options,
+    sectionNum: 3,
+    sectionTitle: 'APTITUDE & REASONING',
+    sectionInstruction:
+      "Instructions: Multiple choice aptitude questions. Select the single best answer, or select 'Not Sure' if genuinely unsure.",
+  })),
+  ...COGNITIVE_QUESTIONS.map((q, idx) => ({
+    id: q.id,
+    num: RIASEC_QUESTIONS.length + BIG_FIVE_QUESTIONS.length + APTITUDE_QUESTIONS.length + idx + 1,
+    text: q.text,
+    type: 'likert' as const,
+    sectionNum: 4,
+    sectionTitle: 'COGNITIVE & DECISION STYLE',
+    sectionInstruction:
+      'Instructions: Reverting to 1 to 5 scale (Strongly Disagree to Strongly Agree) for cognitive & decision-making style.',
+  })),
 ];
 
 export const AssessmentFormPage: React.FC = () => {
   const navigate = useNavigate();
   const [isFormStarted, setIsFormStarted] = useState<boolean>(false);
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const totalSteps = 4;
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+  const totalQuestions = ALL_QUESTIONS.length;
+  const currentQuestion = ALL_QUESTIONS[currentQuestionIndex];
 
-  // Global answers state (Q1 - Q73 preserved across steps)
+  // Global answers state (Q1 - Q73 preserved across questions)
   const [answers, setAnswers] = useState<Record<string, any>>({});
 
   const topRef = useRef<HTMLDivElement>(null);
@@ -414,13 +573,9 @@ export const AssessmentFormPage: React.FC = () => {
     }, 50);
   };
 
-  const handleNextStep = () => {
-    setCurrentStep(prev => Math.min(totalSteps, prev + 1));
-    scrollToTop();
-  };
-
-  const handlePrevStep = () => {
-    setCurrentStep(prev => Math.max(1, prev - 1));
+  const handleNextQuestion = () => {
+    if (answers[currentQuestion.id] === undefined) return;
+    setCurrentQuestionIndex(prev => Math.min(totalQuestions - 1, prev + 1));
     scrollToTop();
   };
 
@@ -440,7 +595,7 @@ export const AssessmentFormPage: React.FC = () => {
     navigate(ROUTES.STUDENT_PORTAL);
   }, [navigate]);
 
-  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+  const progressPercent = Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100);
 
   return (
     <FormPageContainer ref={topRef}>
@@ -452,10 +607,9 @@ export const AssessmentFormPage: React.FC = () => {
             { label: 'Student Portal', href: ROUTES.STUDENT_PORTAL },
             { label: 'Career Assessment' },
           ]}
-          onBack={() => navigate(ROUTES.STUDENT_PORTAL)}
           actions={
             <Badge variant="primary" size="md">
-              Step {currentStep} of {totalSteps}
+              Question {currentQuestionIndex + 1} of {totalQuestions}
             </Badge>
           }
         />
@@ -483,7 +637,10 @@ export const AssessmentFormPage: React.FC = () => {
 
           {/* 4 Floating Metric Cards Bar */}
           <StatsGridBar>
-            <StatBlock $gradient="linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%)" $borderColor="#DBEAFE">
+            <StatBlock
+              $gradient="linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%)"
+              $borderColor="#DBEAFE"
+            >
               <StatIconBox $bg="#DBEAFE" $color="#1E40AF">
                 <RiQuestionLine size={24} />
               </StatIconBox>
@@ -493,7 +650,10 @@ export const AssessmentFormPage: React.FC = () => {
               </StatInfoBox>
             </StatBlock>
 
-            <StatBlock $gradient="linear-gradient(135deg, #F8FAFC 0%, #FAF5FF 100%)" $borderColor="#E9D5FF">
+            <StatBlock
+              $gradient="linear-gradient(135deg, #F8FAFC 0%, #FAF5FF 100%)"
+              $borderColor="#E9D5FF"
+            >
               <StatIconBox $bg="#F3E8FF" $color="#6B21A8">
                 <RiGridLine size={24} />
               </StatIconBox>
@@ -503,7 +663,10 @@ export const AssessmentFormPage: React.FC = () => {
               </StatInfoBox>
             </StatBlock>
 
-            <StatBlock $gradient="linear-gradient(135deg, #F8FAFC 0%, #FEF3C7 100%)" $borderColor="#FDE68A">
+            <StatBlock
+              $gradient="linear-gradient(135deg, #F8FAFC 0%, #FEF3C7 100%)"
+              $borderColor="#FDE68A"
+            >
               <StatIconBox $bg="#FEF3C7" $color="#B45309">
                 <RiTimerFlashLine size={24} />
               </StatIconBox>
@@ -513,7 +676,10 @@ export const AssessmentFormPage: React.FC = () => {
               </StatInfoBox>
             </StatBlock>
 
-            <StatBlock $gradient="linear-gradient(135deg, #F8FAFC 0%, #ECFDF5 100%)" $borderColor="#A7F3D0">
+            <StatBlock
+              $gradient="linear-gradient(135deg, #F8FAFC 0%, #ECFDF5 100%)"
+              $borderColor="#A7F3D0"
+            >
               <StatIconBox $bg="#D1FAE5" $color="#047857">
                 <RiShieldCheckLine size={24} />
               </StatIconBox>
@@ -542,7 +708,8 @@ export const AssessmentFormPage: React.FC = () => {
                   <NumberCardTitle>1. Find a quiet spot.</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  Sit somewhere with no distractions — no noise, no interruptions. This is your time.
+                  Sit somewhere with no distractions — no noise, no interruptions. This is your
+                  time.
                 </NumberCardDesc>
               </NumberCardItem>
 
@@ -554,7 +721,8 @@ export const AssessmentFormPage: React.FC = () => {
                   <NumberCardTitle>2. Check your Internet.</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  You will need a stable connection throughout. Make sure you are connected before you start. In case your connection drops, you can resume from where you have left.
+                  You will need a stable connection throughout. Make sure you are connected before
+                  you start. In case your connection drops, you can resume from where you have left.
                 </NumberCardDesc>
               </NumberCardItem>
 
@@ -566,7 +734,8 @@ export const AssessmentFormPage: React.FC = () => {
                   <NumberCardTitle>3. Keep your phone away.</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  Avoid distractions. The assessment takes only 30–35 minutes — give it your full attention.
+                  Avoid distractions. The assessment takes only 30–35 minutes — give it your full
+                  attention.
                 </NumberCardDesc>
               </NumberCardItem>
             </NumberedCardsStack>
@@ -587,108 +756,19 @@ export const AssessmentFormPage: React.FC = () => {
                 <span>This is not a test. There are no right or wrong answers.</span>
               </StatementParagraphTitle>
               <StatementParagraphBody>
-                This assessment is simply about YOU — your interests, your personality, how you think, and what you are naturally good at. What kinds of activities and environments you genuinely enjoy? How you naturally behave — your energy, discipline, empathy, and more? Your natural reasoning ability — numbers, words, logic, and visuals. How you learn, handle uncertainty, and prefer to work. The results will help you understand which careers and streams are the best fit for you. Nobody is judging your answers. Your responses are completely confidential and will only be used for your career guidance.
+                This assessment is simply about YOU — your interests, your personality, how you
+                think, and what you are naturally good at. What kinds of activities and environments
+                you genuinely enjoy? How you naturally behave — your energy, discipline, empathy,
+                and more? Your natural reasoning ability — numbers, words, logic, and visuals. How
+                you learn, handle uncertainty, and prefer to work. The results will help you
+                understand which careers and streams are the best fit for you. Nobody is judging
+                your answers. Your responses are completely confidential and will only be used for
+                your career guidance.
               </StatementParagraphBody>
             </StatementParagraphCard>
           </div>
 
-          {/* Section 3: How to Answer — Two Types of Questions */}
-          <div>
-            <SectionTitleHeader>
-              <SectionHeaderIcon $color="#0284C7">
-                <RiQuestionnaireLine size={18} />
-              </SectionHeaderIcon>
-              <SectionTitleText>How to Answer — Two Types of Questions</SectionTitleText>
-            </SectionTitleHeader>
 
-            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {/* TYPE A */}
-              <div>
-                <strong style={{ fontSize: 15, color: '#0F172A', display: 'block', marginBottom: 4 }}>
-                  TYPE A · Agreement Questions
-                </strong>
-                <p style={{ margin: 0, fontSize: 14, color: '#64748B' }}>
-                  You will see a statement and choose how much it describes you, on a scale of 1 to 5.
-                </p>
-
-                {/* Unified 5-Card Rating Scale Guide */}
-                <CombinedScaleGuideGrid>
-                  <CombinedScaleCard $borderTopColor="#DC2626" $bg="#FEF2F2">
-                    <CombinedScaleHeader $color="#DC2626">
-                      <RiCloseCircleLine size={16} /> 1 - Strongly Disagree
-                    </CombinedScaleHeader>
-                    <CombinedScaleDesc>
-                      You are certain this statement does not apply to you.
-                    </CombinedScaleDesc>
-                  </CombinedScaleCard>
-
-                  <CombinedScaleCard $borderTopColor="#EA580C" $bg="#FFF7ED">
-                    <CombinedScaleHeader $color="#EA580C">
-                      <RiThumbDownLine size={16} /> 2 - Disagree
-                    </CombinedScaleHeader>
-                    <CombinedScaleDesc>
-                      This does not describe you, though not with extreme certainty.
-                    </CombinedScaleDesc>
-                  </CombinedScaleCard>
-
-                  <CombinedScaleCard $borderTopColor="#64748B" $bg="#F8FAFC">
-                    <CombinedScaleHeader $color="#64748B">
-                      <RiSubtractLine size={16} /> 3 - Neutral
-                    </CombinedScaleHeader>
-                    <CombinedScaleDesc>
-                      Genuinely unsure. If you even slightly agree or disagree, choose that option.
-                    </CombinedScaleDesc>
-                  </CombinedScaleCard>
-
-                  <CombinedScaleCard $borderTopColor="#0D9488" $bg="#F0FDF4">
-                    <CombinedScaleHeader $color="#0D9488">
-                      <RiCheckDoubleLine size={16} /> 4 - Agree
-                    </CombinedScaleHeader>
-                    <CombinedScaleDesc>
-                      It describes you — you generally feel this way.
-                    </CombinedScaleDesc>
-                  </CombinedScaleCard>
-
-                  <CombinedScaleCard $borderTopColor="#059669" $bg="#ECFDF5">
-                    <CombinedScaleHeader $color="#059669">
-                      <RiThumbUpLine size={16} /> 5 - Strongly Agree
-                    </CombinedScaleHeader>
-                    <CombinedScaleDesc>
-                      You are confident and completely sure this describes you.
-                    </CombinedScaleDesc>
-                  </CombinedScaleCard>
-                </CombinedScaleGuideGrid>
-              </div>
-
-              {/* TYPE B */}
-              <div>
-                <strong style={{ fontSize: 15, color: '#0F172A', display: 'block', marginBottom: 4 }}>
-                  TYPE B · Aptitude Questions
-                </strong>
-                <p style={{ margin: 0, fontSize: 14, color: '#64748B' }}>
-                  These are multiple-choice questions with one correct answer.
-                </p>
-
-                <TypeBStack>
-                  <TypeBRow>
-                    <TypeBBadge>A</TypeBBadge>
-                    <TypeBDescText>
-                      <RiLightbulbLine size={18} style={{ marginRight: 8, color: '#D97706', flexShrink: 0 }} />
-                      <span>Choose the answer you think is correct. Trust your reasoning.</span>
-                    </TypeBDescText>
-                  </TypeBRow>
-
-                  <TypeBRow>
-                    <TypeBBadge>B</TypeBBadge>
-                    <TypeBDescText>
-                      <RiLightbulbLine size={18} style={{ marginRight: 8, color: '#D97706', flexShrink: 0 }} />
-                      <span>If you are genuinely unsure, select &apos;Not Sure&apos; — this is honest and it actually helps your profile. Do not guess randomly.</span>
-                    </TypeBDescText>
-                  </TypeBRow>
-                </TypeBStack>
-              </div>
-            </div>
-          </div>
 
           {/* Section 4: The Golden Rules — Read These Carefully */}
           <div>
@@ -707,7 +787,9 @@ export const AssessmentFormPage: React.FC = () => {
                 <GoldenRuleContent>
                   <GoldenRuleTitle>Be honest. Be yourself.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Answer based on how YOU actually are — not how you want to be seen, not what sounds impressive, not what you think a counsellor wants to hear. The more honest you are, the more useful your results will be.
+                    Answer based on how YOU actually are — not how you want to be seen, not what
+                    sounds impressive, not what you think a counsellor wants to hear. The more
+                    honest you are, the more useful your results will be.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -719,7 +801,9 @@ export const AssessmentFormPage: React.FC = () => {
                 <GoldenRuleContent>
                   <GoldenRuleTitle>Go with your first instinct.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Do not overthink. Your first reaction to a statement is usually the most accurate reflection of who you are. If you sit on a question too long, you start second-guessing yourself.
+                    Do not overthink. Your first reaction to a statement is usually the most
+                    accurate reflection of who you are. If you sit on a question too long, you start
+                    second-guessing yourself.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -731,7 +815,8 @@ export const AssessmentFormPage: React.FC = () => {
                 <GoldenRuleContent>
                   <GoldenRuleTitle>Do not skip or rush.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Every question contributes to your profile. At the same time, do not spend more than a few seconds on any single question — keep moving.
+                    Every question contributes to your profile. At the same time, do not spend more
+                    than a few seconds on any single question — keep moving.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -743,7 +828,8 @@ export const AssessmentFormPage: React.FC = () => {
                 <GoldenRuleContent>
                   <GoldenRuleTitle>Your results are private.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Only you and your career counsellor will see them. This is a safe space — be real.
+                    Only you and your career counsellor will see them. This is a safe space — be
+                    real.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -765,27 +851,29 @@ export const AssessmentFormPage: React.FC = () => {
               rightIcon={<RiPlayCircleLine size={20} />}
               onClick={() => {
                 setIsFormStarted(true);
+                setCurrentQuestionIndex(0);
                 scrollToTop();
               }}
               style={{ minWidth: '300px' }}
             >
               Start Career Assessment
             </Button>
-            <CtaSubtext>Estimated time: 30-35 minutes • Answers saved automatically as you navigate</CtaSubtext>
+            <CtaSubtext>
+              Estimated time: 30-35 minutes • Answers saved automatically as you navigate
+            </CtaSubtext>
           </StartCtaBox>
         </HeroHeaderCard>
       ) : (
-        /* WIZARD VIEW: STEPS 1 - 4 */
+        /* WIZARD VIEW: 1 QUESTION AT A TIME */
         <WizardContainer>
           <WizardProgressHeader>
             <WizardStepInfoRow>
               <span>
-                {currentStep === 1 && 'RIASEC INTEREST INVENTORY (Q1 to Q24)'}
-                {currentStep === 2 && 'BIG FIVE PERSONALITY TRAITS (Q25 to Q44)'}
-                {currentStep === 3 && 'APTITUDE & REASONING (Q45 to Q64)'}
-                {currentStep === 4 && 'COGNITIVE & DECISION STYLE (Q65 to Q73)'}
+                SECTION {currentQuestion.sectionNum} OF 4: {currentQuestion.sectionTitle}
               </span>
-              <span>Step {currentStep} of {totalSteps} ({progressPercent}%)</span>
+              <span>
+                Question {currentQuestionIndex + 1} of {totalQuestions} ({progressPercent}%)
+              </span>
             </WizardStepInfoRow>
 
             <ProgressTrack>
@@ -794,149 +882,72 @@ export const AssessmentFormPage: React.FC = () => {
           </WizardProgressHeader>
 
           <WizardStepBody>
-            {/* STEP 1: RIASEC */}
-            {currentStep === 1 && (
-              <>
-                <QuestionSubtext style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>
-                  Instructions: Rate how much you agree with each statement on a scale of 1 (Strongly Disagree) to 5 (Strongly Agree).
-                </QuestionSubtext>
+            <QuestionSubtext style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>
+              {currentQuestion.sectionInstruction}
+            </QuestionSubtext>
 
-                {RIASEC_QUESTIONS.map(q => (
-                  <QuestionBox key={q.id}>
-                    <QuestionTitle>{q.id.replace('Q', '')}. {q.text}</QuestionTitle>
+            <QuestionBox key={currentQuestion.id}>
+              <QuestionTitle>
+                {currentQuestion.num}. {currentQuestion.text}
+              </QuestionTitle>
 
-                    <LikertScaleContainer>
-                      {LIKERT_OPTIONS.map(opt => (
-                        <LikertButton
-                          key={opt.val}
-                          type="button"
-                          $ratingValue={opt.val}
-                          $selected={answers[q.id] === opt.val}
-                          onClick={() => handleSelectAnswer(q.id, opt.val)}
-                        >
-                          <LikertOptionScoreBadge $selected={answers[q.id] === opt.val}>{opt.val}</LikertOptionScoreBadge>
-                          <LikertOptionText>{opt.label}</LikertOptionText>
-                        </LikertButton>
-                      ))}
-                    </LikertScaleContainer>
-                  </QuestionBox>
-                ))}
-              </>
-            )}
+              {currentQuestion.type === 'likert' && (
+                <LikertScaleContainer>
+                  {DETAILED_LIKERT_OPTIONS.map(opt => {
+                    const IconComp = opt.icon;
+                    const isSelected = answers[currentQuestion.id] === opt.val;
+                    return (
+                      <LikertButton
+                        key={opt.val}
+                        type="button"
+                        $selected={isSelected}
+                        onClick={() => handleSelectAnswer(currentQuestion.id, opt.val)}
+                      >
+                        <LikertOptionHeader $selected={isSelected}>
+                          <IconComp size={16} />
+                          <span>{opt.label}</span>
+                        </LikertOptionHeader>
+                        <LikertOptionDesc $selected={isSelected}>{opt.desc}</LikertOptionDesc>
+                      </LikertButton>
+                    );
+                  })}
+                </LikertScaleContainer>
+              )}
 
-            {/* STEP 2: BIG FIVE */}
-            {currentStep === 2 && (
-              <>
-                <QuestionSubtext style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>
-                  Instructions: Rate your agreement with each personality statement from 1 (Strongly Disagree) to 5 (Strongly Agree).
-                </QuestionSubtext>
-
-                {BIG_FIVE_QUESTIONS.map(q => (
-                  <QuestionBox key={q.id}>
-                    <QuestionTitle>{q.id.replace('Q', '')}. {q.text}</QuestionTitle>
-
-                    <LikertScaleContainer>
-                      {LIKERT_OPTIONS.map(opt => (
-                        <LikertButton
-                          key={opt.val}
-                          type="button"
-                          $ratingValue={opt.val}
-                          $selected={answers[q.id] === opt.val}
-                          onClick={() => handleSelectAnswer(q.id, opt.val)}
-                        >
-                          <LikertOptionScoreBadge $selected={answers[q.id] === opt.val}>{opt.val}</LikertOptionScoreBadge>
-                          <LikertOptionText>{opt.label}</LikertOptionText>
-                        </LikertButton>
-                      ))}
-                    </LikertScaleContainer>
-                  </QuestionBox>
-                ))}
-              </>
-            )}
-
-            {/* STEP 3: APTITUDE */}
-            {currentStep === 3 && (
-              <>
-                <QuestionSubtext style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>
-                  Instructions: Multiple choice aptitude questions. Select the single best answer, or select &apos;Not Sure&apos; if genuinely unsure.
-                </QuestionSubtext>
-
-                {APTITUDE_QUESTIONS.map(q => (
-                  <QuestionBox key={q.id}>
-                    <QuestionTitle>{q.id.replace('Q', '')}. {q.text}</QuestionTitle>
-
-                    <AptitudeOptionsGrid>
-                      {q.options.map(opt => (
-                        <AptitudeOptionLabel key={opt.label} $selected={answers[q.id] === opt.label}>
-                          <input
-                            type="radio"
-                            name={`q_${q.id}`}
-                            value={opt.label}
-                            checked={answers[q.id] === opt.label}
-                            onChange={() => handleSelectAnswer(q.id, opt.label)}
-                          />
-                          <span>{opt.text}</span>
-                        </AptitudeOptionLabel>
-                      ))}
-                    </AptitudeOptionsGrid>
-                  </QuestionBox>
-                ))}
-              </>
-            )}
-
-            {/* STEP 4: COGNITIVE & DECISION STYLE */}
-            {currentStep === 4 && (
-              <>
-                <QuestionSubtext style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>
-                  Instructions: Reverting to 1 to 5 scale (Strongly Disagree to Strongly Agree) for cognitive & decision-making style.
-                </QuestionSubtext>
-
-                {COGNITIVE_QUESTIONS.map(q => (
-                  <QuestionBox key={q.id}>
-                    <QuestionTitle>{q.id.replace('Q', '')}. {q.text}</QuestionTitle>
-
-                    <LikertScaleContainer>
-                      {LIKERT_OPTIONS.map(opt => (
-                        <LikertButton
-                          key={opt.val}
-                          type="button"
-                          $ratingValue={opt.val}
-                          $selected={answers[q.id] === opt.val}
-                          onClick={() => handleSelectAnswer(q.id, opt.val)}
-                        >
-                          <LikertOptionScoreBadge $selected={answers[q.id] === opt.val}>{opt.val}</LikertOptionScoreBadge>
-                          <LikertOptionText>{opt.label}</LikertOptionText>
-                        </LikertButton>
-                      ))}
-                    </LikertScaleContainer>
-                  </QuestionBox>
-                ))}
-              </>
-            )}
+              {currentQuestion.type === 'aptitude' && currentQuestion.options && (
+                <AptitudeOptionsGrid>
+                  {currentQuestion.options.map(opt => (
+                    <AptitudeOptionLabel
+                      key={opt.label}
+                      $selected={answers[currentQuestion.id] === opt.label}
+                    >
+                      <input
+                        type="radio"
+                        name={`q_${currentQuestion.id}`}
+                        value={opt.label}
+                        checked={answers[currentQuestion.id] === opt.label}
+                        onChange={() => handleSelectAnswer(currentQuestion.id, opt.label)}
+                      />
+                      <span>{opt.text}</span>
+                    </AptitudeOptionLabel>
+                  ))}
+                </AptitudeOptionsGrid>
+              )}
+            </QuestionBox>
           </WizardStepBody>
 
-          {/* Wizard Footer Navigation */}
-          <WizardFooterNav>
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              leftIcon={<RiArrowLeftLine size={18} />}
-              disabled={currentStep === 1}
-              onClick={handlePrevStep}
-            >
-              Previous Step
-            </Button>
-
-            {currentStep < totalSteps ? (
+          {/* Wizard Footer Navigation — Forward only, no back button */}
+          <WizardFooterNav style={{ justifyContent: 'flex-end' }}>
+            {currentQuestionIndex < totalQuestions - 1 ? (
               <Button
                 type="button"
                 variant="primary"
                 size="md"
                 rightIcon={<RiArrowRightLine size={18} />}
-                onClick={handleNextStep}
+                disabled={answers[currentQuestion.id] === undefined}
+                onClick={handleNextQuestion}
               >
-                Next Step
+                Next Question
               </Button>
             ) : (
               <Button
@@ -944,6 +955,7 @@ export const AssessmentFormPage: React.FC = () => {
                 variant="primary"
                 size="md"
                 leftIcon={<RiCheckLine size={18} />}
+                disabled={answers[currentQuestion.id] === undefined}
                 onClick={handleSubmitAssessment}
               >
                 Submit Assessment

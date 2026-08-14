@@ -28,6 +28,14 @@ const MOCK_STUDENT_AARAV: User = {
   role: 'student',
 };
 
+const MOCK_VIEW_ONLY_USER: User = {
+  id: 'user-view-only-vikram',
+  name: 'Vikram Mehta (View-Only)',
+  email: 'viewer@pwc.com',
+  role: 'admin',
+  isViewOnly: true,
+};
+
 const MOCK_TOKEN = 'mock-jwt-token-12345';
 
 export const authService = {
@@ -44,6 +52,13 @@ export const authService = {
     if (payload.email === 'sunita.sharma@pwc-global.com') {
       return {
         user: MOCK_ADMIN_SUNITA,
+        token: MOCK_TOKEN,
+      };
+    }
+
+    if (payload.email === 'viewer@pwc.com' || payload.email === 'pooja.verma@pwc.com') {
+      return {
+        user: MOCK_VIEW_ONLY_USER,
         token: MOCK_TOKEN,
       };
     }

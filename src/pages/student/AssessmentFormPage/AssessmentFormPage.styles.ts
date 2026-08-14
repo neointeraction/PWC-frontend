@@ -8,7 +8,7 @@ export const FormPageContainer = styled.div`
 `;
 
 export const HeroHeaderCard = styled.div`
-  background: linear-gradient(180deg, ${({ theme }) => theme.colors.surface} 0%, #FAFAFF 100%);
+  background: linear-gradient(180deg, ${({ theme }) => theme.colors.surface} 0%, #fafaff 100%);
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
   padding: 36px;
@@ -125,7 +125,9 @@ export const StatBlock = styled.div<{ $gradient: string; $borderColor: string }>
   align-items: center;
   gap: 16px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
@@ -253,7 +255,7 @@ export const NumberCardDesc = styled.span`
 
 /* What This Assessment Is About Box */
 export const StatementParagraphCard = styled.div`
-  background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-left: 4px solid ${({ theme }) => theme.colors.primary};
   border-radius: 4px;
@@ -330,13 +332,13 @@ export const TypeBRow = styled.div`
   display: flex;
   border-radius: 4px;
   overflow: hidden;
-  background-color: #FFFBEB;
-  border: 1px solid #FDE68A;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
 `;
 
 export const TypeBBadge = styled.div`
   width: 48px;
-  background-color: #D97706;
+  background-color: #d97706;
   color: #ffffff;
   font-size: 16px;
   font-weight: 800;
@@ -349,7 +351,7 @@ export const TypeBBadge = styled.div`
 export const TypeBDescText = styled.div`
   padding: 14px 18px;
   font-size: 13px;
-  color: #78350F;
+  color: #78350f;
   line-height: 1.5;
   display: flex;
   align-items: center;
@@ -370,10 +372,10 @@ export const GoldenRuleCard = styled.div`
   display: flex;
   gap: 14px;
   padding: 18px 20px;
-  border: 1px solid #FDE68A;
-  border-left: 4px solid #D97706;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
   border-radius: 4px;
-  background-color: #FFFBEB;
+  background-color: #fffbeb;
   box-shadow: 0 2px 8px rgba(217, 119, 6, 0.04);
   transition: transform 0.2s ease;
 
@@ -387,8 +389,8 @@ export const GoldenRuleIconBox = styled.div`
   width: 36px;
   height: 36px;
   border-radius: 4px;
-  background-color: #FEF3C7;
-  color: #D97706;
+  background-color: #fef3c7;
+  color: #d97706;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -404,19 +406,19 @@ export const GoldenRuleContent = styled.div`
 export const GoldenRuleTitle = styled.span`
   font-size: 15px;
   font-weight: 700;
-  color: #78350F;
+  color: #78350f;
 `;
 
 export const GoldenRuleDesc = styled.span`
   font-size: 13px;
-  color: #92400E;
+  color: #92400e;
   line-height: 1.5;
 `;
 
 /* Ready Encouragement Hero Banner */
 export const ReadyEncouragementBanner = styled.div`
-  background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
-  border: 1px solid #E9D5FF;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
   border-left: 4px solid ${({ theme }) => theme.colors.primary};
   border-radius: 4px;
   padding: 24px;
@@ -472,7 +474,7 @@ export const WizardContainer = styled.div`
 `;
 
 export const WizardProgressHeader = styled.div`
-  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, #2563EB 100%);
+  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, #2563eb 100%);
   padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
   color: #ffffff;
   display: flex;
@@ -540,21 +542,21 @@ export const QuestionSubtext = styled.p`
 export const LikertScaleContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
-  margin-top: 6px;
+  gap: 12px;
+  margin-top: 10px;
 
-  @media (max-width: 640px) {
+  @media (max-width: 900px) {
     grid-template-columns: 1fr;
   }
 `;
 
-export const LikertButton = styled.button<{ $selected: boolean; $ratingValue: number }>`
+export const LikertButton = styled.button<{ $selected: boolean }>`
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
   gap: 8px;
-  padding: 12px 8px;
+  padding: 14px 12px;
   border-radius: 4px;
   border: 1px solid
     ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.border)};
@@ -563,34 +565,29 @@ export const LikertButton = styled.button<{ $selected: boolean; $ratingValue: nu
   color: ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.text)};
   cursor: pointer;
   transition: all 0.2s ease;
-  text-align: center;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme }) => theme.colors.primaryLight};
-    color: ${({ theme }) => theme.colors.primary};
   }
 `;
 
-export const LikertOptionScoreBadge = styled.span<{ $selected: boolean }>`
-  display: inline-flex;
+export const LikertOptionHeader = styled.div<{ $selected: boolean }>`
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  background-color: ${({ $selected, theme }) =>
-    $selected ? theme.colors.primary : theme.colors.border};
-  color: ${({ $selected, theme }) => ($selected ? '#ffffff' : theme.colors.text)};
+  gap: 6px;
   font-size: 13px;
   font-weight: 700;
+  color: ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.text)};
 `;
 
-export const LikertOptionText = styled.span`
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.2;
+export const LikertOptionDesc = styled.span<{ $selected: boolean }>`
+  font-size: 12px;
+  color: ${({ $selected, theme }) =>
+    $selected ? theme.colors.primary : theme.colors.textSecondary};
+  line-height: 1.45;
 `;
+
 
 export const AptitudeOptionsGrid = styled.div`
   display: flex;

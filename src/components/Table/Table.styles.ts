@@ -59,7 +59,7 @@ export const TBody = styled.tbody`
   td {
     padding: 14px 24px;
     color: ${({ theme }) => theme.colors.text};
-    vertical-align: middle;
+    vertical-align: top;
     white-space: nowrap;
     min-width: 250px;
   }

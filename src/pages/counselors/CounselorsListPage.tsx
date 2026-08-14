@@ -18,6 +18,7 @@ import { Badge } from '@/components/Badge';
 import { AlertModal, Tooltip } from '@/components';
 import { counselorService } from '@/services/counselor.service';
 import { useCounselorStore } from '@/store/counselor.store';
+import { useAuthStore } from '@/store';
 import { useToast } from '@/hooks';
 import { Counselor } from '@/types/counselor.types';
 import { ROUTES } from '@/constants';
@@ -42,6 +43,8 @@ import { ViewCounselorModal } from './components/ViewCounselorModal';
 export const CounselorsListPage: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { user } = useAuthStore();
+  const isViewOnlyUser = Boolean(user?.isViewOnly);
 
   const {
     searchQuery,
@@ -95,7 +98,7 @@ export const CounselorsListPage: React.FC = () => {
       key: 'actions',
       header: 'Actions',
       width: '120px',
-      render: row => (
+      render: (row: Counselor) => (
         <ActionIconButtonGroup>
           <Tooltip content="View Details">
             <ActionIconButton aria-label="View Details" onClick={() => openViewModal(row)}>
@@ -103,17 +106,21 @@ export const CounselorsListPage: React.FC = () => {
             </ActionIconButton>
           </Tooltip>
 
-          <Tooltip content="Edit Counselor">
-            <ActionIconButton aria-label="Edit Counselor" onClick={() => openEditModal(row)}>
-              <RiEditLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
+          {!isViewOnlyUser && (
+            <>
+              <Tooltip content="Edit Counselor">
+                <ActionIconButton aria-label="Edit Counselor" onClick={() => openEditModal(row)}>
+                  <RiEditLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
 
-          <Tooltip content="Delete Counselor">
-            <ActionIconButton aria-label="Delete Counselor" onClick={() => setCounselorToDelete(row)}>
-              <RiDeleteBinLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
+              <Tooltip content="Delete Counselor">
+                <ActionIconButton aria-label="Delete Counselor" onClick={() => setCounselorToDelete(row)}>
+                  <RiDeleteBinLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+            </>
+          )}
         </ActionIconButtonGroup>
       ),
     },
@@ -176,22 +183,24 @@ export const CounselorsListPage: React.FC = () => {
         subtitle="Manage institution career counselors, single registration, and bulk CSV imports"
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Counselors List' }]}
         actions={
-          <HeaderActions>
-            <Button
-              variant="secondary"
-              leftIcon={<RiFileUploadLine size={16} />}
-              onClick={openBulkUploadModal}
-            >
-              Bulk Upload
-            </Button>
-            <Button
-              variant="primary"
-              leftIcon={<RiUserAddLine size={16} />}
-              onClick={openAddModal}
-            >
-              Add Counselor
-            </Button>
-          </HeaderActions>
+          isViewOnlyUser ? undefined : (
+            <HeaderActions>
+              <Button
+                variant="secondary"
+                leftIcon={<RiFileUploadLine size={16} />}
+                onClick={openBulkUploadModal}
+              >
+                Bulk Upload
+              </Button>
+              <Button
+                variant="primary"
+                leftIcon={<RiUserAddLine size={16} />}
+                onClick={openAddModal}
+              >
+                Add Counselor
+              </Button>
+            </HeaderActions>
+          )
         }
       />
 

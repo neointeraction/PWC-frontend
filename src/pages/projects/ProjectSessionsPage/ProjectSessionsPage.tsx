@@ -3,9 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiSearchLine,
-  RiCheckLine,
   RiEditLine,
-  RiTimeLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -13,11 +11,13 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
+import { Tooltip, EmptyState, Loader } from '@/components';
 import { projectService } from '@/services/project.service';
 import { CounselorSession, ProjectStudent } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
 import { ModifySessionModal } from './ModifySessionModal';
+import { ViewStudentModal } from './ViewStudentModal';
 import {
   Container,
   FilterBar,
@@ -31,32 +31,70 @@ import {
   CounselorNameRow,
   CounselorName,
   CounselorSubtext,
-  SectionTitle,
-  TimeSlotsRow,
-  TimeSlotPill,
-  TickIconBadge,
   StudentsSection,
-  StudentsHeaderRow,
   StudentsTableWrapper,
+  ActionIconButton,
+  StudentNameButton,
 } from './ProjectSessionsPage.styles';
 
-const studentColumns: Column<ProjectStudent>[] = [
-  { key: 'name', header: 'Student Name' },
-  { key: 'email', header: 'Email' },
-  { key: 'mobile', header: 'Mobile' },
+const getStudentColumns = (
+  session: CounselorSession,
+  onModify: (session: CounselorSession) => void,
+  onViewStudent: (student: ProjectStudent) => void
+): Column<ProjectStudent>[] => [
   {
-    key: 'grade',
-    header: 'Grade',
-    render: row => <Badge variant="default">{row.grade}</Badge>,
+    key: 'actions',
+    header: 'Action',
+    render: () => (
+      <Tooltip content="Edit Session Assignment">
+        <ActionIconButton aria-label="Edit Session Assignment" onClick={() => onModify(session)}>
+          <RiEditLine size={16} />
+        </ActionIconButton>
+      </Tooltip>
+    ),
+  },
+  {
+    key: 'sessionDate',
+    header: 'Date',
+    render: row => row.sessionDate || '18 Feb 2026',
+  },
+  {
+    key: 'timeSlot',
+    header: 'Time',
+    render: row => row.timeSlot || session.timeSlots.find(s => s.isSelected)?.time || '09:30 AM - 10:30 AM',
+  },
+  {
+    key: 'name',
+    header: 'Student',
+    render: row => (
+      <StudentNameButton type="button" onClick={() => onViewStudent(row)}>
+        {row.name}
+      </StudentNameButton>
+    ),
+  },
+  {
+    key: 'sessionType',
+    header: 'Session',
+    render: row => (
+      <Badge variant={row.sessionType === 'S2' ? 'info' : 'primary'}>
+        {row.sessionType || 'S1'}
+      </Badge>
+    ),
+  },
+  {
+    key: 'mobile',
+    header: 'Phone',
+    render: row => row.mobile || 'N/A',
   },
 ];
 
 interface CounselorSessionCardProps {
   session: CounselorSession;
   onModify: (session: CounselorSession) => void;
+  onViewStudent: (student: ProjectStudent) => void;
 }
 
-const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({ session, onModify }) => {
+const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({ session, onModify, onViewStudent }) => {
   return (
     <CounselorCard key={session.id}>
       <CounselorHeader>
@@ -88,33 +126,10 @@ const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({ session, on
         </Button>
       </CounselorHeader>
 
-      <div>
-        <SectionTitle>Available Time Slots (Selected Ticked)</SectionTitle>
-        <TimeSlotsRow>
-          {session.timeSlots.map(slot => (
-            <TimeSlotPill key={slot.id} $isSelected={slot.isSelected}>
-              <RiTimeLine size={14} />
-              <span>{slot.time}</span>
-              {slot.isSelected && (
-                <TickIconBadge>
-                  <RiCheckLine size={12} />
-                </TickIconBadge>
-              )}
-            </TimeSlotPill>
-          ))}
-        </TimeSlotsRow>
-      </div>
-
       <StudentsSection>
-        <StudentsHeaderRow>
-          <SectionTitle style={{ margin: 0 }}>
-            ASSIGNED STUDENT ({session.assignedStudents.length})
-          </SectionTitle>
-        </StudentsHeaderRow>
-
         <StudentsTableWrapper>
           <Table
-            columns={studentColumns}
+            columns={getStudentColumns(session, onModify, onViewStudent)}
             data={session.assignedStudents}
             keyExtractor={row => row.email}
             emptyMessage="No student assigned."
@@ -133,6 +148,7 @@ export const ProjectSessionsPage: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSession, setSelectedSession] = useState<CounselorSession | null>(null);
+  const [selectedStudentForView, setSelectedStudentForView] = useState<ProjectStudent | null>(null);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -205,9 +221,9 @@ export const ProjectSessionsPage: React.FC = () => {
         </FilterBar>
 
         {isLoading ? (
-          <p style={{ fontSize: '14px', color: '#6b7280' }}>Loading sessions...</p>
+          <Loader />
         ) : filteredSessions.length === 0 ? (
-          <p style={{ fontSize: '14px', color: '#6b7280' }}>No counselor sessions found.</p>
+          <EmptyState title="No counselor sessions found" description="Try adjusting your search criteria or filter." />
         ) : (
           <CounselorsGrid>
             {filteredSessions.map(session => (
@@ -215,6 +231,7 @@ export const ProjectSessionsPage: React.FC = () => {
                 key={session.id}
                 session={session}
                 onModify={setSelectedSession}
+                onViewStudent={setSelectedStudentForView}
               />
             ))}
           </CounselorsGrid>
@@ -229,6 +246,13 @@ export const ProjectSessionsPage: React.FC = () => {
           updateMutation.mutate({ sessionId, selectedSlotId, assignedStudents });
         }}
         isSaving={updateMutation.isPending}
+      />
+
+      <ViewStudentModal
+        isOpen={Boolean(selectedStudentForView)}
+        onClose={() => setSelectedStudentForView(null)}
+        student={selectedStudentForView}
+        instituteName={project?.instituteName}
       />
     </Container>
   );

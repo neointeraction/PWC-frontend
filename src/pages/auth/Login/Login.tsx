@@ -73,6 +73,11 @@ export const LoginPage: React.FC = () => {
     setValue('password', 'admin123');
   };
 
+  const fillViewOnlyUser = () => {
+    setValue('email', 'viewer@pwc.com');
+    setValue('password', 'viewer123');
+  };
+
   const fillCounselor = () => {
     setValue('email', 'counselor@pwc.com');
     setValue('password', 'counselor123');
@@ -154,6 +159,9 @@ export const LoginPage: React.FC = () => {
             </Button>
             <Button size="sm" variant="secondary" onClick={fillPwcUser}>
               kREATE User / Admin (sunita.sharma@pwc-global.com)
+            </Button>
+            <Button size="sm" variant="secondary" onClick={fillViewOnlyUser}>
+              kREATE View-Only Account (viewer@pwc.com)
             </Button>
             <Button size="sm" variant="secondary" onClick={fillCounselor}>
               Counselor (counselor@pwc.com)

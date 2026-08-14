@@ -47,6 +47,15 @@ export const ViewTenantModal: React.FC = () => {
           </DetailItem>
 
           <DetailItem>
+            <label>Access Mode</label>
+            <div>
+              <Badge variant={selectedUser.isViewOnly ? 'warning' : 'primary'}>
+                {selectedUser.isViewOnly ? 'View Only (Read-Only)' : 'Full Access (Admin)'}
+              </Badge>
+            </div>
+          </DetailItem>
+
+          <DetailItem>
             <label>Email Address</label>
             <p>{selectedUser.email}</p>
           </DetailItem>

@@ -16,6 +16,7 @@ const editTenantSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   phone: z.string().optional(),
   userCategory: z.enum(['pwc', 'institution', 'counselor']),
+  isViewOnly: z.boolean().optional(),
   roleLabel: z.string().optional(),
   organizationName: z.string().optional(),
   status: z.enum(['active', 'inactive', 'pending']),
@@ -49,6 +50,7 @@ export const EditTenantModal: React.FC = () => {
         email: selectedUser.email,
         phone: selectedUser.phone || '',
         userCategory: selectedUser.userCategory,
+        isViewOnly: Boolean(selectedUser.isViewOnly),
         roleLabel: selectedUser.roleLabel,
         organizationName: selectedUser.organizationName || '',
         status: selectedUser.status,
@@ -121,6 +123,21 @@ export const EditTenantModal: React.FC = () => {
           error={errors.userCategory?.message}
           {...register('userCategory')}
         />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+          <input
+            type="checkbox"
+            id="edit-tenant-is-view-only"
+            style={{ width: '18px', height: '18px', accentColor: '#2563EB', cursor: 'pointer' }}
+            {...register('isViewOnly')}
+          />
+          <label
+            htmlFor="edit-tenant-is-view-only"
+            style={{ fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}
+          >
+            View Only Mode (Grant read-only access without edit or delete permissions)
+          </label>
+        </div>
 
         {selectedCategory !== 'pwc' && (
           <Input
