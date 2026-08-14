@@ -10,6 +10,7 @@ import { Button } from '@/components/Button';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
+import { getApiErrorMessage } from '@/utils';
 import { LoginPayload } from '@/types';
 import logoImg from '@/assets/logo.jpg';
 import {
@@ -95,9 +96,7 @@ export const LoginPage: React.FC = () => {
         <LoginForm onSubmit={handleSubmit(data => mutation.mutate(data))} noValidate>
           {mutation.isError && (
             <ErrorAlert role="alert">
-              {mutation.error instanceof Error
-                ? mutation.error.message
-                : 'An error occurred. Please try again.'}
+              {getApiErrorMessage(mutation.error, 'An error occurred. Please try again.')}
             </ErrorAlert>
           )}
 

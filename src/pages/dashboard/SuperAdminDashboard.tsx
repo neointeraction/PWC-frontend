@@ -353,7 +353,7 @@ export const SuperAdminDashboard: React.FC = () => {
             style={{ cursor: 'pointer' }}
             onClick={() => navigate(ROUTES.CAREER_LIBRARY)}
           >
-            54
+            {summary?.careerPathwaysCount ?? '—'}
           </StatMetricValue>
           <MetaText>Published career specs</MetaText>
         </Card>

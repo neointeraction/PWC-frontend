@@ -50,3 +50,19 @@ export const getNestedValue = <T>(obj: Record<string, unknown>, path: string): T
     return undefined;
   }, obj) as T | undefined;
 };
+
+/**
+ * Extracts a human-readable message from an API error response, per the
+ * backend's `{ error: { message, details } }` contract (see
+ * docs/frontend-integration-guide.md). Falls back to a generic message for
+ * network errors or unexpected shapes.
+ */
+export const getApiErrorMessage = (error: unknown, fallback = 'Something went wrong. Please try again.'): string => {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = (error as { response?: { data?: { error?: { message?: string } } } }).response;
+    const message = response?.data?.error?.message;
+    if (message) return message;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};

@@ -1,11 +1,13 @@
 export interface Counselor {
   id: string;
-  counselorId: string;
+  counselorId: string; // backend counsellorCode
   name: string;
+  firstName: string;
+  lastName: string;
   mobile: string;
   email: string;
-  meetingLink?: string;
-  pwd?: string;
+  instituteId: string;
+  instituteName: string;
   status: 'active' | 'inactive';
   createdAt: string;
 }
@@ -18,22 +20,18 @@ export interface CounselorFilterParams {
 }
 
 export interface CreateCounselorInput {
-  counselorId: string;
-  name: string;
+  counselorId: string; // -> counsellorCode
+  firstName: string;
+  lastName: string;
   mobile: string;
   email: string;
-  meetingLink?: string;
-  pwd?: string;
-  status?: 'active' | 'inactive';
+  instituteId: string;
 }
 
 export interface UpdateCounselorInput {
-  counselorId?: string;
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   mobile?: string;
-  email?: string;
-  meetingLink?: string;
-  pwd?: string;
   status?: 'active' | 'inactive';
 }
 
@@ -43,4 +41,9 @@ export interface CounselorListResponse {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface CreateCounselorResult {
+  counselor: Counselor;
+  tempPassword: string;
 }

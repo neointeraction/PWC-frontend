@@ -1,153 +1,176 @@
 import React from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/Input';
+import { Select } from '@/components/Select';
 import { DatePicker } from '@/components/DatePicker';
+import { instituteService } from '@/services/institute.service';
 import { useProjectStore } from '@/store/project.store';
 import {
   StepFormContainer,
+  StepTitle,
   StepSubtitle,
   FormGrid,
   FormGroup,
 } from './AddProjectWizard.styles';
-import { InstituteDetails } from '@/types/project.types';
 
-const instituteSchema = z
-  .object({
-    name: z
-      .string()
-      .min(1, 'Institute name is required')
-      .min(3, 'Institute name must be at least 3 characters'),
-    email: z.string().min(1, 'Email is required').email('Invalid email format'),
-    phone: z.string().min(1, 'Phone number is required'),
-    validFrom: z.string().min(1, 'Start date is required'),
-    validTo: z.string().min(1, 'End date is required'),
-  })
-  .refine(
-    data => {
-      if (!data.validFrom || !data.validTo) return true;
-      return new Date(data.validFrom) <= new Date(data.validTo);
-    },
-    {
-      message: 'End date cannot be before start date',
-      path: ['validTo'],
-    }
-  );
+// Avoids the UTC-shift bug from `date.toISOString()` — formats using the
+// picker's local Y/M/D instead of converting through UTC first.
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
-type InstituteFormValues = z.infer<typeof instituteSchema>;
+// Parses a 'YYYY-MM-DD' string as local midnight (not UTC), so it round-trips
+// with toLocalDateString/the DatePicker without shifting a day.
+const parseLocalDate = (value: string): Date => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const ModeToggle: React.FC<{ mode: 'existing' | 'new'; onChange: (m: 'existing' | 'new') => void }> = ({
+  mode,
+  onChange,
+}) => (
+  <FormGroup style={{ flexDirection: 'row', gap: 8 }}>
+    <button
+      type="button"
+      onClick={() => onChange('existing')}
+      style={{
+        padding: '8px 16px',
+        borderRadius: 4,
+        border: mode === 'existing' ? '2px solid #5D2384' : '1px solid #E2E8F0',
+        background: mode === 'existing' ? '#F3EAFB' : '#fff',
+        cursor: 'pointer',
+        fontWeight: 600,
+      }}
+    >
+      Use Existing Institute
+    </button>
+    <button
+      type="button"
+      onClick={() => onChange('new')}
+      style={{
+        padding: '8px 16px',
+        borderRadius: 4,
+        border: mode === 'new' ? '2px solid #5D2384' : '1px solid #E2E8F0',
+        background: mode === 'new' ? '#F3EAFB' : '#fff',
+        cursor: 'pointer',
+        fontWeight: 600,
+      }}
+    >
+      Create New Institute
+    </button>
+  </FormGroup>
+);
 
 export const StepInstitute: React.FC = () => {
-  const { instituteDetails, setInstituteDetails } = useProjectStore();
-
   const {
-    register,
-    control,
-    formState: { errors },
-  } = useForm<InstituteFormValues>({
-    resolver: zodResolver(instituteSchema),
-    defaultValues: {
-      ...instituteDetails,
-    },
-    mode: 'onChange',
-  });
+    instituteMode,
+    setInstituteMode,
+    selectedInstituteId,
+    setSelectedInstituteId,
+    newInstitute,
+    setNewInstituteField,
+    projectName,
+    setProjectName,
+    fromDate,
+    setFromDate,
+    toDate,
+    setToDate,
+  } = useProjectStore();
 
-  const handleChange = (
-    field: keyof InstituteDetails,
-    value: string
-  ) => {
-    setInstituteDetails({ [field]: value });
-  };
+  const { data: institutes = [], isLoading } = useQuery({
+    queryKey: ['institutes'],
+    queryFn: instituteService.getAll,
+  });
 
   return (
     <StepFormContainer>
-      <StepSubtitle>
-        Enter the primary contact and timeline information for this institute.
-      </StepSubtitle>
+      <div>
+        <StepTitle>Institute &amp; Project Details</StepTitle>
+        <StepSubtitle>
+          Pick the institute this project runs for, and set the project's name and window.
+        </StepSubtitle>
+      </div>
+
+      <ModeToggle mode={instituteMode} onChange={setInstituteMode} />
+
+      {instituteMode === 'existing' ? (
+        <FormGrid>
+          <Select
+            label="Institute"
+            options={institutes.map(i => ({ value: i.id, label: i.name }))}
+            value={selectedInstituteId}
+            onChange={e => setSelectedInstituteId(e.target.value)}
+            placeholder={isLoading ? 'Loading institutes…' : 'Select institute'}
+          />
+        </FormGrid>
+      ) : (
+        <FormGrid>
+          <FormGroup>
+            <Input
+              label="Institute Name"
+              placeholder="e.g. Sunrise Public School"
+              value={newInstitute.name}
+              onChange={e => setNewInstituteField({ name: e.target.value })}
+            />
+            <Input
+              label="Address"
+              placeholder="e.g. 12 MG Road, Bengaluru"
+              value={newInstitute.address}
+              onChange={e => setNewInstituteField({ address: e.target.value })}
+            />
+          </FormGroup>
+          <FormGroup>
+            <Input
+              label="Contact Number"
+              placeholder="e.g. +919876543210"
+              value={newInstitute.contactNumber}
+              onChange={e => setNewInstituteField({ contactNumber: e.target.value })}
+            />
+            <Input
+              label="Primary Email"
+              type="email"
+              placeholder="e.g. admin@institute.edu"
+              value={newInstitute.primaryEmail}
+              onChange={e => setNewInstituteField({ primaryEmail: e.target.value })}
+            />
+          </FormGroup>
+        </FormGrid>
+      )}
+
       <FormGrid>
         <FormGroup>
           <Input
-            label="Institute Name"
-            placeholder="Enter institute name"
-            error={errors.name?.message}
-            {...register('name', {
-              onChange: e => handleChange('name', e.target.value),
-            })}
-          />
-          <Input
-            label="Email Address"
-            type="email"
-            placeholder="contact@institute.edu"
-            error={errors.email?.message}
-            {...register('email', {
-              onChange: e => handleChange('email', e.target.value),
-            })}
-          />
-          <Input
-            label="Phone Number"
-            type="tel"
-            placeholder="+91 XXXXX XXXXX"
-            error={errors.phone?.message}
-            {...register('phone', {
-              onChange: e => handleChange('phone', e.target.value),
-            })}
+            label="Project Name"
+            placeholder="e.g. Career Guidance 2026 Batch A"
+            value={projectName}
+            onChange={e => setProjectName(e.target.value)}
           />
         </FormGroup>
 
         <FormGroup>
           <FormGrid>
-            <Controller
-              name="validFrom"
-              control={control}
-              render={({ field }) => (
-                <DatePicker
-                  label="Valid From"
-                  selected={field.value ? new Date(field.value) : null}
-                  onChange={(date: Date | null) => {
-                    const isoDate = date ? date.toISOString() : '';
-                    field.onChange(isoDate);
-                    handleChange('validFrom', isoDate);
-                  }}
-                  error={errors.validFrom?.message}
-                  placeholderText="Select start date"
-                  selectsStart
-                  startDate={field.value ? new Date(field.value) : undefined}
-                  endDate={
-                    instituteDetails.validTo
-                      ? new Date(instituteDetails.validTo)
-                      : undefined
-                  }
-                />
-              )}
+            <DatePicker
+              label="Valid From"
+              selected={fromDate ? parseLocalDate(fromDate) : null}
+              onChange={(date: Date | null) => setFromDate(date ? toLocalDateString(date) : '')}
+              placeholderText="Select start date"
+              selectsStart
+              startDate={fromDate ? parseLocalDate(fromDate) : undefined}
+              endDate={toDate ? parseLocalDate(toDate) : undefined}
             />
-            <Controller
-              name="validTo"
-              control={control}
-              render={({ field }) => (
-                <DatePicker
-                  label="Valid To"
-                  selected={field.value ? new Date(field.value) : null}
-                  onChange={(date: Date | null) => {
-                    const isoDate = date ? date.toISOString() : '';
-                    field.onChange(isoDate);
-                    handleChange('validTo', isoDate);
-                  }}
-                  error={errors.validTo?.message}
-                  placeholderText="Select end date"
-                  selectsEnd
-                  startDate={
-                    instituteDetails.validFrom
-                      ? new Date(instituteDetails.validFrom)
-                      : undefined
-                  }
-                  endDate={field.value ? new Date(field.value) : undefined}
-                  minDate={
-                    instituteDetails.validFrom
-                      ? new Date(instituteDetails.validFrom)
-                      : undefined
-                  }
-                />
-              )}
+            <DatePicker
+              label="Valid To"
+              selected={toDate ? parseLocalDate(toDate) : null}
+              onChange={(date: Date | null) => setToDate(date ? toLocalDateString(date) : '')}
+              placeholderText="Select end date"
+              selectsEnd
+              startDate={fromDate ? parseLocalDate(fromDate) : undefined}
+              endDate={toDate ? parseLocalDate(toDate) : undefined}
+              minDate={fromDate ? parseLocalDate(fromDate) : undefined}
             />
           </FormGrid>
         </FormGroup>

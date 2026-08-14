@@ -1,9 +1,11 @@
+import { apiClient } from './api';
 import { mockInstitutionProfile, mockSubscriptionInfo } from '@/mocks';
 
 export interface DashboardSummary {
   institutionName: string;
   subscriptionPlan: string;
   activeStudentsCount: number;
+  careerPathwaysCount: number;
   sessionsTodayCount: number;
   pendingRatificationsCount: number;
   recentActivities: {
@@ -23,13 +25,23 @@ export interface DashboardSummary {
 }
 
 export const dashboardService = {
+  // No dedicated dashboard/stats endpoint exists yet — most of this is still
+  // placeholder (no activity-log or notifications API). Only career pathway
+  // count is wired to something real (GET /career-library's pagination.total).
   getSummary: async (): Promise<DashboardSummary> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
+    const {
+      data: {
+        pagination: { total: careerPathwaysCount },
+      },
+    } = await apiClient.get<{ pagination: { total: number } }>('/career-library', {
+      params: { pageSize: 1 },
+    });
 
     return {
       institutionName: mockInstitutionProfile.name,
       subscriptionPlan: mockSubscriptionInfo.plan.toUpperCase(),
       activeStudentsCount: 45,
+      careerPathwaysCount,
       sessionsTodayCount: 8,
       pendingRatificationsCount: 3,
       recentActivities: [

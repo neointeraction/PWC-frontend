@@ -1,11 +1,46 @@
+import * as XLSX from 'xlsx';
+
 /**
- * Parses a CSV or text-based file into an array of row objects.
- * Header row is used as keys; values are trimmed strings.
- *
- * For production xlsx support, integrate the `xlsx` (SheetJS) library
- * and extend this utility accordingly.
+ * Parses a CSV or true Excel (.xlsx/.xls) file into an array of row objects,
+ * keyed by header row. Excel files are read as binary via SheetJS; CSV/text
+ * files are read as plain text.
  */
 export const parseExcelFile = (file: File): Promise<Record<string, string>[]> => {
+  const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+  return isExcel ? parseExcelBinary(file) : parseCsvText(file);
+};
+
+const parseExcelBinary = (file: File): Promise<Record<string, string>[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = event => {
+      try {
+        const buffer = event.target?.result as ArrayBuffer;
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) {
+          resolve([]);
+          return;
+        }
+        const sheet = workbook.Sheets[firstSheetName];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+        resolve(
+          rows.map(row =>
+            Object.fromEntries(Object.entries(row).map(([k, v]) => [k.trim(), String(v).trim()]))
+          )
+        );
+      } catch {
+        reject(new Error('Failed to parse the Excel file. Please ensure it is a valid .xlsx/.xls file.'));
+      }
+    };
+
+    reader.onerror = () => reject(new Error('Failed to read the file.'));
+    reader.readAsArrayBuffer(file);
+  });
+};
+
+const parseCsvText = (file: File): Promise<Record<string, string>[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 

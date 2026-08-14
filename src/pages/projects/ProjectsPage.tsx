@@ -5,24 +5,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiAddLine,
   RiSearchLine,
-  RiEditLine,
+  RiEyeLine,
   RiDeleteBinLine,
   RiUserLine,
-  RiDownloadLine,
-  RiRefreshLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { Select } from '@/components/Select';
 import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { AlertModal, Tooltip } from '@/components';
 import { projectService } from '@/services/project.service';
 import { useProjectStore } from '@/store/project.store';
-import { useAuthStore } from '@/store';
 import { useToast } from '@/hooks';
+import { getApiErrorMessage } from '@/utils';
 import { Project, ProjectStatus } from '@/types/project.types';
 import { ROUTES } from '@/constants';
 import {
@@ -36,57 +33,23 @@ import {
   ProjectInstituteSubtext,
 } from './Projects.styles';
 import { AddProjectWizard } from './components/AddProjectWizard';
-import { EditProjectModal } from './components/EditProjectModal';
 
 export const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { user } = useAuthStore();
-  const isViewOnlyUser = Boolean(user?.isViewOnly);
 
   const { searchQuery, setSearchQuery, openWizard } = useProjectStore();
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
-  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
-
-  const handleDownloadProjectReport = (project: Project) => {
-    const csvContent =
-      `Project Summary Report\n` +
-      `Project Name,${project.name}\n` +
-      `Institute,${project.instituteName}\n` +
-      `Status,${project.status.toUpperCase()}\n` +
-      `Valid From,${project.validFrom || 'N/A'}\n` +
-      `Valid To,${project.validTo || 'N/A'}\n` +
-      `Counselors Assigned,${project.counselorCount}\n` +
-      `Total Students Enrolled,${project.studentCount}\n\n` +
-      `Student ID,Student Name,Grade,Counselor Assigned,Session 1 Status,Session 2 Status,Ikigai Report Status\n` +
-      `STU-101,Aarav Sharma,Grade 11,Sarah Jenkins,Completed,Completed,Unlocked & Delivered\n` +
-      `STU-102,Ananya Patel,Grade 11,Rahul Verma,Completed,Completed,Unlocked & Delivered\n` +
-      `STU-103,Rohan Gupta,Grade 12,Sarah Jenkins,Completed,Completed,Unlocked & Delivered\n` +
-      `STU-104,Diya Nair,Grade 11,Priya Sundaram,Completed,Completed,Unlocked & Delivered\n` +
-      `STU-105,Vihaan Iyer,Grade 12,Rahul Verma,Completed,Completed,Unlocked & Delivered\n`;
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Report.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Report Downloaded', `Exported project report CSV for ${project.name}.`);
-  };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['projects', searchQuery, statusFilter, page, limit],
+    queryKey: ['projects', searchQuery, page, limit],
     queryFn: () =>
       projectService.getAll({
         search: searchQuery,
-        status: statusFilter === 'all' ? undefined : (statusFilter as ProjectStatus),
         page,
         limit,
       }),
@@ -96,23 +59,12 @@ export const ProjectsPage: React.FC = () => {
     mutationFn: projectService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Project Deleted', 'Successfully removed project record.');
+      toast.success('Project Deleted', 'Successfully removed the project.');
       setProjectToDelete(null);
     },
-    onError: () => {
-      toast.error('Error', 'Failed to delete project record.');
+    onError: err => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to delete the project.'));
       setProjectToDelete(null);
-    },
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: (id: string) => projectService.update(id, { status: 'active' }),
-    onSuccess: updated => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Project Restored', `Restored ${updated.name} to active status.`);
-    },
-    onError: () => {
-      toast.error('Error', 'Failed to restore project.');
     },
   });
 
@@ -134,22 +86,10 @@ export const ProjectsPage: React.FC = () => {
             Active
           </Badge>
         );
-      case 'draft':
+      case 'closed':
         return (
-          <Badge variant="warning" dot>
-            Draft
-          </Badge>
-        );
-      case 'completed':
-        return (
-          <Badge variant="info" dot>
-            Completed
-          </Badge>
-        );
-      case 'deleted':
-        return (
-          <Badge variant="danger" dot>
-            Deleted
+          <Badge variant="default" dot>
+            Closed
           </Badge>
         );
     }
@@ -159,52 +99,18 @@ export const ProjectsPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      render: (row: Project) => (
+      render: row => (
         <ActionIconButtonGroup>
-          {isViewOnlyUser ? (
-            row.status === 'completed' && (
-              <Tooltip content="Download Project Report">
-                <ActionIconButton
-                  aria-label="Download Project Report"
-                  onClick={() => handleDownloadProjectReport(row)}
-                >
-                  <RiDownloadLine size={16} />
-                </ActionIconButton>
-              </Tooltip>
-            )
-          ) : row.status === 'deleted' ? (
-            <Tooltip content="Revert / Restore Project">
-              <ActionIconButton
-                aria-label="Revert / Restore Project"
-                onClick={() => restoreMutation.mutate(row.id)}
-              >
-                <RiRefreshLine size={16} />
-              </ActionIconButton>
-            </Tooltip>
-          ) : (
-            <>
-              <Tooltip content="Edit Project">
-                <ActionIconButton aria-label="Edit Project" onClick={() => setProjectToEdit(row)}>
-                  <RiEditLine size={16} />
-                </ActionIconButton>
-              </Tooltip>
-              {row.status === 'completed' && (
-                <Tooltip content="Download Project Report">
-                  <ActionIconButton
-                    aria-label="Download Project Report"
-                    onClick={() => handleDownloadProjectReport(row)}
-                  >
-                    <RiDownloadLine size={16} />
-                  </ActionIconButton>
-                </Tooltip>
-              )}
-              <Tooltip content="Delete Project">
-                <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
-                  <RiDeleteBinLine size={16} />
-                </ActionIconButton>
-              </Tooltip>
-            </>
-          )}
+          <Tooltip content="View Project">
+            <ActionIconButton aria-label="View Project">
+              <RiEyeLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+          <Tooltip content="Delete Project">
+            <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
+              <RiDeleteBinLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
         </ActionIconButtonGroup>
       ),
     },
@@ -270,11 +176,9 @@ export const ProjectsPage: React.FC = () => {
         subtitle="Manage institution projects and counselling initiatives"
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Projects' }]}
         actions={
-          isViewOnlyUser ? undefined : (
-            <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
-              Add Project
-            </Button>
-          )
+          <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
+            Add Project
+          </Button>
         }
       />
 
@@ -291,22 +195,6 @@ export const ProjectsPage: React.FC = () => {
               }}
             />
           </SearchWrapper>
-          <div style={{ width: '180px' }}>
-            <Select
-              options={[
-                { value: 'all', label: 'All Projects' },
-                { value: 'active', label: 'Active' },
-                { value: 'draft', label: 'Draft' },
-                { value: 'completed', label: 'Completed' },
-                { value: 'deleted', label: 'Deleted Projects' },
-              ]}
-              value={statusFilter}
-              onChange={e => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
         </FilterBar>
 
         <Table
@@ -314,11 +202,7 @@ export const ProjectsPage: React.FC = () => {
           data={data?.data ?? []}
           isLoading={isLoading}
           keyExtractor={row => row.id}
-          emptyMessage={
-            statusFilter === 'deleted'
-              ? 'No deleted projects found.'
-              : "No projects found. Click 'Add Project' to create one."
-          }
+          emptyMessage="No projects found. Click 'Add Project' to create one."
           pagination={
             data
               ? {
@@ -339,20 +223,14 @@ export const ProjectsPage: React.FC = () => {
 
       <AddProjectWizard />
 
-      <EditProjectModal
-        isOpen={Boolean(projectToEdit)}
-        project={projectToEdit}
-        onClose={() => setProjectToEdit(null)}
-      />
-
       <AlertModal
         isOpen={Boolean(projectToDelete)}
         onClose={() => setProjectToDelete(null)}
         onConfirm={confirmDelete}
         title="Delete Project"
-        description={`Are you sure you want to delete "${projectToDelete?.name}"?`}
+        description={`Are you sure you want to delete "${projectToDelete?.name}"? This action cannot be undone.`}
         variant="danger"
-        confirmText="Delete Project"
+        confirmText="Delete"
         cancelText="Cancel"
         isLoading={deleteMutation.isPending}
       />

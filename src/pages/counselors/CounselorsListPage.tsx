@@ -20,6 +20,7 @@ import { counselorService } from '@/services/counselor.service';
 import { useCounselorStore } from '@/store/counselor.store';
 import { useAuthStore } from '@/store';
 import { useToast } from '@/hooks';
+import { getApiErrorMessage } from '@/utils';
 import { Counselor } from '@/types/counselor.types';
 import { ROUTES } from '@/constants';
 import {
@@ -81,8 +82,8 @@ export const CounselorsListPage: React.FC = () => {
       toast.success('Counselor Deleted', 'Successfully removed counselor record.');
       setCounselorToDelete(null);
     },
-    onError: () => {
-      toast.error('Error', 'Failed to delete counselor record.');
+    onError: err => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to delete counselor record.'));
       setCounselorToDelete(null);
     },
   });
@@ -147,22 +148,10 @@ export const CounselorsListPage: React.FC = () => {
       render: row => row.mobile || 'N/A',
     },
     {
-      key: 'meetingLink',
-      header: 'GMeet / Zoom Link',
+      key: 'instituteName',
+      header: 'Institute',
       width: '200px',
-      render: row =>
-        row.meetingLink ? (
-          <a
-            href={row.meetingLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#5D2384', textDecoration: 'underline', fontSize: '13px' }}
-          >
-            {row.meetingLink}
-          </a>
-        ) : (
-          '—'
-        ),
+      render: row => row.instituteName || '—',
     },
     {
       key: 'status',

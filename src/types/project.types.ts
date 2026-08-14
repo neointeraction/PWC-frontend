@@ -1,16 +1,19 @@
-export type ProjectStatus = 'active' | 'draft' | 'completed' | 'deleted';
+export type ProjectStatus = 'active' | 'closed';
 
 export interface Project {
   id: string;
   name: string;
+  instituteId: string;
   instituteName: string;
   counselorCount: number;
   studentCount: number;
   status: ProjectStatus;
-  previousStatus?: ProjectStatus;
+  fromDate: string;
+  toDate: string;
+  // Back-compat aliases used by existing table/UI code.
   validFrom: string;
   validTo: string;
-  createdAt?: string;
+  createdAt: string;
 }
 
 export interface ProjectFilterParams {
@@ -19,6 +22,15 @@ export interface ProjectFilterParams {
   page?: number;
   limit?: number;
 }
+
+export interface CreateProjectPayload {
+  instituteId: string;
+  name: string;
+  fromDate: string;
+  toDate: string;
+}
+
+// --- Legacy shapes still used by the (not-yet-rebound) Sessions mock flows ---
 
 export interface ProjectCounselor {
   name: string;
@@ -35,14 +47,6 @@ export interface ProjectStudent {
   sessionDate?: string;
   timeSlot?: string;
   sessionType?: 'S1' | 'S2';
-}
-
-export interface InstituteDetails {
-  name: string;
-  email: string;
-  phone: string;
-  validFrom: string;
-  validTo: string;
 }
 
 export interface TimeSlot {
@@ -78,10 +82,4 @@ export interface ProjectStudentDetail {
   grade: string;
   session1: StudentSessionDetail;
   session2: StudentSessionDetail;
-}
-
-export interface CreateProjectPayload {
-  instituteDetails: InstituteDetails;
-  counselors: ProjectCounselor[];
-  students: ProjectStudent[];
 }
