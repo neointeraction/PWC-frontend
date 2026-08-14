@@ -1,4 +1,4 @@
-export type Role = 'super_admin' | 'institution_admin' | 'counselor' | 'admin' | 'student';
+export type Role = 'super_admin' | 'institution_admin' | 'counselor' | 'admin' | 'student' | 'view_only';
 
 export interface User {
   id: string;
@@ -7,6 +7,7 @@ export interface User {
   role: Role;
   avatar?: string;
   mustChangePassword?: boolean;
+  isViewOnly?: boolean;
 }
 
 export interface LoginPayload {

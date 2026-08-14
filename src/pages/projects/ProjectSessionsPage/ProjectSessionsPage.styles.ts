@@ -135,10 +135,8 @@ export const TickIconBadge = styled.div`
 `;
 
 export const StudentsSection = styled.div`
-  background-color: #fafafa;
-  border-radius: 4px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: ${({ theme }) => theme.spacing.md};
+  display: flex;
+  flex-direction: column;
 `;
 
 export const StudentsHeaderRow = styled.div`
@@ -160,4 +158,42 @@ export const StudentsTableWrapper = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
   background-color: ${({ theme }) => theme.colors.surface};
+`;
+
+export const ActionIconButton = styled.button`
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+    background-color: ${({ theme }) => theme.colors.primaryLight};
+  }
+`;
+
+export const StudentNameButton = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  color: ${({ theme }) => theme.colors.primary};
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.2s ease;
+
+  &:hover {
+    text-decoration: underline;
+    color: ${({ theme }) => theme.colors.primaryHover};
+  }
 `;

@@ -15,7 +15,28 @@ import {
 } from '@/mocks/studentFormChart.mock';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
+import { Select, SelectOption } from '@/components/Select';
 import { useToast } from '@/hooks';
+
+const DOMAIN_OPTIONS: SelectOption[] = [
+  { value: 'Library & Information Science', label: 'Library & Information Science' },
+  { value: 'Applied Arts & Design', label: 'Applied Arts & Design' },
+  { value: 'Animation, Graphics & Digital Arts', label: 'Animation, Graphics & Digital Arts' },
+  { value: 'Performing Arts & Music', label: 'Performing Arts & Music' },
+  { value: 'Aeronautics & Aviation', label: 'Aeronautics & Aviation' },
+  { value: 'Business, Sales & Management', label: 'Business, Sales & Management' },
+  { value: 'Core Engineering & Industrial Systems', label: 'Core Engineering & Industrial Systems' },
+  { value: 'Computer Science & Artificial Intelligence', label: 'Computer Science & Artificial Intelligence' },
+  { value: 'Finance & Algorithmic Trading', label: 'Finance & Algorithmic Trading' },
+  { value: 'Food Science & Agriculture', label: 'Food Science & Agriculture' },
+  { value: 'Healthcare & Clinical Sciences', label: 'Healthcare & Clinical Sciences' },
+  { value: 'Information Technology & Cybersecurity', label: 'Information Technology & Cybersecurity' },
+  { value: 'Law & Public Policy', label: 'Law & Public Policy' },
+  { value: 'Logistics & Supply Chain', label: 'Logistics & Supply Chain' },
+  { value: 'Media, Journalism & Digital Content', label: 'Media, Journalism & Digital Content' },
+  { value: 'STEM Research & Applied Sciences', label: 'STEM Research & Applied Sciences' },
+  { value: 'Social Science, Psychology & Education', label: 'Social Science, Psychology & Education' },
+];
 import { ComparisonTable } from './ComparisonTable';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import { CareerLibraryPickerModal } from './CareerLibraryPickerModal';
@@ -1100,8 +1121,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '130px 160px 1fr 180px 120px 120px 120px 60px',
-                minWidth: '1000px',
+                gridTemplateColumns: '180px 160px 1fr 180px 120px 120px 120px 60px',
+                minWidth: '1050px',
               }}
             >
               <CompTableHeaderCell>Domain</CompTableHeaderCell>
@@ -1118,13 +1139,18 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompDataRow
                 key={row.id}
                 style={{
-                  gridTemplateColumns: '130px 160px 1fr 180px 120px 120px 120px 60px',
-                  minWidth: '1000px',
+                  gridTemplateColumns: '180px 160px 1fr 180px 120px 120px 120px 60px',
+                  minWidth: '1050px',
                 }}
               >
                 <CompParamCell style={{ padding: '4px' }}>
-                  <FormInput
+                  <Select
                     value={row.domain}
+                    options={
+                      DOMAIN_OPTIONS.some(opt => opt.value === row.domain) || !row.domain
+                        ? DOMAIN_OPTIONS
+                        : [{ value: row.domain, label: row.domain }, ...DOMAIN_OPTIONS]
+                    }
                     onChange={e =>
                       onChangeCompassTable(
                         data.careerCompassTable.map(r =>
@@ -1132,7 +1158,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
                         )
                       )
                     }
-                    style={{ width: '100%' }}
+                    placeholder="Select Domain"
+                    fullWidth
                   />
                 </CompParamCell>
                 <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>

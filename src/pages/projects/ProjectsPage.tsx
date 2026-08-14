@@ -21,6 +21,7 @@ import { Badge } from '@/components/Badge';
 import { AlertModal, Tooltip } from '@/components';
 import { projectService } from '@/services/project.service';
 import { useProjectStore } from '@/store/project.store';
+import { useAuthStore } from '@/store';
 import { useToast } from '@/hooks';
 import { Project, ProjectStatus } from '@/types/project.types';
 import { ROUTES } from '@/constants';
@@ -41,6 +42,8 @@ export const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { user } = useAuthStore();
+  const isViewOnlyUser = Boolean(user?.isViewOnly);
 
   const { searchQuery, setSearchQuery, openWizard } = useProjectStore();
 
@@ -70,16 +73,12 @@ export const ProjectsPage: React.FC = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Final_Report.csv`);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Report.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    toast.success(
-      'Project Report Downloaded!',
-      `Downloaded final project report CSV for "${project.name}".`
-    );
+    toast.success('Report Downloaded', `Exported project report CSV for ${project.name}.`);
   };
 
   const { data, isLoading } = useQuery({
@@ -87,7 +86,7 @@ export const ProjectsPage: React.FC = () => {
     queryFn: () =>
       projectService.getAll({
         search: searchQuery,
-        status: statusFilter,
+        status: statusFilter === 'all' ? undefined : (statusFilter as ProjectStatus),
         page,
         limit,
       }),
@@ -97,20 +96,20 @@ export const ProjectsPage: React.FC = () => {
     mutationFn: projectService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Project Marked as Deleted', 'Project marked as deleted in table. You can revert it anytime.');
+      toast.success('Project Deleted', 'Successfully removed project record.');
       setProjectToDelete(null);
     },
     onError: () => {
-      toast.error('Error', 'Failed to delete the project.');
+      toast.error('Error', 'Failed to delete project record.');
       setProjectToDelete(null);
     },
   });
 
   const restoreMutation = useMutation({
-    mutationFn: projectService.restore,
-    onSuccess: restored => {
+    mutationFn: (id: string) => projectService.update(id, { status: 'active' }),
+    onSuccess: updated => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Project Restored', `Successfully restored project "${restored.name}".`);
+      toast.success('Project Restored', `Restored ${updated.name} to active status.`);
     },
     onError: () => {
       toast.error('Error', 'Failed to restore project.');
@@ -143,7 +142,7 @@ export const ProjectsPage: React.FC = () => {
         );
       case 'completed':
         return (
-          <Badge variant="default" dot>
+          <Badge variant="info" dot>
             Completed
           </Badge>
         );
@@ -160,9 +159,20 @@ export const ProjectsPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      render: row => (
+      render: (row: Project) => (
         <ActionIconButtonGroup>
-          {row.status === 'deleted' ? (
+          {isViewOnlyUser ? (
+            row.status === 'completed' && (
+              <Tooltip content="Download Project Report">
+                <ActionIconButton
+                  aria-label="Download Project Report"
+                  onClick={() => handleDownloadProjectReport(row)}
+                >
+                  <RiDownloadLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+            )
+          ) : row.status === 'deleted' ? (
             <Tooltip content="Revert / Restore Project">
               <ActionIconButton
                 aria-label="Revert / Restore Project"
@@ -260,9 +270,11 @@ export const ProjectsPage: React.FC = () => {
         subtitle="Manage institution projects and counselling initiatives"
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Projects' }]}
         actions={
-          <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
-            Add Project
-          </Button>
+          isViewOnlyUser ? undefined : (
+            <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
+              Add Project
+            </Button>
+          )
         }
       />
 

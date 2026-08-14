@@ -17,6 +17,7 @@ const addTenantSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   phone: z.string().optional(),
   userCategory: z.enum(['pwc', 'institution', 'counselor']),
+  isViewOnly: z.boolean().optional(),
   roleLabel: z.string().optional(),
   organizationName: z.string().optional(),
   status: z.enum(['active', 'inactive', 'pending']).optional(),
@@ -42,6 +43,7 @@ export const AddTenantModal: React.FC = () => {
       email: '',
       phone: '',
       userCategory: 'pwc',
+      isViewOnly: false,
       roleLabel: 'kREATE Default User',
       organizationName: '',
       status: 'active',
@@ -67,7 +69,14 @@ export const AddTenantModal: React.FC = () => {
     createMutation.mutate({
       ...data,
       status: 'active',
-      roleLabel: data.userCategory === 'pwc' ? 'Admin' : data.userCategory === 'institution' ? 'Institution User' : 'Counselor',
+      roleLabel:
+        data.userCategory === 'pwc'
+          ? data.isViewOnly
+            ? 'View Only Tenant'
+            : 'Admin'
+          : data.userCategory === 'institution'
+          ? 'Institution User'
+          : 'Counselor',
       organizationName:
         data.userCategory === 'pwc'
           ? 'kREATE Global Engine'
@@ -126,6 +135,21 @@ export const AddTenantModal: React.FC = () => {
           error={errors.userCategory?.message}
           {...register('userCategory')}
         />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+          <input
+            type="checkbox"
+            id="add-tenant-is-view-only"
+            style={{ width: '18px', height: '18px', accentColor: '#2563EB', cursor: 'pointer' }}
+            {...register('isViewOnly')}
+          />
+          <label
+            htmlFor="add-tenant-is-view-only"
+            style={{ fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}
+          >
+            View Only Mode (Grant read-only access without edit or delete permissions)
+          </label>
+        </div>
 
         {selectedCategory !== 'pwc' && (
           <Input

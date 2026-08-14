@@ -11,6 +11,7 @@ export interface UserRecord {
   roleLabel: string;
   organizationName?: string;
   status: UserStatus;
+  isViewOnly?: boolean;
   createdAt: string;
   lastActive?: string;
   generatedPassword?: string;
@@ -25,6 +26,7 @@ export interface CreateUserPayload {
   roleLabel: string;
   organizationName?: string;
   status: UserStatus;
+  isViewOnly?: boolean;
   generatedPassword?: string;
 }
 

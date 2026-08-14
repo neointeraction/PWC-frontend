@@ -19,6 +19,7 @@ import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { tenantManagementService } from '@/services/tenant-management.service';
 import { useTenantManagementStore } from '@/store/tenant-management.store';
+import { useAuthStore } from '@/store/auth.store';
 import { useToast } from '@/hooks';
 import { UserRecord, UserCategory } from '@/types/tenant-management.types';
 import {
@@ -41,6 +42,8 @@ import { CredentialsModal } from './components/CredentialsModal';
 export const TenantManagementPage: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { user } = useAuthStore();
+  const isViewOnlyUser = Boolean(user?.isViewOnly);
 
   const {
     activeCategory,
@@ -83,8 +86,8 @@ export const TenantManagementPage: React.FC = () => {
     },
   });
 
-  const handleDeleteClick = (user: UserRecord) => {
-    setUserToDelete(user);
+  const handleDeleteClick = (userRecord: UserRecord) => {
+    setUserToDelete(userRecord);
   };
 
   const confirmDelete = () => {
@@ -129,41 +132,51 @@ export const TenantManagementPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      render: row => (
+      render: (row: UserRecord) => (
         <ActionIconButtonGroup>
-          <Tooltip content="View Credentials">
-            <ActionIconButton
-              aria-label="View Credentials"
-              onClick={() => openCredentialsModal(row)}
-            >
-              <RiKeyLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip content="View Profile">
-            <ActionIconButton aria-label="View Profile" onClick={() => openViewModal(row)}>
-              <RiEyeLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip content="Edit Tenant">
-            <ActionIconButton aria-label="Edit Tenant" onClick={() => openEditModal(row)}>
-              <RiEditLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-          <Tooltip
-            content={
-              (data?.total ?? data?.data?.length ?? 0) <= 1
-                ? 'Cannot delete the only tenant'
-                : 'Delete Tenant'
-            }
-          >
-            <ActionIconButton
-              aria-label="Delete Tenant"
-              disabled={(data?.total ?? data?.data?.length ?? 0) <= 1}
-              onClick={() => handleDeleteClick(row)}
-            >
-              <RiDeleteBinLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
+          {isViewOnlyUser ? (
+            <Tooltip content="View Profile">
+              <ActionIconButton aria-label="View Profile" onClick={() => openViewModal(row)}>
+                <RiEyeLine size={16} />
+              </ActionIconButton>
+            </Tooltip>
+          ) : (
+            <>
+              <Tooltip content="View Credentials">
+                <ActionIconButton
+                  aria-label="View Credentials"
+                  onClick={() => openCredentialsModal(row)}
+                >
+                  <RiKeyLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+              <Tooltip content="View Profile">
+                <ActionIconButton aria-label="View Profile" onClick={() => openViewModal(row)}>
+                  <RiEyeLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+              <Tooltip content="Edit Tenant">
+                <ActionIconButton aria-label="Edit Tenant" onClick={() => openEditModal(row)}>
+                  <RiEditLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+              <Tooltip
+                content={
+                  (data?.total ?? data?.data?.length ?? 0) <= 1
+                    ? 'Cannot delete the only tenant'
+                    : 'Delete Tenant'
+                }
+              >
+                <ActionIconButton
+                  aria-label="Delete Tenant"
+                  disabled={(data?.total ?? data?.data?.length ?? 0) <= 1}
+                  onClick={() => handleDeleteClick(row)}
+                >
+                  <RiDeleteBinLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+            </>
+          )}
         </ActionIconButtonGroup>
       ),
     },
@@ -180,7 +193,19 @@ export const TenantManagementPage: React.FC = () => {
     {
       key: 'userCategory',
       header: 'User Type',
-      render: row => getCategoryBadge(row.userCategory),
+      render: row => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          {getCategoryBadge(row.userCategory)}
+          {row.isViewOnly && (
+            <Badge variant="warning">
+              <BadgeIconMargin>
+                <RiEyeLine size={14} />
+              </BadgeIconMargin>
+              View Only
+            </Badge>
+          )}
+        </div>
+      ),
     },
     {
       key: 'organizationName',
@@ -230,16 +255,40 @@ export const TenantManagementPage: React.FC = () => {
     <TenantManagementContainer>
       <PageHeader
         title="Tenant Management"
-        subtitle="Manage kREATE, Institution, and Counselor tenants across the platform"
+        subtitle="Manage kREATE, View Only, Institution, and Counselor tenants across the platform"
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Tenant Management' }]}
         actions={
-          <Button leftIcon={<RiUserAddLine size={18} />} onClick={openAddModal}>
-            Add New Tenant
-          </Button>
+          isViewOnlyUser ? undefined : (
+            <Button leftIcon={<RiUserAddLine size={18} />} onClick={openAddModal}>
+              Add New Tenant
+            </Button>
+          )
         }
       />
 
       <Card>
+        {isViewOnlyUser && (
+          <div
+            style={{
+              padding: '12px 16px',
+              marginBottom: '16px',
+              borderRadius: '4px',
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fde68a',
+              color: '#78350f',
+              fontSize: '14px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}
+          >
+            <RiEyeLine size={20} style={{ color: '#d97706', flexShrink: 0 }} />
+            <span>
+              <strong>View-Only Mode Active:</strong> You are logged in with read-only permissions. Adding, editing, and deleting tenants is restricted.
+            </span>
+          </div>
+        )}
         <Tabs
           tabs={categoryTabs}
           activeTab={activeCategory === 'all' ? 'pwc' : activeCategory}

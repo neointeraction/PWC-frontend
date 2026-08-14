@@ -385,6 +385,7 @@ export const CompSubHeaderRow = styled.div`
 export const CompDataRow = styled.div`
   display: grid;
   grid-template-columns: 280px 1fr 1fr;
+  align-items: flex-start;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
   &:last-child {
@@ -405,7 +406,7 @@ export const CompParamCell = styled.div`
   font-weight: 600;
   color: ${({ theme }) => theme.colors.text};
   display: flex;
-  align-items: center;
+  align-items: flex-start;
 `;
 
 export const CompResponseCell = styled.div<{ $type?: 'student' | 'parent' }>`
@@ -413,6 +414,9 @@ export const CompResponseCell = styled.div<{ $type?: 'student' | 'parent' }>`
   font-size: 0.85rem;
   color: ${({ theme }) => theme.colors.text};
   border-left: 1px solid ${({ theme }) => theme.colors.border};
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   background-color: ${({ $type }) =>
     $type === 'student'
       ? 'rgba(79, 70, 229, 0.02)'
