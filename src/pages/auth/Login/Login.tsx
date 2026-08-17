@@ -11,28 +11,32 @@ import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { LoginPayload } from '@/types';
-import logoImg from '@/assets/logo.jpg';
+import designDestinyLogo from '@/assets/design-destiny.png';
+import kreateLogo from '@/assets/logo.jpg';
 import {
   LoginWrapper,
+  LeftBannerSection,
+  BannerHeader,
+  BannerSubtext,
+  DesignDestinyLogo,
+  RightFormSection,
+  CenterContent,
+  KreateLogo,
   LoginCard,
-  LogoWrapper,
-  LogoTextWrapper,
-  LogoTitle,
-  LogoSubtitle,
-  LoginTitleWrapper,
-  LoginHeading,
-  LoginSubtext,
+  CardHeader,
+  CardTitle,
+  CardSubtext,
   LoginForm,
   FormGroup,
   ForgotPasswordLink,
-  HintBox,
-  HintTitle,
+  DemoAccordion,
   DemoButtons,
   ErrorAlert,
+  FooterText,
 } from './Login.styles';
 
 const loginSchema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.string().min(1, 'Username or Email is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -90,110 +94,107 @@ export const LoginPage: React.FC = () => {
 
   return (
     <LoginWrapper>
-      <LoginCard>
-        <LogoWrapper>
-          <img
-            src={logoImg}
-            alt="kREATE Logo"
-            style={{ width: 40, height: 40, objectFit: 'contain' }}
-          />
-          <LogoTextWrapper>
-            <LogoTitle>kREATE Portal</LogoTitle>
-            <LogoSubtitle>Career Counselling Platform</LogoSubtitle>
-          </LogoTextWrapper>
-        </LogoWrapper>
+      <LeftBannerSection>
+        <BannerHeader>
+          <BannerSubtext>A Career Infrastructure Platform by</BannerSubtext>
+          <DesignDestinyLogo src={designDestinyLogo} alt="Design Destiny" />
+        </BannerHeader>
+      </LeftBannerSection>
 
-        <LoginTitleWrapper>
-          <LoginHeading>Sign In</LoginHeading>
-          <LoginSubtext>Enter your user credentials to access your portal</LoginSubtext>
-        </LoginTitleWrapper>
+      <RightFormSection>
+        <CenterContent>
+          <KreateLogo src={kreateLogo} alt="Kreate Logo" />
 
-        <LoginForm onSubmit={handleSubmit(data => mutation.mutate(data))} noValidate>
-          {mutation.isError && (
-            <ErrorAlert role="alert">
-              {mutation.error instanceof Error
-                ? mutation.error.message
-                : 'An error occurred. Please try again.'}
-            </ErrorAlert>
-          )}
+          <LoginCard>
+            <CardHeader>
+              <CardTitle>Sign In</CardTitle>
+              <CardSubtext>Enter your user credentials to access your portal</CardSubtext>
+            </CardHeader>
 
-          <FormGroup>
-            <Input
-              label="Username / Email"
-              type="email"
-              placeholder="Enter your username or email"
-              leftIcon={<RiUser3Line size={18} />}
-              autoComplete="email"
-              error={errors.email?.message}
-              {...register('email')}
-            />
-            <Input
-              label="Password"
-              type="password"
-              placeholder="Enter your password"
-              leftIcon={<RiLockLine size={18} />}
-              autoComplete="current-password"
-              error={errors.password?.message}
-              {...register('password')}
-            />
-          </FormGroup>
+            <LoginForm onSubmit={handleSubmit(data => mutation.mutate(data))} noValidate>
+              {mutation.isError && (
+                <ErrorAlert role="alert">
+                  {mutation.error instanceof Error
+                    ? mutation.error.message
+                    : 'An error occurred. Please try again.'}
+                </ErrorAlert>
+              )}
 
-          <Button
-            type="submit"
-            variant="primary"
-            fullWidth
-            size="lg"
-            isLoading={mutation.isPending}
-          >
-            LOG IN
-          </Button>
+              <FormGroup>
+                <Input
+                  label="Username / Email"
+                  type="text"
+                  placeholder="Enter your username or email"
+                  leftIcon={<RiUser3Line size={18} />}
+                  autoComplete="username"
+                  error={errors.email?.message}
+                  {...register('email')}
+                />
+                <Input
+                  label="Password"
+                  type="password"
+                  placeholder="Enter your password"
+                  leftIcon={<RiLockLine size={18} />}
+                  autoComplete="current-password"
+                  error={errors.password?.message}
+                  {...register('password')}
+                />
+              </FormGroup>
 
-          <ForgotPasswordLink type="button">Forgot Password?</ForgotPasswordLink>
-        </LoginForm>
+              <Button
+                type="submit"
+                variant="primary"
+                fullWidth
+                size="lg"
+                isLoading={mutation.isPending}
+              >
+                LOG IN
+              </Button>
 
-        <HintBox>
-          <HintTitle>Quick Demo Login Shortcuts</HintTitle>
-          <DemoButtons>
-            <Button size="sm" variant="secondary" onClick={fillSuperAdmin}>
-              Super Admin (admin@pwc.com)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillPwcUser}>
-              kREATE User / Admin (sunita.sharma@pwc-global.com)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillViewOnlyUser}>
-              kREATE View-Only Account (viewer@pwc.com)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillCounselor}>
-              Counselor (counselor@pwc.com)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillStudent}>
-              Student (student@pwc.com)
-            </Button>
-          </DemoButtons>
-        </HintBox>
+              <ForgotPasswordLink type="button">Forgot Password?</ForgotPasswordLink>
+            </LoginForm>
 
-        <HintBox>
-          <HintTitle>Mail Shortcuts</HintTitle>
-          <DemoButtons>
-            <Button
-              size="sm"
-              variant="primary"
-              leftIcon={<RiMailLine size={16} />}
-              onClick={() => navigate(ROUTES.PARENT_PRE_COUNSELLING_FORM)}
-            >
-              Mail 1
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              leftIcon={<RiMailLine size={16} />}
-              onClick={() => navigate(ROUTES.PARENT_FEEDBACK_FORM)}
-            >
-              Mail 2
-            </Button>
-          </DemoButtons>
-        </HintBox>
-      </LoginCard>
+            <DemoAccordion>
+              <summary>Quick Demo Login Shortcuts & Mail Form Links</summary>
+              <DemoButtons>
+                <Button size="sm" variant="secondary" onClick={fillSuperAdmin}>
+                  Super Admin (admin@pwc.com)
+                </Button>
+                <Button size="sm" variant="secondary" onClick={fillPwcUser}>
+                  kREATE User / Admin (sunita.sharma@pwc-global.com)
+                </Button>
+                <Button size="sm" variant="secondary" onClick={fillViewOnlyUser}>
+                  kREATE View-Only Account (viewer@pwc.com)
+                </Button>
+                <Button size="sm" variant="secondary" onClick={fillCounselor}>
+                  Counselor (counselor@pwc.com)
+                </Button>
+                <Button size="sm" variant="secondary" onClick={fillStudent}>
+                  Student (student@pwc.com)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  leftIcon={<RiMailLine size={14} />}
+                  onClick={() => navigate(ROUTES.PARENT_PRE_COUNSELLING_FORM)}
+                >
+                  Mail 1 (Pre-Counselling Form)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  leftIcon={<RiMailLine size={14} />}
+                  onClick={() => navigate(ROUTES.PARENT_FEEDBACK_FORM)}
+                >
+                  Mail 2 (Parent Feedback Form)
+                </Button>
+              </DemoButtons>
+            </DemoAccordion>
+          </LoginCard>
+        </CenterContent>
+
+        <FooterText>©Design Destiny. All Rights Reserved.</FooterText>
+      </RightFormSection>
     </LoginWrapper>
   );
 };

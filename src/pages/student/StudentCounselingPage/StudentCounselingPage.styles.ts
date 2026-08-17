@@ -93,6 +93,14 @@ export const TableActionsContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+
+  tr:hover & {
+    opacity: 1;
+    visibility: visible;
+  }
 `;
 
 export const ActionIconButton = styled.button`

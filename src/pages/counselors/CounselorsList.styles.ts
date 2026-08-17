@@ -3,6 +3,46 @@ import styled from 'styled-components';
 export const CounselorsContainer = styled.div`
   display: flex;
   flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.lg};
+`;
+
+export const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: ${({ theme }) => theme.spacing.lg};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.lg}) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+export const StatMetricValue = styled.div<{ $color?: string }>`
+  font-size: ${({ theme }) => theme.fontSize.display};
+  font-weight: 700;
+  color: ${({ theme, $color }) => $color || theme.colors.text};
+  margin-top: 4px;
+`;
+
+export const ProjectLinkButton = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.primary};
+  text-align: left;
+  cursor: pointer;
+  transition: color ${({ theme }) => theme.transition.fast};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primaryHover};
+    text-decoration: underline;
+  }
 `;
 
 export const FilterBar = styled.div`
@@ -48,6 +88,14 @@ export const ActionIconButtonGroup = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.xs};
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+
+  tr:hover & {
+    opacity: 1;
+    visibility: visible;
+  }
 `;
 
 export const ActionIconButton = styled.button`

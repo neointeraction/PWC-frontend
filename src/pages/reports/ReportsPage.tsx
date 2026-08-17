@@ -153,23 +153,6 @@ export const ReportsPage: React.FC = () => {
 
   const columns: Column<ReportRow>[] = [
     {
-      key: 'id',
-      header: 'Actions',
-      render: row => (
-        <ActionIconButtonGroup>
-          <Tooltip content="Download PDF Report">
-            <ActionIconButton
-              onClick={() =>
-                toast.info('Download Started', `Downloading PDF report for ${row.studentName}`)
-              }
-            >
-              <RiFilePdfLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-        </ActionIconButtonGroup>
-      ),
-    },
-    {
       key: 'studentName',
       header: 'Student Info',
       render: row => (
@@ -248,6 +231,23 @@ export const ReportsPage: React.FC = () => {
         <Badge variant={row.reportStatus === 'generated' ? 'success' : 'warning'}>
           {row.reportStatus === 'generated' ? 'Generated' : 'Pending Review'}
         </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: row => (
+        <ActionIconButtonGroup>
+          <Tooltip content="Download PDF Report">
+            <ActionIconButton
+              onClick={() =>
+                toast.info('Download Started', `Downloading PDF report for ${row.studentName}`)
+              }
+            >
+              <RiFilePdfLine size={16} />
+            </ActionIconButton>
+          </Tooltip>
+        </ActionIconButtonGroup>
       ),
     },
   ];

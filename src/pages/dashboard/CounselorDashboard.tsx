@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { RiEyeLine } from 'react-icons/ri';
 import { useAuthStore } from '@/store';
 import { Table, Column } from '@/components/Table';
+import { ActionsCell, IconButton } from '@/components/Table/Table.styles';
 import { Badge } from '@/components/Badge';
 import { Tooltip } from '@/components/Tooltip';
 import { studentService } from '@/services/student.service';
@@ -44,37 +45,6 @@ export const CounselorDashboard: React.FC = () => {
   };
 
   const columns: Column<Student>[] = [
-    {
-      key: 'actions',
-      header: 'Actions',
-      width: '100px',
-      render: (row) => (
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {row.formStatus === 'submitted' && (
-            <Tooltip content="View Answers">
-              <button
-                type="button"
-                className="table-action-btn"
-                onClick={() => handleViewAnswers(row)}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  border: '1px solid var(--theme-colors-border)',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--theme-colors-surface)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <RiEyeLine size={16} />
-              </button>
-            </Tooltip>
-          )}
-        </div>
-      ),
-    },
     { key: 'name', header: 'Student Name' },
     { key: 'email', header: 'Email' },
     { key: 'school', header: 'School' },
@@ -86,6 +56,25 @@ export const CounselorDashboard: React.FC = () => {
         <Badge variant={row.formStatus === 'submitted' ? 'success' : 'warning'}>
           {row.formStatus === 'submitted' ? 'Submitted' : 'Pending'}
         </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      width: '100px',
+      render: (row) => (
+        <ActionsCell style={{ justifyContent: 'flex-end' }}>
+          {row.formStatus === 'submitted' && (
+            <Tooltip content="View Answers">
+              <IconButton
+                aria-label="View Answers"
+                onClick={() => handleViewAnswers(row)}
+              >
+                <RiEyeLine size={16} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </ActionsCell>
       ),
     },
   ];

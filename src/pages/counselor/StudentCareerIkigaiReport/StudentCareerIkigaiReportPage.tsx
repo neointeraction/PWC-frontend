@@ -29,6 +29,7 @@ import { CareerCompassSection } from './sections/CareerCompassSection';
 import { RoadmapSection } from './sections/RoadmapSection';
 
 import { Badge } from '@/components/Badge';
+import { Tooltip } from '@/components/Tooltip';
 import {
   ReportContainer,
   ReportBodyLayout,
@@ -115,22 +116,37 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
   return (
     <ReportContainer>
       <PageHeader
-        title="PHOENIX WATER CLUB | Student Career IKIGAI Report"
+        title="PHOENIX WATER CLUB | kREATE Compass Report"
         subtitle={`Student: ${reportData.studentInfo.studentName} (${reportData.studentInfo.gradeClass}) • ${reportData.studentInfo.schoolName}`}
         breadcrumbs={[
           { label: 'Dashboard', href: ROUTES.DASHBOARD },
           { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
-          { label: `IKIGAI Report (${reportData.studentInfo.studentName})` },
+          { label: `kREATE Compass (${reportData.studentInfo.studentName})` },
         ]}
         onBack={() => navigate(-1)}
         actions={
-          <Button
-            variant="primary"
-            leftIcon={<RiPrinterLine size={18} />}
-            onClick={handleDownloadPdf}
-          >
-            Download as PDF
-          </Button>
+          localStorage.getItem('pwc_student_feedback_submitted') === 'true' ? (
+            <Button
+              variant="primary"
+              leftIcon={<RiPrinterLine size={18} />}
+              onClick={handleDownloadPdf}
+            >
+              Download as PDF
+            </Button>
+          ) : (
+            <Tooltip content="Download is unlocked after completing the Feedback step">
+              <div>
+                <Button
+                  variant="secondary"
+                  leftIcon={<RiPrinterLine size={18} />}
+                  disabled
+                  title="Download is unlocked after completing the Feedback step"
+                >
+                  Download as PDF (Locked)
+                </Button>
+              </div>
+            </Tooltip>
+          )
         }
       />
 

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   RiSearchLine,
   RiEditLine,
+  RiFileCopyLine,
+  RiUserAddLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -16,8 +18,8 @@ import { projectService } from '@/services/project.service';
 import { CounselorSession, ProjectStudent } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
-import { ModifySessionModal } from './ModifySessionModal';
 import { ViewStudentModal } from './ViewStudentModal';
+import { AssignStudentModal, SlotData } from './AssignStudentModal';
 import {
   Container,
   FilterBar,
@@ -35,66 +37,109 @@ import {
   StudentsTableWrapper,
   ActionIconButton,
   StudentNameButton,
+  NBStudentText,
 } from './ProjectSessionsPage.styles';
 
-const getStudentColumns = (
+const getSlotColumns = (
   session: CounselorSession,
-  onModify: (session: CounselorSession) => void,
+  onAssignSlot: (session: CounselorSession, slot: SlotData) => void,
   onViewStudent: (student: ProjectStudent) => void
-): Column<ProjectStudent>[] => [
+): Column<SlotData>[] => [
   {
-    key: 'actions',
-    header: 'Action',
-    render: () => (
-      <Tooltip content="Edit Session Assignment">
-        <ActionIconButton aria-label="Edit Session Assignment" onClick={() => onModify(session)}>
-          <RiEditLine size={16} />
-        </ActionIconButton>
-      </Tooltip>
-    ),
-  },
-  {
-    key: 'sessionDate',
+    key: 'date',
     header: 'Date',
-    render: row => row.sessionDate || '18 Feb 2026',
-  },
-  {
-    key: 'timeSlot',
-    header: 'Time',
-    render: row => row.timeSlot || session.timeSlots.find(s => s.isSelected)?.time || '09:30 AM - 10:30 AM',
-  },
-  {
-    key: 'name',
-    header: 'Student',
     render: row => (
-      <StudentNameButton type="button" onClick={() => onViewStudent(row)}>
-        {row.name}
-      </StudentNameButton>
+      <span style={{ color: row.isBooked ? undefined : '#94A3B8' }}>
+        {row.date}
+      </span>
     ),
+  },
+  {
+    key: 'time',
+    header: 'Time',
+    render: row => (
+      <strong style={{ color: row.isBooked ? undefined : '#94A3B8' }}>
+        {row.time}
+      </strong>
+    ),
+  },
+  {
+    key: 'studentName',
+    header: 'Student',
+    render: row =>
+      row.isBooked ? (
+        <StudentNameButton
+          type="button"
+          onClick={() =>
+            onViewStudent({
+              name: row.studentName || '',
+              email: `${row.studentName?.toLowerCase().replace(/\s+/g, '.')}@student.edu`,
+              mobile: row.mobile || '+91 9810012345',
+              grade: '11th',
+            })
+          }
+        >
+          {row.studentName}
+        </StudentNameButton>
+      ) : (
+        <NBStudentText>NB (not booked)</NBStudentText>
+      ),
   },
   {
     key: 'sessionType',
     header: 'Session',
-    render: row => (
-      <Badge variant={row.sessionType === 'S2' ? 'info' : 'primary'}>
-        {row.sessionType || 'S1'}
-      </Badge>
-    ),
+    render: row =>
+      row.isBooked ? (
+        <Badge variant={row.sessionType === 'S2' ? 'info' : 'primary'}>
+          {row.sessionType || 'S1'}
+        </Badge>
+      ) : (
+        <Badge variant="default" size="sm">
+          NB
+        </Badge>
+      ),
   },
   {
     key: 'mobile',
     header: 'Phone',
-    render: row => row.mobile || 'N/A',
+    render: row =>
+      row.isBooked ? (
+        row.mobile || 'N/A'
+      ) : (
+        <span style={{ color: '#CBD5E1' }}>—</span>
+      ),
+  },
+  {
+    key: 'actions',
+    header: 'Action',
+    render: row => (
+      <Tooltip content={row.isBooked ? 'Edit Student Schedule' : 'Assign Student to Session'}>
+        <ActionIconButton
+          aria-label={row.isBooked ? 'Edit Schedule' : 'Assign Student'}
+          onClick={() => onAssignSlot(session, row)}
+        >
+          {row.isBooked ? <RiEditLine size={16} /> : <RiUserAddLine size={16} />}
+        </ActionIconButton>
+      </Tooltip>
+    ),
   },
 ];
 
 interface CounselorSessionCardProps {
   session: CounselorSession;
-  onModify: (session: CounselorSession) => void;
+  slots: SlotData[];
+  onAssignSlot: (session: CounselorSession, slot: SlotData) => void;
   onViewStudent: (student: ProjectStudent) => void;
+  onCopyMeetLink: (session: CounselorSession) => void;
 }
 
-const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({ session, onModify, onViewStudent }) => {
+const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({
+  session,
+  slots,
+  onAssignSlot,
+  onViewStudent,
+  onCopyMeetLink,
+}) => {
   return (
     <CounselorCard key={session.id}>
       <CounselorHeader>
@@ -116,23 +161,25 @@ const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({ session, on
           </CounselorDetails>
         </CounselorIdentity>
 
-        <Button
-          size="sm"
-          variant="secondary"
-          leftIcon={<RiEditLine size={16} />}
-          onClick={() => onModify(session)}
-        >
-          Modify Session
-        </Button>
+        <Tooltip content="Copy Google Meet link for this counselor">
+          <Button
+            size="sm"
+            variant="secondary"
+            leftIcon={<RiFileCopyLine size={16} />}
+            onClick={() => onCopyMeetLink(session)}
+          >
+            Copy Meet Link
+          </Button>
+        </Tooltip>
       </CounselorHeader>
 
       <StudentsSection>
         <StudentsTableWrapper>
           <Table
-            columns={getStudentColumns(session, onModify, onViewStudent)}
-            data={session.assignedStudents}
-            keyExtractor={row => row.email}
-            emptyMessage="No student assigned."
+            columns={getSlotColumns(session, onAssignSlot, onViewStudent)}
+            data={slots}
+            keyExtractor={row => row.id}
+            emptyMessage="No available or booked session slots."
           />
         </StudentsTableWrapper>
       </StudentsSection>
@@ -143,12 +190,128 @@ const CounselorSessionCard: React.FC<CounselorSessionCardProps> = ({ session, on
 export const ProjectSessionsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const toast = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSession, setSelectedSession] = useState<CounselorSession | null>(null);
+  const [selectedSlotForAssign, setSelectedSlotForAssign] = useState<{
+    session: CounselorSession;
+    slot: SlotData;
+  } | null>(null);
   const [selectedStudentForView, setSelectedStudentForView] = useState<ProjectStudent | null>(null);
+
+  // Local state for customized slot rows per counselor
+  const [counselorSlotsMap, setCounselorSlotsMap] = useState<Record<string, SlotData[]>>({
+    'cs-101': [
+      {
+        id: 'anil-slot-1',
+        date: '18 Feb 2026',
+        time: '09:30 - 10:30',
+        studentName: 'Ananya Roy',
+        sessionType: 'S1',
+        mobile: '+91 9810012345',
+        isBooked: true,
+      },
+      {
+        id: 'anil-slot-2',
+        date: '22 Feb 2026',
+        time: '09:30 - 10:30',
+        studentName: 'Ananya Roy',
+        sessionType: 'S2',
+        mobile: '+91 9810012345',
+        isBooked: true,
+      },
+      {
+        id: 'anil-slot-3',
+        date: '18 Feb 2026',
+        time: '11:00 - 12:00',
+        isBooked: false,
+      },
+      {
+        id: 'anil-slot-4',
+        date: '25 Feb 2026',
+        time: '14:00 - 15:00',
+        isBooked: false,
+      },
+    ],
+    'cs-102': [
+      {
+        id: 'mahesh-slot-1',
+        date: '18 Feb 2026',
+        time: '09:30 - 10:30',
+        studentName: 'Ananya Roy',
+        sessionType: 'S1',
+        mobile: '+91 9810012345',
+        isBooked: true,
+      },
+      {
+        id: 'mahesh-slot-2',
+        date: '22 Feb 2026',
+        time: '09:30 - 10:30',
+        studentName: 'Ananya Roy',
+        sessionType: 'S2',
+        mobile: '+91 9810012345',
+        isBooked: true,
+      },
+      {
+        id: 'mahesh-slot-3',
+        date: '18 Feb 2026',
+        time: '11:00 - 12:00',
+        isBooked: false,
+      },
+      {
+        id: 'mahesh-slot-4',
+        date: '25 Feb 2026',
+        time: '14:00 - 15:00',
+        isBooked: false,
+      },
+    ],
+    'cs-103': [
+      {
+        id: 'hema-slot-1',
+        date: '19 Feb 2026',
+        time: '14:00 - 15:00',
+        studentName: 'Priya Rao',
+        sessionType: 'S2',
+        mobile: '+91 9810037035',
+        isBooked: true,
+      },
+      {
+        id: 'hema-slot-2',
+        date: '23 Feb 2026',
+        time: '11:00 - 12:00',
+        isBooked: false,
+      },
+      {
+        id: 'hema-slot-3',
+        date: '26 Feb 2026',
+        time: '16:00 - 17:00',
+        isBooked: false,
+      },
+    ],
+    'cs-104': [
+      {
+        id: 'girish-slot-1',
+        date: '19 Feb 2026',
+        time: '16:00 - 17:00',
+        studentName: 'Siddharth Pillai',
+        sessionType: 'S1',
+        mobile: '+91 9810049380',
+        isBooked: true,
+      },
+      {
+        id: 'girish-slot-2',
+        date: '24 Feb 2026',
+        time: '09:30 - 10:30',
+        isBooked: false,
+      },
+      {
+        id: 'girish-slot-3',
+        date: '27 Feb 2026',
+        time: '14:00 - 15:00',
+        isBooked: false,
+      },
+    ],
+  });
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -160,46 +323,56 @@ export const ProjectSessionsPage: React.FC = () => {
     queryFn: () => projectService.getProjectSessions(projectId || 'proj-001'),
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({
-      sessionId,
-      selectedSlotId,
-      assignedStudents,
-    }: {
-      sessionId: string;
-      selectedSlotId: string;
-      assignedStudents: ProjectStudent[];
-    }) =>
-      projectService.updateCounselorSession(
-        projectId || 'proj-001',
-        sessionId,
-        selectedSlotId,
-        assignedStudents
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projectSessions', projectId] });
-      toast.success('Session Updated', 'Counselor time slot and assigned students updated successfully.');
-      setSelectedSession(null);
-    },
-    onError: () => {
-      toast.error('Update Failed', 'Could not update session. Please try again.');
-    },
-  });
+  const handleCopyMeetLink = (session: CounselorSession) => {
+    const link = `https://meet.google.com/pwc-${session.counselorId.toLowerCase()}`;
+    navigator.clipboard.writeText(link);
+    toast.success(
+      'Link Copied',
+      `Google Meet link for ${session.counselorName} copied to clipboard.`
+    );
+  };
+
+  const handleOpenAssignModal = (session: CounselorSession, slot: SlotData) => {
+    setSelectedSlotForAssign({ session, slot });
+  };
+
+  const handleSaveSlotAssignment = (slotId: string, updatedSlot: Partial<SlotData>) => {
+    if (!selectedSlotForAssign) return;
+
+    const sessionKey = selectedSlotForAssign.session.id;
+
+    setCounselorSlotsMap(prev => {
+      const currentSlots = prev[sessionKey] || [];
+      const updatedSlots = currentSlots.map(s =>
+        s.id === slotId ? { ...s, ...updatedSlot } : s
+      );
+      return { ...prev, [sessionKey]: updatedSlots };
+    });
+
+    toast.success(
+      'Schedule Saved',
+      `Assigned ${updatedSlot.studentName} to ${selectedSlotForAssign.session.counselorName}'s session on ${selectedSlotForAssign.slot.date}.`
+    );
+    setSelectedSlotForAssign(null);
+  };
 
   const filteredSessions = sessions.filter(s => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
+    const slots = counselorSlotsMap[s.id] || [];
     return (
       s.counselorName.toLowerCase().includes(q) ||
-      s.assignedStudents.some(std => std.name.toLowerCase().includes(q))
+      slots.some(
+        slot => slot.studentName && slot.studentName.toLowerCase().includes(q)
+      )
     );
   });
 
   return (
     <Container>
       <PageHeader
-        title={`Project Sessions - ${project?.name || 'Career Guidance'}`}
-        subtitle="View counselor time slots and assigned student details."
+        title={`Project Sessions - ${project?.name || 'Career Guidance 2026 Batch A'}`}
+        subtitle={`School: ${project?.instituteName || "St. Xavier's College, Mumbai"} • View counselor time slots and assigned student details.`}
         breadcrumbs={[
           { label: 'Dashboard', href: ROUTES.DASHBOARD },
           { label: 'Projects', href: ROUTES.PROJECTS },
@@ -223,29 +396,32 @@ export const ProjectSessionsPage: React.FC = () => {
         {isLoading ? (
           <Loader />
         ) : filteredSessions.length === 0 ? (
-          <EmptyState title="No counselor sessions found" description="Try adjusting your search criteria or filter." />
+          <EmptyState
+            title="No counselor sessions found"
+            description="Try adjusting your search criteria or filter."
+          />
         ) : (
           <CounselorsGrid>
             {filteredSessions.map(session => (
               <CounselorSessionCard
                 key={session.id}
                 session={session}
-                onModify={setSelectedSession}
+                slots={counselorSlotsMap[session.id] || []}
+                onAssignSlot={handleOpenAssignModal}
                 onViewStudent={setSelectedStudentForView}
+                onCopyMeetLink={handleCopyMeetLink}
               />
             ))}
           </CounselorsGrid>
         )}
       </Card>
 
-      <ModifySessionModal
-        isOpen={Boolean(selectedSession)}
-        onClose={() => setSelectedSession(null)}
-        session={selectedSession}
-        onSave={(sessionId, selectedSlotId, assignedStudents) => {
-          updateMutation.mutate({ sessionId, selectedSlotId, assignedStudents });
-        }}
-        isSaving={updateMutation.isPending}
+      <AssignStudentModal
+        isOpen={Boolean(selectedSlotForAssign)}
+        onClose={() => setSelectedSlotForAssign(null)}
+        session={selectedSlotForAssign?.session || null}
+        slot={selectedSlotForAssign?.slot || null}
+        onSave={handleSaveSlotAssignment}
       />
 
       <ViewStudentModal
@@ -257,4 +433,5 @@ export const ProjectSessionsPage: React.FC = () => {
     </Container>
   );
 };
+
 export default ProjectSessionsPage;

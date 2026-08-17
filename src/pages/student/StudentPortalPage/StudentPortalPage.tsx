@@ -18,10 +18,12 @@ import {
   RiCloseCircleLine,
   RiRefreshLine,
   RiFileCopyLine,
+  RiEyeLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { AlertModal } from '@/components/AlertModal';
+import { Tooltip } from '@/components/Tooltip';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
@@ -688,59 +690,97 @@ export const StudentPortalPage: React.FC = () => {
         </TimelineList>
       </TimelineWidgetCard>
 
-      {/* SEPARATE IKIGAI REPORT WIDGET BLOCK */}
-      <TestWidgetCard style={{ borderLeftColor: isSession1Completed ? '#16A34A' : '#9CA3AF' }}>
-        <TestWidgetContent>
-          <IconBox
-            $color={isSession1Completed ? '#16A34A' : '#6B7280'}
-            $bg={isSession1Completed ? '#DCFCE7' : '#F3F4F6'}
-          >
-            <RiPrinterLine size={24} />
-          </IconBox>
-          <TestWidgetInfo>
-            <TestWidgetTitle>
-              Ikigai Counseling Report
-              {isSession1Completed ? (
-                <Badge variant="success" size="sm">
-                  Unlocked
-                </Badge>
-              ) : (
-                <Badge variant="default" size="sm">
-                  Locked
-                </Badge>
-              )}
-            </TestWidgetTitle>
-            <TestWidgetDesc>
-              {isSession1Completed
-                ? 'Your comprehensive Ikigai career roadmap report is generated and ready to view or download.'
-                : 'Complete Session 1 (Initial Career Exploration Call) to unlock your official Ikigai report.'}
-            </TestWidgetDesc>
-          </TestWidgetInfo>
-        </TestWidgetContent>
+      {/* SEPARATE kREATE COMPASS REPORT WIDGET BLOCK */}
+      {(() => {
+        const isViewable = isAssessmentSubmitted || isSession1Completed;
+        const isDownloadable = isStudentFeedbackSubmitted;
 
-        {isSession1Completed ? (
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<RiPrinterLine size={18} />}
-            onClick={() =>
-              navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'))
-            }
-          >
-            View Ikigai Report
-          </Button>
-        ) : (
-          <Button
-            variant="secondary"
-            size="md"
-            leftIcon={<RiPrinterLine size={18} />}
-            disabled
-            title="Complete Session 1 to unlock report"
-          >
-            View Ikigai Report (Locked)
-          </Button>
-        )}
-      </TestWidgetCard>
+        return (
+          <TestWidgetCard style={{ borderLeftColor: isViewable ? '#16A34A' : '#9CA3AF' }}>
+            <TestWidgetContent>
+              <IconBox
+                $color={isViewable ? '#16A34A' : '#6B7280'}
+                $bg={isViewable ? '#DCFCE7' : '#F3F4F6'}
+              >
+                <RiCompass3Line size={24} />
+              </IconBox>
+              <TestWidgetInfo>
+                <TestWidgetTitle>
+                  kREATE Compass
+                  {isViewable ? (
+                    <Badge variant="success" size="sm">
+                      Unlocked
+                    </Badge>
+                  ) : (
+                    <Badge variant="default" size="sm">
+                      Locked
+                    </Badge>
+                  )}
+                </TestWidgetTitle>
+                <TestWidgetDesc>
+                  {!isViewable
+                    ? 'Complete the Assessment Form to unlock your kREATE Compass report.'
+                    : !isDownloadable
+                    ? 'Your kREATE Compass report is viewable online. Download will be unlocked after completing the Feedback step.'
+                    : 'Your comprehensive kREATE Compass report is complete and ready to view or download.'}
+                </TestWidgetDesc>
+              </TestWidgetInfo>
+            </TestWidgetContent>
+
+            {isViewable ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <Button
+                  variant="primary"
+                  size="md"
+                  leftIcon={<RiEyeLine size={18} />}
+                  onClick={() =>
+                    navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'))
+                  }
+                >
+                  View kREATE Compass
+                </Button>
+                {isDownloadable ? (
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    leftIcon={<RiPrinterLine size={18} />}
+                    onClick={() => {
+                      navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'));
+                      setTimeout(() => window.print(), 600);
+                    }}
+                  >
+                    Download PDF
+                  </Button>
+                ) : (
+                  <Tooltip content="Download is unlocked after completing the Feedback step">
+                    <div>
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        leftIcon={<RiPrinterLine size={18} />}
+                        disabled
+                        title="Download is unlocked after completing the Feedback step"
+                      >
+                        Download (Locked)
+                      </Button>
+                    </div>
+                  </Tooltip>
+                )}
+              </div>
+            ) : (
+              <Button
+                variant="secondary"
+                size="md"
+                leftIcon={<RiEyeLine size={18} />}
+                disabled
+                title="Complete Assessment Form to unlock report"
+              >
+                View kREATE Compass (Locked)
+              </Button>
+            )}
+          </TestWidgetCard>
+        );
+      })()}
 
       {/* Student Profile Form Modal */}
       <StudentProfileFormModal

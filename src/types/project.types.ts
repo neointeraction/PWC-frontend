@@ -10,6 +10,7 @@ export interface Project {
   previousStatus?: ProjectStatus;
   validFrom: string;
   validTo: string;
+  location?: string;
   createdAt?: string;
 }
 

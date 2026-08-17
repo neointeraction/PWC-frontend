@@ -24,6 +24,9 @@ import { Counselor } from '@/types/counselor.types';
 import { ROUTES } from '@/constants';
 import {
   CounselorsContainer,
+  StatsGrid,
+  StatMetricValue,
+  ProjectLinkButton,
   FilterBar,
   SearchWrapper,
   FilterControls,
@@ -31,14 +34,12 @@ import {
   HeaderActions,
   ActionIconButtonGroup,
   ActionIconButton,
-  CounselorCell,
-  CounselorNameText,
-  CounselorEmailSubtext,
 } from './CounselorsList.styles';
 import { AddCounselorModal } from './components/AddCounselorModal';
 import { BulkUploadCounselorsModal } from './components/BulkUploadCounselorsModal';
 import { EditCounselorModal } from './components/EditCounselorModal';
 import { ViewCounselorModal } from './components/ViewCounselorModal';
+import { CounselorDeploymentModal } from './components/CounselorDeploymentModal';
 
 export const CounselorsListPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -60,6 +61,7 @@ export const CounselorsListPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [counselorToDelete, setCounselorToDelete] = useState<Counselor | null>(null);
+  const [counselorForDeployment, setCounselorForDeployment] = useState<Counselor | null>(null);
 
   // Query counselors
   const { data, isLoading } = useQuery({
@@ -93,7 +95,91 @@ export const CounselorsListPage: React.FC = () => {
     }
   };
 
+  const getStatusBadge = (row: Counselor) => {
+    const status = row.deploymentStatus || (row.status === 'active' ? 'deployed' : 'inactive');
+    switch (status) {
+      case 'deployed':
+        return (
+          <Badge variant="success" size="sm" dot>
+            Deployed
+          </Badge>
+        );
+      case 'bench':
+        return (
+          <Badge variant="info" size="sm" dot>
+            Bench
+          </Badge>
+        );
+      case 'inactive':
+        return (
+          <Badge variant="danger" size="sm" dot>
+            Inactive
+          </Badge>
+        );
+      default:
+        return <Badge variant="default" size="sm">{status}</Badge>;
+    }
+  };
+
   const columns: Column<Counselor>[] = [
+    {
+      key: 'counselorId',
+      header: 'ID',
+      width: '80px',
+      render: row => <strong>{row.counselorId}</strong>,
+    },
+    {
+      key: 'name',
+      header: 'Counsellor',
+      render: row => <strong>{row.name}</strong>,
+    },
+    {
+      key: 'projectDeployed',
+      header: 'Project Deployed',
+      render: row => {
+        const text = row.projectDeployedName || (row.deploymentStatus === 'bench' ? '— Unassigned —' : '—');
+        if (row.deploymentStatus === 'inactive' || text === '—') {
+          return <span style={{ color: '#94A3B8' }}>{text}</span>;
+        }
+        return (
+          <Tooltip content="Click to view deployment &amp; workload breakdown">
+            <ProjectLinkButton
+              type="button"
+              onClick={() => setCounselorForDeployment(row)}
+            >
+              {text}
+            </ProjectLinkButton>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      key: 'totalAllotted',
+      header: 'Total Allotted',
+      render: row => (
+        <span>{row.totalAllotted ? `${row.totalAllotted} allotted` : '0 allotted'}</span>
+      ),
+    },
+    {
+      key: 'session1Balance',
+      header: 'Session 1 Balance',
+      render: row => (
+        <span>{row.session1Balance ? `${row.session1Balance} left` : '—'}</span>
+      ),
+    },
+    {
+      key: 'session2Balance',
+      header: 'Session 2 Balance',
+      render: row => (
+        <span>{row.session2Balance ? `${row.session2Balance} left` : '—'}</span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '100px',
+      render: row => getStatusBadge(row),
+    },
     {
       key: 'actions',
       header: 'Actions',
@@ -124,63 +210,13 @@ export const CounselorsListPage: React.FC = () => {
         </ActionIconButtonGroup>
       ),
     },
-    {
-      key: 'counselorId',
-      header: 'Counsellor ID',
-      width: '120px',
-      render: row => <strong>{row.counselorId}</strong>,
-    },
-    {
-      key: 'name',
-      header: 'Counsellor Name & Email',
-      render: row => (
-        <CounselorCell>
-          <CounselorNameText>{row.name}</CounselorNameText>
-          <CounselorEmailSubtext>{row.email}</CounselorEmailSubtext>
-        </CounselorCell>
-      ),
-    },
-    {
-      key: 'mobile',
-      header: 'Mobile No.',
-      width: '140px',
-      render: row => row.mobile || 'N/A',
-    },
-    {
-      key: 'meetingLink',
-      header: 'GMeet / Zoom Link',
-      width: '200px',
-      render: row =>
-        row.meetingLink ? (
-          <a
-            href={row.meetingLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#5D2384', textDecoration: 'underline', fontSize: '13px' }}
-          >
-            {row.meetingLink}
-          </a>
-        ) : (
-          '—'
-        ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      width: '100px',
-      render: row => (
-        <Badge variant={row.status === 'active' ? 'success' : 'default'} dot>
-          {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
-        </Badge>
-      ),
-    },
   ];
 
   return (
     <CounselorsContainer>
       <PageHeader
-        title="Counselors List"
-        subtitle="Manage institution career counselors, single registration, and bulk CSV imports"
+        title="Counsellor Directory"
+        subtitle="Deployment &amp; Workload overview for institution career counselors"
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Counselors List' }]}
         actions={
           isViewOnlyUser ? undefined : (
@@ -204,7 +240,26 @@ export const CounselorsListPage: React.FC = () => {
         }
       />
 
-      <Card>
+      {/* Top Metric Stat Cards matching mockup */}
+      <StatsGrid>
+        <Card title="Total Empanelled">
+          <StatMetricValue>58</StatMetricValue>
+        </Card>
+
+        <Card title="Deployed">
+          <StatMetricValue $color="#16A34A">44</StatMetricValue>
+        </Card>
+
+        <Card title="On Bench">
+          <StatMetricValue $color="#0284C7">9</StatMetricValue>
+        </Card>
+
+        <Card title="Inactive">
+          <StatMetricValue $color="#DC2626">5</StatMetricValue>
+        </Card>
+      </StatsGrid>
+
+      <Card title="Deployment &amp; Workload">
         <FilterBar>
           <SearchWrapper>
             <Input
@@ -263,6 +318,12 @@ export const CounselorsListPage: React.FC = () => {
       <BulkUploadCounselorsModal />
       <EditCounselorModal />
       <ViewCounselorModal />
+
+      <CounselorDeploymentModal
+        isOpen={Boolean(counselorForDeployment)}
+        onClose={() => setCounselorForDeployment(null)}
+        counselor={counselorForDeployment}
+      />
 
       <AlertModal
         isOpen={Boolean(counselorToDelete)}

@@ -27,12 +27,15 @@ import { Project, ProjectStatus } from '@/types/project.types';
 import { ROUTES } from '@/constants';
 import {
   ProjectsContainer,
+  StatsGrid,
+  StatMetricValue,
+  MetaText,
   FilterBar,
   SearchWrapper,
   ActionIconButtonGroup,
   ActionIconButton,
   ProjectNameCell,
-  ProjectNameText,
+  ProjectNameLink,
   ProjectInstituteSubtext,
 } from './Projects.styles';
 import { AddProjectWizard } from './components/AddProjectWizard';
@@ -58,6 +61,7 @@ export const ProjectsPage: React.FC = () => {
       `Project Summary Report\n` +
       `Project Name,${project.name}\n` +
       `Institute,${project.instituteName}\n` +
+      `Location,${project.location || 'N/A'}\n` +
       `Status,${project.status.toUpperCase()}\n` +
       `Valid From,${project.validFrom || 'N/A'}\n` +
       `Valid To,${project.validTo || 'N/A'}\n` +
@@ -157,66 +161,24 @@ export const ProjectsPage: React.FC = () => {
 
   const columns: Column<Project>[] = [
     {
-      key: 'actions',
-      header: 'Actions',
-      render: (row: Project) => (
-        <ActionIconButtonGroup>
-          {isViewOnlyUser ? (
-            row.status === 'completed' && (
-              <Tooltip content="Download Project Report">
-                <ActionIconButton
-                  aria-label="Download Project Report"
-                  onClick={() => handleDownloadProjectReport(row)}
-                >
-                  <RiDownloadLine size={16} />
-                </ActionIconButton>
-              </Tooltip>
-            )
-          ) : row.status === 'deleted' ? (
-            <Tooltip content="Revert / Restore Project">
-              <ActionIconButton
-                aria-label="Revert / Restore Project"
-                onClick={() => restoreMutation.mutate(row.id)}
-              >
-                <RiRefreshLine size={16} />
-              </ActionIconButton>
-            </Tooltip>
-          ) : (
-            <>
-              <Tooltip content="Edit Project">
-                <ActionIconButton aria-label="Edit Project" onClick={() => setProjectToEdit(row)}>
-                  <RiEditLine size={16} />
-                </ActionIconButton>
-              </Tooltip>
-              {row.status === 'completed' && (
-                <Tooltip content="Download Project Report">
-                  <ActionIconButton
-                    aria-label="Download Project Report"
-                    onClick={() => handleDownloadProjectReport(row)}
-                  >
-                    <RiDownloadLine size={16} />
-                  </ActionIconButton>
-                </Tooltip>
-              )}
-              <Tooltip content="Delete Project">
-                <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
-                  <RiDeleteBinLine size={16} />
-                </ActionIconButton>
-              </Tooltip>
-            </>
-          )}
-        </ActionIconButtonGroup>
-      ),
-    },
-    {
       key: 'name',
       header: 'Project',
       render: row => (
         <ProjectNameCell>
-          <ProjectNameText>{row.name}</ProjectNameText>
+          <ProjectNameLink
+            type="button"
+            onClick={() => navigate(`/projects/dashboard/${row.id}`)}
+          >
+            {row.name}
+          </ProjectNameLink>
           <ProjectInstituteSubtext>{row.instituteName}</ProjectInstituteSubtext>
         </ProjectNameCell>
       ),
+    },
+    {
+      key: 'location',
+      header: 'Location',
+      render: row => row.location || '—',
     },
     {
       key: 'validFrom',
@@ -261,6 +223,54 @@ export const ProjectsPage: React.FC = () => {
       header: 'Status',
       render: row => getStatusBadge(row.status),
     },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row: Project) => (
+        <ActionIconButtonGroup>
+          {isViewOnlyUser ? (
+            <Tooltip content="Download Project Report">
+              <ActionIconButton
+                aria-label="Download Project Report"
+                onClick={() => handleDownloadProjectReport(row)}
+              >
+                <RiDownloadLine size={16} />
+              </ActionIconButton>
+            </Tooltip>
+          ) : row.status === 'deleted' ? (
+            <Tooltip content="Revert / Restore Project">
+              <ActionIconButton
+                aria-label="Revert / Restore Project"
+                onClick={() => restoreMutation.mutate(row.id)}
+              >
+                <RiRefreshLine size={16} />
+              </ActionIconButton>
+            </Tooltip>
+          ) : (
+            <>
+              <Tooltip content="Edit Project">
+                <ActionIconButton aria-label="Edit Project" onClick={() => setProjectToEdit(row)}>
+                  <RiEditLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+              <Tooltip content="Download Project Report">
+                <ActionIconButton
+                  aria-label="Download Project Report"
+                  onClick={() => handleDownloadProjectReport(row)}
+                >
+                  <RiDownloadLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+              <Tooltip content="Delete Project">
+                <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
+                  <RiDeleteBinLine size={16} />
+                </ActionIconButton>
+              </Tooltip>
+            </>
+          )}
+        </ActionIconButtonGroup>
+      ),
+    },
   ];
 
   return (
@@ -277,6 +287,18 @@ export const ProjectsPage: React.FC = () => {
           )
         }
       />
+
+      <StatsGrid>
+        <Card title="Total Projects">
+          <StatMetricValue>{data?.total ?? 23}</StatMetricValue>
+          <MetaText>Active &amp; registered projects</MetaText>
+        </Card>
+
+        <Card title="Live">
+          <StatMetricValue $variant="success">14</StatMetricValue>
+          <MetaText>Currently ongoing batches</MetaText>
+        </Card>
+      </StatsGrid>
 
       <Card>
         <FilterBar>

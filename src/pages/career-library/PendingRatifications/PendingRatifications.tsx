@@ -94,6 +94,35 @@ export const PendingRatificationsPage: React.FC = () => {
 
   const columns: Column<PendingRatification>[] = [
     {
+      key: 'careerName',
+      header: 'Job Role (Proposed)',
+      render: row => (
+        <div>
+          <CareerTitleText>{row.careerName}</CareerTitleText>
+          <SubmissionDateSubtext>Submitted: {row.submittedAt}</SubmissionDateSubtext>
+        </div>
+      ),
+    },
+    {
+      key: 'suggestedCategory',
+      header: 'Career Cluster',
+      render: row => <Badge variant="primary">{row.suggestedCategory}</Badge>,
+    },
+    {
+      key: 'sourceTenant',
+      header: 'Source Institution',
+      render: row => <InstitutionNameText>{row.sourceTenant}</InstitutionNameText>,
+    },
+    {
+      key: 'status',
+      header: 'Ratification Status',
+      render: row => (
+        <Badge variant={row.status === 'ratified' ? 'success' : row.status === 'rejected' ? 'danger' : 'warning'} dot>
+          {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+        </Badge>
+      ),
+    },
+    {
       key: 'actions',
       header: 'Actions',
       render: row => (
@@ -129,35 +158,6 @@ export const PendingRatificationsPage: React.FC = () => {
             </>
           )}
         </ActionsCell>
-      ),
-    },
-    {
-      key: 'careerName',
-      header: 'Job Role (Proposed)',
-      render: row => (
-        <div>
-          <CareerTitleText>{row.careerName}</CareerTitleText>
-          <SubmissionDateSubtext>Submitted: {row.submittedAt}</SubmissionDateSubtext>
-        </div>
-      ),
-    },
-    {
-      key: 'suggestedCategory',
-      header: 'Career Cluster',
-      render: row => <Badge variant="primary">{row.suggestedCategory}</Badge>,
-    },
-    {
-      key: 'sourceTenant',
-      header: 'Source Institution',
-      render: row => <InstitutionNameText>{row.sourceTenant}</InstitutionNameText>,
-    },
-    {
-      key: 'status',
-      header: 'Ratification Status',
-      render: row => (
-        <Badge variant={row.status === 'ratified' ? 'success' : row.status === 'rejected' ? 'danger' : 'warning'} dot>
-          {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
-        </Badge>
       ),
     },
   ];
