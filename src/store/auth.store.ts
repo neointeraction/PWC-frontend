@@ -36,8 +36,13 @@ export const useAuthStore = create<AuthStore>()(
             token,
             role: user.role,
             isAuthenticated: true,
+            // App-admin roles (super admin / admin / view-only admin) are never forced
+            // through the mandatory password-change flow, regardless of the backend flag.
             mustResetPassword:
-              user.mustChangePassword ?? (user.role === 'counselor' || user.role === 'student'),
+              user.role === 'super_admin' || user.role === 'admin' || user.role === 'view_only'
+                ? false
+                : user.mustChangePassword ??
+                  (user.role === 'counselor' || user.role === 'student'),
           }),
         logout: () =>
           set({

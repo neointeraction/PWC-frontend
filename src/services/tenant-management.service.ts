@@ -1,33 +1,59 @@
-import { UserRecord, CreateUserPayload, UserFilters } from '@/types/tenant-management.types';
+import { apiClient } from './api';
+import {
+  UserRecord,
+  CreateUserPayload,
+  UpdateUserPayload,
+  UserFilters,
+} from '@/types/tenant-management.types';
 import { PaginatedResponse } from '@/types/api.types';
-import { mockUserRecords } from '@/mocks/tenant-management.mock';
 
-let userDb: UserRecord[] = mockUserRecords.filter(
-  u => u.userCategory !== 'institution' && u.userCategory !== 'counselor'
-);
+// Backend App Admin shape (`/api/v1/admins`). SUPER_ADMIN may appear on reads but
+// isn't creatable/updatable here.
+interface ApiAdmin {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'ADMIN' | 'VIEW_ONLY_ADMIN' | 'SUPER_ADMIN';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  lastLoginAt?: string | null;
+  mustChangePassword?: boolean;
+}
 
-const generateRandomPassword = (category: string) => {
-  const prefix =
-    category === 'pwc'
-      ? 'kREATE'
-      : category === 'view_only'
-      ? 'ViewOnly'
-      : category === 'counselor'
-      ? 'Cnslt'
-      : 'Inst';
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `${prefix}@Key${num}!`;
+const mapAdmin = (a: ApiAdmin, tempPassword?: string): UserRecord => {
+  const isViewOnly = a.role === 'VIEW_ONLY_ADMIN';
+  return {
+    id: a.id,
+    firstName: a.firstName,
+    lastName: a.lastName,
+    name: `${a.firstName} ${a.lastName}`.trim(),
+    email: a.email,
+    username: a.email,
+    userCategory: 'pwc',
+    role: isViewOnly ? 'VIEW_ONLY_ADMIN' : 'ADMIN',
+    roleLabel:
+      a.role === 'SUPER_ADMIN'
+        ? 'Super Admin'
+        : isViewOnly
+        ? 'View Only Admin'
+        : 'Admin',
+    organizationName: 'kREATE Global Engine',
+    status: a.isActive ? 'active' : 'inactive',
+    isViewOnly,
+    createdAt: a.createdAt ? a.createdAt.slice(0, 10) : '',
+    lastActive: a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString() : undefined,
+    generatedPassword: tempPassword,
+  };
 };
 
 export const tenantManagementService = {
+  // GET /api/v1/admins — returns all admins (newest first), no server-side
+  // search/pagination, so both are applied client-side to keep the table working.
   getAll: async (filters: UserFilters = {}): Promise<PaginatedResponse<UserRecord>> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    let results = [...userDb];
-
-    if (filters.category && filters.category !== 'all') {
-      results = results.filter(u => u.userCategory === filters.category);
-    }
+    const { data } = await apiClient.get<ApiAdmin[]>('/admins');
+    let results = data.map(a => mapAdmin(a));
 
     if (filters.status && filters.status !== 'all') {
       results = results.filter(u => u.status === filters.status);
@@ -39,81 +65,62 @@ export const tenantManagementService = {
         u =>
           u.name.toLowerCase().includes(q) ||
           u.email.toLowerCase().includes(q) ||
-          u.roleLabel.toLowerCase().includes(q) ||
-          (u.organizationName && u.organizationName.toLowerCase().includes(q))
+          u.roleLabel.toLowerCase().includes(q)
       );
     }
 
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 10;
     const total = results.length;
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (page - 1) * limit;
-    const data = results.slice(start, start + limit);
+    const pageData = results.slice(start, start + limit);
 
-    return { data, total, page, limit, totalPages };
+    return { data: pageData, total, page, limit, totalPages };
   },
 
   getById: async (id: string): Promise<UserRecord> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const user = userDb.find(u => u.id === id);
-    if (!user) throw new Error('Tenant user not found');
-    return { ...user };
+    const { data } = await apiClient.get<ApiAdmin>(`/admins/${id}`);
+    return mapAdmin(data);
   },
 
-  getByEmailOrUsername: async (identifier: string): Promise<UserRecord | undefined> => {
-    const q = identifier.toLowerCase().trim();
-    return userDb.find(u => u.email.toLowerCase() === q || (u.username && u.username.toLowerCase() === q));
-  },
-
+  // POST /api/v1/admins — 201 returns the admin + a one-time `tempPassword`.
   create: async (payload: CreateUserPayload): Promise<UserRecord> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    if (payload.userCategory === 'pwc') {
-      const existingKreateUser = userDb.find(u => u.userCategory === 'pwc');
-      if (existingKreateUser) {
-        throw new Error('A kREATE User already exists. Only 1 kREATE User is allowed on the system.');
+    const { data } = await apiClient.post<ApiAdmin & { tempPassword?: string; admin?: ApiAdmin }>(
+      '/admins',
+      {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        role: payload.isViewOnly ? 'VIEW_ONLY_ADMIN' : 'ADMIN',
       }
-    }
-    const password = payload.generatedPassword || generateRandomPassword(payload.userCategory);
-    const newUser: UserRecord = {
-      id: `usr-${Date.now()}`,
-      ...payload,
-      username: payload.username || payload.email,
-      generatedPassword: password,
-      createdAt: new Date().toISOString().slice(0, 10),
-      lastActive: 'Just now',
-    };
-    userDb = [newUser, ...userDb];
-    return newUser;
+    );
+    // Tolerate either a flat `{ ...admin, tempPassword }` or a nested `{ admin, tempPassword }`.
+    const admin = data.admin ?? data;
+    const tempPassword = data.tempPassword ?? (data.admin as { tempPassword?: string } | undefined)?.tempPassword;
+    return mapAdmin(admin, tempPassword);
   },
 
-  update: async (id: string, payload: Partial<UserRecord>): Promise<UserRecord> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = userDb.findIndex(u => u.id === id);
-    if (index === -1) throw new Error('Tenant user not found');
+  // PATCH /api/v1/admins/{id} — firstName?, lastName?, role?, isActive?.
+  update: async (id: string, payload: UpdateUserPayload): Promise<UserRecord> => {
+    const body: Record<string, unknown> = {};
+    if (payload.firstName !== undefined) body.firstName = payload.firstName;
+    if (payload.lastName !== undefined) body.lastName = payload.lastName;
+    if (payload.isViewOnly !== undefined) body.role = payload.isViewOnly ? 'VIEW_ONLY_ADMIN' : 'ADMIN';
+    if (payload.status !== undefined) body.isActive = payload.status === 'active';
 
-    const updated = {
-      ...userDb[index],
-      ...payload,
-    };
-    userDb[index] = updated;
-    return updated;
-  },
-
-  regeneratePassword: async (id: string): Promise<UserRecord> => {
-    const user = userDb.find(u => u.id === id);
-    if (!user) throw new Error('Tenant user not found');
-
-    const newPassword = generateRandomPassword(user.userCategory);
-    return tenantManagementService.update(id, { generatedPassword: newPassword });
+    const { data } = await apiClient.patch<ApiAdmin>(`/admins/${id}`, body);
+    return mapAdmin(data);
   },
 
   delete: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    userDb = userDb.filter(u => u.id !== id);
+    await apiClient.delete(`/admins/${id}`);
   },
 
-  updateStatus: async (id: string, status: UserRecord['status']): Promise<UserRecord> => {
-    return tenantManagementService.update(id, { status });
+  // There is no admin-set-password route — credential resets go through the
+  // email flow. POST /api/v1/auth/forgot-password mints a single-use reset link
+  // and emails it (always 202, never leaks whether the address exists).
+  sendPasswordReset: async (email: string): Promise<void> => {
+    await apiClient.post('/auth/forgot-password', { email });
   },
 };

@@ -13,11 +13,21 @@ import { mockPendingRatifications } from '@/mocks';
 
 // ---- Backend response shapes (docs/api-list.md -> Career Library) ----
 
+// Classification is normalized on the backend: each entry points at its leaf domain,
+// and cluster/industry are derived by walking up the relations. The list/detail
+// endpoints flatten that chain onto `domain` as nested {id,name} objects.
+interface ApiTaxonomyNode {
+  id: string;
+  name: string;
+}
+
+interface ApiCareerDomainChain extends ApiTaxonomyNode {
+  industry: ApiTaxonomyNode & { cluster: ApiTaxonomyNode };
+}
+
 interface ApiCareerEntry {
   id: string;
-  cluster: string;
-  industry: string;
-  domain: string;
+  domain: ApiCareerDomainChain;
   jobRole: string;
   aiResilienceGrade: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
   aiResilienceComment: string;
@@ -107,6 +117,43 @@ interface CareerLibraryDetailResponse extends ApiCareerEntry {
   relatedEntranceExams: ApiUgEntranceExam[];
 }
 
+// ---- Write payloads (create/update a job-role entry) ----
+
+// Each link item either references an existing row by `id` or adds a new one by `name`
+// (the backend upserts). `level` (UG|PG) is required for an exam added by name.
+export interface CareerEntryLinkItem {
+  id?: string;
+  name?: string;
+  level?: 'UG' | 'PG';
+  city?: string;
+  state?: string;
+}
+
+export interface CareerEntryPayload {
+  domainId: string;
+  jobRole: string;
+  aiResilienceGrade: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+  aiResilienceComment: string;
+  oneLineDescription: string;
+  topCompanies?: string[];
+  salaryIndiaRangeText?: string;
+  salaryIndiaMinLPA?: number;
+  salaryIndiaMaxLPA?: number;
+  salaryGlobalRangeText?: string;
+  salaryGlobalMinUSD?: number;
+  salaryGlobalMaxUSD?: number;
+  qualification10th12th: string;
+  qualificationGraduation?: string;
+  qualificationPG?: string;
+  entranceExamsUGDescription?: string;
+  certificationsStudent?: string[];
+  certificationsUG?: string[];
+  entranceExams?: CareerEntryLinkItem[];
+  courses?: CareerEntryLinkItem[];
+  institutions?: CareerEntryLinkItem[];
+  status?: 'DRAFT' | 'ACTIVE';
+}
+
 // ---- Mappers: API shape -> existing frontend shape (keeps views unchanged) ----
 
 const AI_GRADE_MAP: Record<ApiCareerEntry['aiResilienceGrade'], Career['aiResilienceGrading']> = {
@@ -119,9 +166,9 @@ const AI_GRADE_MAP: Record<ApiCareerEntry['aiResilienceGrade'], Career['aiResili
 const mapCareerEntry = (entry: ApiCareerEntry): Career => ({
   id: entry.id,
   jobRole: entry.jobRole,
-  careerCluster: entry.cluster,
-  industry: entry.industry,
-  domain: entry.domain,
+  careerCluster: entry.domain.industry.cluster.name,
+  industry: entry.domain.industry.name,
+  domain: entry.domain.name,
   aiResilienceGrading: AI_GRADE_MAP[entry.aiResilienceGrade] || 'High',
   aiResilienceComment: entry.aiResilienceComment,
   oneLineDescription: entry.oneLineDescription,
@@ -143,7 +190,7 @@ const mapCareerEntry = (entry: ApiCareerEntry): Career => ({
   certificationsUG: entry.certificationsUG?.join('; ') || '',
   topCoursesToStudy: entry.topCourses?.join(', ') || '',
   title: entry.jobRole,
-  category: entry.cluster,
+  category: entry.domain.industry.cluster.name,
   description: entry.oneLineDescription,
   status: entry.status === 'ACTIVE' ? 'active' : 'pending',
   lastUpdated: (entry.updatedAt || entry.createdAt || '').slice(0, 10),
@@ -192,6 +239,49 @@ const mapExam = (exam: ApiUgEntranceExam): EntranceExam => ({
 
 let fullListCache: Promise<Career[]> | null = null;
 
+// Live taxonomy tree (clusters → industries → domains) — the authoritative source for
+// browsing/CRUD: real ids, parent links, and empty nodes (a freshly-created cluster with
+// no job roles yet still appears). Counts come from children length; role counts are
+// matched against the full entry list.
+interface ApiTreeDomain {
+  id: string;
+  name: string;
+}
+interface ApiTreeIndustry {
+  id: string;
+  name: string;
+  domains: ApiTreeDomain[];
+}
+interface ApiTreeCluster {
+  id: string;
+  name: string;
+  industries: ApiTreeIndustry[];
+}
+
+export type TaxonomyTree = ApiTreeCluster[];
+
+let treeCache: Promise<ApiTreeCluster[]> | null = null;
+
+const getTree = (): Promise<ApiTreeCluster[]> => {
+  if (!treeCache) {
+    treeCache = apiClient
+      .get<ApiTreeCluster[]>('/career-taxonomy/tree')
+      .then(res => res.data)
+      .catch(err => {
+        treeCache = null;
+        throw err;
+      });
+  }
+  return treeCache;
+};
+
+// Any write to the taxonomy or an entry invalidates both derived caches so the next
+// read reflects the change (react-query re-invokes the service on invalidation).
+const invalidateCareerCaches = () => {
+  fullListCache = null;
+  treeCache = null;
+};
+
 const fetchFullList = async (): Promise<Career[]> => {
   const pageSize = 100;
   let page = 1;
@@ -223,18 +313,14 @@ const getFullList = (): Promise<Career[]> => {
 let ratificationsDb: PendingRatification[] = [...mockPendingRatifications];
 
 export const careerService = {
-  // Cluster / Industry / Domain browsing — derived client-side from the full list
+  // Cluster / Industry / Domain browsing — sourced from the live taxonomy tree so ids
+  // are real (needed for edit/delete) and empty nodes still appear.
   getClusters: async (search?: string): Promise<CareerCluster[]> => {
-    const all = await getFullList();
-    const byName = new Map<string, { industries: Set<string> }>();
-    all.forEach(c => {
-      if (!byName.has(c.careerCluster)) byName.set(c.careerCluster, { industries: new Set() });
-      byName.get(c.careerCluster)!.industries.add(c.industry);
-    });
-    let clusters: CareerCluster[] = Array.from(byName.entries()).map(([name, v]) => ({
-      id: name,
-      name,
-      industryCount: v.industries.size,
+    const tree = await getTree();
+    let clusters: CareerCluster[] = tree.map(c => ({
+      id: c.id,
+      name: c.name,
+      industryCount: c.industries.length,
     }));
     if (search) {
       const q = search.toLowerCase();
@@ -243,23 +329,23 @@ export const careerService = {
     return clusters.sort((a, b) => a.name.localeCompare(b.name));
   },
 
-  getIndustries: async (clusterName?: string, search?: string): Promise<CareerIndustry[]> => {
-    const all = await getFullList();
-    const filtered = clusterName ? all.filter(c => c.careerCluster === clusterName) : all;
-    const byName = new Map<string, { clusterName: string; domains: Set<string> }>();
-    filtered.forEach(c => {
-      if (!byName.has(c.industry)) {
-        byName.set(c.industry, { clusterName: c.careerCluster, domains: new Set() });
-      }
-      byName.get(c.industry)!.domains.add(c.domain);
+  // `clusterId` filters to one cluster's industries. Falls back to matching by name for
+  // callers that still pass a cluster name.
+  getIndustries: async (clusterId?: string, search?: string): Promise<CareerIndustry[]> => {
+    const tree = await getTree();
+    let industries: CareerIndustry[] = [];
+    tree.forEach(c => {
+      if (clusterId && c.id !== clusterId && c.name !== clusterId) return;
+      c.industries.forEach(i =>
+        industries.push({
+          id: i.id,
+          clusterId: c.id,
+          clusterName: c.name,
+          name: i.name,
+          domainCount: i.domains.length,
+        })
+      );
     });
-    let industries: CareerIndustry[] = Array.from(byName.entries()).map(([name, v]) => ({
-      id: name,
-      clusterId: v.clusterName,
-      clusterName: v.clusterName,
-      name,
-      domainCount: v.domains.size,
-    }));
     if (search) {
       const q = search.toLowerCase();
       industries = industries.filter(i => i.name.toLowerCase().includes(q));
@@ -267,24 +353,26 @@ export const careerService = {
     return industries.sort((a, b) => a.name.localeCompare(b.name));
   },
 
-  getDomains: async (industryName?: string, search?: string): Promise<CareerDomain[]> => {
-    const all = await getFullList();
-    const filtered = industryName ? all.filter(c => c.industry === industryName) : all;
-    const byName = new Map<string, { clusterName: string; industryName: string; roles: Set<string> }>();
-    filtered.forEach(c => {
-      if (!byName.has(c.domain)) {
-        byName.set(c.domain, { clusterName: c.careerCluster, industryName: c.industry, roles: new Set() });
-      }
-      byName.get(c.domain)!.roles.add(c.id);
-    });
-    let domains: CareerDomain[] = Array.from(byName.entries()).map(([name, v]) => ({
-      id: name,
-      industryId: v.industryName,
-      industryName: v.industryName,
-      clusterName: v.clusterName,
-      name,
-      roleCount: v.roles.size,
-    }));
+  getDomains: async (industryId?: string, search?: string): Promise<CareerDomain[]> => {
+    const [tree, all] = await Promise.all([getTree(), getFullList()]);
+    let domains: CareerDomain[] = [];
+    tree.forEach(c =>
+      c.industries.forEach(i => {
+        if (industryId && i.id !== industryId && i.name !== industryId) return;
+        i.domains.forEach(d =>
+          domains.push({
+            id: d.id,
+            industryId: i.id,
+            industryName: i.name,
+            clusterName: c.name,
+            name: d.name,
+            // Role counts aren't on the tree — matched against the entry list by
+            // domain+industry name (ids aren't carried onto mapped entries).
+            roleCount: all.filter(r => r.domain === d.name && r.industry === i.name).length,
+          })
+        );
+      })
+    );
     if (search) {
       const q = search.toLowerCase();
       domains = domains.filter(d => d.name.toLowerCase().includes(q));
@@ -292,9 +380,18 @@ export const careerService = {
     return domains.sort((a, b) => a.name.localeCompare(b.name));
   },
 
-  getJobRoles: async (domainName?: string, search?: string): Promise<Career[]> => {
-    const all = await getFullList();
-    let result = domainName ? all.filter(c => c.domain === domainName) : all;
+  // `domainId` scopes to one domain's roles via the server-side filter (exact, unlike a
+  // name match). Without it, returns the full list (used by the Simple View browser).
+  getJobRoles: async (domainId?: string, search?: string): Promise<Career[]> => {
+    let result: Career[];
+    if (domainId) {
+      const { data } = await apiClient.get<CareerLibraryListResponse>('/career-library', {
+        params: { domainId, pageSize: 100 },
+      });
+      result = data.data.map(mapCareerEntry);
+    } else {
+      result = await getFullList();
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -330,6 +427,76 @@ export const careerService = {
   getFilters: async (): Promise<CareerLibraryFiltersResponse> => {
     const { data } = await apiClient.get<CareerLibraryFiltersResponse>('/career-library/filters');
     return data;
+  },
+
+  // Live nested taxonomy (clusters → industries → domains) for the cascading picker on
+  // the add/edit job-role form.
+  getTaxonomyTree: async (): Promise<TaxonomyTree> => {
+    return getTree();
+  },
+
+  // ---- Taxonomy CRUD (admin) — POST/PATCH/DELETE /career-taxonomy/{level} ----
+
+  createCluster: async (name: string): Promise<void> => {
+    await apiClient.post('/career-taxonomy/clusters', { name });
+    invalidateCareerCaches();
+  },
+  updateCluster: async (id: string, name: string): Promise<void> => {
+    await apiClient.patch(`/career-taxonomy/clusters/${id}`, { name });
+    invalidateCareerCaches();
+  },
+  deleteCluster: async (id: string): Promise<void> => {
+    await apiClient.delete(`/career-taxonomy/clusters/${id}`);
+    invalidateCareerCaches();
+  },
+
+  createIndustry: async (clusterId: string, name: string): Promise<void> => {
+    await apiClient.post('/career-taxonomy/industries', { clusterId, name });
+    invalidateCareerCaches();
+  },
+  updateIndustry: async (
+    id: string,
+    payload: { name?: string; clusterId?: string }
+  ): Promise<void> => {
+    await apiClient.patch(`/career-taxonomy/industries/${id}`, payload);
+    invalidateCareerCaches();
+  },
+  deleteIndustry: async (id: string): Promise<void> => {
+    await apiClient.delete(`/career-taxonomy/industries/${id}`);
+    invalidateCareerCaches();
+  },
+
+  createDomain: async (industryId: string, name: string): Promise<void> => {
+    await apiClient.post('/career-taxonomy/domains', { industryId, name });
+    invalidateCareerCaches();
+  },
+  updateDomain: async (
+    id: string,
+    payload: { name?: string; industryId?: string }
+  ): Promise<void> => {
+    await apiClient.patch(`/career-taxonomy/domains/${id}`, payload);
+    invalidateCareerCaches();
+  },
+  deleteDomain: async (id: string): Promise<void> => {
+    await apiClient.delete(`/career-taxonomy/domains/${id}`);
+    invalidateCareerCaches();
+  },
+
+  // ---- Job-role (career entry) CRUD (admin) — POST/PATCH/DELETE /career-library ----
+
+  createEntry: async (payload: CareerEntryPayload): Promise<Career> => {
+    const { data } = await apiClient.post<ApiCareerEntry>('/career-library', payload);
+    invalidateCareerCaches();
+    return mapCareerEntry(data);
+  },
+  updateEntry: async (id: string, payload: Partial<CareerEntryPayload>): Promise<Career> => {
+    const { data } = await apiClient.patch<ApiCareerEntry>(`/career-library/${id}`, payload);
+    invalidateCareerCaches();
+    return mapCareerEntry(data);
+  },
+  deleteEntry: async (id: string): Promise<void> => {
+    await apiClient.delete(`/career-library/${id}`);
+    invalidateCareerCaches();
   },
 
   // Pending ratifications: no backend endpoint exists yet (career library is

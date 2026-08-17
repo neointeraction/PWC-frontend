@@ -24,8 +24,9 @@ on every non-public request. Guards live in `src/common/middlewares/auth.ts`
 
 Role groups:
 - **Student** — the student self-service flows (own assessment, own forms, session booking).
-- **Staff** = `COUNSELLOR` + `ADMIN` + `SUPER_ADMIN` — operational access (view students, sessions, counsellor-chart, feedback, email).
+- **Staff** = `COUNSELLOR` + `ADMIN` + `SUPER_ADMIN` (+ `VIEW_ONLY_ADMIN` for reads) — operational access (view students, sessions, counsellor-chart, feedback, email).
 - **Admin** = `ADMIN` + `SUPER_ADMIN` — management (create/edit/delete students & institutes, slot import, workflow override).
+- **`VIEW_ONLY_ADMIN`** — sees everything staff/admins can see, but **every write is blocked**. It's in the read guards, but a global `blockViewOnlyWrites` middleware (`src/common/middlewares/auth.ts`, mounted after `/auth`) rejects any **non-GET** request from this role with **403** (`"View-only access…"`) — across every module, regardless of the route's own tier. It can still change its own password (auth self-service is exempt). Assign this role instead of `ADMIN` for a view-only app admin.
 
 Access tiers:
 
@@ -73,6 +74,22 @@ password, never by signing up. The one Super Admin login is bootstrapped by
 The access token payload is `{ sub: userId, role, email }`. Other modules' routes read
 `req.user.role` via the guards described in "Authentication & roles" above.
 
+## App Admins
+
+Manage App Admin accounts (Users with role `ADMIN` or `VIEW_ONLY_ADMIN`). **SUPER_ADMIN
+only** — and every operation is scoped to those two roles, so it can't touch students,
+counsellors, or super admins, and can't create/escalate to `SUPER_ADMIN`. The `role`
+field on create/update is the **view-only toggle** (`VIEW_ONLY_ADMIN` = read-only admin,
+enforced by `blockViewOnlyWrites`).
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/v1/admins` | Create an App Admin. Body: `firstName, lastName, email, role?` (`ADMIN` \| `VIEW_ONLY_ADMIN`, default `ADMIN`). Returns the admin + one-time `tempPassword`. 400 if `role` isn't one of the two; 409 on duplicate email. |
+| GET | `/api/v1/admins` | List App Admins (newest first). Query: `role?`. |
+| GET | `/api/v1/admins/{id}` | Get one App Admin. **404 for any non-admin user id** (role-scoped). |
+| PATCH | `/api/v1/admins/{id}` | Update `firstName?, lastName?, role?, isActive?`. `role` flips `ADMIN` ↔ `VIEW_ONLY_ADMIN`; `isActive:false` deactivates the login. |
+| DELETE | `/api/v1/admins/{id}` | Delete an App Admin (they own no dependent records). 404 for a non-admin id. |
+
 ## Institutes
 
 | Method | Path | Description |
@@ -87,6 +104,17 @@ The access token payload is `{ sub: userId, role, email }`. Other modules' route
 | POST | `/api/v1/institutes/{id}/classes/{classId}/divisions` | Create a division under a class. Body: `name`. |
 | GET | `/api/v1/institutes/{id}/classes/{classId}/divisions` | List a class's divisions. |
 
+## Cohorts
+
+Read-only lookup for cohort dropdowns (e.g. selecting a cohort when creating a project).
+`Cohort.code` (e.g. `CLASS_9_10`) is the canonical string that the cohort-scoped content
+(forms, assessment questions/attempts) matches on — those columns stay plain strings, not
+FKs, for now. Only `CLASS_9_10` exists today. No CRUD yet — cohorts are managed via seed.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/cohorts` | List active cohorts (`{ id, code, name, displayOrder }`), ordered by `displayOrder`. Staff. |
+
 ## Projects
 
 A counselling cycle/cohort run for an institute — students, forms, assessments, sessions
@@ -95,10 +123,11 @@ are all scoped to a Project. Reads = staff; writes/management = admin.
 | Method | Path | Description |
 |---|---|---|
 | POST | `/api/v1/projects` | Create a project. Body: `instituteId, name, fromDate, toDate, status?` (`ACTIVE`\|`CLOSED`, default `ACTIVE`). 400 if `instituteId` is unknown or `fromDate > toDate`; 409 on a duplicate `name` within the same institute. |
-| GET | `/api/v1/projects` | List projects (with institute + `_count` of students/counsellors/counsellorSlots). Query: `instituteId?, status?`. |
-| GET | `/api/v1/projects/{id}` | Get one project. 404 if unknown. |
-| PATCH | `/api/v1/projects/{id}` | Update (partial): `name?, fromDate?, toDate?, status?`. Re-validates the effective date window against the existing row (400 if the merged `fromDate > toDate`). Setting `status:CLOSED` is the soft-close — the project-window gate then rejects student/parent form + assessment submissions (see "Project-window gate"). |
-| DELETE | `/api/v1/projects/{id}` | Delete. **409 if the project has any students** (`error.details.studentCount`) — hard-deleting would cascade-wipe the whole cohort's data; close it (`status:CLOSED`) instead. Empty projects delete cleanly (cascading counsellor slots + project-counsellor links). |
+| GET | `/api/v1/projects` | List projects (with institute + `_count` of students/counsellors/counsellorSlots). Query: `instituteId?, status?`. **No `status` → excludes soft-deleted** (returns `ACTIVE` + `CLOSED`); `status=DELETED` lists only soft-deleted; `status=ACTIVE`/`CLOSED` filter exactly. |
+| GET | `/api/v1/projects/{id}` | Get one project (any status, incl. `DELETED`). 404 if unknown. |
+| PATCH | `/api/v1/projects/{id}` | Update (partial): `name?, fromDate?, toDate?, status?` (`status` writable values are `ACTIVE`/`CLOSED` only — use DELETE/restore for `DELETED`). Re-validates the effective date window (400 if merged `fromDate > toDate`). `status:CLOSED` is the soft-close — the project-window gate then rejects student/parent submissions. |
+| DELETE | `/api/v1/projects/{id}` | **Soft-delete** — sets `status:DELETED` (reversible; **data is preserved**, no cascade). Returns the updated project (`200`). Hidden from the default list; its student/parent submissions are blocked (`reason:PROJECT_DELETED`). 404 if unknown. |
+| PATCH | `/api/v1/projects/{id}/restore` | **Restore** a soft-deleted project — always back to `status:ACTIVE` (prior status isn't tracked). Returns the updated project. 404 if unknown. |
 
 ## Students
 
@@ -157,7 +186,7 @@ endpoints (draft `PUT` and `submit`) are gated on the student's **Project window
 the project is `CLOSED` or past its `toDate` (end date — **inclusive of the whole day**,
 so writes stay open through the end of that date and close at the start of the next day),
 they return **403** with
-`error.details.reason` = `PROJECT_CLOSED` \| `PROJECT_EXPIRED` (plus `projectId`,
+`error.details.reason` = `PROJECT_CLOSED` \| `PROJECT_DELETED` \| `PROJECT_EXPIRED` (plus `projectId`,
 `toDate`). Reads (`GET` template/submission/status) stay open so ended-cycle data is
 still viewable.
 
@@ -166,6 +195,7 @@ still viewable.
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/v1/assessment/questions` | List assessment questions for a cohort, ordered. Query: `cohort` (required), `section?` (`RIASEC` \| `BIG_FIVE` \| `APTITUDE` \| `COGNITIVE`). **`correctOption` is never included in the response** — it's the aptitude answer key and must not be exposed to whoever is taking the assessment. |
+| POST | `/api/v1/assessment/score-preview` | **Staff, dev/QA only.** Run the scoring engine over ad-hoc answers with **no student/attempt/persistence** — purely to inspect the report a given answer pattern produces. Body: `cohort, answers: [{ fieldKey, response }]` (partial OK — unanswered Likert defaults to neutral, aptitude to incorrect), `durationMinutes?` (feeds the ORI band, default 30). Returns the full computed report. Backs the browser tester below. 404 for an unknown cohort. |
 | POST | `/api/v1/assessment/attempts` | Start a new attempt, or resume the student's existing `IN_PROGRESS` one for the given cohort. Body: `studentId, cohort`. 200 either way (not 201 — may resume rather than create). 409 if the student already has a `SUBMITTED` attempt for this cohort. |
 | GET | `/api/v1/assessment/attempts/{attemptId}` | Get an attempt with its answers (questions included, `correctOption` excluded). |
 | PUT | `/api/v1/assessment/attempts/{attemptId}/answers` | Save/update answers ("Save Progress"). Body: `answers: [{ fieldKey, selectedOption, timeTakenMs? }]`. Upserts `AssessmentAnswer` rows; idempotent. 400 on an unknown `fieldKey`. 409 if the attempt is already submitted (locked). `timeTakenMs` (optional) is per-question elapsed time — send it for aptitude questions to enable the Time-Consistency component of ARI. |
@@ -181,27 +211,94 @@ Difficulty-Consistency reliability measures. **Deferred pending PWC sign-off** (
 until resolved): Time-Consistency & the composite ARI (need per-question `timeTakenMs`).
 See `docs/db-design.md`.
 
+**Scoring tester (dev only):** with the API running (`pnpm dev`), open
+`http://localhost:4000/dev/assessment` in a browser — a single self-contained page that
+logs in, loads the question bank, lets you fill answers (with quick-fill / randomise
+buttons), and renders the full computed report from `POST /assessment/score-preview`. No
+student/attempt/DB writes. Served only when `NODE_ENV !== production`
+(`public/assessment-tester.html`).
+
 **Workflow side effect**: starting a student's first attempt for a cohort advances
 `workflowStatus` to `ASSESSMENT_PENDING`; submitting it advances to
 `ASSESSMENT_COMPLETED`.
 
 **Project-window gate**: like the forms flow, the assessment is taken without a login, so
 the write endpoints (start attempt, save answers, submit) are gated on the student's
-Project window — **403** (`error.details.reason` = `PROJECT_CLOSED` \| `PROJECT_EXPIRED`)
+Project window — **403** (`error.details.reason` = `PROJECT_CLOSED` \| `PROJECT_DELETED` \| `PROJECT_EXPIRED`)
 once the project is closed or past its `toDate`. Reads (`GET` attempt/result) stay open.
 
 ## Career Library
 
-Read-only retrieval/search over the imported career library data (see
-`docs/db-design.md` → "Career Library workbook import" for the data model and
-cross-table mapping). No write endpoints (create/edit/delete, or the counsellor
-ratification request flow) yet.
+Retrieval/search over the imported career library data (see `docs/db-design.md` →
+"Career Library workbook import" for the data model and cross-table mapping). Reads =
+any authenticated user; entry writes = admin; the ratification request flow lets
+counsellors propose additions for admin review.
+
+Entries have a `status` (`DRAFT`\|`ACTIVE`). New entries default to `DRAFT` and are hidden
+from the default (ACTIVE-only) list until an admin publishes them by `PATCH`-ing
+`status:ACTIVE`.
+
+**Normalized links (select-or-add).** Entrance exams, courses, and institutions/colleges
+are **canonical lookup tables** linked to each career (many-to-many). On create/update,
+`entranceExams` / `courses` / `institutions` each take an array where every item is
+**either** an existing row `{ id }` **or** a new one `{ name, … }` (find-or-create). Feed
+the dropdowns from the typeahead endpoints below. (`topCompanies` and `certifications*`
+remain free-text arrays for now; the old `String[]` exam/course columns are still
+dual-written during the transition — see `docs/career-library-normalization-spec.md`.)
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/v1/career-library` | Search/list entries. Query: `search?` (free text across jobRole/cluster/industry/domain/oneLineDescription), `cluster?, industry?, domain?, aiResilienceGrade?` (`LOW`\|`MEDIUM`\|`HIGH`\|`VERY_HIGH`), `status?` (defaults to `ACTIVE`), `page?` (default 1), `pageSize?` (default 20, max 100). Returns `{ data, pagination: { page, pageSize, total, totalPages } }`. |
-| GET | `/api/v1/career-library/filters` | Distinct `clusters`, `industries`, `domains` (from `ACTIVE` entries) plus the fixed `aiResilienceGrades` list — for populating UI filter dropdowns. |
-| GET | `/api/v1/career-library/{id}` | Get one entry, plus `relatedInstitutions` (`UgInstitution` rows matching the entry's `industry`), `relatedCourses` (`UgCourse` rows matching `cluster`), and `relatedEntranceExams` (`UgEntranceExam` rows matching the extracted UG `entranceExams` list). 404 if not found. |
+| GET | `/api/v1/career-library` | Search/list entries. Query: `search?` (free text across jobRole/oneLineDescription and the taxonomy names), `clusterId?, industryId?, domainId?` (filter by taxonomy id at any level; combining `clusterId`+`industryId` ANDs them), `aiResilienceGrade?` (`LOW`\|`MEDIUM`\|`HIGH`\|`VERY_HIGH`), `status?` (defaults to `ACTIVE`), `page?` (default 1), `pageSize?` (default 20, max 100). Each entry includes its `domain` chain (`domain.industry.cluster`) so the cluster/industry/domain names are still present. Returns `{ data, pagination: { page, pageSize, total, totalPages } }`. |
+| GET | `/api/v1/career-library/filters` | Filter-dropdown source, now backed by the taxonomy tables (live rows only): `clusters` / `industries` / `domains` as `{id, name}` objects (industries carry `clusterId`, domains carry `industryId` for cascading) plus the fixed `aiResilienceGrades` list. For a fully nested picker use `GET /career-taxonomy/tree`. |
+| GET | `/api/v1/career-library/entrance-exams` | **Typeahead dropdown.** Canonical entrance exams. Query: `search?`, `level?` (`UG`\|`PG`), `limit?` (default 50). |
+| GET | `/api/v1/career-library/institutions` | **Typeahead dropdown.** Canonical institutions/colleges. Query: `search?`, `limit?`. |
+| GET | `/api/v1/career-library/courses` | **Typeahead dropdown.** Canonical courses. Query: `search?`, `level?`, `limit?`. |
+| POST | `/api/v1/career-library` | **Admin.** Create an entry. Required: `domainId` (a live `CareerDomain` leaf — cluster/industry are derived from it; 400 if unknown or soft-deleted), `jobRole, aiResilienceGrade, aiResilienceComment, oneLineDescription, qualification10th12th`. Optional: salary/qualification fields, `topCompanies`, `certifications*`, `status` (default `DRAFT`), and the normalized links `entranceExams` / `courses` / `institutions` (each `[{ id } \| { name, … }]`; exam items need `level` when added by name). Returns the assembled entry. `createdBy` = calling admin. |
+| PATCH | `/api/v1/career-library/{id}` | **Admin.** Partial update (any create field, incl. `status` toggle). A provided link array **replaces** that entry's links; omitting it leaves them unchanged. 400 on an unknown link `id`. Sets `updatedBy`. 404 if not found. |
+| DELETE | `/api/v1/career-library/{id}` | **Admin.** Delete an entry (cascades its links; first detaches any request's `resultingEntryId`). 404 if not found. |
+| GET | `/api/v1/career-library/{id}` | Get one entry. Includes the `domain` chain (`domain.industry.cluster`), the curated normalized links `linkedEntranceExams` / `linkedCourses` / `linkedInstitutions`, plus the legacy broad value-match view `relatedInstitutions` (by `domain.industry.name`) / `relatedCourses` (by `domain.industry.cluster.name`) / `relatedEntranceExams` (kept during transition). 404 if not found. |
+
+### Ratification requests
+
+Counsellors propose careers that aren't in the library; admins review. `CareerLibraryRequest`
+status: `PENDING` → `APPROVED`\|`REJECTED`.
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/v1/career-library/requests` | **Staff.** Submit a request. Body: `jobTitle, suggestedCluster, suggestedIndustry, suggestedDomain?, oneLineDescription, justification, referenceLinks?`. A counsellor is resolved as `requestedById` from their token; an admin filing on behalf passes `requestedById` (a counsellor id) explicitly. Created `PENDING`. |
+| GET | `/api/v1/career-library/requests` | **Staff.** List requests (newest first, with any linked `resultingEntry`). Query: `status?, requestedById?`. |
+| GET | `/api/v1/career-library/requests/{requestId}` | **Staff.** Get one request. 404 if not found. |
+| POST | `/api/v1/career-library/requests/{requestId}/approve` | **Admin.** Approve. Body: `{ resultingEntryId? }` (link the entry the admin created from it). Sets `status:APPROVED`, `reviewedBy`, `reviewedAt`. 409 if already reviewed; 400 if `resultingEntryId` is unknown. |
+| POST | `/api/v1/career-library/requests/{requestId}/reject` | **Admin.** Reject (no body). Sets `status:REJECTED`, `reviewedBy`, `reviewedAt`. 409 if already reviewed. |
+
+## Career Taxonomy
+
+Admin-managed classification hierarchy behind the career library: **Cluster → Industry → Domain**.
+A `CareerLibraryEntry` references a `domainId` (the leaf). Reads = any authenticated user (feeds the
+pickers); writes = **Admin**. Nodes are **soft-deleted** (`deletedAt`): a deleted node drops out of
+the default lists/tree but its FK stays intact so existing job roles still resolve; restore reverses
+it. Default lists show live rows only; pass `?includeDeleted=true` for admin management views.
+Name uniqueness is enforced among **live** siblings, so a soft-deleted name can be reused (which then
+makes restoring the original **409**). Ids may be cuid or uuid (backfilled rows).
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/career-taxonomy/tree` | Full live hierarchy `clusters → industries → domains` (nested `{id, name, …}`), for the cascading "add job role" picker. |
+| GET | `/api/v1/career-taxonomy/clusters` | List clusters. Query: `includeDeleted?`. |
+| POST | `/api/v1/career-taxonomy/clusters` | **Admin.** Create. Body: `{ name }`. 409 if a live cluster has that name. |
+| PATCH | `/api/v1/career-taxonomy/clusters/{id}` | **Admin.** Rename (`{ name? }`). Renames propagate to all entries via the relation. 409 on clash, 404 if missing/deleted. |
+| DELETE | `/api/v1/career-taxonomy/clusters/{id}` | **Admin.** Soft-delete. Returns the node with `deletedAt` set. |
+| POST | `/api/v1/career-taxonomy/clusters/{id}/restore` | **Admin.** Clear `deletedAt`. 409 if a live cluster now holds the name. |
+| GET | `/api/v1/career-taxonomy/industries` | List industries. Query: `clusterId?, includeDeleted?`. |
+| POST | `/api/v1/career-taxonomy/industries` | **Admin.** Create. Body: `{ clusterId, name }`. 404 if the cluster is missing/deleted; 409 on duplicate name within the cluster. |
+| PATCH | `/api/v1/career-taxonomy/industries/{id}` | **Admin.** Rename and/or re-parent (`{ clusterId?, name? }`). 409 on clash within the target cluster. |
+| DELETE | `/api/v1/career-taxonomy/industries/{id}` | **Admin.** Soft-delete. |
+| POST | `/api/v1/career-taxonomy/industries/{id}/restore` | **Admin.** Restore. 409 on name clash. |
+| GET | `/api/v1/career-taxonomy/domains` | List domains. Query: `industryId?, includeDeleted?`. |
+| POST | `/api/v1/career-taxonomy/domains` | **Admin.** Create. Body: `{ industryId, name }`. 404 if the industry is missing/deleted; 409 on duplicate name within the industry. |
+| PATCH | `/api/v1/career-taxonomy/domains/{id}` | **Admin.** Rename and/or re-parent (`{ industryId?, name? }`). 409 on clash within the target industry. |
+| DELETE | `/api/v1/career-taxonomy/domains/{id}` | **Admin.** Soft-delete. |
+| POST | `/api/v1/career-taxonomy/domains/{id}/restore` | **Admin.** Restore. 409 on name clash. |
 
 ## Sessions
 
@@ -271,6 +368,18 @@ feedback is weighted 80%, parent 20%; each form's sections carry fixed weights.
 Performance bands (applied to Final/Overall %): **90–100** Top Performer (₹1,000) ·
 **80–89** Strong Performer (₹750) · **70–79** Needs Improvement (₹500) · **<70**
 Critical (₹0). Lower-inclusive/upper-exclusive, top band fully inclusive.
+
+## Reports
+
+Assembles the student assessment report as one structured JSON payload — the frontend
+renders the print/PDF view from it. Nothing new is computed here; it composes the already-
+stored `AssessmentResult` report, the counsellor-authored `CounsellorChart` narrative, and
+the feedback score into the report's sections. Access: student-or-staff, and a `STUDENT`
+token may only read their own (it's the student-facing deliverable).
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/reports/students/{studentId}/assessment` | The full student assessment report. Returns `student` (name, code, institute/class/division, workflowStatus), `championProfile` (DCS + DPS), `traitMap` (RIASEC / Big Five / Aptitude / Cognitive layers + flat 18-trait map), `careerCompass` (Career Fit top-6 domains with representative careers + top-3 industries), `streamFit`, `graduationPathways`, `reliability` (RVS/ACI/ORI/DC), `counsellorNarrative` (chart strengths/hobbies/shortlist/SCRI/notes, or `null` if none authored), `feedback` (score or `{ complete:false }`), and `meta` (cohort, `assessmentSubmittedAt`, `finalized`, engine `pending` list). **404 until the student has a computed assessment result.** |
 
 ## Email
 

@@ -6,7 +6,7 @@ interface ApiUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'STUDENT' | 'COUNSELLOR' | 'ADMIN' | 'SUPER_ADMIN';
+  role: 'STUDENT' | 'COUNSELLOR' | 'ADMIN' | 'VIEW_ONLY_ADMIN' | 'SUPER_ADMIN';
   isActive: boolean;
   mustChangePassword: boolean;
 }
@@ -20,6 +20,7 @@ const ROLE_MAP: Record<ApiUser['role'], Role> = {
   STUDENT: 'student',
   COUNSELLOR: 'counselor',
   ADMIN: 'admin',
+  VIEW_ONLY_ADMIN: 'view_only',
   SUPER_ADMIN: 'super_admin',
 };
 
@@ -29,6 +30,7 @@ const mapUser = (u: ApiUser): User => ({
   email: u.email,
   role: ROLE_MAP[u.role],
   mustChangePassword: u.mustChangePassword,
+  isViewOnly: u.role === 'VIEW_ONLY_ADMIN',
 });
 
 const mapAuthResponse = (data: ApiAuthResponse): LoginResponse => ({

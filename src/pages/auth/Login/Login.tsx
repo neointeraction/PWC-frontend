@@ -56,7 +56,12 @@ export const LoginPage: React.FC = () => {
     mutationFn: (payload: LoginPayload) => authService.login(payload),
     onSuccess: data => {
       login(data.user, data.token);
-      if (data.user.mustChangePassword) {
+      // App-admin roles skip the mandatory password-change screen.
+      const isAppAdmin =
+        data.user.role === 'super_admin' ||
+        data.user.role === 'admin' ||
+        data.user.role === 'view_only';
+      if (data.user.mustChangePassword && !isAppAdmin) {
         navigate(ROUTES.RESET_PASSWORD);
       } else {
         navigate(ROUTES.DASHBOARD);
@@ -64,14 +69,17 @@ export const LoginPage: React.FC = () => {
     },
   });
 
-  // Only the Super Admin account is seeded automatically (pnpm db:seed, backend
-  // SEED_SUPER_ADMIN_EMAIL/SEED_SUPER_ADMIN_PASSWORD, default shown below).
-  // Counsellor/Student accounts only exist once created via the app (no
-  // self-register), so there's nothing real to shortcut for them yet.
-  const fillSuperAdmin = () => {
-    setValue('email', 'superadmin@kreate.local');
-    setValue('password', 'ChangeMe123!');
+  // Demo accounts — all seeded by the backend `pnpm db:seed` (super admin from
+  // SEED_SUPER_ADMIN_*, the rest from the demo-accounts seed with their supporting
+  // institute/project/division). Lets the client browse each role's UI.
+  const fillDemo = (email: string, password: string) => () => {
+    setValue('email', email);
+    setValue('password', password);
   };
+  const fillSuperAdmin = fillDemo('superadmin@kreate.local', 'ChangeMe123!');
+  const fillAdmin = fillDemo('admin@kreate.local', 'Admin@123');
+  const fillCounselor = fillDemo('counsellor@kreate.local', 'Counsellor@123');
+  const fillStudent = fillDemo('student@kreate.local', 'Student@123');
 
   return (
     <LoginWrapper>
@@ -139,6 +147,15 @@ export const LoginPage: React.FC = () => {
           <DemoButtons>
             <Button size="sm" variant="secondary" onClick={fillSuperAdmin}>
               Super Admin (superadmin@kreate.local)
+            </Button>
+            <Button size="sm" variant="secondary" onClick={fillAdmin}>
+              Admin (admin@kreate.local)
+            </Button>
+            <Button size="sm" variant="secondary" onClick={fillCounselor}>
+              Counsellor (counsellor@kreate.local)
+            </Button>
+            <Button size="sm" variant="secondary" onClick={fillStudent}>
+              Student (student@kreate.local)
             </Button>
           </DemoButtons>
         </HintBox>

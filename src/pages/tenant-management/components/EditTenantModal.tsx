@@ -10,21 +10,17 @@ import { Button } from '@/components/Button';
 import { tenantManagementService } from '@/services/tenant-management.service';
 import { useTenantManagementStore } from '@/store/tenant-management.store';
 import { useToast } from '@/hooks';
+import { getApiErrorMessage } from '@/utils';
+import { ModalFormContainer } from '../TenantManagement.styles';
 
 const editTenantSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  phone: z.string().optional(),
-  userCategory: z.enum(['pwc', 'institution', 'counselor']),
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(1, 'Last name is required'),
   isViewOnly: z.boolean().optional(),
-  roleLabel: z.string().optional(),
-  organizationName: z.string().optional(),
-  status: z.enum(['active', 'inactive', 'pending']),
+  status: z.enum(['active', 'inactive']),
 });
 
 type EditTenantFormData = z.infer<typeof editTenantSchema>;
-
-import { ModalFormContainer } from '../TenantManagement.styles';
 
 export const EditTenantModal: React.FC = () => {
   const queryClient = useQueryClient();
@@ -34,26 +30,19 @@ export const EditTenantModal: React.FC = () => {
   const {
     register,
     handleSubmit,
-    watch,
     reset,
     formState: { errors },
   } = useForm<EditTenantFormData>({
     resolver: zodResolver(editTenantSchema),
   });
 
-  const selectedCategory = watch('userCategory');
-
   useEffect(() => {
     if (selectedUser) {
       reset({
-        name: selectedUser.name,
-        email: selectedUser.email,
-        phone: selectedUser.phone || '',
-        userCategory: selectedUser.userCategory,
+        firstName: selectedUser.firstName,
+        lastName: selectedUser.lastName,
         isViewOnly: Boolean(selectedUser.isViewOnly),
-        roleLabel: selectedUser.roleLabel,
-        organizationName: selectedUser.organizationName || '',
-        status: selectedUser.status,
+        status: selectedUser.status === 'inactive' ? 'inactive' : 'active',
       });
     }
   }, [selectedUser, reset]);
@@ -63,11 +52,11 @@ export const EditTenantModal: React.FC = () => {
       tenantManagementService.update(selectedUser!.id, data),
     onSuccess: updated => {
       queryClient.invalidateQueries({ queryKey: ['tenant-records'] });
-      toast.success('Tenant User Updated', `Updated account details for ${updated.name}.`);
+      toast.success('Admin Updated', `Updated account details for ${updated.name}.`);
       closeEditModal();
     },
-    onError: () => {
-      toast.error('Error', 'Failed to update tenant user. Please try again.');
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to update admin. Please try again.'));
     },
   });
 
@@ -79,8 +68,8 @@ export const EditTenantModal: React.FC = () => {
     <Modal
       isOpen={isEditModalOpen}
       onClose={closeEditModal}
-      title="Edit Tenant Profile"
-      subtitle={`Modify account attributes and access permissions for ${selectedUser?.name || 'tenant user'}`}
+      title="Edit Admin Profile"
+      subtitle={`Modify account details and access for ${selectedUser?.name || 'admin'}`}
       size="md"
       footer={
         <>
@@ -95,33 +84,23 @@ export const EditTenantModal: React.FC = () => {
     >
       <ModalFormContainer id="edit-tenant-form" onSubmit={handleSubmit(onSubmit)}>
         <Input
-          label="Full Name"
-          error={errors.name?.message}
-          {...register('name')}
+          label="First Name"
+          error={errors.firstName?.message}
+          {...register('firstName')}
+        />
+
+        <Input
+          label="Last Name"
+          error={errors.lastName?.message}
+          {...register('lastName')}
         />
 
         <Input
           label="Email Address"
           type="email"
-          error={errors.email?.message}
-          {...register('email')}
-        />
-
-        <Input
-          label="Phone Number"
-          error={errors.phone?.message}
-          {...register('phone')}
-        />
-
-        <Select
-          label="User Type"
-          options={[
-            { value: 'pwc', label: 'kREATE User (Admin)' },
-            { value: 'institution', label: 'Institution User (Admin)', disabled: true },
-            { value: 'counselor', label: 'Counselor User (Career Advisor / Counselor)', disabled: true },
-          ]}
-          error={errors.userCategory?.message}
-          {...register('userCategory')}
+          value={selectedUser?.email || ''}
+          disabled
+          hint="Email can't be changed after creation."
         />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
@@ -135,24 +114,15 @@ export const EditTenantModal: React.FC = () => {
             htmlFor="edit-tenant-is-view-only"
             style={{ fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}
           >
-            View Only Mode (Grant read-only access without edit or delete permissions)
+            View Only Admin (Read-only access — every write action is blocked)
           </label>
         </div>
-
-        {selectedCategory !== 'pwc' && (
-          <Input
-            label="Organization / Institution Name"
-            error={errors.organizationName?.message}
-            {...register('organizationName')}
-          />
-        )}
 
         <Select
           label="Account Status"
           options={[
             { value: 'active', label: 'Active' },
-            { value: 'pending', label: 'Pending Invitation' },
-            { value: 'inactive', label: 'Inactive' },
+            { value: 'inactive', label: 'Inactive (login disabled)' },
           ]}
           error={errors.status?.message}
           {...register('status')}

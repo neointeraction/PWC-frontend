@@ -10,25 +10,11 @@ export const ViewTenantModal: React.FC = () => {
 
   if (!selectedUser) return null;
 
-  const categoryVariant =
-    selectedUser.userCategory === 'pwc'
-      ? 'primary'
-      : selectedUser.userCategory === 'institution'
-      ? 'info'
-      : 'success';
-
-  const categoryLabel =
-    selectedUser.userCategory === 'pwc'
-      ? 'kREATE User'
-      : selectedUser.userCategory === 'institution'
-      ? 'Institution User'
-      : 'Counselor User';
-
   return (
     <Modal
       isOpen={isViewModalOpen}
       onClose={closeViewModal}
-      title="Tenant Profile Overview"
+      title="Admin Profile Overview"
       subtitle={`Detailed metadata for ${selectedUser.name}`}
       size="md"
     >
@@ -40,9 +26,11 @@ export const ViewTenantModal: React.FC = () => {
           </DetailItem>
 
           <DetailItem>
-            <label>User Category</label>
+            <label>Role</label>
             <div>
-              <Badge variant={categoryVariant}>{categoryLabel}</Badge>
+              <Badge variant={selectedUser.isViewOnly ? 'warning' : 'primary'}>
+                {selectedUser.roleLabel}
+              </Badge>
             </div>
           </DetailItem>
 
@@ -61,28 +49,9 @@ export const ViewTenantModal: React.FC = () => {
           </DetailItem>
 
           <DetailItem>
-            <label>Phone Number</label>
-            <p>{selectedUser.phone || 'N/A'}</p>
-          </DetailItem>
-
-          <DetailItem>
-            <label>Organization / Entity</label>
-            <p>{selectedUser.organizationName || 'kREATE Global Engine'}</p>
-          </DetailItem>
-
-          <DetailItem>
             <label>Status</label>
             <div>
-              <Badge
-                variant={
-                  selectedUser.status === 'active'
-                    ? 'success'
-                    : selectedUser.status === 'pending'
-                    ? 'warning'
-                    : 'default'
-                }
-                dot
-              >
+              <Badge variant={selectedUser.status === 'active' ? 'success' : 'default'} dot>
                 {selectedUser.status.toUpperCase()}
               </Badge>
             </div>
@@ -90,7 +59,12 @@ export const ViewTenantModal: React.FC = () => {
 
           <DetailItem>
             <label>Created On</label>
-            <p>{selectedUser.createdAt}</p>
+            <p>{selectedUser.createdAt || 'N/A'}</p>
+          </DetailItem>
+
+          <DetailItem>
+            <label>Last Active</label>
+            <p>{selectedUser.lastActive || 'N/A'}</p>
           </DetailItem>
         </DetailGrid>
 

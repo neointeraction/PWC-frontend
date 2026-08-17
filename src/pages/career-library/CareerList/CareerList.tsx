@@ -1,18 +1,35 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 import { PageHeader } from '@/components/PageHeader';
+import { Button } from '@/components/Button';
+import { AlertModal } from '@/components/AlertModal';
 import { ROUTES } from '@/constants';
 import { CareerCluster, CareerIndustry, CareerDomain, Career } from '@/types';
 import { careerService } from '@/services/career.service';
+import { useAuthStore } from '@/store/auth.store';
+import { useToast } from '@/hooks';
+import { getApiErrorMessage } from '@/utils';
 import { BreadcrumbHeader, BreadcrumbStep } from '../components/BreadcrumbHeader';
+import { TaxonomyFormModal, TaxonomyLevel } from '../components/TaxonomyFormModal';
+import { JobRoleFormModal } from '../components/JobRoleFormModal';
 import { ClustersView } from '../views/ClustersView';
 import { IndustriesView } from '../views/IndustriesView';
 import { DomainsView } from '../views/DomainsView';
 import { JobRolesView } from '../views/JobRolesView';
 import { JobRoleDetailView } from '../views/JobRoleDetailView';
 import { SimpleView } from '../views/SimpleView';
-import { RiLayoutGridLine, RiListCheck2 } from 'react-icons/ri';
+import { RiLayoutGridLine, RiListCheck2, RiAddLine } from 'react-icons/ri';
+
+type TaxonomyModalState = {
+  level: TaxonomyLevel;
+  mode: 'add' | 'edit';
+  entity?: { id: string; name: string };
+  parentId?: string;
+  parentLabel?: string;
+};
+
+type DeleteTarget = { kind: TaxonomyLevel | 'role'; id: string; name: string };
 
 const Container = styled.div`
   display: flex;
@@ -57,6 +74,13 @@ const ContentCard = styled.div`
   padding: ${({ theme }) => theme.spacing.xl};
 `;
 
+const AddBar = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
+`;
+
 type LevelType = 'clusters' | 'industries' | 'domains' | 'roles' | 'detail';
 
 export const CareerListPage: React.FC = () => {
@@ -67,6 +91,61 @@ export const CareerListPage: React.FC = () => {
   const [selectedDomain, setSelectedDomain] = useState<CareerDomain | null>(null);
   const [selectedRole, setSelectedRole] = useState<Career | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { role } = useAuthStore();
+  // Career Library is managed by the Super Admin only — everyone else (admin,
+  // counsellor, student) gets read-only browsing.
+  const canWrite = role === 'super_admin';
+
+  const [taxonomyModal, setTaxonomyModal] = useState<TaxonomyModalState | null>(null);
+  const [roleModal, setRoleModal] = useState<{ mode: 'add' | 'edit'; entity?: Career } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+
+  // A taxonomy/entry write can change any level, so refresh every career query.
+  const invalidateCareer = () => {
+    [
+      'clusters',
+      'clusters-all',
+      'industries',
+      'industries-all',
+      'domains',
+      'domains-all',
+      'jobRoles',
+      'jobRoles-all',
+      'careerDetail',
+    ].forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (target: DeleteTarget) => {
+      switch (target.kind) {
+        case 'cluster':
+          return careerService.deleteCluster(target.id);
+        case 'industry':
+          return careerService.deleteIndustry(target.id);
+        case 'domain':
+          return careerService.deleteDomain(target.id);
+        default:
+          return careerService.deleteEntry(target.id);
+      }
+    },
+    onSuccess: (_data, target) => {
+      invalidateCareer();
+      toast.success('Deleted', `"${target.name}" was removed.`);
+      // If the currently-open role was deleted, step back to the roles list.
+      if (target.kind === 'role' && selectedRole?.id === target.id) {
+        setLevel('roles');
+        setSelectedRole(null);
+      }
+      setDeleteTarget(null);
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to delete. It may be in use.'));
+      setDeleteTarget(null);
+    },
+  });
 
   // Queries — all real reads against GET /api/v1/career-library (read-only API;
   // there's no create/edit/delete/bulk-upload/ratification endpoint yet).
@@ -83,20 +162,20 @@ export const CareerListPage: React.FC = () => {
   });
 
   const { data: industries = [] } = useQuery({
-    queryKey: ['industries', selectedCluster?.name, searchQuery],
-    queryFn: () => careerService.getIndustries(selectedCluster?.name, searchQuery),
+    queryKey: ['industries', selectedCluster?.id, searchQuery],
+    queryFn: () => careerService.getIndustries(selectedCluster?.id, searchQuery),
     enabled: level === 'industries',
   });
 
   const { data: domains = [] } = useQuery({
-    queryKey: ['domains', selectedIndustry?.name, searchQuery],
-    queryFn: () => careerService.getDomains(selectedIndustry?.name, searchQuery),
+    queryKey: ['domains', selectedIndustry?.id, searchQuery],
+    queryFn: () => careerService.getDomains(selectedIndustry?.id, searchQuery),
     enabled: level === 'domains',
   });
 
   const { data: roles = [] } = useQuery({
-    queryKey: ['jobRoles', selectedDomain?.name, searchQuery],
-    queryFn: () => careerService.getJobRoles(selectedDomain?.name, searchQuery),
+    queryKey: ['jobRoles', selectedDomain?.id, searchQuery],
+    queryFn: () => careerService.getJobRoles(selectedDomain?.id, searchQuery),
     enabled: level === 'roles',
   });
 
@@ -256,6 +335,61 @@ export const CareerListPage: React.FC = () => {
             onSearchChange={setSearchQuery}
           />
 
+          {canWrite && level !== 'detail' && (
+            <AddBar>
+              {level === 'clusters' && (
+                <Button
+                  size="sm"
+                  leftIcon={<RiAddLine size={16} />}
+                  onClick={() => setTaxonomyModal({ level: 'cluster', mode: 'add' })}
+                >
+                  Add Cluster
+                </Button>
+              )}
+              {level === 'industries' && selectedCluster && (
+                <Button
+                  size="sm"
+                  leftIcon={<RiAddLine size={16} />}
+                  onClick={() =>
+                    setTaxonomyModal({
+                      level: 'industry',
+                      mode: 'add',
+                      parentId: selectedCluster.id,
+                      parentLabel: selectedCluster.name,
+                    })
+                  }
+                >
+                  Add Industry
+                </Button>
+              )}
+              {level === 'domains' && selectedIndustry && (
+                <Button
+                  size="sm"
+                  leftIcon={<RiAddLine size={16} />}
+                  onClick={() =>
+                    setTaxonomyModal({
+                      level: 'domain',
+                      mode: 'add',
+                      parentId: selectedIndustry.id,
+                      parentLabel: selectedIndustry.name,
+                    })
+                  }
+                >
+                  Add Domain
+                </Button>
+              )}
+              {level === 'roles' && selectedDomain && (
+                <Button
+                  size="sm"
+                  leftIcon={<RiAddLine size={16} />}
+                  onClick={() => setRoleModal({ mode: 'add' })}
+                >
+                  Add Job Role
+                </Button>
+              )}
+            </AddBar>
+          )}
+
           {level === 'clusters' && (
             <ClustersView
               clusters={clusters}
@@ -264,6 +398,22 @@ export const CareerListPage: React.FC = () => {
                 setSelectedCluster(cluster);
                 setLevel('industries');
               }}
+              onEditCluster={
+                canWrite
+                  ? cluster =>
+                      setTaxonomyModal({
+                        level: 'cluster',
+                        mode: 'edit',
+                        entity: { id: cluster.id, name: cluster.name },
+                      })
+                  : undefined
+              }
+              onDeleteCluster={
+                canWrite
+                  ? cluster =>
+                      setDeleteTarget({ kind: 'cluster', id: cluster.id, name: cluster.name })
+                  : undefined
+              }
             />
           )}
 
@@ -275,6 +425,21 @@ export const CareerListPage: React.FC = () => {
                 setSelectedIndustry(ind);
                 setLevel('domains');
               }}
+              onEditIndustry={
+                canWrite
+                  ? ind =>
+                      setTaxonomyModal({
+                        level: 'industry',
+                        mode: 'edit',
+                        entity: { id: ind.id, name: ind.name },
+                      })
+                  : undefined
+              }
+              onDeleteIndustry={
+                canWrite
+                  ? ind => setDeleteTarget({ kind: 'industry', id: ind.id, name: ind.name })
+                  : undefined
+              }
             />
           )}
 
@@ -286,6 +451,21 @@ export const CareerListPage: React.FC = () => {
                 setSelectedDomain(dom);
                 setLevel('roles');
               }}
+              onEditDomain={
+                canWrite
+                  ? dom =>
+                      setTaxonomyModal({
+                        level: 'domain',
+                        mode: 'edit',
+                        entity: { id: dom.id, name: dom.name },
+                      })
+                  : undefined
+              }
+              onDeleteDomain={
+                canWrite
+                  ? dom => setDeleteTarget({ kind: 'domain', id: dom.id, name: dom.name })
+                  : undefined
+              }
             />
           )}
 
@@ -297,6 +477,12 @@ export const CareerListPage: React.FC = () => {
                 setSelectedRole(role);
                 setLevel('detail');
               }}
+              onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}
+              onDeleteRole={
+                canWrite
+                  ? role => setDeleteTarget({ kind: 'role', id: role.id, name: role.jobRole })
+                  : undefined
+              }
             />
           )}
 
@@ -310,6 +496,43 @@ export const CareerListPage: React.FC = () => {
           )}
         </ContentCard>
       )}
+
+      <TaxonomyFormModal
+        isOpen={Boolean(taxonomyModal)}
+        onClose={() => setTaxonomyModal(null)}
+        onSaved={invalidateCareer}
+        level={taxonomyModal?.level ?? 'cluster'}
+        mode={taxonomyModal?.mode ?? 'add'}
+        entity={taxonomyModal?.entity}
+        parentId={taxonomyModal?.parentId}
+        parentLabel={taxonomyModal?.parentLabel}
+      />
+
+      <JobRoleFormModal
+        isOpen={Boolean(roleModal)}
+        onClose={() => setRoleModal(null)}
+        onSaved={invalidateCareer}
+        mode={roleModal?.mode ?? 'add'}
+        entity={roleModal?.entity}
+        domainId={selectedDomain?.id}
+        domainLabel={selectedDomain?.name}
+      />
+
+      <AlertModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+        title={`Delete ${deleteTarget?.kind === 'role' ? 'Job Role' : deleteTarget?.kind ?? ''}`}
+        description={`Are you sure you want to delete "${deleteTarget?.name}"?${
+          deleteTarget && deleteTarget.kind !== 'role'
+            ? ' Its child items may be affected.'
+            : ''
+        }`}
+        variant="danger"
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleteMutation.isPending}
+      />
     </Container>
   );
 };
