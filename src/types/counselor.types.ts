@@ -1,3 +1,12 @@
+export type DeploymentStatus = 'deployed' | 'bench' | 'inactive';
+
+export interface ProjectDeploymentDetail {
+  schoolName: string;
+  totalAllotted: number;
+  session1Balance: number;
+  session2Balance: number;
+}
+
 export interface Counselor {
   id: string;
   counselorId: string; // backend counsellorCode
@@ -9,6 +18,12 @@ export interface Counselor {
   instituteId: string;
   instituteName: string;
   status: 'active' | 'inactive';
+  deploymentStatus?: DeploymentStatus;
+  projectDeployedName?: string;
+  totalAllotted?: number;
+  session1Balance?: number;
+  session2Balance?: number;
+  projectsList?: ProjectDeploymentDetail[];
   createdAt: string;
 }
 

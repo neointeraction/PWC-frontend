@@ -76,6 +76,14 @@ export const ActionsCell = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.xs};
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+
+  tr:hover & {
+    opacity: 1;
+    visibility: visible;
+  }
 `;
 
 export const IconButton = styled.button`

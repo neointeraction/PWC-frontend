@@ -10,30 +10,33 @@ import { Button } from '@/components/Button';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
-import { getApiErrorMessage } from '@/utils';
 import { LoginPayload } from '@/types';
-import logoImg from '@/assets/logo.jpg';
+import designDestinyLogo from '@/assets/design-destiny.png';
+import kreateLogo from '@/assets/logo.jpg';
 import {
   LoginWrapper,
+  LeftBannerSection,
+  BannerHeader,
+  BannerSubtext,
+  DesignDestinyLogo,
+  RightFormSection,
+  CenterContent,
+  KreateLogo,
   LoginCard,
-  LogoWrapper,
-  LogoTextWrapper,
-  LogoTitle,
-  LogoSubtitle,
-  LoginTitleWrapper,
-  LoginHeading,
-  LoginSubtext,
+  CardHeader,
+  CardTitle,
+  CardSubtext,
   LoginForm,
   FormGroup,
   ForgotPasswordLink,
-  HintBox,
-  HintTitle,
+  DemoAccordion,
   DemoButtons,
   ErrorAlert,
+  FooterText,
 } from './Login.styles';
 
 const loginSchema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.string().min(1, 'Username or Email is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -56,12 +59,7 @@ export const LoginPage: React.FC = () => {
     mutationFn: (payload: LoginPayload) => authService.login(payload),
     onSuccess: data => {
       login(data.user, data.token);
-      // App-admin roles skip the mandatory password-change screen.
-      const isAppAdmin =
-        data.user.role === 'super_admin' ||
-        data.user.role === 'admin' ||
-        data.user.role === 'view_only';
-      if (data.user.mustChangePassword && !isAppAdmin) {
+      if (data.user.role === 'counselor' || data.user.role === 'student') {
         navigate(ROUTES.RESET_PASSWORD);
       } else {
         navigate(ROUTES.DASHBOARD);
@@ -69,119 +67,134 @@ export const LoginPage: React.FC = () => {
     },
   });
 
-  // Demo accounts — all seeded by the backend `pnpm db:seed` (super admin from
-  // SEED_SUPER_ADMIN_*, the rest from the demo-accounts seed with their supporting
-  // institute/project/division). Lets the client browse each role's UI.
-  const fillDemo = (email: string, password: string) => () => {
-    setValue('email', email);
-    setValue('password', password);
+  const fillPwcUser = () => {
+    setValue('email', 'sunita.sharma@pwc-global.com');
+    setValue('password', 'PWC@User2026!');
   };
-  const fillSuperAdmin = fillDemo('superadmin@kreate.local', 'ChangeMe123!');
-  const fillAdmin = fillDemo('admin@kreate.local', 'Admin@123');
-  const fillCounselor = fillDemo('counsellor@kreate.local', 'Counsellor@123');
-  const fillStudent = fillDemo('student@kreate.local', 'Student@123');
+
+  const fillSuperAdmin = () => {
+    setValue('email', 'admin@pwc.com');
+    setValue('password', 'admin123');
+  };
+
+  const fillViewOnlyUser = () => {
+    setValue('email', 'viewer@pwc.com');
+    setValue('password', 'viewer123');
+  };
+
+  const fillCounselor = () => {
+    setValue('email', 'counselor@pwc.com');
+    setValue('password', 'counselor123');
+  };
+
+  const fillStudent = () => {
+    setValue('email', 'student@pwc.com');
+    setValue('password', 'student123');
+  };
 
   return (
     <LoginWrapper>
-      <LoginCard>
-        <LogoWrapper>
-          <img
-            src={logoImg}
-            alt="kREATE Logo"
-            style={{ width: 40, height: 40, objectFit: 'contain' }}
-          />
-          <LogoTextWrapper>
-            <LogoTitle>kREATE Portal</LogoTitle>
-            <LogoSubtitle>Career Counselling Platform</LogoSubtitle>
-          </LogoTextWrapper>
-        </LogoWrapper>
+      <LeftBannerSection>
+        <BannerHeader>
+          <BannerSubtext>A Career Infrastructure Platform by</BannerSubtext>
+          <DesignDestinyLogo src={designDestinyLogo} alt="Design Destiny" />
+        </BannerHeader>
+      </LeftBannerSection>
 
-        <LoginTitleWrapper>
-          <LoginHeading>Sign In</LoginHeading>
-          <LoginSubtext>Enter your user credentials to access your portal</LoginSubtext>
-        </LoginTitleWrapper>
+      <RightFormSection>
+        <CenterContent>
+          <KreateLogo src={kreateLogo} alt="Kreate Logo" />
 
-        <LoginForm onSubmit={handleSubmit(data => mutation.mutate(data))} noValidate>
-          {mutation.isError && (
-            <ErrorAlert role="alert">
-              {getApiErrorMessage(mutation.error, 'An error occurred. Please try again.')}
-            </ErrorAlert>
-          )}
+          <LoginCard>
+            <CardHeader>
+              <CardTitle>Sign In</CardTitle>
+              <CardSubtext>Enter your user credentials to access your portal</CardSubtext>
+            </CardHeader>
 
-          <FormGroup>
-            <Input
-              label="Username / Email"
-              type="email"
-              placeholder="Enter your username or email"
-              leftIcon={<RiUser3Line size={18} />}
-              autoComplete="email"
-              error={errors.email?.message}
-              {...register('email')}
-            />
-            <Input
-              label="Password"
-              type="password"
-              placeholder="Enter your password"
-              leftIcon={<RiLockLine size={18} />}
-              autoComplete="current-password"
-              error={errors.password?.message}
-              {...register('password')}
-            />
-          </FormGroup>
+            <LoginForm onSubmit={handleSubmit(data => mutation.mutate(data))} noValidate>
+              {mutation.isError && (
+                <ErrorAlert role="alert">
+                  {mutation.error instanceof Error
+                    ? mutation.error.message
+                    : 'An error occurred. Please try again.'}
+                </ErrorAlert>
+              )}
 
-          <Button
-            type="submit"
-            variant="primary"
-            fullWidth
-            size="lg"
-            isLoading={mutation.isPending}
-          >
-            LOG IN
-          </Button>
+              <FormGroup>
+                <Input
+                  label="Username / Email"
+                  type="text"
+                  placeholder="Enter your username or email"
+                  leftIcon={<RiUser3Line size={18} />}
+                  autoComplete="username"
+                  error={errors.email?.message}
+                  {...register('email')}
+                />
+                <Input
+                  label="Password"
+                  type="password"
+                  placeholder="Enter your password"
+                  leftIcon={<RiLockLine size={18} />}
+                  autoComplete="current-password"
+                  error={errors.password?.message}
+                  {...register('password')}
+                />
+              </FormGroup>
 
-          <ForgotPasswordLink type="button">Forgot Password?</ForgotPasswordLink>
-        </LoginForm>
+              <Button
+                type="submit"
+                variant="primary"
+                fullWidth
+                size="lg"
+                isLoading={mutation.isPending}
+              >
+                LOG IN
+              </Button>
 
-        <HintBox>
-          <HintTitle>Quick Demo Login Shortcuts</HintTitle>
-          <DemoButtons>
-            <Button size="sm" variant="secondary" onClick={fillSuperAdmin}>
-              Super Admin (superadmin@kreate.local)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillAdmin}>
-              Admin (admin@kreate.local)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillCounselor}>
-              Counsellor (counsellor@kreate.local)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={fillStudent}>
-              Student (student@kreate.local)
-            </Button>
-          </DemoButtons>
-        </HintBox>
+              <ForgotPasswordLink type="button">Forgot Password?</ForgotPasswordLink>
+            </LoginForm>
 
-        <HintBox>
-          <HintTitle>Mail Shortcuts</HintTitle>
-          <DemoButtons>
-            <Button
-              size="sm"
-              variant="primary"
-              leftIcon={<RiMailLine size={16} />}
-              onClick={() => navigate(ROUTES.PARENT_PRE_COUNSELLING_FORM)}
-            >
-              Mail 1
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              leftIcon={<RiMailLine size={16} />}
-              onClick={() => navigate(ROUTES.PARENT_FEEDBACK_FORM)}
-            >
-              Mail 2
-            </Button>
-          </DemoButtons>
-        </HintBox>
-      </LoginCard>
+            <DemoAccordion>
+              <summary>Quick Demo Login Shortcuts & Mail Form Links</summary>
+              <DemoButtons>
+                <Button size="sm" variant="secondary" onClick={fillSuperAdmin}>
+                  Super Admin (admin@pwc.com)
+                </Button>
+                <Button size="sm" variant="secondary" onClick={fillPwcUser}>
+                  kREATE User / Admin (sunita.sharma@pwc-global.com)
+                </Button>
+                <Button size="sm" variant="secondary" onClick={fillViewOnlyUser}>
+                  kREATE View-Only Account (viewer@pwc.com)
+                </Button>
+                <Button size="sm" variant="secondary" onClick={fillCounselor}>
+                  Counselor (counselor@pwc.com)
+                </Button>
+                <Button size="sm" variant="secondary" onClick={fillStudent}>
+                  Student (student@pwc.com)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  leftIcon={<RiMailLine size={14} />}
+                  onClick={() => navigate(ROUTES.PARENT_PRE_COUNSELLING_FORM)}
+                >
+                  Mail 1 (Pre-Counselling Form)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  leftIcon={<RiMailLine size={14} />}
+                  onClick={() => navigate(ROUTES.PARENT_FEEDBACK_FORM)}
+                >
+                  Mail 2 (Parent Feedback Form)
+                </Button>
+              </DemoButtons>
+            </DemoAccordion>
+          </LoginCard>
+        </CenterContent>
+
+        <FooterText>©Design Destiny. All Rights Reserved.</FooterText>
+      </RightFormSection>
     </LoginWrapper>
   );
 };
