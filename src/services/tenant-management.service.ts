@@ -117,9 +117,17 @@ export const tenantManagementService = {
     await apiClient.delete(`/admins/${id}`);
   },
 
-  // There is no admin-set-password route — credential resets go through the
-  // email flow. POST /api/v1/auth/forgot-password mints a single-use reset link
-  // and emails it (always 202, never leaks whether the address exists).
+  // POST /api/v1/admins/{id}/regenerate-password (Super Admin) — mints a fresh temp
+  // password and returns it once. The mapped record carries it as `generatedPassword`.
+  regeneratePassword: async (id: string): Promise<UserRecord> => {
+    const { data } = await apiClient.post<{ admin: ApiAdmin; tempPassword: string }>(
+      `/admins/${id}/regenerate-password`
+    );
+    return mapAdmin(data.admin, data.tempPassword);
+  },
+
+  // POST /api/v1/auth/forgot-password mints a single-use reset link and emails it
+  // (always 202, never leaks whether the address exists).
   sendPasswordReset: async (email: string): Promise<void> => {
     await apiClient.post('/auth/forgot-password', { email });
   },

@@ -134,7 +134,17 @@ interface EducationPathTabProps {
   role: Career;
 }
 
+// Certifications arrive as a '; '-joined string from the mapper — split back to pills.
+const toList = (value?: string): string[] =>
+  (value || '')
+    .split(/[;,]/)
+    .map(item => item.trim())
+    .filter(Boolean);
+
 export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
+  const studentCerts = toList(role.certificationsStudents);
+  const ugCerts = toList(role.certificationsUG);
+
   return (
     <Container>
       <TimelineCard>
@@ -147,20 +157,26 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
         <StepGrid>
           <StepCard>
             <StepLabel>10+2</StepLabel>
-            <StepTitle>12th — Any stream</StepTitle>
-            <StepSubtitle>{role.minQual10th12thRecommendedSubjects || '12th Standard Fine Arts / Computer Application'}</StepSubtitle>
+            <StepTitle>{role.minQual10th12thRecommendedSubjects || '—'}</StepTitle>
+            {role.qualification10th12thExplanation && (
+              <StepSubtitle>{role.qualification10th12thExplanation}</StepSubtitle>
+            )}
           </StepCard>
 
           <StepCard>
             <StepLabel>GRADUATE</StepLabel>
-            <StepTitle>BDes / BFA / Relevant Degree</StepTitle>
-            <StepSubtitle>Recommended focus: UI/UX Design &amp; Digital Arts</StepSubtitle>
+            <StepTitle>{role.minQualGradRecommendedSubjects || '—'}</StepTitle>
+            {role.qualificationGraduationDefined && (
+              <StepSubtitle>{role.qualificationGraduationDefined}</StepSubtitle>
+            )}
           </StepCard>
 
           <StepCard>
             <StepLabel>POST-GRADUATE</StepLabel>
-            <StepTitle>MDes, MFA, Design Management</StepTitle>
-            <StepSubtitle>Advanced Human-Computer Interaction</StepSubtitle>
+            <StepTitle>{role.minQualPGRecommendedSubjects || '—'}</StepTitle>
+            {role.qualificationPGDefined && (
+              <StepSubtitle>{role.qualificationPGDefined}</StepSubtitle>
+            )}
           </StepCard>
         </StepGrid>
       </TimelineCard>
@@ -169,19 +185,22 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
         <CertCard>
           <CertTitle>Certifications — Student Level</CertTitle>
           <PillGroup>
-            <CertPill>Adobe Photoshop Skills</CertPill>
-            <CertPill>Canva Design Mastery</CertPill>
-            <CertPill>Graphic Design Fundamentals</CertPill>
+            {studentCerts.length > 0 ? (
+              studentCerts.map((cert, i) => <CertPill key={i}>{cert}</CertPill>)
+            ) : (
+              <StepSubtitle>No certifications listed.</StepSubtitle>
+            )}
           </PillGroup>
         </CertCard>
 
         <CertCard>
           <CertTitle>Certifications — Undergraduate Level</CertTitle>
           <PillGroup>
-            <CertPill>Adobe Certified Professional</CertPill>
-            <CertPill>UI/UX Design Specialization</CertPill>
-            <CertPill>Motion Graphics &amp; After Effects</CertPill>
-            <CertPill>UX Tools</CertPill>
+            {ugCerts.length > 0 ? (
+              ugCerts.map((cert, i) => <CertPill key={i}>{cert}</CertPill>)
+            ) : (
+              <StepSubtitle>No certifications listed.</StepSubtitle>
+            )}
           </PillGroup>
         </CertCard>
       </CertificationsGrid>

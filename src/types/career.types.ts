@@ -8,13 +8,18 @@ export interface Career {
   aiResilienceGrading: 'Low' | 'Medium' | 'High' | 'Very High'; // Categorical
   aiResilienceComment: string; // Long Text
   oneLineDescription: string; // Text
+  roleOverview?: string; // Long Text — the role write-up shown in the Overview tab
+  keySkills?: string[]; // Key skill requirements shown in the Overview tab
   topCompaniesRecruiting: string[]; // Text / Array of Tags
   approxSalaryRangeIndia: string; // Text
   globalSalaryRange: string; // Text
   minQual10th12thRecommendedSubjects: string; // Long Text
+  qualification10th12thExplanation?: string; // "10+2 Explanation" note
   minQualGradRecommendedSubjects: string; // Long Text
+  qualificationGraduationDefined?: string; // Graduation "defined" note
   entranceExamsUG: string; // Text
   minQualPGRecommendedSubjects: string; // Long Text
+  qualificationPGDefined?: string; // Post-graduation "defined" note
   entranceExamsPG: string; // Text
   certificationsStudents: string; // Long Text
   certificationsUG: string; // Long Text

@@ -32,6 +32,8 @@ interface ApiCareerEntry {
   aiResilienceGrade: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
   aiResilienceComment: string;
   oneLineDescription: string;
+  roleOverview: string | null;
+  keySkills: string[];
   topCompanies: string[];
   salaryIndiaRangeText: string;
   salaryIndiaMinLPA: number | null;
@@ -40,8 +42,11 @@ interface ApiCareerEntry {
   salaryGlobalMinUSD: number | null;
   salaryGlobalMaxUSD: number | null;
   qualification10th12th: string;
+  qualification10th12thExplanation: string | null;
   qualificationGraduation: string;
+  qualificationGraduationDefined: string | null;
   qualificationPG: string;
+  qualificationPGDefined: string | null;
   entranceExamsUGDescription: string;
   entranceExams: string[];
   entranceExamsPG: string[];
@@ -135,6 +140,8 @@ export interface CareerEntryPayload {
   aiResilienceGrade: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
   aiResilienceComment: string;
   oneLineDescription: string;
+  roleOverview?: string;
+  keySkills?: string[];
   topCompanies?: string[];
   salaryIndiaRangeText?: string;
   salaryIndiaMinLPA?: number;
@@ -143,8 +150,11 @@ export interface CareerEntryPayload {
   salaryGlobalMinUSD?: number;
   salaryGlobalMaxUSD?: number;
   qualification10th12th: string;
+  qualification10th12thExplanation?: string;
   qualificationGraduation?: string;
+  qualificationGraduationDefined?: string;
   qualificationPG?: string;
+  qualificationPGDefined?: string;
   entranceExamsUGDescription?: string;
   certificationsStudent?: string[];
   certificationsUG?: string[];
@@ -172,6 +182,8 @@ const mapCareerEntry = (entry: ApiCareerEntry): Career => ({
   aiResilienceGrading: AI_GRADE_MAP[entry.aiResilienceGrade] || 'High',
   aiResilienceComment: entry.aiResilienceComment,
   oneLineDescription: entry.oneLineDescription,
+  roleOverview: entry.roleOverview || undefined,
+  keySkills: entry.keySkills || [],
   topCompaniesRecruiting: entry.topCompanies || [],
   approxSalaryRangeIndia:
     entry.salaryIndiaMinLPA != null && entry.salaryIndiaMaxLPA != null
@@ -182,9 +194,12 @@ const mapCareerEntry = (entry: ApiCareerEntry): Career => ({
       ? `$${entry.salaryGlobalMinUSD}–${entry.salaryGlobalMaxUSD}`
       : entry.salaryGlobalRangeText,
   minQual10th12thRecommendedSubjects: entry.qualification10th12th,
+  qualification10th12thExplanation: entry.qualification10th12thExplanation || undefined,
   minQualGradRecommendedSubjects: entry.qualificationGraduation,
+  qualificationGraduationDefined: entry.qualificationGraduationDefined || undefined,
   entranceExamsUG: entry.entranceExams?.join(', ') || entry.entranceExamsUGDescription,
   minQualPGRecommendedSubjects: entry.qualificationPG,
+  qualificationPGDefined: entry.qualificationPGDefined || undefined,
   entranceExamsPG: entry.entranceExamsPG?.join(', ') || '',
   certificationsStudents: entry.certificationsStudent?.join('; ') || '',
   certificationsUG: entry.certificationsUG?.join('; ') || '',

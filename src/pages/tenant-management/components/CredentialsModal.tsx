@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { RiFileCopyLine, RiEyeLine, RiEyeOffLine, RiMailSendLine, RiInformationLine } from 'react-icons/ri';
+import React, { useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { RiFileCopyLine, RiEyeLine, RiEyeOffLine, RiRefreshLine, RiLockPasswordLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -55,6 +55,7 @@ const ReadonlyVal = styled.div`
   border-radius: ${({ theme }) => theme.borderRadius.md};
   color: ${({ theme }) => theme.colors.text};
   user-select: all;
+  min-height: 20px;
 `;
 
 const SmallIconButton = styled.button`
@@ -70,48 +71,46 @@ const SmallIconButton = styled.button`
   cursor: pointer;
   transition: all ${({ theme }) => theme.transition.fast};
 
-  &:hover {
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
     border-color: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme }) => theme.colors.primaryLight};
   }
 `;
 
-const InfoNote = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  background-color: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  line-height: 1.4;
-`;
-
-const TempPasswordNote = styled(InfoNote)`
-  background-color: #fffbeb;
-  border-color: #fde68a;
-  color: #78350f;
-`;
-
 export const CredentialsModal: React.FC = () => {
+  const queryClient = useQueryClient();
   const toast = useToast();
   const { isCredentialsModalOpen, closeCredentialsModal, selectedUser } =
     useTenantManagementStore();
   const [showPassword, setShowPassword] = useState(false);
+  // Holds the plaintext password to display — the one-time value from creating the
+  // admin, or a freshly regenerated one. An existing admin's password can't be read
+  // back (it's hashed), so it stays masked until regenerated.
+  const [password, setPassword] = useState<string | undefined>();
 
-  const resetMutation = useMutation({
-    mutationFn: (email: string) => tenantManagementService.sendPasswordReset(email),
-    onSuccess: () => {
-      toast.success(
-        'Reset Email Sent',
-        `If ${selectedUser?.email} is a registered account, a password reset link has been emailed.`
-      );
+  useEffect(() => {
+    if (isCredentialsModalOpen) {
+      setPassword(selectedUser?.generatedPassword);
+      setShowPassword(false);
+    }
+  }, [isCredentialsModalOpen, selectedUser]);
+
+  const regenMutation = useMutation({
+    mutationFn: (id: string) => tenantManagementService.regeneratePassword(id),
+    onSuccess: record => {
+      setPassword(record.generatedPassword);
+      setShowPassword(true);
+      queryClient.invalidateQueries({ queryKey: ['tenant-records'] });
+      toast.success('Password Regenerated', `A new password was generated for ${record.name}.`);
     },
     onError: (err: unknown) => {
-      toast.error('Error', getApiErrorMessage(err, 'Failed to send reset email.'));
+      toast.error('Error', getApiErrorMessage(err, 'Failed to regenerate password.'));
     },
   });
 
@@ -123,14 +122,15 @@ export const CredentialsModal: React.FC = () => {
   };
 
   const usernameVal = selectedUser.username || selectedUser.email;
-  const tempPassword = selectedUser.generatedPassword;
+  const hasPassword = Boolean(password);
+  const passwordDisplay = hasPassword && showPassword ? password : '••••••••••••';
 
   return (
     <Modal
       isOpen={isCredentialsModalOpen}
       onClose={closeCredentialsModal}
-      title="Admin Login Credentials"
-      subtitle={`Login details for ${selectedUser.name}`}
+      title="Tenant Login Credentials"
+      subtitle={`Security login details for ${selectedUser.name}`}
       size="md"
     >
       <FlexColumnGap>
@@ -139,74 +139,71 @@ export const CredentialsModal: React.FC = () => {
             <CredentialNameText>{selectedUser.name}</CredentialNameText>
           </div>
           <Badge variant={selectedUser.isViewOnly ? 'warning' : 'primary'}>
-            {selectedUser.roleLabel}
+            {selectedUser.userCategory.toUpperCase()} USER
           </Badge>
         </FlexRowBetween>
 
         <CredentialsBox>
           <FieldRow>
-            <label>Login Email</label>
+            <label>Login Email / Username</label>
             <InputValGroup>
               <ReadonlyVal>{usernameVal}</ReadonlyVal>
               <SmallIconButton
-                title="Copy Email"
-                onClick={() => handleCopy(usernameVal, 'Login Email')}
+                type="button"
+                title="Copy Username"
+                onClick={() => handleCopy(usernameVal, 'Username/Email')}
               >
                 <RiFileCopyLine size={18} />
               </SmallIconButton>
             </InputValGroup>
           </FieldRow>
 
-          {tempPassword ? (
-            <FieldRow>
-              <label>Temporary Password</label>
-              <InputValGroup>
-                <ReadonlyVal>{showPassword ? tempPassword : '••••••••••••'}</ReadonlyVal>
-                <SmallIconButton
-                  title={showPassword ? 'Hide Password' : 'Show Password'}
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <RiEyeOffLine size={18} /> : <RiEyeLine size={18} />}
-                </SmallIconButton>
-                <SmallIconButton
-                  title="Copy Password"
-                  onClick={() => handleCopy(tempPassword, 'Temporary Password')}
-                >
-                  <RiFileCopyLine size={18} />
-                </SmallIconButton>
-              </InputValGroup>
-            </FieldRow>
-          ) : null}
+          <FieldRow>
+            <label>Generated Password</label>
+            <InputValGroup>
+              <ReadonlyVal>{passwordDisplay}</ReadonlyVal>
+              <SmallIconButton
+                type="button"
+                title={showPassword ? 'Hide Password' : 'Show Password'}
+                disabled={!hasPassword}
+                onClick={() => setShowPassword(prev => !prev)}
+              >
+                {showPassword ? <RiEyeOffLine size={18} /> : <RiEyeLine size={18} />}
+              </SmallIconButton>
+              <SmallIconButton
+                type="button"
+                title="Copy Password"
+                disabled={!hasPassword}
+                onClick={() => password && handleCopy(password, 'Password')}
+              >
+                <RiFileCopyLine size={18} />
+              </SmallIconButton>
+            </InputValGroup>
+          </FieldRow>
         </CredentialsBox>
 
-        {tempPassword ? (
-          <TempPasswordNote>
-            <RiInformationLine size={18} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span>
-              <strong>Copy this now — it won't be shown again.</strong> The admin will be asked to
-              set a new password on first login. If it's lost, use "Send Password Reset Email".
-            </span>
-          </TempPasswordNote>
-        ) : (
-          <InfoNote>
-            <RiInformationLine size={18} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span>
-              For security, an existing password can't be viewed. Send a reset link so the admin
-              can set a new one.
-            </span>
-          </InfoNote>
-        )}
-
         <FlexRowBetween>
-          <div />
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<RiRefreshLine size={16} />}
+            isLoading={regenMutation.isPending}
+            onClick={() => regenMutation.mutate(selectedUser.id)}
+          >
+            Regenerate Password
+          </Button>
+
           <Button
             variant="primary"
             size="sm"
-            leftIcon={<RiMailSendLine size={16} />}
-            isLoading={resetMutation.isPending}
-            onClick={() => resetMutation.mutate(selectedUser.email)}
+            leftIcon={<RiLockPasswordLine size={16} />}
+            disabled={!hasPassword}
+            onClick={() => {
+              const fullText = `kREATE Platform Credentials:\nName: ${selectedUser.name}\nUsername: ${usernameVal}\nPassword: ${password}\nPortal: kREATE Career Counselling Platform`;
+              handleCopy(fullText, 'Full Credentials Package');
+            }}
           >
-            Send Password Reset Email
+            Copy Full Credentials Package
           </Button>
         </FlexRowBetween>
       </FlexColumnGap>

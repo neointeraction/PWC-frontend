@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   RiFilter3Line,
@@ -29,6 +29,9 @@ export interface SimpleViewProps {
   industries: CareerIndustry[];
   domains: CareerDomain[];
   roles: Career[];
+  // Shared with Card View so the same job role stays selected across a view switch.
+  selectedRole?: Career | null;
+  onSelectRole?: (role: Career) => void;
 }
 
 export const SimpleView: React.FC<SimpleViewProps> = ({
@@ -36,6 +39,8 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
   industries,
   domains,
   roles,
+  selectedRole,
+  onSelectRole,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -44,6 +49,21 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
   const [selectedIndustryId, setSelectedIndustryId] = useState<string>('');
   const [selectedDomainId, setSelectedDomainId] = useState<string>('');
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
+
+  // Adopt the role selected in Card View: map its cluster/industry/domain names to the
+  // matching taxonomy ids so the dropdowns + detail panel land on the same role. Re-runs
+  // when the data arrives (parents resolve once loaded). Does not call onSelectRole, so
+  // no feedback loop with the parent.
+  useEffect(() => {
+    if (!selectedRole) return;
+    const cluster = clusters.find(c => c.name === selectedRole.careerCluster);
+    const industry = industries.find(i => i.name === selectedRole.industry);
+    const domain = domains.find(d => d.name === selectedRole.domain);
+    if (cluster) setSelectedClusterId(cluster.id);
+    if (industry) setSelectedIndustryId(industry.id);
+    if (domain) setSelectedDomainId(domain.id);
+    setSelectedRoleId(selectedRole.id);
+  }, [selectedRole, clusters, industries, domains]);
 
   // 2. Purely Derived Active Cluster
   const activeCluster = useMemo(() => {
@@ -209,7 +229,10 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
               <RoleItemCard
                 key={roleItem.id}
                 $active={isSelected}
-                onClick={() => setSelectedRoleId(roleItem.id)}
+                onClick={() => {
+                  setSelectedRoleId(roleItem.id);
+                  onSelectRole?.(roleItem);
+                }}
               >
                 <RoleItemHeader>
                   <RoleItemName $active={isSelected}>{roleItem.jobRole}</RoleItemName>

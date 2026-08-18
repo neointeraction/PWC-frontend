@@ -115,13 +115,18 @@ const schema = z.object({
   aiResilienceGrade: z.enum(['LOW', 'MEDIUM', 'HIGH', 'VERY_HIGH']),
   aiResilienceComment: z.string().trim().min(1, 'Required'),
   oneLineDescription: z.string().trim().min(1, 'Required'),
+  roleOverview: z.string().optional(),
+  keySkills: z.string().optional(),
   qualification10th12th: z.string().trim().min(1, 'Required'),
+  qualification10th12thExplanation: z.string().optional(),
   status: z.enum(['DRAFT', 'ACTIVE']),
   topCompanies: z.string().optional(),
   salaryIndiaRangeText: z.string().optional(),
   salaryGlobalRangeText: z.string().optional(),
   qualificationGraduation: z.string().optional(),
+  qualificationGraduationDefined: z.string().optional(),
   qualificationPG: z.string().optional(),
+  qualificationPGDefined: z.string().optional(),
   entranceExamsUGDescription: z.string().optional(),
   certificationsStudent: z.string().optional(),
   certificationsUG: z.string().optional(),
@@ -181,13 +186,18 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         aiResilienceGrade: GRADE_TO_API[entity.aiResilienceGrading] ?? 'MEDIUM',
         aiResilienceComment: entity.aiResilienceComment,
         oneLineDescription: entity.oneLineDescription,
+        roleOverview: entity.roleOverview || '',
+        keySkills: (entity.keySkills || []).join(', '),
         qualification10th12th: entity.minQual10th12thRecommendedSubjects,
+        qualification10th12thExplanation: entity.qualification10th12thExplanation || '',
         status: entity.status === 'active' ? 'ACTIVE' : 'DRAFT',
         topCompanies: (entity.topCompaniesRecruiting || []).join(', '),
         salaryIndiaRangeText: entity.approxSalaryRangeIndia || '',
         salaryGlobalRangeText: entity.globalSalaryRange || '',
         qualificationGraduation: entity.minQualGradRecommendedSubjects || '',
+        qualificationGraduationDefined: entity.qualificationGraduationDefined || '',
         qualificationPG: entity.minQualPGRecommendedSubjects || '',
+        qualificationPGDefined: entity.qualificationPGDefined || '',
         entranceExamsUGDescription: entity.entranceExamsUG || '',
         certificationsStudent: '',
         certificationsUG: '',
@@ -201,13 +211,18 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         aiResilienceGrade: 'MEDIUM',
         aiResilienceComment: '',
         oneLineDescription: '',
+        roleOverview: '',
+        keySkills: '',
         qualification10th12th: '',
+        qualification10th12thExplanation: '',
         status: 'DRAFT',
         topCompanies: '',
         salaryIndiaRangeText: '',
         salaryGlobalRangeText: '',
         qualificationGraduation: '',
+        qualificationGraduationDefined: '',
         qualificationPG: '',
+        qualificationPGDefined: '',
         entranceExamsUGDescription: '',
         certificationsStudent: '',
         certificationsUG: '',
@@ -225,13 +240,18 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         aiResilienceGrade: data.aiResilienceGrade,
         aiResilienceComment: data.aiResilienceComment,
         oneLineDescription: data.oneLineDescription,
+        roleOverview: data.roleOverview?.trim() || undefined,
+        keySkills: toArr(data.keySkills),
         qualification10th12th: data.qualification10th12th,
+        qualification10th12thExplanation: data.qualification10th12thExplanation?.trim() || undefined,
         status: data.status,
         topCompanies: toArr(data.topCompanies),
         salaryIndiaRangeText: data.salaryIndiaRangeText?.trim() || undefined,
         salaryGlobalRangeText: data.salaryGlobalRangeText?.trim() || undefined,
         qualificationGraduation: data.qualificationGraduation?.trim() || undefined,
+        qualificationGraduationDefined: data.qualificationGraduationDefined?.trim() || undefined,
         qualificationPG: data.qualificationPG?.trim() || undefined,
+        qualificationPGDefined: data.qualificationPGDefined?.trim() || undefined,
         entranceExamsUGDescription: data.entranceExamsUGDescription?.trim() || undefined,
         certificationsStudent: toArr(data.certificationsStudent),
         certificationsUG: toArr(data.certificationsUG),
@@ -325,6 +345,15 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
           <TextArea placeholder="Why this grade — automation exposure, human factors, etc." {...register('aiResilienceComment')} />
           {errors.aiResilienceComment && <ErrorText>{errors.aiResilienceComment.message}</ErrorText>}
         </Field>
+        <Field>
+          <Label>Role Overview &amp; Scope</Label>
+          <TextArea placeholder="Fuller write-up of the role shown in the Overview tab" {...register('roleOverview')} />
+        </Field>
+        <Input
+          label="Key Skills"
+          placeholder="Comma-separated, e.g. Figma, User Research, Accessibility"
+          {...register('keySkills')}
+        />
         <Input
           label="Top Companies Recruiting"
           placeholder="Comma-separated, e.g. Google, Amazon, TCS"
@@ -344,12 +373,24 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
           {errors.qualification10th12th && <ErrorText>{errors.qualification10th12th.message}</ErrorText>}
         </Field>
         <Field>
+          <Label>10+2 Explanation</Label>
+          <TextArea placeholder="Explanation note for the 10+2 requirement" {...register('qualification10th12thExplanation')} />
+        </Field>
+        <Field>
           <Label>Graduation — Recommended Subjects</Label>
           <TextArea placeholder="Degree / subjects recommended at UG level" {...register('qualificationGraduation')} />
         </Field>
         <Field>
+          <Label>Graduation — Defined</Label>
+          <TextArea placeholder="Defined graduation pathway / detail" {...register('qualificationGraduationDefined')} />
+        </Field>
+        <Field>
           <Label>Post-graduation — Recommended Subjects</Label>
           <TextArea placeholder="Specialisations recommended at PG level" {...register('qualificationPG')} />
+        </Field>
+        <Field>
+          <Label>Post-graduation — Defined</Label>
+          <TextArea placeholder="Defined post-graduation pathway / detail" {...register('qualificationPGDefined')} />
         </Field>
         <Field>
           <Label>UG Entrance Exams — Description</Label>

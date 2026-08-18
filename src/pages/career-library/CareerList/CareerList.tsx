@@ -294,6 +294,23 @@ export const CareerListPage: React.FC = () => {
     }
   };
 
+  // Keep the same job role when switching to Card View: rebuild the drill-down path
+  // from the shared selected role and jump straight to its detail.
+  const switchToCard = () => {
+    if (selectedRole) {
+      const cluster =
+        allClusters.find(c => c.name === selectedRole.careerCluster) || selectedCluster;
+      const industry =
+        allIndustries.find(i => i.name === selectedRole.industry) || selectedIndustry;
+      const domain = allDomains.find(d => d.name === selectedRole.domain) || selectedDomain;
+      if (cluster) setSelectedCluster(cluster);
+      if (industry) setSelectedIndustry(industry);
+      if (domain) setSelectedDomain(domain);
+      setLevel('detail');
+    }
+    setViewMode('card');
+  };
+
   return (
     <Container>
       <PageHeader
@@ -307,7 +324,7 @@ export const CareerListPage: React.FC = () => {
         onBack={viewMode === 'card' && level !== 'clusters' ? handleBack : undefined}
         actions={
           <ViewToggleContainer>
-            <ViewToggleButton $active={viewMode === 'card'} onClick={() => setViewMode('card')}>
+            <ViewToggleButton $active={viewMode === 'card'} onClick={switchToCard}>
               <RiLayoutGridLine size={16} /> Card View
             </ViewToggleButton>
             <ViewToggleButton
@@ -325,6 +342,8 @@ export const CareerListPage: React.FC = () => {
           clusters={allClusters}
           industries={allIndustries}
           domains={allDomains}
+          selectedRole={selectedRole}
+          onSelectRole={setSelectedRole}
           roles={allRoles}
         />
       ) : (

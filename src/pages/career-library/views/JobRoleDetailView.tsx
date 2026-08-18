@@ -389,17 +389,22 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
             <SectionGrid>
               <SectionCard title="Role Overview & Scope">
                 <SectionText>{role.oneLineDescription}</SectionText>
-                <SectionText>
-                  Applied UI Designers focus on crafting intuitive digital interfaces, maintaining visual component systems, and bridging product design with frontend engineering.
-                </SectionText>
+                {role.roleOverview && <SectionText>{role.roleOverview}</SectionText>}
               </SectionCard>
 
               <SectionCard title="Key Skill Requirements">
-                <SectionText>
-                  • Figma, Visual System Architecture, Micro-Interactions<br />
-                  • User Research Synthesis & Prototyping<br />
-                  • Responsive Design & Accessibility (WCAG Compliance)
-                </SectionText>
+                {role.keySkills && role.keySkills.length > 0 ? (
+                  <SectionText>
+                    {role.keySkills.map((skill, i) => (
+                      <React.Fragment key={i}>
+                        • {skill}
+                        <br />
+                      </React.Fragment>
+                    ))}
+                  </SectionText>
+                ) : (
+                  <SectionText>No key skills listed for this role yet.</SectionText>
+                )}
               </SectionCard>
             </SectionGrid>
           )}
