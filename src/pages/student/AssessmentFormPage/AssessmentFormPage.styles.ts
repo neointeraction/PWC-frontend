@@ -24,11 +24,11 @@ export const HeroHeaderCard = styled.div`
 `;
 
 export const DocumentHeaderRow = styled.div`
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 8px;
+  justify-content: center;
+  min-height: 36px;
   padding-bottom: 24px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
@@ -42,6 +42,10 @@ export const HeaderTopNavRow = styled.div`
 `;
 
 export const HeaderBackButton = styled.button`
+  position: absolute;
+  left: 0;
+  top: calc((100% - 24px) / 2);
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -357,15 +361,10 @@ export const TypeBDescText = styled.div`
   align-items: center;
 `;
 
-/* The Golden Rules Gold Accent Cards */
 export const GoldenRulesGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 `;
 
 export const GoldenRuleCard = styled.div`
@@ -456,13 +455,61 @@ export const StartCtaBox = styled.div`
   padding-top: 12px;
 `;
 
-export const CtaSubtext = styled.span`
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-weight: 500;
+export const HeaderProgressCard = styled.div`
+  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, #2563EB 100%);
+  padding: 10px 16px;
+  border-radius: 4px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 340px;
+  box-shadow: 0 2px 8px rgba(93, 35, 132, 0.15);
+
+  @media (max-width: 768px) {
+    min-width: 100%;
+  }
 `;
 
-/* Wizard Container & Step Styles */
+export const HeaderProgressRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+export const HeaderStepTitle = styled.span`
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+  white-space: nowrap;
+`;
+
+export const HeaderStepCount = styled.span`
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+`;
+
+export const HeaderProgressTrack = styled.div`
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 2px;
+  overflow: hidden;
+`;
+
+export const HeaderProgressBar = styled.div<{ $percent: number }>`
+  height: 100%;
+  width: ${({ $percent }) => $percent}%;
+  background-color: #ffffff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+`;
+
 export const WizardContainer = styled.div`
   background-color: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};

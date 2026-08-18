@@ -67,7 +67,7 @@ export const ProjectsPage: React.FC = () => {
       `Valid To,${project.validTo || 'N/A'}\n` +
       `Counselors Assigned,${project.counselorCount}\n` +
       `Total Students Enrolled,${project.studentCount}\n\n` +
-      `Student ID,Student Name,Grade,Counselor Assigned,Session 1 Status,Session 2 Status,Ikigai Report Status\n` +
+      `Student ID,Student Name,Grade,Counselor Assigned,Session 1 Status,Session 2 Status,kREATE Compass Report Status\n` +
       `STU-101,Aarav Sharma,Grade 11,Sarah Jenkins,Completed,Completed,Unlocked & Delivered\n` +
       `STU-102,Ananya Patel,Grade 11,Rahul Verma,Completed,Completed,Unlocked & Delivered\n` +
       `STU-103,Rohan Gupta,Grade 12,Sarah Jenkins,Completed,Completed,Unlocked & Delivered\n` +

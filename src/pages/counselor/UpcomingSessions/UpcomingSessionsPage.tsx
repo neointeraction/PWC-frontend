@@ -92,7 +92,7 @@ export const UpcomingSessionsPage: React.FC = () => {
           const canJoin = checkCanJoin(row.dateTime);
           return (
             <TimeContainer>
-              <TimeText>{dayjs(row.dateTime).format('MMM DD, YYYY • h:mm A')}</TimeText>
+              <TimeText>{dayjs(row.dateTime).format('DD-MM-YYYY • HH:mm')}</TimeText>
               <StatusPill $canJoin={canJoin}>
                 {canJoin ? (
                   <>

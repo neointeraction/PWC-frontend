@@ -10,7 +10,6 @@ import {
   RiTimerFlashLine,
   RiShieldCheckLine,
   RiVolumeMuteLine,
-  RiWifiLine,
   RiSmartphoneLine,
   RiInformationLine,
   RiStarLine,
@@ -23,18 +22,15 @@ import {
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
-import { Badge } from '@/components/Badge';
+import { Tooltip } from '@/components/Tooltip';
 import { SuccessModal } from '@/components';
 import { ROUTES } from '@/constants';
 import {
   FormPageContainer,
   HeroHeaderCard,
   DocumentHeaderRow,
-  HeaderTopNavRow,
   HeaderBackButton,
   DocTitle,
-  DocSubtitle,
-  DocNote,
   StatsGridBar,
   StatBlock,
   StatIconBox,
@@ -63,12 +59,13 @@ import {
   ReadyBannerTitle,
   ReadyBannerSubtext,
   StartCtaBox,
-  CtaSubtext,
+  HeaderProgressCard,
+  HeaderProgressRow,
+  HeaderStepTitle,
+  HeaderStepCount,
+  HeaderProgressTrack,
+  HeaderProgressBar,
   WizardContainer,
-  WizardProgressHeader,
-  WizardStepInfoRow,
-  ProgressTrack,
-  ProgressBar,
   WizardStepBody,
   QuestionBox,
   QuestionTitle,
@@ -87,31 +84,31 @@ const DETAILED_LIKERT_OPTIONS = [
   {
     val: 1,
     label: 'Strongly Disagree',
-    desc: 'This really does not describe you. You are certain it does not apply to you at all.',
+    desc: 'You are certain it does not apply to you at all.',
     icon: RiCloseCircleLine,
   },
   {
     val: 2,
     label: 'Disagree',
-    desc: 'This does not describe you. You generally do not feel this way.',
+    desc: 'You generally do not feel this way.',
     icon: RiThumbDownLine,
   },
   {
     val: 3,
     label: 'Neutral',
-    desc: 'You are genuinely unsure, you cannot say yes or no. Overuse of Neutral reduces the accuracy of your results. If you even slightly agree or slightly disagree, choose that.',
+    desc: 'You cannot say yes or no. If you even slightly agree or slightly disagree, choose that.',
     icon: RiSubtractLine,
   },
   {
     val: 4,
     label: 'Agree',
-    desc: 'It does describe you but not as strongly. You generally feel this way.',
+    desc: 'It does describe you but not as strongly.',
     icon: RiCheckDoubleLine,
   },
   {
     val: 5,
     label: 'Strongly Agree',
-    desc: 'You really feel this describes you. You are sure about it.',
+    desc: 'You really feel this describes you.',
     icon: RiThumbUpLine,
   },
 ];
@@ -601,16 +598,26 @@ export const AssessmentFormPage: React.FC = () => {
     <FormPageContainer ref={topRef}>
       {isFormStarted && (
         <PageHeader
-          title="CLASS 9 & 10 CAREER ASSESSMENT"
-          subtitle="Career Counselling Programme — Instructions for Students"
+          title="CAREER PROFILING"
           breadcrumbs={[
             { label: 'Student Portal', href: ROUTES.STUDENT_PORTAL },
             { label: 'Career Assessment' },
           ]}
+          onBack={() => navigate(ROUTES.STUDENT_PORTAL)}
           actions={
-            <Badge variant="primary" size="md">
-              Question {currentQuestionIndex + 1} of {totalQuestions}
-            </Badge>
+            <HeaderProgressCard>
+              <HeaderProgressRow>
+                <HeaderStepTitle>
+                  SECTION {currentQuestion.sectionNum} OF 4: {currentQuestion.sectionTitle}
+                </HeaderStepTitle>
+                <HeaderStepCount>
+                  QUESTION {currentQuestionIndex + 1} OF {totalQuestions} ({progressPercent}%)
+                </HeaderStepCount>
+              </HeaderProgressRow>
+              <HeaderProgressTrack>
+                <HeaderProgressBar $percent={progressPercent} />
+              </HeaderProgressTrack>
+            </HeaderProgressCard>
           }
         />
       )}
@@ -620,7 +627,7 @@ export const AssessmentFormPage: React.FC = () => {
         <HeroHeaderCard>
           {/* Header */}
           <DocumentHeaderRow>
-            <HeaderTopNavRow>
+            <Tooltip content="Back to Student Portal" position="right">
               <HeaderBackButton
                 type="button"
                 onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
@@ -628,11 +635,9 @@ export const AssessmentFormPage: React.FC = () => {
               >
                 <RiArrowLeftLine size={18} />
               </HeaderBackButton>
-            </HeaderTopNavRow>
+            </Tooltip>
 
-            <DocTitle>CLASS 9 & 10 CAREER ASSESSMENT</DocTitle>
-            <DocSubtitle>Instructions for Students</DocSubtitle>
-            <DocNote>Read this carefully before you begin.</DocNote>
+            <DocTitle>Career Profiling Form</DocTitle>
           </DocumentHeaderRow>
 
           {/* 4 Floating Metric Cards Bar */}
@@ -708,21 +713,20 @@ export const AssessmentFormPage: React.FC = () => {
                   <NumberCardTitle>1. Find a quiet spot.</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  Sit somewhere with no distractions — no noise, no interruptions. This is your
-                  time.
+                  These questions need your honest, unhurried attention.
                 </NumberCardDesc>
               </NumberCardItem>
 
               <NumberCardItem>
                 <NumberBadgeHeader>
-                  <NumberBadgeIcon $bg="#D1FAE5" $color="#047857">
-                    <RiWifiLine size={20} />
+                  <NumberBadgeIcon $bg="#FEF3C7" $color="#D97706">
+                    <RiTimerFlashLine size={20} />
                   </NumberBadgeIcon>
-                  <NumberCardTitle>2. Check your Internet.</NumberCardTitle>
+                  <NumberCardTitle>2. Set aside 30-35 minutes</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  You will need a stable connection throughout. Make sure you are connected before
-                  you start. In case your connection drops, you can resume from where you have left.
+                  Treat this time as an investment in your own career clarity, not a task which you
+                  just need to finish of in any manner.
                 </NumberCardDesc>
               </NumberCardItem>
 
@@ -734,8 +738,7 @@ export const AssessmentFormPage: React.FC = () => {
                   <NumberCardTitle>3. Keep your phone away.</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  Avoid distractions. The assessment takes only 30–35 minutes — give it your full
-                  attention.
+                  It breaks the flow of honest self-reflection, give it your full focus.
                 </NumberCardDesc>
               </NumberCardItem>
             </NumberedCardsStack>
@@ -768,8 +771,6 @@ export const AssessmentFormPage: React.FC = () => {
             </StatementParagraphCard>
           </div>
 
-
-
           {/* Section 4: The Golden Rules — Read These Carefully */}
           <div>
             <SectionTitleHeader>
@@ -787,9 +788,8 @@ export const AssessmentFormPage: React.FC = () => {
                 <GoldenRuleContent>
                   <GoldenRuleTitle>Be honest. Be yourself.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Answer based on how YOU actually are — not how you want to be seen, not what
-                    sounds impressive, not what you think a counsellor wants to hear. The more
-                    honest you are, the more useful your results will be.
+                    Answer based on how you actually are, not how you want to appear, not what
+                    sounds impressive.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -799,11 +799,9 @@ export const AssessmentFormPage: React.FC = () => {
                   <RiStarLine size={20} />
                 </GoldenRuleIconBox>
                 <GoldenRuleContent>
-                  <GoldenRuleTitle>Go with your first instinct.</GoldenRuleTitle>
+                  <GoldenRuleTitle>Take your time, go with your first instinct.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Do not overthink. Your first reaction to a statement is usually the most
-                    accurate reflection of who you are. If you sit on a question too long, you start
-                    second-guessing yourself.
+                    Write what naturally comes to mind &amp; go with your first instinct.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -813,23 +811,9 @@ export const AssessmentFormPage: React.FC = () => {
                   <RiStarLine size={20} />
                 </GoldenRuleIconBox>
                 <GoldenRuleContent>
-                  <GoldenRuleTitle>Do not skip or rush.</GoldenRuleTitle>
+                  <GoldenRuleTitle>Your responses are private.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Every question contributes to your profile. At the same time, do not spend more
-                    than a few seconds on any single question — keep moving.
-                  </GoldenRuleDesc>
-                </GoldenRuleContent>
-              </GoldenRuleCard>
-
-              <GoldenRuleCard>
-                <GoldenRuleIconBox>
-                  <RiStarLine size={20} />
-                </GoldenRuleIconBox>
-                <GoldenRuleContent>
-                  <GoldenRuleTitle>Your results are private.</GoldenRuleTitle>
-                  <GoldenRuleDesc>
-                    Only you and your career counsellor will see them. This is a safe space — be
-                    real.
+                    Only you and your career counsellor will see your answers, not even your parent.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -840,7 +824,7 @@ export const AssessmentFormPage: React.FC = () => {
           <ReadyEncouragementBanner>
             <ReadyBannerTitle>You are ready. Take a deep breath.</ReadyBannerTitle>
             <ReadyBannerSubtext>
-              There is nothing to prepare for. Just be yourself — and let the results do the rest.
+              There is nothing to prepare for. Just be yourself.
             </ReadyBannerSubtext>
           </ReadyEncouragementBanner>
 
@@ -858,38 +842,18 @@ export const AssessmentFormPage: React.FC = () => {
             >
               Start Career Assessment
             </Button>
-            <CtaSubtext>
-              Estimated time: 30-35 minutes • Answers saved automatically as you navigate
-            </CtaSubtext>
           </StartCtaBox>
         </HeroHeaderCard>
       ) : (
         /* WIZARD VIEW: 1 QUESTION AT A TIME */
         <WizardContainer>
-          <WizardProgressHeader>
-            <WizardStepInfoRow>
-              <span>
-                SECTION {currentQuestion.sectionNum} OF 4: {currentQuestion.sectionTitle}
-              </span>
-              <span>
-                Question {currentQuestionIndex + 1} of {totalQuestions} ({progressPercent}%)
-              </span>
-            </WizardStepInfoRow>
-
-            <ProgressTrack>
-              <ProgressBar $percent={progressPercent} />
-            </ProgressTrack>
-          </WizardProgressHeader>
-
           <WizardStepBody>
             <QuestionSubtext style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>
               {currentQuestion.sectionInstruction}
             </QuestionSubtext>
 
             <QuestionBox key={currentQuestion.id}>
-              <QuestionTitle>
-                {currentQuestion.num}. {currentQuestion.text}
-              </QuestionTitle>
+              <QuestionTitle>{currentQuestion.text}</QuestionTitle>
 
               {currentQuestion.type === 'likert' && (
                 <LikertScaleContainer>
@@ -968,8 +932,8 @@ export const AssessmentFormPage: React.FC = () => {
       <SuccessModal
         isOpen={isCompletionModalOpen}
         onClose={() => setIsCompletionModalOpen(false)}
-        title="Thank you for completing your Career Assessment!"
-        message="Your 73 answers have been saved and your Ikigai profile report is generating."
+        title="Thank you for completing your Career Profiling!"
+        message="Your kREATE Compass Report is generating."
         confirmText="Go to Student Portal"
         onConfirm={handleConfirmCompletion}
       />

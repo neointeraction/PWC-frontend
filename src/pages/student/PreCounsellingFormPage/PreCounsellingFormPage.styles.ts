@@ -8,7 +8,7 @@ export const FormPageContainer = styled.div`
 `;
 
 export const HeroHeaderCard = styled.div`
-  background: linear-gradient(180deg, ${({ theme }) => theme.colors.surface} 0%, #FAFAFF 100%);
+  background: linear-gradient(180deg, ${({ theme }) => theme.colors.surface} 0%, #fafaff 100%);
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
   padding: 36px;
@@ -24,24 +24,20 @@ export const HeroHeaderCard = styled.div`
 `;
 
 export const DocumentHeaderRow = styled.div`
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 8px;
+  justify-content: center;
+  min-height: 36px;
   padding-bottom: 24px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
-export const HeaderTopNavRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: 8px;
-`;
-
 export const HeaderBackButton = styled.button`
+  position: absolute;
+  left: 0;
+  top: calc((100% - 24px) / 2);
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -81,10 +77,13 @@ export const DocTitle = styled.h1`
   font-weight: 800;
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
+  line-height: 36px;
+  text-align: center;
   letter-spacing: -0.3px;
 
   @media (max-width: 640px) {
     font-size: 20px;
+    line-height: 36px;
   }
 `;
 
@@ -125,7 +124,9 @@ export const StatBlock = styled.div<{ $gradient: string; $borderColor: string }>
   align-items: center;
   gap: 16px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
@@ -253,7 +254,7 @@ export const NumberCardDesc = styled.span`
 
 /* What This Form Is About Box */
 export const StatementParagraphCard = styled.div`
-  background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-left: 4px solid ${({ theme }) => theme.colors.primary};
   border-radius: 4px;
@@ -282,29 +283,24 @@ export const StatementListItem = styled.div`
   svg {
     margin-top: 2px;
     flex-shrink: 0;
-    color: #5D2384;
+    color: #5d2384;
   }
 `;
 
-/* The Golden Rules Gold Accent Cards */
 export const GoldenRulesGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 `;
 
 export const GoldenRuleCard = styled.div`
   display: flex;
   gap: 14px;
   padding: 18px 20px;
-  border: 1px solid #FDE68A;
-  border-left: 4px solid #D97706;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
   border-radius: 4px;
-  background-color: #FFFBEB;
+  background-color: #fffbeb;
   box-shadow: 0 2px 8px rgba(217, 119, 6, 0.04);
   transition: transform 0.2s ease;
 
@@ -318,8 +314,8 @@ export const GoldenRuleIconBox = styled.div`
   width: 36px;
   height: 36px;
   border-radius: 4px;
-  background-color: #FEF3C7;
-  color: #D97706;
+  background-color: #fef3c7;
+  color: #d97706;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -335,19 +331,19 @@ export const GoldenRuleContent = styled.div`
 export const GoldenRuleTitle = styled.span`
   font-size: 15px;
   font-weight: 700;
-  color: #78350F;
+  color: #78350f;
 `;
 
 export const GoldenRuleDesc = styled.span`
   font-size: 13px;
-  color: #92400E;
+  color: #92400e;
   line-height: 1.5;
 `;
 
 /* Ready Encouragement Hero Banner */
 export const ReadyEncouragementBanner = styled.div`
-  background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
-  border: 1px solid #E9D5FF;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
   border-left: 4px solid ${({ theme }) => theme.colors.primary};
   border-radius: 4px;
   padding: 24px;
@@ -412,16 +408,96 @@ export const WizardContainer = styled.div`
   overflow: hidden;
 `;
 
-export const WizardProgressHeader = styled.div`
+export const HeaderProgressCard = styled.div`
   background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, #2563EB 100%);
-  padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
+  padding: 10px 16px;
+  border-radius: 4px;
   color: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.sm};
+  gap: 6px;
+  min-width: 320px;
+  box-shadow: 0 2px 8px rgba(93, 35, 132, 0.15);
+
+  @media (max-width: 768px) {
+    min-width: 100%;
+  }
+`;
+
+export const HeaderProgressRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+export const HeaderStepTitle = styled.span`
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+  white-space: nowrap;
+`;
+
+export const HeaderStepCount = styled.span`
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+`;
+
+export const HeaderProgressTrack = styled.div`
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 2px;
+  overflow: hidden;
+`;
+
+export const HeaderProgressBar = styled.div<{ $percent: number }>`
+  height: 100%;
+  width: ${({ $percent }) => $percent}%;
+  background-color: #ffffff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+`;
+
+export const WizardStepHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  gap: 16px;
 
   @media (max-width: 640px) {
-    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 16px;
+  }
+`;
+
+export const StepTitleText = styled.h2`
+  font-size: 15px;
+  font-weight: 800;
+  color: ${({ theme }) => theme.colors.primary};
+  letter-spacing: 0.5px;
+  margin: 0;
+  text-transform: uppercase;
+`;
+
+export const WizardProgressHeader = styled.div`
+  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, #2563EB 100%);
+  padding: 12px 20px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  @media (max-width: 640px) {
+    padding: 8px 14px;
   }
 `;
 
@@ -429,24 +505,21 @@ export const WizardStepInfoRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
 
   @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    font-size: 12px;
+    font-size: 11px;
   }
 `;
 
 export const ProgressTrack = styled.div`
   width: 100%;
-  height: 8px;
+  height: 4px;
   background-color: rgba(255, 255, 255, 0.25);
-  border-radius: 4px;
+  border-radius: 2px;
   overflow: hidden;
 `;
 
@@ -454,7 +527,7 @@ export const ProgressBar = styled.div<{ $percent: number }>`
   height: 100%;
   width: ${({ $percent }) => $percent}%;
   background-color: #ffffff;
-  border-radius: 4px;
+  border-radius: 2px;
   transition: width 0.3s ease;
 `;
 
@@ -522,7 +595,7 @@ export const OptionLabel = styled.label<{ $selected?: boolean }>`
     gap: 10px;
 
     &[style*="alignItems: 'center'"],
-    &[style*="align-items: center"] {
+    &[style*='align-items: center'] {
       align-items: flex-start !important;
     }
   }
@@ -741,8 +814,8 @@ export const WizardFooterNav = styled.div`
 `;
 
 export const ClosingNoteCard = styled.div`
-  background-color: #FBF7FF;
-  border: 1px solid #7E22CE;
+  background-color: #fbf7ff;
+  border: 1px solid #7e22ce;
   border-radius: 6px;
   padding: 24px;
   display: flex;
@@ -753,7 +826,7 @@ export const ClosingNoteCard = styled.div`
 export const ClosingNoteTitle = styled.h3`
   font-size: 16px;
   font-weight: 700;
-  color: #581C87;
+  color: #581c87;
   margin: 0;
   line-height: 1.4;
 `;
@@ -761,12 +834,12 @@ export const ClosingNoteTitle = styled.h3`
 export const ClosingNoteText = styled.p`
   font-size: 14px;
   line-height: 1.55;
-  color: #6B21A8;
+  color: #6b21a8;
   margin: 0;
 `;
 
 export const SuccessPortalButton = styled.button`
-  background-color: #581C87;
+  background-color: #581c87;
   color: #ffffff;
   border: none;
   border-radius: 6px;
@@ -780,7 +853,7 @@ export const SuccessPortalButton = styled.button`
   transition: background-color 0.2s ease;
 
   &:hover {
-    background-color: #4C1D95;
+    background-color: #4c1d95;
   }
 `;
 
@@ -789,7 +862,7 @@ export const MarksTableContainer = styled.div`
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   margin-top: ${({ theme }) => theme.spacing.sm};
-  border: 1px solid #CBD5E1;
+  border: 1px solid #cbd5e1;
   border-radius: 4px;
 `;
 
@@ -801,7 +874,7 @@ export const MarksTable = styled.table`
   th,
   td {
     padding: 10px 14px;
-    border: 1px solid #CBD5E1;
+    border: 1px solid #cbd5e1;
 
     @media (max-width: 640px) {
       padding: 8px 10px;
@@ -810,23 +883,23 @@ export const MarksTable = styled.table`
   }
 
   th {
-    background-color: #DCE7F5;
+    background-color: #dce7f5;
     font-weight: 700;
-    color: #1E293B;
+    color: #1e293b;
   }
 
   tr:nth-child(even) {
-    background-color: #F8FAFC;
+    background-color: #f8fafc;
   }
 
   tr:nth-child(odd) {
-    background-color: #FFFFFF;
+    background-color: #ffffff;
   }
 `;
 
 export const SubjectCellText = styled.span`
   font-weight: 600;
-  color: #1E293B;
+  color: #1e293b;
   font-size: 14px;
 `;
 
@@ -850,8 +923,8 @@ export const OtherSubjectInput = styled.input`
 `;
 
 export const SectionBannerBar = styled.div`
-  background-color: #1E3A8A;
-  color: #FFFFFF;
+  background-color: #1e3a8a;
+  color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.5px;

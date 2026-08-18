@@ -116,8 +116,7 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
   return (
     <ReportContainer>
       <PageHeader
-        title="PHOENIX WATER CLUB | kREATE Compass Report"
-        subtitle={`Student: ${reportData.studentInfo.studentName} (${reportData.studentInfo.gradeClass}) • ${reportData.studentInfo.schoolName}`}
+        title="kREATE Compass Report"
         breadcrumbs={[
           { label: 'Dashboard', href: ROUTES.DASHBOARD },
           { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },

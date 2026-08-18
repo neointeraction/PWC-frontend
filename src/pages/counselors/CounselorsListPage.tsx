@@ -7,6 +7,7 @@ import {
   RiEyeLine,
   RiEditLine,
   RiDeleteBinLine,
+  RiFolderLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -26,7 +27,7 @@ import {
   CounselorsContainer,
   StatsGrid,
   StatMetricValue,
-  ProjectLinkButton,
+  ProjectCountBox,
   FilterBar,
   SearchWrapper,
   FilterControls,
@@ -100,24 +101,24 @@ export const CounselorsListPage: React.FC = () => {
     switch (status) {
       case 'deployed':
         return (
-          <Badge variant="success" size="sm" dot>
+          <Badge variant="success" dot>
             Deployed
           </Badge>
         );
       case 'bench':
         return (
-          <Badge variant="info" size="sm" dot>
+          <Badge variant="info" dot>
             Bench
           </Badge>
         );
       case 'inactive':
         return (
-          <Badge variant="danger" size="sm" dot>
+          <Badge variant="danger" dot>
             Inactive
           </Badge>
         );
       default:
-        return <Badge variant="default" size="sm">{status}</Badge>;
+        return <Badge variant="default">{status}</Badge>;
     }
   };
 
@@ -137,43 +138,31 @@ export const CounselorsListPage: React.FC = () => {
       key: 'projectDeployed',
       header: 'Project Deployed',
       render: row => {
-        const text = row.projectDeployedName || (row.deploymentStatus === 'bench' ? '— Unassigned —' : '—');
-        if (row.deploymentStatus === 'inactive' || text === '—') {
-          return <span style={{ color: '#94A3B8' }}>{text}</span>;
+        const isInactive = row.deploymentStatus === 'inactive' || row.status === 'inactive';
+        
+        if (isInactive) {
+          return (
+            <ProjectCountBox as="div" $isInactive>
+              inactive
+            </ProjectCountBox>
+          );
         }
+
+        const count = row.projectsList?.length || 0;
+        
         return (
-          <Tooltip content="Click to view deployment &amp; workload breakdown">
-            <ProjectLinkButton
+          <Tooltip content="Click to view deployment & workload breakdown">
+            <ProjectCountBox
               type="button"
               onClick={() => setCounselorForDeployment(row)}
             >
-              {text}
-            </ProjectLinkButton>
+              <RiFolderLine /> {count} Projects
+            </ProjectCountBox>
           </Tooltip>
         );
       },
     },
-    {
-      key: 'totalAllotted',
-      header: 'Total Allotted',
-      render: row => (
-        <span>{row.totalAllotted ? `${row.totalAllotted} allotted` : '0 allotted'}</span>
-      ),
-    },
-    {
-      key: 'session1Balance',
-      header: 'Session 1 Balance',
-      render: row => (
-        <span>{row.session1Balance ? `${row.session1Balance} left` : '—'}</span>
-      ),
-    },
-    {
-      key: 'session2Balance',
-      header: 'Session 2 Balance',
-      render: row => (
-        <span>{row.session2Balance ? `${row.session2Balance} left` : '—'}</span>
-      ),
-    },
+
     {
       key: 'status',
       header: 'Status',

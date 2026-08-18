@@ -9,6 +9,9 @@ const LoginPage = lazy(() => import('@/pages/auth/Login').then(m => ({ default: 
 const ResetPasswordPage = lazy(() =>
   import('@/pages/auth/ResetPassword').then(m => ({ default: m.ResetPasswordPage }))
 );
+const ForgotPasswordPage = lazy(() =>
+  import('@/pages/auth/ForgotPassword').then(m => ({ default: m.ForgotPasswordPage }))
+);
 const DashboardPage = lazy(() =>
   import('@/pages/dashboard').then(m => ({ default: m.DashboardPage }))
 );
@@ -126,6 +129,14 @@ export const AppRoutes: React.FC = () => {
           element={
             <PublicRoute>
               <LoginPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path={ROUTES.FORGOT_PASSWORD}
+          element={
+            <PublicRoute>
+              <ForgotPasswordPage />
             </PublicRoute>
           }
         />

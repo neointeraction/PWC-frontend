@@ -1,9 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { RiAddLine, RiDeleteBinLine } from 'react-icons/ri';
+import { RiDeleteBinLine } from 'react-icons/ri';
 import { FileUpload } from '@/components/FileUpload';
 import { Table, Column } from '@/components/Table';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
 import { Tooltip } from '@/components/Tooltip';
 import { useProjectStore } from '@/store/project.store';
 import { parseExcelFile } from '@/utils/excelParser';
@@ -22,13 +20,6 @@ export const StepStudents: React.FC = () => {
   const { students, setStudents } = useProjectStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newStudent, setNewStudent] = useState<ProjectStudent>({
-    name: '',
-    email: '',
-    mobile: '',
-    grade: 'Grade 11',
-  });
   const toast = useToast();
 
   const handleFileSelect = useCallback(
@@ -87,17 +78,6 @@ export const StepStudents: React.FC = () => {
     toast.success('Student Removed', 'Student removed from project.');
   };
 
-  const handleAddManualStudent = () => {
-    if (!newStudent.name.trim() || !newStudent.email.trim()) {
-      toast.error('Validation Error', 'Student Name and Email are required.');
-      return;
-    }
-    setStudents([...students, { ...newStudent }]);
-    setNewStudent({ name: '', email: '', mobile: '', grade: 'Grade 11' });
-    setShowAddForm(false);
-    toast.success('Student Added', `${newStudent.name} added to project list.`);
-  };
-
   const columns: Column<ProjectStudent>[] = [
     {
       key: 'name',
@@ -135,7 +115,7 @@ export const StepStudents: React.FC = () => {
   return (
     <StepFormContainer>
       <StepSubtitle>
-        Upload a CSV/Excel file or add individual students to onboard them into this project.
+        Upload a CSV/Excel file to onboard students into this project.
       </StepSubtitle>
 
       <FileUpload
@@ -150,60 +130,7 @@ export const StepStudents: React.FC = () => {
         <SummaryText>
           <SummaryCount>{students.length}</SummaryCount> students onboarded
         </SummaryText>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          leftIcon={<RiAddLine size={16} />}
-          onClick={() => setShowAddForm(prev => !prev)}
-        >
-          {showAddForm ? 'Cancel Manual Add' : 'Add Student Manually'}
-        </Button>
       </div>
-
-      {showAddForm && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr 120px auto',
-            gap: '12px',
-            alignItems: 'end',
-            padding: '16px',
-            backgroundColor: '#F9FAFB',
-            borderRadius: '4px',
-            border: '1px solid #E5E7EB',
-            marginTop: '12px',
-          }}
-        >
-          <Input
-            label="Name"
-            placeholder="e.g. Aarav Sharma"
-            value={newStudent.name}
-            onChange={e => setNewStudent({ ...newStudent, name: e.target.value })}
-          />
-          <Input
-            label="Email"
-            placeholder="aarav@example.com"
-            value={newStudent.email}
-            onChange={e => setNewStudent({ ...newStudent, email: e.target.value })}
-          />
-          <Input
-            label="Mobile"
-            placeholder="+91 98765 43210"
-            value={newStudent.mobile}
-            onChange={e => setNewStudent({ ...newStudent, mobile: e.target.value })}
-          />
-          <Input
-            label="Grade"
-            placeholder="Grade 11"
-            value={newStudent.grade}
-            onChange={e => setNewStudent({ ...newStudent, grade: e.target.value })}
-          />
-          <Button type="button" size="sm" onClick={handleAddManualStudent}>
-            Add
-          </Button>
-        </div>
-      )}
 
       {students.length > 0 && (
         <PreviewTableWrapper style={{ marginTop: '12px' }}>

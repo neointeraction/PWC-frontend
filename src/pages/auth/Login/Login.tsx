@@ -151,7 +151,7 @@ export const LoginPage: React.FC = () => {
                 LOG IN
               </Button>
 
-              <ForgotPasswordLink type="button">Forgot Password?</ForgotPasswordLink>
+              <ForgotPasswordLink type="button" onClick={() => navigate(ROUTES.FORGOT_PASSWORD)}>Forgot Password?</ForgotPasswordLink>
             </LoginForm>
 
             <DemoAccordion>

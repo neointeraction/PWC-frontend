@@ -27,23 +27,42 @@ export const StatMetricValue = styled.div<{ $color?: string }>`
   margin-top: 4px;
 `;
 
-export const ProjectLinkButton = styled.button`
-  background: none;
-  border: none;
-  padding: 0;
+export const ProjectCountBox = styled.button<{ $isInactive?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  min-width: 80px;
+  padding: 0 12px;
+  height: 32px;
+  background-color: ${({ theme, $isInactive }) => 
+    $isInactive ? theme.colors.surfaceHover : theme.colors.surface};
+  border: 1px solid ${({ theme, $isInactive }) => 
+    $isInactive ? 'transparent' : theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colors.primary};
-  text-align: left;
-  cursor: pointer;
-  transition: color ${({ theme }) => theme.transition.fast};
+  font-size: 13px;
+  font-weight: ${({ theme }) => theme.fontWeight.medium};
+  color: ${({ theme, $isInactive }) => 
+    $isInactive ? theme.colors.textMuted : theme.colors.textSecondary};
+  cursor: ${({ $isInactive }) => ($isInactive ? 'not-allowed' : 'pointer')};
+  transition: all ${({ theme }) => theme.transition.fast};
 
-  &:hover {
-    color: ${({ theme }) => theme.colors.primaryHover};
-    text-decoration: underline;
+  svg {
+    width: 16px;
+    height: 16px;
   }
+
+  ${({ theme, $isInactive }) => 
+    !$isInactive && `
+    &:hover {
+      border-color: ${theme.colors.primary};
+      color: ${theme.colors.primary};
+    }
+  `}
 `;
+
 
 export const FilterBar = styled.div`
   display: flex;

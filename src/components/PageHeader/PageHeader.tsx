@@ -14,7 +14,7 @@ const BreadcrumbContainer = styled.div`
 
 const TopRow = styled.div`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: ${({ theme }) => theme.spacing.md};
   flex-wrap: wrap;
@@ -22,13 +22,14 @@ const TopRow = styled.div`
 
 const HeaderLeft = styled.div`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
 `;
 
 const TitleTextGroup = styled.div`
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 4px;
 `;
 
@@ -45,7 +46,6 @@ const BackButton = styled.button`
   cursor: pointer;
   transition: all ${({ theme }) => theme.transition.fast};
   flex-shrink: 0;
-  margin-top: 2px;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
@@ -59,6 +59,7 @@ const Title = styled.h1`
   font-weight: ${({ theme }) => theme.fontWeight.bold};
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
+  line-height: 1.2;
 `;
 
 const Subtitle = styled.p`

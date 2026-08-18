@@ -20,8 +20,8 @@ export const MainCard = styled.div`
 
 export const HeaderRow = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 16px;
   padding: 24px 28px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   background: linear-gradient(180deg, ${({ theme }) => theme.colors.surface} 0%, ${({ theme }) => theme.colors.background} 100%);
@@ -32,6 +32,12 @@ export const HeaderTopNavRow = styled.div`
   align-items: center;
   width: 100%;
   margin-bottom: 4px;
+`;
+
+export const HeaderTitleGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
 export const HeaderBackButton = styled.button`
@@ -47,6 +53,7 @@ export const HeaderBackButton = styled.button`
   color: ${({ theme }) => theme.colors.text};
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
@@ -60,6 +67,7 @@ export const TitleText = styled.h1`
   font-weight: 800;
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
+  line-height: 1.2;
   letter-spacing: -0.3px;
 `;
 

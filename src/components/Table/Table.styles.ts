@@ -24,14 +24,13 @@ export const THead = styled.thead`
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
   th {
-    padding: 12px 24px;
+    padding: 10px 14px;
     text-align: left;
-    font-size: ${({ theme }) => theme.fontSize.sm};
+    font-size: ${({ theme }) => theme.fontSize.xs};
     font-weight: ${({ theme }) => theme.fontWeight.semibold};
     color: ${({ theme }) => theme.colors.textSecondary};
     white-space: nowrap;
     user-select: none;
-    min-width: 250px;
   }
 
   th.sortable {
@@ -57,11 +56,10 @@ export const TBody = styled.tbody`
   }
 
   td {
-    padding: 14px 24px;
+    padding: 12px 14px;
     color: ${({ theme }) => theme.colors.text};
-    vertical-align: top;
+    vertical-align: middle;
     white-space: nowrap;
-    min-width: 250px;
   }
 `;
 

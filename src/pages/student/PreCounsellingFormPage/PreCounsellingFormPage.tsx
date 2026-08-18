@@ -18,7 +18,7 @@ import {
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
-import { Badge } from '@/components/Badge';
+import { Tooltip } from '@/components/Tooltip';
 import { SuccessModal } from '@/components';
 import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
@@ -26,11 +26,8 @@ import {
   FormPageContainer,
   HeroHeaderCard,
   DocumentHeaderRow,
-  HeaderTopNavRow,
   HeaderBackButton,
   DocTitle,
-  DocSubtitle,
-  DocNote,
   StatsGridBar,
   StatBlock,
   StatIconBox,
@@ -59,12 +56,13 @@ import {
   ReadyBannerTitle,
   ReadyBannerSubtext,
   StartCtaBox,
-  CtaSubtext,
+  HeaderProgressCard,
+  HeaderProgressRow,
+  HeaderStepTitle,
+  HeaderStepCount,
+  HeaderProgressTrack,
+  HeaderProgressBar,
   WizardContainer,
-  WizardProgressHeader,
-  WizardStepInfoRow,
-  ProgressTrack,
-  ProgressBar,
   WizardStepBody,
   QuestionBox,
   QuestionTitle,
@@ -281,17 +279,31 @@ export const PreCounsellingFormPage: React.FC = () => {
     <FormPageContainer ref={topRef}>
       {isFormStarted && (
         <PageHeader
-          title="STUDENT PRE-COUNSELLING FORM"
-          subtitle="Career Counselling Programme — Class 9 & 10"
+          title="PRE-COUNSELLING FORM"
           breadcrumbs={[
             { label: 'Student Portal', href: ROUTES.STUDENT_PORTAL },
             { label: 'Pre-Counselling Form' },
           ]}
           onBack={() => navigate(ROUTES.STUDENT_PORTAL)}
           actions={
-            <Badge variant="primary" size="md">
-              Step {currentStep} of {totalSteps}
-            </Badge>
+            <HeaderProgressCard>
+              <HeaderProgressRow>
+                <HeaderStepTitle>
+                  {currentStep === 1 && 'MY ACADEMIC RECORD'}
+                  {currentStep === 2 && 'HOW I SPEND MY TIME'}
+                  {currentStep === 3 && 'WHAT I AM GOOD AT'}
+                  {currentStep === 4 && 'MY PERSONALITY & HOW I THINK'}
+                  {currentStep === 5 && 'MY CAREER THOUGHTS'}
+                  {currentStep === 6 && 'WHAT I WANT FROM THIS PROGRAMME'}
+                </HeaderStepTitle>
+                <HeaderStepCount>
+                  STEP {currentStep} OF {totalSteps} ({progressPercent}%)
+                </HeaderStepCount>
+              </HeaderProgressRow>
+              <HeaderProgressTrack>
+                <HeaderProgressBar $percent={progressPercent} />
+              </HeaderProgressTrack>
+            </HeaderProgressCard>
           }
         />
       )}
@@ -301,7 +313,7 @@ export const PreCounsellingFormPage: React.FC = () => {
         <HeroHeaderCard>
           {/* Header */}
           <DocumentHeaderRow>
-            <HeaderTopNavRow>
+            <Tooltip content="Back to Student Portal" position="right">
               <HeaderBackButton
                 type="button"
                 onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
@@ -309,11 +321,9 @@ export const PreCounsellingFormPage: React.FC = () => {
               >
                 <RiArrowLeftLine size={18} />
               </HeaderBackButton>
-            </HeaderTopNavRow>
+            </Tooltip>
 
-            <DocTitle>STUDENT PRE-COUNSELLING FORM</DocTitle>
-            <DocSubtitle>Career Counselling Programme — Class 9 & 10</DocSubtitle>
-            <DocNote>Instructions for Students • Read this carefully before you begin.</DocNote>
+            <DocTitle>PRE-COUNSELLING FORM</DocTitle>
           </DocumentHeaderRow>
 
           {/* 4 Floating Metric Cards Bar */}
@@ -377,7 +387,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                   <NumberCardTitle>1. Find a quiet spot.</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  Sit somewhere with no distractions — no noise, no interruptions. These questions need your honest, unhurried attention. Treat this time as an investment in your own career clarity — not a task which you just need to finish of in any manner.
+                  These questions need your honest, unhurried attention.
                 </NumberCardDesc>
               </NumberCardItem>
 
@@ -389,7 +399,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                   <NumberCardTitle>2. Set aside 10–12 minutes.</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  This is not something to rush through between classes. Choose a time when you are relaxed and can reflect properly. Quality of reflection matters more than speed.
+                  Treat this time as an investment in your own career clarity, not a task which you just need to finish of in any manner.
                 </NumberCardDesc>
               </NumberCardItem>
 
@@ -401,7 +411,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                   <NumberCardTitle>3. Keep your phone away.</NumberCardTitle>
                 </NumberBadgeHeader>
                 <NumberCardDesc>
-                  Avoid the urge to check messages while filling the form. It breaks the flow of honest self-reflection — give it your full focus.
+                  It breaks the flow of honest self-reflection, give it your full focus.
                 </NumberCardDesc>
               </NumberCardItem>
             </NumberedCardsStack>
@@ -424,15 +434,11 @@ export const PreCounsellingFormPage: React.FC = () => {
                 </StatementListItem>
                 <StatementListItem>
                   <RiInformationLine size={20} />
-                  <span>This is not a psychometric test nor an aptitude exam. There are no right answers and no wrong answers — and nothing here will be graded.</span>
-                </StatementListItem>
-                <StatementListItem>
-                  <RiInformationLine size={20} />
                   <span>This form helps your counsellor get to know you before your session. The more honestly you fill it, the more personalised and useful your counselling session will be.</span>
                 </StatementListItem>
                 <StatementListItem>
                   <RiInformationLine size={20} />
-                  <span>Think of it as a conversation starter — not an assessment. You are not being judged. Your responses are completely confidential and will only be seen by your counsellor.</span>
+                  <span>Think of it as a conversation starter, not an assessment. You are not being judged. Your responses are completely confidential and will only be seen by your counsellor.</span>
                 </StatementListItem>
               </StatementList>
             </StatementParagraphCard>
@@ -455,7 +461,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 <GoldenRuleContent>
                   <GoldenRuleTitle>Be honest. Be yourself.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Answer based on how you actually are — not how you want to appear, not what sounds impressive, not what you think a counsellor wants to hear. The more genuine your responses, the more your session will feel tailored to you.
+                    Answer based on how you actually are, not how you want to appear, not what sounds impressive.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -465,9 +471,9 @@ export const PreCounsellingFormPage: React.FC = () => {
                   <RiStarLine size={20} />
                 </GoldenRuleIconBox>
                 <GoldenRuleContent>
-                  <GoldenRuleTitle>Take your time — go with your first instinct.</GoldenRuleTitle>
+                  <GoldenRuleTitle>Take your time, go with your first instinct.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    For open-ended questions, write what naturally comes to mind. For multiple-choice questions, go with your first instinct. Your gut reaction is usually the truest one. If you sit on a question too long, you start second-guessing yourself.
+                    Write what naturally comes to mind &amp; go with your first instinct.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -479,7 +485,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 <GoldenRuleContent>
                   <GoldenRuleTitle>Do not skip questions.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Every question gives your counsellor something useful. If something feels too personal, just write as much as you are comfortable with — but try not to leave anything blank.
+                    If something feels too personal, just write as much as you are comfortable.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -491,19 +497,19 @@ export const PreCounsellingFormPage: React.FC = () => {
                 <GoldenRuleContent>
                   <GoldenRuleTitle>Your responses are private.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    Only you and your career counsellor will see your answers. This is a safe space — there is no audience, no judgment, no grades. Be real.
+                    Only you and your career counsellor will see your answers, not even your parent.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
 
-              <GoldenRuleCard style={{ gridColumn: 'span 2' }}>
+              <GoldenRuleCard>
                 <GoldenRuleIconBox>
                   <RiStarLine size={20} />
                 </GoldenRuleIconBox>
                 <GoldenRuleContent>
                   <GoldenRuleTitle>It is okay to say &apos;I don&apos;t know&apos;.</GoldenRuleTitle>
                   <GoldenRuleDesc>
-                    If you are unsure about your career direction — that is perfectly normal at your age. Write &apos;Still Exploring&apos; wherever asked. Your uncertainty is valuable information too.
+                    If you are unsure about your career direction, mention &apos;Still Exploring&apos;.
                   </GoldenRuleDesc>
                 </GoldenRuleContent>
               </GoldenRuleCard>
@@ -514,7 +520,7 @@ export const PreCounsellingFormPage: React.FC = () => {
           <ReadyEncouragementBanner>
             <ReadyBannerTitle>You are ready. Take a deep breath.</ReadyBannerTitle>
             <ReadyBannerSubtext>
-              There is nothing to prepare for. Just be yourself — and let your counsellor do the rest.
+              There is nothing to prepare for. Just be yourself.
             </ReadyBannerSubtext>
           </ReadyEncouragementBanner>
 
@@ -531,30 +537,11 @@ export const PreCounsellingFormPage: React.FC = () => {
             >
               Start Pre-Counselling Form
             </Button>
-            <CtaSubtext>Estimated time: 10–12 minutes • Answers saved automatically as you navigate</CtaSubtext>
           </StartCtaBox>
         </HeroHeaderCard>
       ) : (
         /* WIZARD VIEW: STEPS 1 - 6 */
         <WizardContainer>
-          <WizardProgressHeader>
-            <WizardStepInfoRow>
-              <span>
-                {currentStep === 1 && 'MY ACADEMIC RECORD'}
-                {currentStep === 2 && 'HOW I SPEND MY TIME'}
-                {currentStep === 3 && 'WHAT I AM GOOD AT'}
-                {currentStep === 4 && 'MY PERSONALITY & HOW I THINK'}
-                {currentStep === 5 && 'MY CAREER THOUGHTS'}
-                {currentStep === 6 && 'WHAT I WANT FROM THIS PROGRAMME'}
-              </span>
-              <span>Step {currentStep} of {totalSteps} ({progressPercent}%)</span>
-            </WizardStepInfoRow>
-
-            <ProgressTrack>
-              <ProgressBar $percent={progressPercent} />
-            </ProgressTrack>
-          </WizardProgressHeader>
-
           <WizardStepBody>
             {/* STEP 1 */}
             {currentStep === 1 && (
@@ -886,9 +873,9 @@ export const PreCounsellingFormPage: React.FC = () => {
 
                 {/* QUESTION 6 */}
                 <QuestionBox>
-                  <QuestionTitle>6. How consistent are your interests / hobbies over time?</QuestionTitle>
+                  <QuestionTitle>6. How consistent are your hobbies over time?</QuestionTitle>
                   <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Even casual things like watching YouTube or playing with pets count as interests / hobbies.
+                    Refer to the hobbies you mentioned above.
                   </p>
                   <OptionList>
                     {[
@@ -1005,8 +992,12 @@ export const PreCounsellingFormPage: React.FC = () => {
                   <QuestionTitle>
                     9. Read each strength below. For each one, tick whether it is a strong area for you, something average, or not really your strength.
                   </QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16, lineHeight: 1.5 }}>
-                    How to think about your strengths : A strength is something you do noticeably well compared to others around you AND something that does not feel like hard work. Others might have complimented you on it. It could be a skill, a habit, or a personality quality. You may find it helpful to think of one example from your life for each row before ticking. Go with your gut instinct rather than what others would have said.
+                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16, lineHeight: 1.6 }}>
+                    How to think about your strengths : A strength is something you do noticeably well compared to others around you AND something that does not feel like hard work.
+                    <br />
+                    Others might have complimented you on it.
+                    <br />
+                    You may find it helpful to think of one example from your life for each row before ticking.
                   </p>
 
                   <MarksTableContainer>
@@ -1296,7 +1287,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 {/* QUESTION 15 */}
                 <QuestionBox>
                   <QuestionTitle>
-                    15. Why are you interested in that career/s? (Choose ONE, or select &apos;Not Applicable&apos; if Q14 was &apos;Still Exploring&apos;)
+                    15. Why are you interested in that career/s? (Choose ONE)
                   </QuestionTitle>
                   <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
                     If you have mentioned some career in the previous question, there would be something that you like about it. Just mention that.
@@ -1355,7 +1346,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                         onChange={() => handleSingleSelect('q15_careerInterestReason', 'na')}
                       />
                       <OptionTextGroup>
-                        <OptionTitle>Not Applicable</OptionTitle>
+                        <OptionTitle>Still Exploring</OptionTitle>
                       </OptionTextGroup>
                     </OptionLabel>
                   </OptionList>
@@ -1570,8 +1561,7 @@ export const PreCounsellingFormPage: React.FC = () => {
       <SuccessModal
         isOpen={isCompletionModalOpen}
         onClose={() => setIsCompletionModalOpen(false)}
-        title="Thank you for completing your Student Pre-Counselling Form!"
-        message="Your responses will be thoroughly analyzed by your senior career counsellor before your 1-on-1 video session."
+        title="Thank you for completing your Pre-Counselling Form!"
         confirmText="Go to Student Portal"
         onConfirm={handleConfirmCompletion}
       />

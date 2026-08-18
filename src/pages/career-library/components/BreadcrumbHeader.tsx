@@ -50,6 +50,17 @@ const SearchWrapper = styled.div`
   }
 `;
 
+const RightControls = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+`;
+
 export interface BreadcrumbStep {
   label: string;
   onClick?: () => void;
@@ -59,12 +70,14 @@ interface BreadcrumbHeaderProps {
   steps: BreadcrumbStep[];
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  actions?: React.ReactNode;
 }
 
 export const BreadcrumbHeader: React.FC<BreadcrumbHeaderProps> = ({
   steps,
   searchQuery,
   onSearchChange,
+  actions,
 }) => {
   return (
     <HeaderContainer>
@@ -82,13 +95,16 @@ export const BreadcrumbHeader: React.FC<BreadcrumbHeaderProps> = ({
         })}
       </BreadcrumbList>
 
-      <SearchWrapper>
-        <SearchBox
-          value={searchQuery}
-          onChange={onSearchChange}
-          placeholder="Search a career, role, exam..."
-        />
-      </SearchWrapper>
+      <RightControls>
+        <SearchWrapper>
+          <SearchBox
+            value={searchQuery}
+            onChange={onSearchChange}
+            placeholder="Search a career, role, exam..."
+          />
+        </SearchWrapper>
+        {actions}
+      </RightControls>
     </HeaderContainer>
   );
 };

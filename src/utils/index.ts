@@ -4,16 +4,29 @@
  */
 
 /**
+ * Formats a date string into DD-MM-YYYY format.
+ */
+export const formatDateDDMMYYYY = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const dateOnly = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const parts = dateOnly.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+};
+
+/**
  * Formats a date string into a human-readable format.
  */
 export const formatDate = (dateStr: string): string => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('en-GB', {
     year: 'numeric',
-    month: 'long',
+    month: 'numeric',
     day: 'numeric',
-  });
+  }).replace(/\//g, '-');
 };
 
 /**

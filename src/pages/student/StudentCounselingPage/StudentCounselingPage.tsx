@@ -124,7 +124,9 @@ export const StudentCounselingPage: React.FC = () => {
           <AvatarBox>SJ</AvatarBox>
           <CounselorInfo>
             <CounselorName>Sarah Jenkins, M.Sc Psych</CounselorName>
-            <CounselorRole>Assigned Senior Career Counselor • St. Xavier&apos;s High School</CounselorRole>
+            <CounselorRole>
+              Assigned Senior Career Counselor • St. Xavier&apos;s High School
+            </CounselorRole>
           </CounselorInfo>
         </CounselorProfile>
 
@@ -154,7 +156,9 @@ export const StudentCounselingPage: React.FC = () => {
             <RiCalendarEventLine size={24} style={{ color: '#0284C7' }} />
             <div>
               <p style={{ margin: 0, fontSize: '12px', color: '#64748B' }}>Next Upcoming Session</p>
-              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Aug 12, 2026 @ 10:00 AM</h4>
+              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                Aug 12, 2026 @ 10:00 AM
+              </h4>
             </div>
           </div>
         </Card>

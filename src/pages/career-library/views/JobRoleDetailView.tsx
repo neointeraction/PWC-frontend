@@ -15,7 +15,6 @@ import {
   RiShieldCheckLine,
   RiMoneyDollarCircleLine,
   RiGlobalLine,
-  RiUserStarLine,
 } from 'react-icons/ri';
 import { EducationPathTab } from '../tabs/EducationPathTab';
 import { EntranceExamsTab } from '../tabs/EntranceExamsTab';
@@ -34,60 +33,20 @@ const BannerCard = styled.div`
 } 100%);
   color: #ffffff;
   border-radius: 4px;
-  padding: ${({ theme }) => theme.spacing.xxl};
+  padding: ${({ theme }) => theme.spacing.xl};
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.xl};
+  gap: ${({ theme }) => theme.spacing.lg};
   position: relative;
   box-shadow: 0 12px 28px -6px rgba(93, 35, 132, 0.35);
 `;
 
 const BannerHeader = styled.div`
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.md};
   flex-wrap: wrap;
-`;
-
-const TitleGroup = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: ${({ theme }) => theme.spacing.md};
-`;
-
-const RoleIconBadge = styled.div`
-  width: 52px;
-  height: 52px;
-  border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(4px);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-`;
-
-const RoleHeaderInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const RoleHeaderTitle = styled.h2`
-  font-size: 28px;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0;
-  line-height: 1.2;
-`;
-
-const RoleHeaderDesc = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.base};
-  color: rgba(255, 255, 255, 0.88);
-  font-style: italic;
-  margin: 0;
 `;
 
 const HeaderActions = styled.div`
@@ -284,8 +243,7 @@ const VerticalTabButton = styled.button<{ $active: boolean }>`
   width: 100%;
 
   &:hover {
-    background-color: ${({ theme, $active }) =>
-      $active ? theme.colors.primaryLight : theme.colors.surfaceHover};
+    background-color: ${({ theme }) => theme.colors.primaryLight};
     color: ${({ theme }) => theme.colors.primary};
   }
 `;
@@ -351,16 +309,6 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
     <Container>
       <BannerCard>
         <BannerHeader>
-          <TitleGroup>
-            <RoleIconBadge>
-              <RiUserStarLine size={28} />
-            </RoleIconBadge>
-            <RoleHeaderInfo>
-              <RoleHeaderTitle>{role.jobRole}</RoleHeaderTitle>
-              <RoleHeaderDesc>{role.oneLineDescription}</RoleHeaderDesc>
-            </RoleHeaderInfo>
-          </TitleGroup>
-
           <HeaderActions>
             <ShortlistButton
               $shortlisted={role.isShortlisted}
@@ -416,16 +364,16 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
             </Tooltip>
           </MetricCard>
         </MetricsGrid>
-      </BannerCard>
 
-      <RationaleBox>
-        <RiShieldCheckLine size={18} />
-        <div>
-          <strong>Why "{role.aiResilienceGrading || 'High'}":</strong>{' '}
-          {role.aiResilienceComment ||
-            'Centers on unique human creativity, emotional expression, and cultural nuance.'}
-        </div>
-      </RationaleBox>
+        <RationaleBox>
+          <RiShieldCheckLine size={18} />
+          <div>
+            <strong>Why "{role.aiResilienceGrading || 'High'}":</strong>{' '}
+            {role.aiResilienceComment ||
+              'Centers on unique human creativity, emotional expression, and cultural nuance.'}
+          </div>
+        </RationaleBox>
+      </BannerCard>
 
       <MainLayout>
         <VerticalTabsContainer>

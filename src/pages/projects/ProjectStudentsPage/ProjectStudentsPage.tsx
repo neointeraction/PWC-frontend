@@ -20,6 +20,7 @@ import { projectService } from '@/services/project.service';
 import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
+import { formatDateDDMMYYYY } from '@/utils';
 import { EditStudentModal } from './EditStudentModal';
 import {
   Container,
@@ -84,7 +85,7 @@ export const ProjectStudentsPage: React.FC = () => {
         sessionNumber: 1,
         status: 'scheduled',
         date: new Date().toISOString().slice(0, 10),
-        timeSlot: '09:30 AM - 10:30 AM',
+        timeSlot: '09:30 - 10:30',
         counselorName: 'Anil Iyer',
         counselorEmail: 'anil.iyer1@outlook.com',
       },
@@ -92,7 +93,7 @@ export const ProjectStudentsPage: React.FC = () => {
         sessionNumber: 2,
         status: 'pending',
         date: new Date().toISOString().slice(0, 10),
-        timeSlot: '11:00 AM - 12:00 PM',
+        timeSlot: '11:00 - 12:00',
         counselorName: 'Mahesh Pillai',
         counselorEmail: 'mahesh.pillai2@rediffmail.com',
       },
@@ -156,7 +157,7 @@ export const ProjectStudentsPage: React.FC = () => {
       width: '220px',
       render: row => (
         <SessionTimeText>
-          <RiTimeLine size={13} /> {row.session1.date} ({row.session1.timeSlot})
+          <RiTimeLine size={13} /> {formatDateDDMMYYYY(row.session1.date)} ({row.session1.timeSlot})
         </SessionTimeText>
       ),
     },
@@ -166,7 +167,7 @@ export const ProjectStudentsPage: React.FC = () => {
       width: '220px',
       render: row => (
         <SessionTimeText>
-          <RiTimeLine size={13} /> {row.session2.date} ({row.session2.timeSlot})
+          <RiTimeLine size={13} /> {formatDateDDMMYYYY(row.session2.date)} ({row.session2.timeSlot})
         </SessionTimeText>
       ),
     },
@@ -197,6 +198,14 @@ export const ProjectStudentsPage: React.FC = () => {
           { label: 'Project Students' },
         ]}
         onBack={() => navigate(ROUTES.PROJECTS)}
+        actions={
+          <Button
+            leftIcon={<RiUserAddLine size={16} />}
+            onClick={handleCreateNewStudent}
+          >
+            Add Student
+          </Button>
+        }
       />
 
       <Card padding="lg">
@@ -246,13 +255,6 @@ export const ProjectStudentsPage: React.FC = () => {
               />
             </div>
           </FiltersLeft>
-
-          <Button
-            leftIcon={<RiUserAddLine size={16} />}
-            onClick={handleCreateNewStudent}
-          >
-            Add Student
-          </Button>
         </FilterBar>
 
         <Table

@@ -343,16 +343,6 @@ export const CareerListPage: React.FC = () => {
     return selectedRole?.jobRole || 'Applied UI Designer';
   };
 
-  const getHeaderSubtitle = () => {
-    if (level === 'clusters')
-      return 'Select a career cluster to explore industries and specialization tracks';
-    if (level === 'industries')
-      return `Industries under ${selectedCluster?.name || 'Arts, Design & Creative'}`;
-    if (level === 'domains') return `Domains under ${selectedIndustry?.name || 'Applied Arts'}`;
-    if (level === 'roles') return `Job roles under ${selectedDomain?.name || 'Digital Arts'}`;
-    return selectedRole?.oneLineDescription || 'Role profile & career pathway details';
-  };
-
   const getAddLabel = () => {
     if (level === 'clusters') return 'Add Cluster';
     if (level === 'industries') return 'Add Industry';
@@ -483,11 +473,6 @@ export const CareerListPage: React.FC = () => {
     <Container>
       <PageHeader
         title={viewMode === 'simple' ? 'Career Library Spec Browser' : getHeaderTitle()}
-        subtitle={
-          viewMode === 'simple'
-            ? 'Select hierarchy options on the left panel to inspect full job role specifications'
-            : getHeaderSubtitle()
-        }
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Career Library' }]}
         onBack={viewMode === 'card' && level !== 'clusters' ? handleBack : undefined}
         actions={
@@ -512,23 +497,14 @@ export const CareerListPage: React.FC = () => {
               </ViewToggleButton>
             </ViewToggleContainer>
 
-            {isSuperAdmin && viewMode === 'card' && level !== 'detail' && (
-              <>
-                {level === 'clusters' && (
-                  <Button
-                    variant="secondary"
-                    leftIcon={<RiUploadCloudLine size={18} />}
-                    onClick={() => setIsBulkUploadOpen(true)}
-                  >
-                    Bulk Upload
-                  </Button>
-                )}
-                {addLabel && (
-                  <Button leftIcon={<RiAddLine size={18} />} onClick={handleOpenAddModal}>
-                    {addLabel}
-                  </Button>
-                )}
-              </>
+            {isSuperAdmin && viewMode === 'card' && level === 'clusters' && (
+              <Button
+                variant="secondary"
+                leftIcon={<RiUploadCloudLine size={18} />}
+                onClick={() => setIsBulkUploadOpen(true)}
+              >
+                Bulk Upload
+              </Button>
             )}
           </div>
         }
@@ -556,6 +532,13 @@ export const CareerListPage: React.FC = () => {
             steps={getBreadcrumbs()}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            actions={
+              isSuperAdmin && level !== 'detail' && addLabel ? (
+                <Button leftIcon={<RiAddLine size={18} />} onClick={handleOpenAddModal}>
+                  {addLabel}
+                </Button>
+              ) : undefined
+            }
           />
 
           {level === 'clusters' && (

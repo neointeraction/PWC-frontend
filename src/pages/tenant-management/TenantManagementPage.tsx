@@ -255,7 +255,6 @@ export const TenantManagementPage: React.FC = () => {
     <TenantManagementContainer>
       <PageHeader
         title="Tenant Management"
-        subtitle="Manage kREATE, View Only, Institution, and Counselor tenants across the platform"
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Tenant Management' }]}
         actions={
           isViewOnlyUser ? undefined : (
