@@ -7,6 +7,7 @@ import {
   RiEyeLine,
   RiEditLine,
   RiDeleteBinLine,
+  RiFolderLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -35,11 +36,13 @@ import {
   CounselorCell,
   CounselorNameText,
   CounselorEmailSubtext,
+  ProjectCountBox,
 } from './CounselorsList.styles';
 import { AddCounselorModal } from './components/AddCounselorModal';
 import { BulkUploadCounselorsModal } from './components/BulkUploadCounselorsModal';
 import { EditCounselorModal } from './components/EditCounselorModal';
 import { ViewCounselorModal } from './components/ViewCounselorModal';
+import { CounselorDeploymentModal } from './components/CounselorDeploymentModal';
 
 export const CounselorsListPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -61,6 +64,7 @@ export const CounselorsListPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [counselorToDelete, setCounselorToDelete] = useState<Counselor | null>(null);
+  const [counselorForDeployment, setCounselorForDeployment] = useState<Counselor | null>(null);
 
   // Query counselors
   const { data, isLoading } = useQuery({
@@ -152,6 +156,28 @@ export const CounselorsListPage: React.FC = () => {
       header: 'Institute',
       width: '200px',
       render: row => row.instituteName || '—',
+    },
+    {
+      key: 'projectDeployed',
+      header: 'Project Deployed',
+      render: row => {
+        const isInactive = row.deploymentStatus === 'inactive' || row.status === 'inactive';
+        if (isInactive) {
+          return (
+            <ProjectCountBox as="div" $isInactive>
+              inactive
+            </ProjectCountBox>
+          );
+        }
+        const count = row.projectsList?.length || 0;
+        return (
+          <Tooltip content="Click to view deployment & workload breakdown">
+            <ProjectCountBox type="button" onClick={() => setCounselorForDeployment(row)}>
+              <RiFolderLine /> {count} Projects
+            </ProjectCountBox>
+          </Tooltip>
+        );
+      },
     },
     {
       key: 'status',
@@ -252,6 +278,11 @@ export const CounselorsListPage: React.FC = () => {
       <BulkUploadCounselorsModal />
       <EditCounselorModal />
       <ViewCounselorModal />
+      <CounselorDeploymentModal
+        isOpen={Boolean(counselorForDeployment)}
+        onClose={() => setCounselorForDeployment(null)}
+        counselor={counselorForDeployment}
+      />
 
       <AlertModal
         isOpen={Boolean(counselorToDelete)}

@@ -9,6 +9,7 @@ import { Badge } from '@/components/Badge';
 import { Table, Column } from '@/components/Table';
 import { Modal } from '@/components/Modal';
 import { Input } from '@/components/Input';
+import { Select } from '@/components/Select';
 import { Tooltip } from '@/components/Tooltip';
 import { Loader } from '@/components/Loader';
 import { dashboardService } from '@/services/dashboard.service';
@@ -43,7 +44,12 @@ export const SuperAdminDashboard: React.FC = () => {
   const [requestsList, setRequestsList] = useState(DASHBOARD_MOCKS.careerRequests);
   const [selectedRequest, setSelectedRequest] = useState<(typeof DASHBOARD_MOCKS.careerRequests)[0] | null>(null);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
-  const [approvalRemarks, setApprovalRemarks] = useState('');
+  // Career-creation fields shown when ratifying a request into the library.
+  const [careerCluster, setCareerCluster] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [domain, setDomain] = useState('');
+  const [jobRoleTitle, setJobRoleTitle] = useState('');
+  const [shortDescription, setShortDescription] = useState('');
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ['dashboard-summary'],
@@ -52,7 +58,11 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const handleOpenApprovalModal = (req: (typeof DASHBOARD_MOCKS.careerRequests)[0]) => {
     setSelectedRequest(req);
-    setApprovalRemarks('');
+    setCareerCluster('');
+    setIndustry('');
+    setDomain('');
+    setJobRoleTitle(req.itemRequested); // Pre-fill with the requested item
+    setShortDescription('');
     setIsApprovalModalOpen(true);
   };
 
@@ -69,6 +79,25 @@ export const SuperAdminDashboard: React.FC = () => {
       type: 'success',
       title: 'Request Approved',
       message: `"${selectedRequest.itemRequested}" has been ratified and added to the career library.`,
+    });
+
+    setIsApprovalModalOpen(false);
+    setSelectedRequest(null);
+  };
+
+  const handleReject = () => {
+    if (!selectedRequest) return;
+
+    setRequestsList(prev =>
+      prev.map(item =>
+        item.id === selectedRequest.id ? { ...item, status: 'Rejected' as const } : item
+      )
+    );
+
+    addNotification({
+      type: 'success',
+      title: 'Request Rejected',
+      message: `"${selectedRequest.itemRequested}" has been rejected.`,
     });
 
     setIsApprovalModalOpen(false);
@@ -199,12 +228,15 @@ export const SuperAdminDashboard: React.FC = () => {
             <Button variant="secondary" onClick={() => setIsApprovalModalOpen(false)}>
               Cancel
             </Button>
+            <Button variant="danger" onClick={handleReject}>
+              Reject
+            </Button>
             <Button
               variant="primary"
               leftIcon={<RiCheckLine size={18} />}
               onClick={handleConfirmApproval}
             >
-              Confirm &amp; Approve
+              Approve
             </Button>
           </div>
         }
@@ -230,12 +262,40 @@ export const SuperAdminDashboard: React.FC = () => {
               </ModalDetailRow>
             </ModalDetailCard>
 
-            <Input
-              label="Approval Remarks (Optional)"
-              placeholder="e.g. Verified career specification and approved for global platform access"
-              value={approvalRemarks}
-              onChange={e => setApprovalRemarks(e.target.value)}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <Select
+                label="Career Cluster *"
+                options={[{ value: '', label: 'Select a cluster...' }]}
+                value={careerCluster}
+                onChange={e => setCareerCluster(e.target.value)}
+              />
+              <Select
+                label="Industry *"
+                options={[{ value: '', label: 'Select an industry within the chosen cluster...' }]}
+                value={industry}
+                onChange={e => setIndustry(e.target.value)}
+                disabled={!careerCluster}
+              />
+              <Select
+                label="Domain *"
+                options={[{ value: '', label: 'Select a domain within the chosen industry...' }]}
+                value={domain}
+                onChange={e => setDomain(e.target.value)}
+                disabled={!industry}
+              />
+              <Input
+                label="Job Role (Title / Name *)"
+                placeholder="Enter Job role..."
+                value={jobRoleTitle}
+                onChange={e => setJobRoleTitle(e.target.value)}
+              />
+              <Input
+                label="Short description *"
+                placeholder="Enter short description..."
+                value={shortDescription}
+                onChange={e => setShortDescription(e.target.value)}
+              />
+            </div>
           </div>
         )}
       </Modal>
