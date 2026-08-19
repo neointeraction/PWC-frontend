@@ -33,6 +33,13 @@ export interface ProjectStudent {
   email: string;
   mobile: string;
   grade: string;
+  // Extended fields parsed from the real import sheet (not shown in the preview
+  // table) — used when bulk-creating students against the backend.
+  division?: string;
+  parentName?: string;
+  parentMobile?: string;
+  parentEmail?: string;
+  password?: string;
   sessionDate?: string;
   timeSlot?: string;
   sessionType?: 'S1' | 'S2';

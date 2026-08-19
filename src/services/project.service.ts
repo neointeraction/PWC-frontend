@@ -108,24 +108,84 @@ export const projectService = {
 
   // ---- Stage 2/3 (still mock — orchestration/oversight not wired yet) ----
 
-  // TODO(Stage 2): orchestrate POST /institutes → /projects → /students → counsellor
-  // assignment + slots/import. Currently returns a mock record.
+  // Orchestrates real creation: institute → project → classes/divisions → students
+  // (bulk). Counsellor assignment + slot import land in Stage 2b. Institute = project
+  // (1:1, created inline). Students are best-effort — a bad row doesn't abort the batch.
   create: async (payload: CreateProjectPayload): Promise<Project> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const formatDate = (isoStr?: string) =>
-      !isoStr ? new Date().toISOString().slice(0, 10) : isoStr.slice(0, 10);
-    const newProject: Project = {
-      id: `proj-${Date.now()}`,
-      name: `${payload.instituteDetails.name} Project`,
-      instituteName: payload.instituteDetails.name,
-      counselorCount: payload.counselors.length,
-      studentCount: payload.students.length,
-      status: 'active',
-      validFrom: formatDate(payload.instituteDetails.validFrom),
-      validTo: formatDate(payload.instituteDetails.validTo),
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-    return newProject;
+    const { instituteDetails, students } = payload;
+
+    // 1. Institute (address/location optional; contactNumber/primaryEmail from the form).
+    const { data: institute } = await apiClient.post<{ id: string; name: string }>('/institutes', {
+      name: instituteDetails.name.trim(),
+      contactNumber: instituteDetails.phone,
+      primaryEmail: instituteDetails.email,
+    });
+
+    // 2. Project (window = the institute-step dates).
+    const { data: project } = await apiClient.post<ApiProject>('/projects', {
+      instituteId: institute.id,
+      name: `${institute.name} Project`,
+      fromDate: instituteDetails.validFrom,
+      toDate: instituteDetails.validTo,
+    });
+
+    // 3. Resolve each distinct Class + Division from the sheet into a real divisionId.
+    const classIdByName = new Map<string, string>();
+    const divisionIdByKey = new Map<string, string>();
+    const keyOf = (cls: string, div: string) => `${cls}||${div}`;
+    for (const s of students) {
+      const className = (s.grade || 'General').trim();
+      const divisionName = (s.division || className).trim();
+      const key = keyOf(className, divisionName);
+      if (divisionIdByKey.has(key)) continue;
+      let classId = classIdByName.get(className);
+      if (!classId) {
+        const { data: cls } = await apiClient.post<{ id: string }>(
+          `/institutes/${institute.id}/classes`,
+          { name: className }
+        );
+        classId = cls.id;
+        classIdByName.set(className, classId);
+      }
+      const { data: div } = await apiClient.post<{ id: string }>(
+        `/institutes/${institute.id}/classes/${classId}/divisions`,
+        { name: divisionName }
+      );
+      divisionIdByKey.set(key, div.id);
+    }
+
+    // 4. Bulk-create students. studentCode is auto-generated, ordered & unique per project.
+    const projShort = project.id.slice(-5);
+    let seq = 0;
+    for (const s of students) {
+      seq += 1;
+      const className = (s.grade || 'General').trim();
+      const divisionName = (s.division || className).trim();
+      const divisionId = divisionIdByKey.get(keyOf(className, divisionName));
+      if (!divisionId) continue;
+      const parts = s.name.trim().split(/\s+/);
+      const firstName = parts[0] || s.name.trim();
+      const lastName = parts.slice(1).join(' ') || firstName;
+      try {
+        await apiClient.post('/students', {
+          firstName,
+          lastName,
+          email: s.email,
+          mobile: s.mobile,
+          studentCode: `STU-${projShort}-${String(seq).padStart(3, '0')}`,
+          projectId: project.id,
+          divisionId,
+          parentMobile: s.parentMobile || s.mobile,
+          parentEmail: s.parentEmail || s.email,
+          ...(s.parentName ? { fatherName: s.parentName } : {}),
+          ...(s.password ? { password: s.password } : {}),
+        });
+      } catch {
+        // best-effort — master's wizard has no per-row surface to report failures.
+      }
+    }
+
+    return mapProject(project);
   },
 
   // TODO(Stage 3): GET /sessions/slots?projectId + GET /sessions?projectId (booked only).

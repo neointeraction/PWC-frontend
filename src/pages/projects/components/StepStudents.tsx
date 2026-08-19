@@ -37,10 +37,18 @@ export const StepStudents: React.FC = () => {
         }
 
         const rawStudents: ProjectStudent[] = rows.map(row => ({
-          name: row['Name'] || row['name'] || '',
-          email: row['Email'] || row['email'] || '',
-          mobile: row['Mobile'] || row['mobile'] || row['Phone'] || row['phone'] || '',
-          grade: row['Grade'] || row['grade'] || row['Class'] || row['class'] || '',
+          name: row['Student Name'] || row['Name'] || row['name'] || '',
+          email: row['Student Email ID'] || row['Email'] || row['email'] || '',
+          mobile:
+            row['Student Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '',
+          grade: row['Class'] || row['Grade'] || row['grade'] || row['class'] || '',
+          division: row['Division'] || row['division'] || '',
+          parentName: row['Parent Name'] || row['parentName'] || '',
+          parentMobile:
+            row['Parent Mobile No.'] || row['Parent Mobile'] || row['parentMobile'] || '',
+          parentEmail: row['Parent Email ID'] || row['Parent Email'] || row['parentEmail'] || '',
+          password:
+            row['Password'] || row['password'] || row['Temp Password'] || row['PWD'] || '',
         }));
 
         const validStudents = rawStudents.filter(s => s.name && s.email);
