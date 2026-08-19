@@ -7,7 +7,7 @@ import {
   RiCheckLine,
   RiUser3Line,
   RiUserHeartLine,
-  RiCalendarEventLine,
+  RiBuilding4Line,
   RiEmotionHappyLine,
   RiCompass3Line,
   RiAwardLine,
@@ -21,10 +21,7 @@ import {
   FormPageContainer,
   SingleUnifiedCard,
   DocumentHeaderRow,
-  HeaderTopNavRow,
-  DocHeaderBadge,
   DocTitle,
-  DocSubtitle,
   DocNote,
   StudentMetaGrid,
   MetaItem,
@@ -34,7 +31,6 @@ import {
   SectionHeader,
   SectionHeaderIcon,
   SectionTitleText,
-  SectionSubCode,
   QuestionCard,
   QuestionTitle,
   RatingOptionsGroup,
@@ -149,11 +145,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
           <SingleUnifiedCard>
             {/* Header */}
             <DocumentHeaderRow>
-              <HeaderTopNavRow style={{ justifyContent: 'flex-end' }}>
-                <DocHeaderBadge>Post-Counselling · Class 9 & 10</DocHeaderBadge>
-              </HeaderTopNavRow>
-              <DocTitle>PARENT FEEDBACK QUESTIONNAIRE</DocTitle>
-              <DocSubtitle>PHOENIX WATER CLUB — Design Destiny · kREATE Career Counselling Programme</DocSubtitle>
+              <DocTitle>FEEDBACK QUESTIONNAIRE</DocTitle>
               <DocNote>
                 Thank you for partnering with us in your child&apos;s career discovery journey. Please provide your candid feedback to help us refine our guidance services.
               </DocNote>
@@ -164,19 +156,19 @@ export const ParentFeedbackFormPage: React.FC = () => {
               <MetaItem>
                 <MetaLabel>Parent Name</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUser3Line size={16} /> Sunita Sharma (Parent)
+                  <RiUser3Line size={16} /> Sunita Sharma
                 </MetaValue>
               </MetaItem>
               <MetaItem>
-                <MetaLabel>Student Code</MetaLabel>
+                <MetaLabel>Student Name</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUserHeartLine size={16} /> STU-2026-89 (Alex Johnson)
+                  <RiUserHeartLine size={16} /> Aarav Sharma (STU-2026-89)
                 </MetaValue>
               </MetaItem>
               <MetaItem>
-                <MetaLabel>Date</MetaLabel>
+                <MetaLabel>School</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiCalendarEventLine size={16} /> May 15, 2026
+                  <RiBuilding4Line size={16} /> St. Xavier&apos;s High School
                 </MetaValue>
               </MetaItem>
             </StudentMetaGrid>
@@ -187,9 +179,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 <SectionHeaderIcon>
                   <RiEmotionHappyLine size={20} />
                 </SectionHeaderIcon>
-                <SectionTitleText>
-                  Section 1: Programme Effectiveness <SectionSubCode>[P-PE]</SectionSubCode>
-                </SectionTitleText>
+                <SectionTitleText>Programme Effectiveness</SectionTitleText>
               </SectionHeader>
 
               {[
@@ -239,9 +229,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 <SectionHeaderIcon>
                   <RiUserHeartLine size={20} />
                 </SectionHeaderIcon>
-                <SectionTitleText>
-                  Section 2: Counsellor Effectiveness <SectionSubCode>[P-CE]</SectionSubCode>
-                </SectionTitleText>
+                <SectionTitleText>Counsellor Effectiveness</SectionTitleText>
               </SectionHeader>
 
               {[
@@ -255,11 +243,11 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 },
                 {
                   name: 'ce_q3' as const,
-                  title: '3. The counsellor communicated clearly, confidently, and with subject matter expertise.',
+                  title: '3. The session was conducted professionally, punctually, and in a supportive atmosphere.',
                 },
                 {
                   name: 'ce_q4' as const,
-                  title: '4. The counsellor built trust and credibility with both me and my child during the sessions.',
+                  title: '4. The counsellor provided unbiased, objective guidance without pushing any specific institution or career.',
                 },
               ].map(q => (
                 <QuestionCard key={q.name}>
@@ -295,9 +283,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 <SectionHeaderIcon>
                   <RiCompass3Line size={20} />
                 </SectionHeaderIcon>
-                <SectionTitleText>
-                  Section 3: Outcome & Alignment <SectionSubCode>[P-OA]</SectionSubCode>
-                </SectionTitleText>
+                <SectionTitleText>Outcome & Alignment</SectionTitleText>
               </SectionHeader>
 
               {[
@@ -347,9 +333,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 <SectionHeaderIcon>
                   <RiAwardLine size={20} />
                 </SectionHeaderIcon>
-                <SectionTitleText>
-                  Section 4: Decision Confidence <SectionSubCode>[P-DC]</SectionSubCode>
-                </SectionTitleText>
+                <SectionTitleText>Decision Confidence</SectionTitleText>
               </SectionHeader>
 
               {[
@@ -395,9 +379,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 <SectionHeaderIcon>
                   <RiStarLine size={20} />
                 </SectionHeaderIcon>
-                <SectionTitleText>
-                  Section 5: Recommendation <SectionSubCode>[P-RC]</SectionSubCode>
-                </SectionTitleText>
+                <SectionTitleText>Recommendation</SectionTitleText>
               </SectionHeader>
 
               <QuestionCard>
@@ -432,9 +414,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 <SectionHeaderIcon>
                   <RiChat3Line size={20} />
                 </SectionHeaderIcon>
-                <SectionTitleText>
-                  Section 6: Open Feedback <SectionSubCode>[Not scored]</SectionSubCode>
-                </SectionTitleText>
+                <SectionTitleText>Open Feedback</SectionTitleText>
               </SectionHeader>
 
               <QuestionCard>
@@ -474,7 +454,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
         isOpen={isCompletionModalOpen}
         onClose={() => setIsCompletionModalOpen(false)}
         title="Feedback Submitted Successfully!"
-        message="Thank you for your valuable feedback. Your inputs help us continuously refine and improve our guidance services for parents and students."
+        message="Thank you for your valuable feedback."
         confirmText="Back to Home"
         onConfirm={handleConfirmCompletion}
       />

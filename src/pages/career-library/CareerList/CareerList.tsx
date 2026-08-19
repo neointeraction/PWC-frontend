@@ -476,37 +476,25 @@ export const CareerListPage: React.FC = () => {
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Career Library' }]}
         onBack={viewMode === 'card' && level !== 'clusters' ? handleBack : undefined}
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <ViewToggleContainer>
-              <ViewToggleButton
-                $active={viewMode === 'card'}
-                onClick={() => setViewMode('card')}
-              >
-                <RiLayoutGridLine size={16} /> Card View
-              </ViewToggleButton>
-              <ViewToggleButton
-                $active={viewMode === 'simple'}
-                onClick={() => {
-                  setViewMode('simple');
-                  if (!selectedCluster && clusters.length > 0) {
-                    setSelectedCluster(clusters[0]);
-                  }
-                }}
-              >
-                <RiListCheck2 size={16} /> Simple View
-              </ViewToggleButton>
-            </ViewToggleContainer>
-
-            {isSuperAdmin && viewMode === 'card' && level === 'clusters' && (
-              <Button
-                variant="secondary"
-                leftIcon={<RiUploadCloudLine size={18} />}
-                onClick={() => setIsBulkUploadOpen(true)}
-              >
-                Bulk Upload
-              </Button>
-            )}
-          </div>
+          <ViewToggleContainer>
+            <ViewToggleButton
+              $active={viewMode === 'card'}
+              onClick={() => setViewMode('card')}
+            >
+              <RiLayoutGridLine size={16} /> Card View
+            </ViewToggleButton>
+            <ViewToggleButton
+              $active={viewMode === 'simple'}
+              onClick={() => {
+                setViewMode('simple');
+                if (!selectedCluster && clusters.length > 0) {
+                  setSelectedCluster(clusters[0]);
+                }
+              }}
+            >
+              <RiListCheck2 size={16} /> Simple View
+            </ViewToggleButton>
+          </ViewToggleContainer>
         }
       />
 
@@ -533,11 +521,22 @@ export const CareerListPage: React.FC = () => {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             actions={
-              isSuperAdmin && level !== 'detail' && addLabel ? (
-                <Button leftIcon={<RiAddLine size={18} />} onClick={handleOpenAddModal}>
-                  {addLabel}
-                </Button>
-              ) : undefined
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {isSuperAdmin && viewMode === 'card' && level === 'clusters' && (
+                  <Button
+                    variant="secondary"
+                    leftIcon={<RiUploadCloudLine size={18} />}
+                    onClick={() => setIsBulkUploadOpen(true)}
+                  >
+                    Bulk Upload
+                  </Button>
+                )}
+                {isSuperAdmin && level !== 'detail' && addLabel && (
+                  <Button leftIcon={<RiAddLine size={18} />} onClick={handleOpenAddModal}>
+                    {addLabel}
+                  </Button>
+                )}
+              </div>
             }
           />
 

@@ -10,7 +10,7 @@ import { ROUTES } from '@/constants';
 interface ChartSuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
-  studentName: string;
+  studentName?: string;
   sessionId: string;
 }
 
@@ -39,15 +39,7 @@ const SuccessTitle = styled.h3`
   font-size: ${({ theme }) => theme.fontSize.xl};
   font-weight: ${({ theme }) => theme.fontWeight.bold};
   color: ${({ theme }) => theme.colors.text};
-  margin: 0 0 ${({ theme }) => theme.spacing.xs} 0;
-`;
-
-const SuccessDescription = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  max-width: 420px;
-  margin: 0 0 ${({ theme }) => theme.spacing.xl} 0;
-  line-height: 1.5;
+  margin: 0 0 24px 0;
 `;
 
 const ActionGroup = styled.div`
@@ -62,7 +54,6 @@ const ActionGroup = styled.div`
 export const ChartSuccessModal: React.FC<ChartSuccessModalProps> = ({
   isOpen,
   onClose,
-  studentName,
   sessionId,
 }) => {
   const navigate = useNavigate();
@@ -89,9 +80,6 @@ export const ChartSuccessModal: React.FC<ChartSuccessModalProps> = ({
         </IconCircle>
 
         <SuccessTitle>Counsellor Form Chart Complete</SuccessTitle>
-        <SuccessDescription>
-          All sections A through F for <strong>{studentName}</strong> have been reviewed and transcribed. The chart has been recorded successfully in the system.
-        </SuccessDescription>
 
         <ActionGroup>
           <Button

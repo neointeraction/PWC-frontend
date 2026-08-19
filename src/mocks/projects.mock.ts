@@ -12,6 +12,7 @@ export const mockProjects: Project[] = [
     validFrom: '2026-06-01',
     validTo: '2026-12-31',
     createdAt: '2026-06-15',
+    hasRedFlag: true,
   },
   {
     id: 'proj-002',
@@ -24,6 +25,7 @@ export const mockProjects: Project[] = [
     validFrom: '2026-06-15',
     validTo: '2026-11-30',
     createdAt: '2026-06-20',
+    hasRedFlag: true,
   },
   {
     id: 'proj-003',
@@ -60,6 +62,7 @@ export const mockProjects: Project[] = [
     validFrom: '2026-07-10',
     validTo: '2027-01-31',
     createdAt: '2026-07-10',
+    hasRedFlag: true,
   },
   {
     id: 'proj-006',

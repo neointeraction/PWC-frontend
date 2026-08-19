@@ -12,6 +12,7 @@ export interface Project {
   validTo: string;
   location?: string;
   createdAt?: string;
+  hasRedFlag?: boolean;
 }
 
 export interface ProjectFilterParams {
@@ -71,14 +72,24 @@ export interface StudentSessionDetail {
   counselorEmail: string;
 }
 
+export interface StudentComment {
+  id: string;
+  session: string;
+  comment: string;
+  createdAt: string;
+  by?: string;
+}
+
 export interface ProjectStudentDetail {
   id: string;
   name: string;
   email: string;
   mobile: string;
+  parentMobile?: string;
   grade: string;
   session1: StudentSessionDetail;
   session2: StudentSessionDetail;
+  comments?: StudentComment[];
 }
 
 export interface CreateProjectPayload {

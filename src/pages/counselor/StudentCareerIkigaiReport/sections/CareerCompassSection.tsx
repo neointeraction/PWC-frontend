@@ -27,7 +27,7 @@ export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ card
       <SectionHeaderGroup>
         <SectionTitle>
           <RiCompassLine size={24} />
-          7. My Career Compass — Top 6 Career Recommendations
+          My Career Compass — Top 6 Career Recommendations
         </SectionTitle>
         <SectionSubtitle>
           Curated top 6 career roles matched to student aptitude, interest, industry demand, AI resilience, and global salary potential.

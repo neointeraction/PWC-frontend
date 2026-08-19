@@ -23,7 +23,7 @@ export const MyTraitMapSection: React.FC<MyTraitMapSectionProps> = ({ traits }) 
       <SectionHeaderGroup>
         <SectionTitle>
           <RiTableLine size={24} />
-          3. My Trait Map — Top Ranked Career Traits
+          My Trait Map — Top Ranked Career Traits
         </SectionTitle>
         <SectionSubtitle>
           Layer-wise psychometric breakdown evaluating core aptitude, personality structure, and intrinsic interest passion drivers.

@@ -10,6 +10,7 @@ import {
   RiUserLine,
   RiDownloadLine,
   RiRefreshLine,
+  RiFlag2Fill,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -24,7 +25,6 @@ import { useProjectStore } from '@/store/project.store';
 import { useAuthStore } from '@/store';
 import { useToast } from '@/hooks';
 import { Project, ProjectStatus } from '@/types/project.types';
-import { ROUTES } from '@/constants';
 import {
   ProjectsContainer,
   StatsGrid,
@@ -35,6 +35,7 @@ import {
   ActionIconButtonGroup,
   ActionIconButton,
   ProjectNameCell,
+  ProjectTitleRow,
   ProjectNameLink,
   ProjectInstituteSubtext,
 } from './Projects.styles';
@@ -165,12 +166,19 @@ export const ProjectsPage: React.FC = () => {
       header: 'Project',
       render: row => (
         <ProjectNameCell>
-          <ProjectNameLink
-            type="button"
-            onClick={() => navigate(`/projects/dashboard/${row.id}`)}
-          >
-            {row.name}
-          </ProjectNameLink>
+          <ProjectTitleRow>
+            <ProjectNameLink
+              type="button"
+              onClick={() => navigate(`/projects/dashboard/${row.id}`)}
+            >
+              {row.name}
+            </ProjectNameLink>
+            {row.hasRedFlag && (
+              <Tooltip content="Contains overdue follow-up stages (> 2 days)">
+                <RiFlag2Fill size={15} style={{ color: '#EF4444', flexShrink: 0 }} />
+              </Tooltip>
+            )}
+          </ProjectTitleRow>
           <ProjectInstituteSubtext>{row.instituteName}</ProjectInstituteSubtext>
         </ProjectNameCell>
       ),
@@ -278,19 +286,12 @@ export const ProjectsPage: React.FC = () => {
       <PageHeader
         title="Projects"
         subtitle="Manage institution projects and counselling initiatives"
-        breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Projects' }]}
-        actions={
-          isViewOnlyUser ? undefined : (
-            <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
-              Add Project
-            </Button>
-          )
-        }
+        breadcrumbs={[{ label: 'Projects' }]}
       />
 
       <StatsGrid>
         <Card title="Total Projects">
-          <StatMetricValue>{data?.total ?? 23}</StatMetricValue>
+          <StatMetricValue>{data?.total ?? 7}</StatMetricValue>
           <MetaText>Active &amp; registered projects</MetaText>
         </Card>
 
@@ -298,37 +299,54 @@ export const ProjectsPage: React.FC = () => {
           <StatMetricValue $variant="success">14</StatMetricValue>
           <MetaText>Currently ongoing batches</MetaText>
         </Card>
+
+        <Card title="To Extend">
+          <StatMetricValue>1</StatMetricValue>
+          <MetaText>Expiring within 30 days</MetaText>
+        </Card>
+
+        <Card title="Completed">
+          <StatMetricValue>2</StatMetricValue>
+          <MetaText>Finished project batches</MetaText>
+        </Card>
       </StatsGrid>
 
       <Card>
         <FilterBar>
-          <SearchWrapper>
-            <Input
-              placeholder="Search projects by name or institute..."
-              leftIcon={<RiSearchLine size={18} />}
-              value={searchQuery}
-              onChange={e => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-            />
-          </SearchWrapper>
-          <div style={{ width: '180px' }}>
-            <Select
-              options={[
-                { value: 'all', label: 'All Projects' },
-                { value: 'active', label: 'Active' },
-                { value: 'draft', label: 'Draft' },
-                { value: 'completed', label: 'Completed' },
-                { value: 'deleted', label: 'Deleted Projects' },
-              ]}
-              value={statusFilter}
-              onChange={e => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, flexWrap: 'wrap' }}>
+            <SearchWrapper>
+              <Input
+                placeholder="Search projects by name or institute..."
+                leftIcon={<RiSearchLine size={18} />}
+                value={searchQuery}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </SearchWrapper>
+            <div style={{ width: '180px' }}>
+              <Select
+                options={[
+                  { value: 'all', label: 'All Projects' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'draft', label: 'Draft' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'deleted', label: 'Deleted Projects' },
+                ]}
+                value={statusFilter}
+                onChange={e => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
           </div>
+          {!isViewOnlyUser && (
+            <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
+              Add Project
+            </Button>
+          )}
         </FilterBar>
 
         <Table

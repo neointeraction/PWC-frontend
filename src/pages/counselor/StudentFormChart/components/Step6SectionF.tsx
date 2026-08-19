@@ -5,7 +5,6 @@ import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
   StepHeaderCard,
   StepHeaderTitle,
-  StepHeaderDescription,
   SectionBlock,
 } from '../StudentFormChartPage.styles';
 
@@ -42,10 +41,6 @@ export const Step6SectionF: React.FC<Step6SectionFProps> = ({ data, onChangeNote
     <>
       <StepHeaderCard>
         <StepHeaderTitle>COUNSELLING GOALS & PROGRAMME EXPECTATIONS</StepHeaderTitle>
-        <StepHeaderDescription>
-          Side-by-side review of primary counselling session objectives and pre-session context from
-          student and parent, followed by final counsellor synthesis notes.
-        </StepHeaderDescription>
       </StepHeaderCard>
 
       <SectionBlock>

@@ -256,13 +256,6 @@ export const TenantManagementPage: React.FC = () => {
       <PageHeader
         title="Tenant Management"
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Tenant Management' }]}
-        actions={
-          isViewOnlyUser ? undefined : (
-            <Button leftIcon={<RiUserAddLine size={18} />} onClick={openAddModal}>
-              Add New Tenant
-            </Button>
-          )
-        }
       />
 
       <Card>
@@ -310,6 +303,11 @@ export const TenantManagementPage: React.FC = () => {
               }}
             />
           </SearchWrapper>
+          {!isViewOnlyUser && (
+            <Button leftIcon={<RiUserAddLine size={18} />} onClick={openAddModal}>
+              Add New Tenant
+            </Button>
+          )}
         </FilterBar>
 
         <Table

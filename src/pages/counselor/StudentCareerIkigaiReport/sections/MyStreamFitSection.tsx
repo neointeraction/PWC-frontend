@@ -25,7 +25,7 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
       <SectionHeaderGroup>
         <SectionTitle>
           <RiGitBranchLine size={24} />
-          5. My Stream Fit — Class 11 & 12 Recommendation
+          My Stream Fit — Class 11 & 12 Recommendation
         </SectionTitle>
         <SectionSubtitle>
           Optimal academic stream alignment and subject combinations tailored to student aptitude benchmarks and career target domains.

@@ -3,7 +3,6 @@ import { CounsellorFormChartData, RoadmapGridData } from '@/mocks/studentFormCha
 import {
   StepHeaderCard,
   StepHeaderTitle,
-  StepHeaderDescription,
   SectionBlock,
   SectionBlockTitle,
   Roadmap3x3Grid,
@@ -31,9 +30,6 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
     <>
       <StepHeaderCard>
         <StepHeaderTitle>Roadmap</StepHeaderTitle>
-        <StepHeaderDescription>
-          Construct a 3-phase strategic roadmap (Now, Class 11-12, After Class 12).
-        </StepHeaderDescription>
       </StepHeaderCard>
 
       {/* 3x3 Roadmap Grid */}

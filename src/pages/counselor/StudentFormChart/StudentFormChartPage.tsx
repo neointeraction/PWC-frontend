@@ -22,7 +22,6 @@ import { Step4SectionD } from './components/Step4SectionD';
 import { Step5SectionE } from './components/Step5SectionE';
 import { Step6SCRI } from './components/Step6SCRI';
 import { Step6SectionF } from './components/Step6SectionF';
-import { Step7SummaryDashboard } from './components/Step7SummaryDashboard';
 import { ChartSuccessModal } from './components/ChartSuccessModal';
 
 import {
@@ -51,9 +50,8 @@ const STEP_LABELS = [
   },
   { index: 4, label: 'Reliability of Assessment', shortLabel: 'D' },
   { index: 5, label: 'Roadmap', shortLabel: 'E' },
-  { index: 6, label: 'Student Career Readiness Index (SCRI) — Counsellor Rating', shortLabel: 'SCRI' },
+  { index: 6, label: 'Student Career Readiness Index (SCRI)', shortLabel: 'SCRI' },
   { index: 7, label: 'Goals & Expectations', shortLabel: 'F' },
-  { index: 8, label: 'Summary Dashboard', shortLabel: 'Summary' },
 ];
 
 export const StudentFormChartPage: React.FC = () => {
@@ -118,7 +116,6 @@ export const StudentFormChartPage: React.FC = () => {
     <Container>
       <PageHeader
         title={`Counsellor Form Chart — ${formData.studentInfo.studentName}`}
-        subtitle="Digitized Class 9 & 10 Counsellor Form Chart recording side-by-side student/parent questionnaires, assessment results, and synthesis notes."
         breadcrumbs={[
           { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
           { label: `Chart (${formData.studentInfo.studentName})` },
@@ -389,12 +386,6 @@ export const StudentFormChartPage: React.FC = () => {
             />
           )}
 
-          {activeStep === 8 && (
-            <Step7SummaryDashboard
-              formData={formData}
-            />
-          )}
-
           {/* Sticky Bottom Navigation Footer */}
           <StickyFooterNav>
             <Button
@@ -406,7 +397,7 @@ export const StudentFormChartPage: React.FC = () => {
             </Button>
 
             <span style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: 500 }}>
-              Step {activeStep + 1} of 9 — {STEP_LABELS[activeStep].label}
+              Step {activeStep + 1} of {STEP_LABELS.length} — {STEP_LABELS[activeStep].label}
             </span>
 
             {activeStep < STEP_LABELS.length - 1 ? (

@@ -10,6 +10,7 @@ import {
   RiArrowLeftSLine,
   RiFileChartLine,
   RiCalendarEventLine,
+  RiTimeLine,
 } from 'react-icons/ri';
 import { useSidebarStore, useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
@@ -61,19 +62,14 @@ export const Sidebar: React.FC = () => {
 
   const adminNavItems = [
     {
-      label: 'Dashboard',
-      href: ROUTES.DASHBOARD,
-      icon: <RiDashboardLine size={18} />,
+      label: 'Projects',
+      href: ROUTES.PROJECTS,
+      icon: <RiFolderLine size={18} />,
     },
     {
       label: 'Counselors List',
       href: ROUTES.COUNSELORS,
       icon: <RiUserHeartLine size={18} />,
-    },
-    {
-      label: 'Projects',
-      href: ROUTES.PROJECTS,
-      icon: <RiFolderLine size={18} />,
     },
     {
       label: 'Career Library',
@@ -94,9 +90,14 @@ export const Sidebar: React.FC = () => {
 
   const counselorNavItems = [
     {
-      label: 'Upcoming Sessions',
+      label: 'Upcoming sessions',
       href: ROUTES.UPCOMING_SESSIONS,
       icon: <RiCalendarEventLine size={18} />,
+    },
+    {
+      label: 'All Sessions',
+      href: ROUTES.SESSIONS,
+      icon: <RiTimeLine size={18} />,
     },
     {
       label: 'Career Library',

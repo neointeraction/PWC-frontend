@@ -8,7 +8,6 @@ import {
   RiCheckLine,
   RiUser3Line,
   RiUserHeartLine,
-  RiCalendarEventLine,
   RiEmotionHappyLine,
   RiCompass3Line,
   RiAwardLine,
@@ -25,9 +24,7 @@ import {
   DocumentHeaderRow,
   HeaderTopNavRow,
   HeaderBackButton,
-  DocHeaderBadge,
   DocTitle,
-  DocSubtitle,
   DocNote,
   StudentMetaGrid,
   MetaItem,
@@ -159,14 +156,12 @@ export const StudentFeedbackFormPage: React.FC = () => {
                     <RiArrowLeftLine size={18} />
                   </HeaderBackButton>
                 </Tooltip>
-                <DocHeaderBadge>Post-Counselling · Class 9 & 10</DocHeaderBadge>
               </HeaderTopNavRow>
-              <DocTitle>STUDENT FEEDBACK QUESTIONNAIRE</DocTitle>
-              <DocSubtitle>Design Destiny · kREATE Career Counselling Programme</DocSubtitle>
+              <DocTitle>FEEDBACK QUESTIONNAIRE</DocTitle>
               <DocNote>
-                Please share your feedback regarding your recent career guidance experience. Your
-                responses help us enhance our programme for future students. Your honesty is
-                genuinely valued — there are no right or wrong answers.
+                Please share your feedback regarding your experience. Your responses help us
+                enhance our programme. Your honesty is genuinely valued — there are no right or
+                wrong answers.
               </DocNote>
             </DocumentHeaderRow>
 
@@ -175,19 +170,13 @@ export const StudentFeedbackFormPage: React.FC = () => {
               <MetaItem>
                 <MetaLabel>Student Name / Code</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUser3Line size={16} /> Alex Johnson (STU-2026-89)
+                  <RiUser3Line size={16} /> Aarav Sharma (STU-2026-89)
                 </MetaValue>
               </MetaItem>
               <MetaItem>
                 <MetaLabel>Counsellor</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <RiUserHeartLine size={16} /> Sarah Jenkins (M.Sc Psych)
-                </MetaValue>
-              </MetaItem>
-              <MetaItem>
-                <MetaLabel>Date</MetaLabel>
-                <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiCalendarEventLine size={16} /> May 15, 2026
                 </MetaValue>
               </MetaItem>
             </StudentMetaGrid>
@@ -471,7 +460,6 @@ export const StudentFeedbackFormPage: React.FC = () => {
         isOpen={isCompletionModalOpen}
         onClose={() => setIsCompletionModalOpen(false)}
         title="Feedback Submitted Successfully!"
-        message="Thank you for your valuable feedback on the counselling session."
         confirmText="Go to Student Portal"
         onConfirm={handleConfirmCompletion}
       />

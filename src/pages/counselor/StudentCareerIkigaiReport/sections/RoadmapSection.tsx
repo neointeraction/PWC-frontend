@@ -67,7 +67,7 @@ export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ roadmapData }) =
       <SectionHeaderGroup>
         <SectionTitle>
           <RiRoadMapLine size={24} />
-          8. My Roadmap — Next Steps & Readiness Snapshot
+          My Roadmap — Next Steps & Readiness Snapshot
         </SectionTitle>
         <SectionSubtitle>
           Strategic 3-phase execution timeline from Class 9 to post-graduation alongside the Student Career Readiness Index (SCRI) snapshot.

@@ -8,13 +8,16 @@ export const ProjectsContainer = styled.div`
 
 export const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: ${({ theme }) => theme.spacing.lg};
-  max-width: 520px;
+  width: 100%;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
   @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
     grid-template-columns: 1fr;
-    max-width: 100%;
   }
 `;
 
@@ -98,6 +101,13 @@ export const ActionIconButton = styled.button`
 export const ProjectNameCell = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 2px;
+`;
+
+export const ProjectTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 export const ProjectNameLink = styled.button`

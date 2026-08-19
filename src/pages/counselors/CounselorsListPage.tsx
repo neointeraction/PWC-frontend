@@ -32,7 +32,6 @@ import {
   SearchWrapper,
   FilterControls,
   FilterSelectWrapper,
-  HeaderActions,
   ActionIconButtonGroup,
   ActionIconButton,
 } from './CounselorsList.styles';
@@ -207,26 +206,6 @@ export const CounselorsListPage: React.FC = () => {
         title="Counsellor Directory"
         subtitle="Deployment &amp; Workload overview for institution career counselors"
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Counselors List' }]}
-        actions={
-          isViewOnlyUser ? undefined : (
-            <HeaderActions>
-              <Button
-                variant="secondary"
-                leftIcon={<RiFileUploadLine size={16} />}
-                onClick={openBulkUploadModal}
-              >
-                Bulk Upload
-              </Button>
-              <Button
-                variant="primary"
-                leftIcon={<RiUserAddLine size={16} />}
-                onClick={openAddModal}
-              >
-                Add Counselor
-              </Button>
-            </HeaderActions>
-          )
-        }
       />
 
       {/* Top Metric Stat Cards matching mockup */}
@@ -277,6 +256,25 @@ export const CounselorsListPage: React.FC = () => {
                 }}
               />
             </FilterSelectWrapper>
+
+            {!isViewOnlyUser && (
+              <>
+                <Button
+                  variant="secondary"
+                  leftIcon={<RiFileUploadLine size={16} />}
+                  onClick={openBulkUploadModal}
+                >
+                  Bulk Upload
+                </Button>
+                <Button
+                  variant="primary"
+                  leftIcon={<RiUserAddLine size={16} />}
+                  onClick={openAddModal}
+                >
+                  Add Counselor
+                </Button>
+              </>
+            )}
           </FilterControls>
         </FilterBar>
 

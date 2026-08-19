@@ -24,7 +24,7 @@ export const GraduationPathwaysSection: React.FC<GraduationPathwaysSectionProps>
       <SectionHeaderGroup>
         <SectionTitle>
           <RiGraduationCapLine size={24} />
-          6. Graduation & Education Pathways
+          Graduation & Education Pathways
         </SectionTitle>
         <SectionSubtitle>
           Higher education degrees, key competitive entrance exams, and premier college benchmarks shortlisted after Class 11 & 12.

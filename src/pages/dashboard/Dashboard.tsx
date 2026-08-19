@@ -3,13 +3,16 @@ import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { SuperAdminDashboard } from './SuperAdminDashboard';
-import { AdminDashboard } from './AdminDashboard';
 
 export const DashboardPage: React.FC = () => {
   const role = useAuthStore(state => state.role);
 
   if (role === 'super_admin') {
     return <SuperAdminDashboard />;
+  }
+
+  if (role === 'admin') {
+    return <Navigate to={ROUTES.PROJECTS} replace />;
   }
 
   if (role === 'counselor') {
@@ -20,9 +23,8 @@ export const DashboardPage: React.FC = () => {
     return <Navigate to={ROUTES.STUDENT_PORTAL} replace />;
   }
 
-  return <AdminDashboard />;
+  return <Navigate to={ROUTES.PROJECTS} replace />;
 };
 
 export { SuperAdminDashboard } from './SuperAdminDashboard';
-export { AdminDashboard } from './AdminDashboard';
-export { CounselorDashboard } from './CounselorDashboard';
+

@@ -45,6 +45,9 @@ const CounselorsListPage = lazy(() =>
 const UpcomingSessionsPage = lazy(() =>
   import('@/pages/counselor/UpcomingSessions').then(m => ({ default: m.UpcomingSessionsPage }))
 );
+const AllSessionsPage = lazy(() =>
+  import('@/pages/counselor/AllSessions').then(m => ({ default: m.AllSessionsPage }))
+);
 const StudentFormChartPage = lazy(() =>
   import('@/pages/counselor/StudentFormChart').then(m => ({ default: m.StudentFormChartPage }))
 );
@@ -106,6 +109,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   if (isAuthenticated) {
     if (mustResetPassword) {
       return <Navigate to={ROUTES.RESET_PASSWORD} replace />;
+    }
+    if (role === 'admin') {
+      return <Navigate to={ROUTES.PROJECTS} replace />;
     }
     if (role === 'counselor') {
       return <Navigate to={ROUTES.UPCOMING_SESSIONS} replace />;
@@ -172,6 +178,7 @@ export const AppRoutes: React.FC = () => {
           <Route path={ROUTES.BOOK_SESSIONS} element={<BookSessionsPage />} />
           <Route path={ROUTES.COUNSELING} element={<StudentCounselingPage />} />
           <Route path={ROUTES.UPCOMING_SESSIONS} element={<UpcomingSessionsPage />} />
+          <Route path={ROUTES.SESSIONS} element={<AllSessionsPage />} />
           <Route path={ROUTES.COUNSELOR_STUDENT_CHART} element={<StudentFormChartPage />} />
           <Route path={ROUTES.GENERATE_REPORT} element={<StudentCareerIkigaiReportPage />} />
           <Route path={ROUTES.PROJECTS} element={<ProjectsPage />} />

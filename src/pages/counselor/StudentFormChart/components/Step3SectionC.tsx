@@ -43,7 +43,6 @@ import { CareerLibraryPickerModal } from './CareerLibraryPickerModal';
 import {
   StepHeaderCard,
   StepHeaderTitle,
-  StepHeaderDescription,
   SectionBlock,
   SectionBlockTitle,
   CompTableContainer,
@@ -61,7 +60,7 @@ interface Step3SectionCProps {
   data: CounsellorFormChartData['sectionC'];
   onChangeNotesPre: (code: string, value: string) => void;
   onChangeStreamTable: (table: StreamFitItem[]) => void;
-  onChangeWhyStream1: (value: string) => void;
+  onChangeWhyStream1?: (value: string) => void;
   onChangeNotesE: (code: string, value: string) => void;
   onChangeGraduationTable: (table: GraduationItem[]) => void;
   onChangeWhyStream2: (value: string) => void;
@@ -170,7 +169,6 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   data,
   onChangeNotesPre,
   onChangeStreamTable,
-  onChangeWhyStream1,
   onChangeNotesE,
   onChangeGraduationTable,
   onChangeWhyStream2,
@@ -194,10 +192,6 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
     <>
       <StepHeaderCard>
         <StepHeaderTitle>Setting the Compass – Career Direction</StepHeaderTitle>
-        <StepHeaderDescription>
-          Pre-counselling career awareness comparison, psychometric stream fit, graduation degree
-          targets, and long-term Career Compass pathways.
-        </StepHeaderDescription>
       </StepHeaderCard>
 
       {/* Sub-Block 1: Pre-Counselling View */}
@@ -381,27 +375,6 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           >
             Add Stream Fit Row
           </Button>
-        </div>
-
-        {/* Why Stream 1 Textarea */}
-        <div style={{ marginTop: '16px' }}>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: '#374151',
-              marginBottom: '6px',
-            }}
-          >
-            Why this stream is recommended / suitable:
-          </label>
-          <FormTextarea
-            value={data.whyThisStream1}
-            onChange={e => onChangeWhyStream1(e.target.value)}
-            placeholder="Explain why this stream is recommended based on student aptitude and interests..."
-            style={{ width: '100%', minHeight: '70px' }}
-          />
         </div>
 
         {/* Synthesis Notes E1–E6 */}
