@@ -45,8 +45,7 @@ const EDIT_WIZARD_STEPS: StepConfig[] = [
 
 const statusOptions = [
   { value: 'active', label: 'Active' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'completed', label: 'Completed' },
+  { value: 'closed', label: 'Closed' },
 ];
 
 const mockInitialStudents: ProjectStudent[] = [

@@ -138,16 +138,10 @@ export const ProjectsPage: React.FC = () => {
             Active
           </Badge>
         );
-      case 'draft':
-        return (
-          <Badge variant="warning" dot>
-            Draft
-          </Badge>
-        );
-      case 'completed':
+      case 'closed':
         return (
           <Badge variant="info" dot>
-            Completed
+            Closed
           </Badge>
         );
       case 'deleted':
@@ -318,8 +312,7 @@ export const ProjectsPage: React.FC = () => {
               options={[
                 { value: 'all', label: 'All Projects' },
                 { value: 'active', label: 'Active' },
-                { value: 'draft', label: 'Draft' },
-                { value: 'completed', label: 'Completed' },
+                { value: 'closed', label: 'Closed' },
                 { value: 'deleted', label: 'Deleted Projects' },
               ]}
               value={statusFilter}

@@ -1,5 +1,7 @@
+import { apiClient } from './api';
 import {
   Project,
+  ProjectStatus,
   ProjectFilterParams,
   CreateProjectPayload,
   ProjectCounselor,
@@ -7,54 +9,132 @@ import {
   ProjectStudentDetail,
 } from '@/types/project.types';
 import { PaginatedResponse } from '@/types/api.types';
-import { mockProjects } from '@/mocks/projects.mock';
 import { mockCounselors } from '@/mocks/counselors.mock';
 import { mockProjectSessions } from '@/mocks/projectSessions.mock';
 import { mockProjectStudents } from '@/mocks/projectStudents.mock';
 
-let projectDb: Project[] = [...mockProjects];
+// ---- Backend project shape (GET /projects — institute + _count) ----
+interface ApiProject {
+  id: string;
+  name: string;
+  instituteId: string;
+  fromDate: string;
+  toDate: string;
+  status: 'ACTIVE' | 'CLOSED' | 'DELETED';
+  institute?: { id: string; name: string };
+  _count?: { students: number; counsellors: number; counsellorSlots: number };
+  createdAt?: string;
+}
+
+const API_TO_STATUS: Record<string, ProjectStatus> = {
+  ACTIVE: 'active',
+  CLOSED: 'closed',
+  DELETED: 'deleted',
+};
+const STATUS_TO_API: Record<string, string> = {
+  active: 'ACTIVE',
+  closed: 'CLOSED',
+  deleted: 'DELETED',
+};
+
+const mapProject = (p: ApiProject): Project => ({
+  id: p.id,
+  name: p.name,
+  instituteName: p.institute?.name ?? '',
+  counselorCount: p._count?.counsellors ?? 0,
+  studentCount: p._count?.students ?? 0,
+  status: API_TO_STATUS[p.status] ?? 'active',
+  validFrom: (p.fromDate ?? '').slice(0, 10),
+  validTo: (p.toDate ?? '').slice(0, 10),
+  createdAt: (p.createdAt ?? '').slice(0, 10),
+});
+
+// ---- Mock stores still backing the not-yet-integrated methods (Stage 2/3) ----
 let sessionsDb: Record<string, CounselorSession[]> = { ...mockProjectSessions };
 let studentsDb: Record<string, ProjectStudentDetail[]> = { ...mockProjectStudents };
 
 export const projectService = {
+  // GET /api/v1/projects — no server-side search/pagination, so both are client-side.
+  // No `status` → active+closed (excludes soft-deleted); status=DELETED → only deleted.
   getAll: async (filters: ProjectFilterParams = {}): Promise<PaginatedResponse<Project>> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    let results = [...projectDb];
-
-    if (filters.status && filters.status !== 'all') {
-      results = results.filter(p => p.status === filters.status);
+    const params: Record<string, string> = {};
+    if (filters.status && filters.status !== 'all' && STATUS_TO_API[filters.status]) {
+      params.status = STATUS_TO_API[filters.status];
     }
+    const { data } = await apiClient.get<ApiProject[]>('/projects', { params });
+    let results = data.map(mapProject);
 
     if (filters.search) {
       const q = filters.search.toLowerCase();
       results = results.filter(
-        p =>
-          p.name.toLowerCase().includes(q) ||
-          p.instituteName.toLowerCase().includes(q)
+        p => p.name.toLowerCase().includes(q) || p.instituteName.toLowerCase().includes(q)
       );
     }
 
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 10;
     const total = results.length;
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (page - 1) * limit;
-    const data = results.slice(start, start + limit);
-
-    return { data, total, page, limit, totalPages };
+    return { data: results.slice(start, start + limit), total, page, limit, totalPages };
   },
 
   getById: async (id: string): Promise<Project | undefined> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return projectDb.find(p => p.id === id) || mockProjects[0];
+    const { data } = await apiClient.get<ApiProject>(`/projects/${id}`);
+    return mapProject(data);
   },
 
+  update: async (id: string, updates: Partial<Project>): Promise<Project> => {
+    const body: Record<string, unknown> = {};
+    if (updates.name !== undefined) body.name = updates.name;
+    if (updates.validFrom !== undefined) body.fromDate = updates.validFrom;
+    if (updates.validTo !== undefined) body.toDate = updates.validTo;
+    if (updates.status !== undefined && STATUS_TO_API[updates.status]) {
+      body.status = STATUS_TO_API[updates.status];
+    }
+    const { data } = await apiClient.patch<ApiProject>(`/projects/${id}`, body);
+    return mapProject(data);
+  },
+
+  // DELETE is a soft-delete on the backend (status → DELETED); reversible via restore.
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/projects/${id}`);
+  },
+
+  restore: async (id: string): Promise<Project> => {
+    const { data } = await apiClient.patch<ApiProject>(`/projects/${id}/restore`, {});
+    return mapProject(data);
+  },
+
+  // ---- Stage 2/3 (still mock — orchestration/oversight not wired yet) ----
+
+  // TODO(Stage 2): orchestrate POST /institutes → /projects → /students → counsellor
+  // assignment + slots/import. Currently returns a mock record.
+  create: async (payload: CreateProjectPayload): Promise<Project> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const formatDate = (isoStr?: string) =>
+      !isoStr ? new Date().toISOString().slice(0, 10) : isoStr.slice(0, 10);
+    const newProject: Project = {
+      id: `proj-${Date.now()}`,
+      name: `${payload.instituteDetails.name} Project`,
+      instituteName: payload.instituteDetails.name,
+      counselorCount: payload.counselors.length,
+      studentCount: payload.students.length,
+      status: 'active',
+      validFrom: formatDate(payload.instituteDetails.validFrom),
+      validTo: formatDate(payload.instituteDetails.validTo),
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    return newProject;
+  },
+
+  // TODO(Stage 3): GET /sessions/slots?projectId + GET /sessions?projectId (booked only).
   getProjectSessions: async (projectId: string): Promise<CounselorSession[]> => {
     await new Promise(resolve => setTimeout(resolve, 300));
     return sessionsDb[projectId] || sessionsDb['proj-001'] || [];
   },
 
+  // TODO(Stage 3): GET /students?projectId (+ their sessions).
   getProjectStudents: async (projectId: string): Promise<ProjectStudentDetail[]> => {
     await new Promise(resolve => setTimeout(resolve, 300));
     return studentsDb[projectId] || studentsDb['proj-001'] || [];
@@ -67,14 +147,9 @@ export const projectService = {
     await new Promise(resolve => setTimeout(resolve, 400));
     const currentList = studentsDb[projectId] || studentsDb['proj-001'] || [];
     const exists = currentList.some(s => s.id === student.id);
-
-    let updatedList: ProjectStudentDetail[];
-    if (exists) {
-      updatedList = currentList.map(s => (s.id === student.id ? student : s));
-    } else {
-      updatedList = [student, ...currentList];
-    }
-
+    const updatedList = exists
+      ? currentList.map(s => (s.id === student.id ? student : s))
+      : [student, ...currentList];
     studentsDb[projectId] = updatedList;
     return updatedList;
   },
@@ -83,100 +158,28 @@ export const projectService = {
     projectId: string,
     sessionId: string,
     selectedSlotId: string,
-    assignedStudents: any[]
+    assignedStudents: unknown[]
   ): Promise<CounselorSession[]> => {
     await new Promise(resolve => setTimeout(resolve, 400));
     const currentList = sessionsDb[projectId] || sessionsDb['proj-001'] || [];
-
-    const updated = currentList.map(s => {
-      if (s.id === sessionId) {
-        return {
-          ...s,
-          timeSlots: s.timeSlots.map(ts => ({
-            ...ts,
-            isSelected: ts.id === selectedSlotId,
-          })),
-          assignedStudents,
-        };
-      }
-      return s;
-    });
-
+    const updated = currentList.map(s =>
+      s.id === sessionId
+        ? {
+            ...s,
+            timeSlots: s.timeSlots.map(ts => ({ ...ts, isSelected: ts.id === selectedSlotId })),
+            assignedStudents: assignedStudents as CounselorSession['assignedStudents'],
+          }
+        : s
+    );
     sessionsDb[projectId] = updated;
     return updated;
-  },
-
-  create: async (payload: CreateProjectPayload): Promise<Project> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const formatDate = (isoStr?: string) => {
-      if (!isoStr) return new Date().toISOString().slice(0, 10);
-      return isoStr.includes('T') ? isoStr.slice(0, 10) : isoStr;
-    };
-
-    const newProject: Project = {
-      id: `proj-${Date.now()}`,
-      name: `${payload.instituteDetails.name} Project`,
-      instituteName: payload.instituteDetails.name,
-      counselorCount: payload.counselors.length,
-      studentCount: payload.students.length,
-      status: 'active',
-      validFrom: formatDate(payload.instituteDetails.validFrom),
-      validTo: formatDate(payload.instituteDetails.validTo),
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-
-    projectDb = [newProject, ...projectDb];
-    return newProject;
-  },
-
-  update: async (id: string, updates: Partial<Project>): Promise<Project> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    projectDb = projectDb.map(p => (p.id === id ? { ...p, ...updates } : p));
-    const updated = projectDb.find(p => p.id === id);
-    if (!updated) throw new Error('Project not found');
-    return updated;
-  },
-
-  delete: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    projectDb = projectDb.map(p => {
-      if (p.id === id) {
-        return {
-          ...p,
-          previousStatus: p.status !== 'deleted' ? p.status : 'active',
-          status: 'deleted',
-        };
-      }
-      return p;
-    });
-  },
-
-  restore: async (id: string): Promise<Project> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    projectDb = projectDb.map(p => {
-      if (p.id === id) {
-        return {
-          ...p,
-          status: p.previousStatus || 'active',
-        };
-      }
-      return p;
-    });
-    const restored = projectDb.find(p => p.id === id);
-    if (!restored) throw new Error('Project not found');
-    return restored;
   },
 
   validateCounselors: async (
     counselors: Omit<ProjectCounselor, 'matchStatus'>[]
   ): Promise<ProjectCounselor[]> => {
     await new Promise(resolve => setTimeout(resolve, 400));
-
-    const existingEmails = new Set(
-      mockCounselors.map(c => c.email.toLowerCase().trim())
-    );
-
+    const existingEmails = new Set(mockCounselors.map(c => c.email.toLowerCase().trim()));
     return counselors.map(c => ({
       ...c,
       matchStatus: existingEmails.has(c.email.toLowerCase().trim())
