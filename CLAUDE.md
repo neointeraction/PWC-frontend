@@ -15,6 +15,7 @@
 
 ## Backend integration context
 
+- **Do NOT change the existing UI design when integrating.** Integration means swapping mock/static data for real API data **only** — the UI must look and behave exactly as before. Keep all markup, layout, styling, component structure, labels, copy, and interactions unchanged; the *only* difference after integration is where the data comes from. If real integration seems to require a visual change, stop and ask first rather than redesigning.
 - Backend API reference: `docs/api-list.md` — check its "Last updated" line before assuming an endpoint exists; it can lag behind the actual backend by a commit or two.
 - The frontend integrates against a separate backend repo (`PWC-backend`). Real endpoints get bound module-by-module; anything not yet in `docs/api-list.md` stays on mock services in `src/mocks/` / `src/services/*.service.ts`.
 - `master` and `integration` diverge on the Projects feature: `master` has an unmerged mock-only soft-delete/restore/draft/completed status model for Projects that doesn't match the real backend (`ProjectStatus` is just `ACTIVE`/`CLOSED`, no soft-delete, no restore endpoint). Expect this to conflict on every merge until it's resolved at the source (see conversation history / ask the backend dev) — resolve in favor of the real-API version on `integration`, not master's mock UI.
