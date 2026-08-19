@@ -26,6 +26,7 @@ export const ROUTES = {
   TENANT_MANAGEMENT: '/tenant-management',
   INSTITUTIONS: '/institutions',
   PROJECTS: '/projects',
+  PROJECT_DASHBOARD: '/projects/dashboard/:projectId',
   PROJECT_SESSIONS: '/projects/:projectId/sessions',
   PROJECT_STUDENTS: '/projects/:projectId/students',
   COUNSELORS: '/counselors',

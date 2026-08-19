@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiUploadCloud2Line,
   RiDownloadLine,
@@ -10,11 +10,9 @@ import {
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
-import { Select } from '@/components/Select';
 import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
-import { counselorService, splitName } from '@/services/counselor.service';
-import { instituteService } from '@/services/institute.service';
+import { counselorService } from '@/services/counselor.service';
 import { useCounselorStore } from '@/store/counselor.store';
 import { useToast } from '@/hooks';
 import { CreateCounselorInput } from '@/types/counselor.types';
@@ -109,17 +107,10 @@ const PreviewHeader = styled.div`
   margin-top: ${({ theme }) => theme.spacing.sm};
 `;
 
-const InstituteSelectWrapper = styled.div`
-  max-width: 320px;
-`;
-
 interface ParsedRow extends CreateCounselorInput {
-  name: string;
   isValid: boolean;
   validationError?: string;
 }
-
-const MOBILE_RE = /^\+\d{10,15}$/;
 
 export const BulkUploadCounselorsModal: React.FC = () => {
   const queryClient = useQueryClient();
@@ -130,29 +121,14 @@ export const BulkUploadCounselorsModal: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
-  const [instituteId, setInstituteId] = useState('');
-
-  const { data: institutes = [] } = useQuery({
-    queryKey: ['institutes'],
-    queryFn: instituteService.getAll,
-    enabled: isBulkUploadModalOpen,
-  });
 
   const bulkMutation = useMutation({
     mutationFn: counselorService.bulkCreate,
-    onSuccess: result => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
-      if (result.failed.length === 0) {
-        toast.success('Bulk Upload Complete', `Successfully imported ${result.succeeded.length} counselor records.`);
-        handleReset();
-        closeBulkUploadModal();
-      } else {
-        toast.error(
-          'Partial Import',
-          `${result.succeeded.length} imported, ${result.failed.length} failed: ${result.failed[0].message}`
-        );
-        queryClient.invalidateQueries({ queryKey: ['counselors'] });
-      }
+      toast.success('Bulk Upload Complete', `Successfully imported ${data.length} counselor records.`);
+      handleReset();
+      closeBulkUploadModal();
     },
     onError: () => {
       toast.error('Error', 'Failed to bulk upload counselor records.');
@@ -169,9 +145,9 @@ export const BulkUploadCounselorsModal: React.FC = () => {
 
   const handleDownloadTemplate = () => {
     const csvContent =
-      'Counsellor ID,Counsellor Name,Mobile No.,Email ID\n' +
-      'CN014,Anil Sharma,+919876543210,anil.sharma@example.com\n' +
-      'CN015,Sunita Roy,+919812345678,sunita.roy@example.com\n';
+      'Counsellor ID,PWD,Counsellor Name,Mobile No.,Email ID\n' +
+      'C014,,Anil Sharma,9876543210,anil.sharma@example.com\n' +
+      'C015,,Sunita Roy,9812345678,sunita.roy@example.com\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -198,27 +174,20 @@ export const BulkUploadCounselorsModal: React.FC = () => {
 
     for (let i = 1; i < lines.length; i++) {
       const parts = lines[i].split(',').map(p => p.trim());
-      const counselorId = parts[0] || '';
-      const name = parts[1] || '';
-      const mobile = parts[2] || '';
-      const email = parts[3] || '';
-      const { firstName, lastName } = splitName(name);
+      const counselorId = parts[0] || `C0${i + 13}`;
+      const name = parts[2] || parts[1] || '';
+      const mobile = parts[3] || parts[2] || '';
+      const email = parts[4] || parts[3] || '';
 
-      const isValid = Boolean(
-        counselorId && firstName && lastName && email.includes('@') && MOBILE_RE.test(mobile)
-      );
+      const isValid = Boolean(name && email && email.includes('@'));
       rows.push({
         counselorId,
         name: name || 'Unknown Counselor',
-        firstName,
-        lastName,
-        mobile,
+        mobile: mobile || 'N/A',
         email: email || 'invalid@example.com',
-        instituteId: '',
+        status: 'active',
         isValid,
-        validationError: !isValid
-          ? 'Missing ID/name, invalid email, or mobile isn\'t E.164 (+countrycode…)'
-          : undefined,
+        validationError: !isValid ? 'Missing required name or email format' : undefined,
       });
     }
 
@@ -248,13 +217,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
   };
 
   const handleUploadSubmit = () => {
-    if (!instituteId) {
-      toast.error('Institute Required', 'Select the institute these counselors belong to.');
-      return;
-    }
-    const validInputs = parsedRows
-      .filter(r => r.isValid)
-      .map(({ isValid, validationError, name, ...rest }) => ({ ...rest, instituteId }));
+    const validInputs = parsedRows.filter(r => r.isValid).map(({ isValid, validationError, ...rest }) => rest);
     if (validInputs.length === 0) {
       toast.error('No Valid Rows', 'Please ensure your CSV contains valid counselor records.');
       return;
@@ -342,20 +305,10 @@ export const BulkUploadCounselorsModal: React.FC = () => {
       }
     >
       <Container>
-        <InstituteSelectWrapper>
-          <Select
-            label="Institute (applies to every row in this file)"
-            options={institutes.map(i => ({ value: i.id, label: i.name }))}
-            value={instituteId}
-            onChange={e => setInstituteId(e.target.value)}
-            placeholder="Select institute"
-          />
-        </InstituteSelectWrapper>
-
         <TemplateSection>
           <TemplateInfo>
             <h4>CSV Template Format</h4>
-            <p>Headers required: Counsellor ID, Counsellor Name, Mobile No. (E.164), Email ID</p>
+            <p>Headers required: Counsellor ID, PWD, Counsellor Name, Mobile No., Email ID</p>
           </TemplateInfo>
           <Button variant="secondary" size="sm" leftIcon={<RiDownloadLine size={16} />} onClick={handleDownloadTemplate}>
             Download Sample CSV

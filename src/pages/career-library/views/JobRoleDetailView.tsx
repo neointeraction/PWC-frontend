@@ -388,7 +388,7 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
           {activeTab === 'overview' && (
             <SectionGrid>
               <SectionCard title="Role Overview & Scope">
-                <SectionText>{role.oneLineDescription}</SectionText>
+                {/* <SectionText>{role.oneLineDescription}</SectionText> */}
                 {role.roleOverview && <SectionText>{role.roleOverview}</SectionText>}
               </SectionCard>
 

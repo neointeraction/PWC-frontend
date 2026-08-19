@@ -21,11 +21,13 @@ import { counselorService } from '@/services/counselor.service';
 import { useCounselorStore } from '@/store/counselor.store';
 import { useAuthStore } from '@/store';
 import { useToast } from '@/hooks';
-import { getApiErrorMessage } from '@/utils';
 import { Counselor } from '@/types/counselor.types';
 import { ROUTES } from '@/constants';
 import {
   CounselorsContainer,
+  StatsGrid,
+  StatMetricValue,
+  ProjectCountBox,
   FilterBar,
   SearchWrapper,
   FilterControls,
@@ -33,10 +35,6 @@ import {
   HeaderActions,
   ActionIconButtonGroup,
   ActionIconButton,
-  CounselorCell,
-  CounselorNameText,
-  CounselorEmailSubtext,
-  ProjectCountBox,
 } from './CounselorsList.styles';
 import { AddCounselorModal } from './components/AddCounselorModal';
 import { BulkUploadCounselorsModal } from './components/BulkUploadCounselorsModal';
@@ -86,8 +84,8 @@ export const CounselorsListPage: React.FC = () => {
       toast.success('Counselor Deleted', 'Successfully removed counselor record.');
       setCounselorToDelete(null);
     },
-    onError: err => {
-      toast.error('Error', getApiErrorMessage(err, 'Failed to delete counselor record.'));
+    onError: () => {
+      toast.error('Error', 'Failed to delete counselor record.');
       setCounselorToDelete(null);
     },
   });
@@ -98,7 +96,79 @@ export const CounselorsListPage: React.FC = () => {
     }
   };
 
+  const getStatusBadge = (row: Counselor) => {
+    const status = row.deploymentStatus || (row.status === 'active' ? 'deployed' : 'inactive');
+    switch (status) {
+      case 'deployed':
+        return (
+          <Badge variant="success" dot>
+            Deployed
+          </Badge>
+        );
+      case 'bench':
+        return (
+          <Badge variant="info" dot>
+            Bench
+          </Badge>
+        );
+      case 'inactive':
+        return (
+          <Badge variant="danger" dot>
+            Inactive
+          </Badge>
+        );
+      default:
+        return <Badge variant="default">{status}</Badge>;
+    }
+  };
+
   const columns: Column<Counselor>[] = [
+    {
+      key: 'counselorId',
+      header: 'ID',
+      width: '80px',
+      render: row => <strong>{row.counselorId}</strong>,
+    },
+    {
+      key: 'name',
+      header: 'Counsellor',
+      render: row => <strong>{row.name}</strong>,
+    },
+    {
+      key: 'projectDeployed',
+      header: 'Project Deployed',
+      render: row => {
+        const isInactive = row.deploymentStatus === 'inactive' || row.status === 'inactive';
+        
+        if (isInactive) {
+          return (
+            <ProjectCountBox as="div" $isInactive>
+              inactive
+            </ProjectCountBox>
+          );
+        }
+
+        const count = row.projectsList?.length || 0;
+        
+        return (
+          <Tooltip content="Click to view deployment & workload breakdown">
+            <ProjectCountBox
+              type="button"
+              onClick={() => setCounselorForDeployment(row)}
+            >
+              <RiFolderLine /> {count} Projects
+            </ProjectCountBox>
+          </Tooltip>
+        );
+      },
+    },
+
+    {
+      key: 'status',
+      header: 'Status',
+      width: '100px',
+      render: row => getStatusBadge(row),
+    },
     {
       key: 'actions',
       header: 'Actions',
@@ -129,73 +199,13 @@ export const CounselorsListPage: React.FC = () => {
         </ActionIconButtonGroup>
       ),
     },
-    {
-      key: 'counselorId',
-      header: 'Counsellor ID',
-      width: '120px',
-      render: row => <strong>{row.counselorId}</strong>,
-    },
-    {
-      key: 'name',
-      header: 'Counsellor Name & Email',
-      render: row => (
-        <CounselorCell>
-          <CounselorNameText>{row.name}</CounselorNameText>
-          <CounselorEmailSubtext>{row.email}</CounselorEmailSubtext>
-        </CounselorCell>
-      ),
-    },
-    {
-      key: 'mobile',
-      header: 'Mobile No.',
-      width: '140px',
-      render: row => row.mobile || 'N/A',
-    },
-    {
-      key: 'instituteName',
-      header: 'Institute',
-      width: '200px',
-      render: row => row.instituteName || '—',
-    },
-    {
-      key: 'projectDeployed',
-      header: 'Project Deployed',
-      render: row => {
-        const isInactive = row.deploymentStatus === 'inactive' || row.status === 'inactive';
-        if (isInactive) {
-          return (
-            <ProjectCountBox as="div" $isInactive>
-              inactive
-            </ProjectCountBox>
-          );
-        }
-        const count = row.projectsList?.length || 0;
-        return (
-          <Tooltip content="Click to view deployment & workload breakdown">
-            <ProjectCountBox type="button" onClick={() => setCounselorForDeployment(row)}>
-              <RiFolderLine /> {count} Projects
-            </ProjectCountBox>
-          </Tooltip>
-        );
-      },
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      width: '100px',
-      render: row => (
-        <Badge variant={row.status === 'active' ? 'success' : 'default'} dot>
-          {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
-        </Badge>
-      ),
-    },
   ];
 
   return (
     <CounselorsContainer>
       <PageHeader
-        title="Counselors List"
-        subtitle="Manage institution career counselors, single registration, and bulk CSV imports"
+        title="Counsellor Directory"
+        subtitle="Deployment &amp; Workload overview for institution career counselors"
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Counselors List' }]}
         actions={
           isViewOnlyUser ? undefined : (
@@ -219,7 +229,26 @@ export const CounselorsListPage: React.FC = () => {
         }
       />
 
-      <Card>
+      {/* Top Metric Stat Cards matching mockup */}
+      <StatsGrid>
+        <Card title="Total Empanelled">
+          <StatMetricValue>58</StatMetricValue>
+        </Card>
+
+        <Card title="Deployed">
+          <StatMetricValue $color="#16A34A">44</StatMetricValue>
+        </Card>
+
+        <Card title="On Bench">
+          <StatMetricValue $color="#0284C7">9</StatMetricValue>
+        </Card>
+
+        <Card title="Inactive">
+          <StatMetricValue $color="#DC2626">5</StatMetricValue>
+        </Card>
+      </StatsGrid>
+
+      <Card title="Deployment &amp; Workload">
         <FilterBar>
           <SearchWrapper>
             <Input
@@ -278,6 +307,7 @@ export const CounselorsListPage: React.FC = () => {
       <BulkUploadCounselorsModal />
       <EditCounselorModal />
       <ViewCounselorModal />
+
       <CounselorDeploymentModal
         isOpen={Boolean(counselorForDeployment)}
         onClose={() => setCounselorForDeployment(null)}

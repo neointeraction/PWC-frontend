@@ -9,8 +9,6 @@ import { Button } from '@/components/Button';
 import { useToast } from '@/hooks';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
-import { apiClient } from '@/services/api';
-import { getApiErrorMessage } from '@/utils';
 import logoImg from '@/assets/logo.jpg';
 import {
   ResetPasswordWrapper,
@@ -31,7 +29,7 @@ import {
 const resetPasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+    newPassword: z.string().min(1, 'New password is required'),
     confirmPassword: z.string().min(1, 'Please confirm your new password'),
   })
   .refine(data => data.newPassword === data.confirmPassword, {
@@ -54,16 +52,9 @@ export const ResetPasswordPage: React.FC = () => {
     resolver: zodResolver(resetPasswordSchema),
   });
 
-  const onSubmit = async (data: ResetPasswordFormData) => {
-    try {
-      await apiClient.post('/auth/change-password', {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-      });
-    } catch (err) {
-      toast.error('Password Change Failed', getApiErrorMessage(err));
-      return;
-    }
+  const onSubmit = async (_data: ResetPasswordFormData) => {
+    // Simulate API call for password update
+    await new Promise(resolve => setTimeout(resolve, 600));
     setMustResetPassword(false);
     toast.success(
       'Password Changed Successfully',
@@ -96,7 +87,9 @@ export const ResetPasswordPage: React.FC = () => {
         <TitleWrapper>
           <Heading>Mandatory Password Change</Heading>
           <Subtext>
-            First-time login detected. Please update your temporary account password to proceed.
+            {role === 'student'
+              ? 'Student first-time login detected. Please update your temporary account password to proceed.'
+              : 'Counselor first-time login detected. Please update your temporary account password to proceed.'}
           </Subtext>
         </TitleWrapper>
 
@@ -106,8 +99,9 @@ export const ResetPasswordPage: React.FC = () => {
             style={{ color: '#5D2384', flexShrink: 0, marginTop: '2px' }}
           />
           <AlertText>
-            For privacy and security regulations, you're required to set a unique personal
-            password upon first login.
+            {role === 'student'
+              ? 'For privacy and security regulations, students are required to set a unique personal password upon first login.'
+              : 'For privacy and security regulations, counselors are required to set a unique personal password upon first login.'}
           </AlertText>
         </SecurityAlertBox>
 

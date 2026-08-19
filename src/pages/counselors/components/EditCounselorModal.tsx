@@ -10,13 +10,15 @@ import { Select } from '@/components/Select';
 import { counselorService } from '@/services/counselor.service';
 import { useCounselorStore } from '@/store/counselor.store';
 import { useToast } from '@/hooks';
-import { getApiErrorMessage } from '@/utils';
 import { ModalForm } from '../CounselorsList.styles';
 
 const editCounselorSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  mobile: z.string().regex(/^\+\d{10,15}$/, 'Mobile must be E.164 format, e.g. +919876543210'),
+  counselorId: z.string().min(1, 'Counselor ID is required'),
+  name: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  mobile: z.string().min(10, 'Mobile number must be at least 10 digits'),
+  meetingLink: z.string().optional(),
+  pwd: z.string().optional(),
   status: z.enum(['active', 'inactive']),
 });
 
@@ -40,9 +42,12 @@ export const EditCounselorModal: React.FC = () => {
   useEffect(() => {
     if (selectedCounselorForEdit) {
       reset({
-        firstName: selectedCounselorForEdit.firstName,
-        lastName: selectedCounselorForEdit.lastName,
+        counselorId: selectedCounselorForEdit.counselorId,
+        name: selectedCounselorForEdit.name,
+        email: selectedCounselorForEdit.email,
         mobile: selectedCounselorForEdit.mobile,
+        meetingLink: selectedCounselorForEdit.meetingLink || '',
+        pwd: selectedCounselorForEdit.pwd || '',
         status: selectedCounselorForEdit.status,
       });
     }
@@ -56,8 +61,8 @@ export const EditCounselorModal: React.FC = () => {
       toast.success('Counselor Updated', `Successfully updated profile for ${data.name}.`);
       closeEditModal();
     },
-    onError: err => {
-      toast.error('Error', getApiErrorMessage(err, 'Failed to update counselor profile.'));
+    onError: () => {
+      toast.error('Error', 'Failed to update counselor profile.');
     },
   });
 
@@ -86,28 +91,48 @@ export const EditCounselorModal: React.FC = () => {
       }
     >
       <ModalForm id="edit-counselor-form" onSubmit={handleSubmit(onSubmit)}>
-        <Input label="Counselor ID" value={selectedCounselorForEdit?.counselorId || ''} readOnly disabled />
-        <Input label="Email Address" value={selectedCounselorForEdit?.email || ''} readOnly disabled />
-
         <Input
-          label="First Name"
-          placeholder="e.g. Anil"
-          error={errors.firstName?.message}
-          {...register('firstName')}
+          label="Counselor ID"
+          placeholder="e.g. C001"
+          error={errors.counselorId?.message}
+          {...register('counselorId')}
         />
 
         <Input
-          label="Last Name"
-          placeholder="e.g. Iyer"
-          error={errors.lastName?.message}
-          {...register('lastName')}
+          label="Counselor Name"
+          placeholder="e.g. Anil Iyer"
+          error={errors.name?.message}
+          {...register('name')}
+        />
+
+        <Input
+          label="Email Address"
+          type="email"
+          placeholder="e.g. anil.iyer@example.com"
+          error={errors.email?.message}
+          {...register('email')}
         />
 
         <Input
           label="Mobile Number"
-          placeholder="e.g. +919819093786"
+          placeholder="e.g. 9819093786"
           error={errors.mobile?.message}
           {...register('mobile')}
+        />
+
+        <Input
+          label="GMeet / Zoom Link"
+          placeholder="e.g. https://meet.google.com/abc-defg-hij"
+          error={errors.meetingLink?.message}
+          {...register('meetingLink')}
+        />
+
+        <Input
+          label="Password / PWD"
+          type="password"
+          placeholder="Enter new password to update"
+          error={errors.pwd?.message}
+          {...register('pwd')}
         />
 
         <Controller

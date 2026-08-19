@@ -27,6 +27,9 @@ const CareerListPage = lazy(() =>
 const ProjectsPage = lazy(() =>
   import('@/pages/projects').then(m => ({ default: m.ProjectsPage }))
 );
+const ProjectDashboardPage = lazy(() =>
+  import('@/pages/projects/ProjectDashboardPage').then(m => ({ default: m.ProjectDashboardPage }))
+);
 const ProjectSessionsPage = lazy(() =>
   import('@/pages/projects/ProjectSessionsPage').then(m => ({ default: m.ProjectSessionsPage }))
 );
@@ -172,6 +175,7 @@ export const AppRoutes: React.FC = () => {
           <Route path={ROUTES.COUNSELOR_STUDENT_CHART} element={<StudentFormChartPage />} />
           <Route path={ROUTES.GENERATE_REPORT} element={<StudentCareerIkigaiReportPage />} />
           <Route path={ROUTES.PROJECTS} element={<ProjectsPage />} />
+          <Route path={ROUTES.PROJECT_DASHBOARD} element={<ProjectDashboardPage />} />
           <Route path={ROUTES.PROJECT_SESSIONS} element={<ProjectSessionsPage />} />
           <Route path={ROUTES.PROJECT_STUDENTS} element={<ProjectStudentsPage />} />
           <Route path={ROUTES.COUNSELORS} element={<CounselorsListPage />} />

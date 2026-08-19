@@ -148,7 +148,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
             </IconBox>
             <DetailContent>
               <DetailLabel>Session Date</DetailLabel>
-              <DetailValue>{student.sessionDate || '18 Feb 2026'}</DetailValue>
+              <DetailValue>{student.sessionDate || '18-02-2026'}</DetailValue>
             </DetailContent>
           </DetailCard>
 
@@ -159,7 +159,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
             <DetailContent>
               <DetailLabel>Session & Slot</DetailLabel>
               <DetailValue>
-                {student.sessionType || 'S1'} ({student.timeSlot || '09:30 AM - 10:30 AM'})
+                {student.sessionType || 'S1'} ({student.timeSlot || '09:30 - 10:30'})
               </DetailValue>
             </DetailContent>
           </DetailCard>

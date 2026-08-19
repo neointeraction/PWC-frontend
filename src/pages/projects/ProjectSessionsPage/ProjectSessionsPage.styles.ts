@@ -171,7 +171,14 @@ export const ActionIconButton = styled.button`
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
   transition: all 0.2s ease;
+
+  tr:hover & {
+    opacity: 1;
+    visibility: visible;
+  }
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
@@ -197,3 +204,10 @@ export const StudentNameButton = styled.button`
     color: ${({ theme }) => theme.colors.primaryHover};
   }
 `;
+
+export const NBStudentText = styled.span`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-style: italic;
+`;
+

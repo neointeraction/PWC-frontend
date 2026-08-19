@@ -45,8 +45,21 @@ export const ViewCounselorModal: React.FC = () => {
         </DetailItem>
 
         <DetailItem>
-          <label>Institute</label>
-          <p>{selectedCounselorForView.instituteName}</p>
+          <label>GMeet / Zoom Link</label>
+          <p>
+            {selectedCounselorForView.meetingLink ? (
+              <a
+                href={selectedCounselorForView.meetingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#5D2384', textDecoration: 'underline' }}
+              >
+                {selectedCounselorForView.meetingLink}
+              </a>
+            ) : (
+              'N/A'
+            )}
+          </p>
         </DetailItem>
 
         <DetailItem>

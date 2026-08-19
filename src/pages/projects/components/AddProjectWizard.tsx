@@ -5,17 +5,17 @@ import {
   RiArrowRightLine,
   RiCheckLine,
   RiBuildingLine,
+  RiTeamLine,
   RiGraduationCapLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Stepper, StepConfig } from '@/components/Stepper';
 import { useProjectStore } from '@/store/project.store';
-import { instituteService } from '@/services/institute.service';
 import { projectService } from '@/services/project.service';
 import { useToast } from '@/hooks';
-import { getApiErrorMessage } from '@/utils';
 import { StepInstitute } from './StepInstitute';
+import { StepCounselors } from './StepCounselors';
 import { StepStudents } from './StepStudents';
 import {
   WizardStepperWrapper,
@@ -26,8 +26,9 @@ import {
 } from './AddProjectWizard.styles';
 
 const WIZARD_STEPS: StepConfig[] = [
-  { label: 'Institute & Project', description: 'Pick institute, set project window', icon: <RiBuildingLine size={16} /> },
+  { label: 'Institute', description: 'Add institute details', icon: <RiBuildingLine size={16} /> },
   { label: 'Students', description: 'Onboard students', icon: <RiGraduationCapLine size={16} /> },
+  { label: 'Counselors', description: 'Assign counselors', icon: <RiTeamLine size={16} /> },
 ];
 
 export const AddProjectWizard: React.FC = () => {
@@ -40,62 +41,51 @@ export const AddProjectWizard: React.FC = () => {
     wizardStep,
     nextStep,
     prevStep,
-    instituteMode,
-    selectedInstituteId,
-    newInstitute,
-    projectName,
-    fromDate,
-    toDate,
-    createdProjectId,
-    setCreated,
+    instituteDetails,
+    counselors,
+    students,
   } = useProjectStore();
 
-  const createProjectMutation = useMutation({
-    mutationFn: async () => {
-      let instituteId = selectedInstituteId;
-      let instituteName = '';
-
-      if (instituteMode === 'new') {
-        const institute = await instituteService.create(newInstitute);
-        instituteId = institute.id;
-        instituteName = institute.name;
-      } else {
-        const institutes = await instituteService.getAll();
-        instituteName = institutes.find(i => i.id === instituteId)?.name || '';
-      }
-
-      const project = await projectService.create({
-        instituteId,
-        name: projectName.trim(),
-        fromDate,
-        toDate,
-      });
-
-      return { projectId: project.id, instituteId, instituteName };
-    },
-    onSuccess: ({ projectId, instituteId, instituteName }) => {
+  const createMutation = useMutation({
+    mutationFn: projectService.create,
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['institutes'] });
-      setCreated(projectId, instituteId, instituteName);
-      toast.success('Project Created', `"${projectName}" is ready — now onboard students.`);
-      nextStep();
+      toast.success('Project Created', 'The project has been created successfully.');
+      closeWizard();
     },
-    onError: err => {
-      toast.error('Error', getApiErrorMessage(err, 'Failed to create the project.'));
+    onError: () => {
+      toast.error('Error', 'Failed to create the project. Please try again.');
     },
   });
 
-  const isStep0Valid = useMemo(() => {
-    if (instituteMode === 'existing' && !selectedInstituteId) return false;
-    if (instituteMode === 'new') {
-      const { name, address, contactNumber, primaryEmail } = newInstitute;
-      if (!name || name.trim().length < 3 || !address || !contactNumber || !primaryEmail) return false;
+  const isNextDisabled = useMemo(() => {
+    switch (wizardStep) {
+      case 0: {
+        const { name, email, phone, validFrom, validTo } = instituteDetails;
+        if (!name || name.trim().length < 3) return true;
+        if (!email || !phone || !validFrom || !validTo) return true;
+        if (new Date(validFrom) > new Date(validTo)) return true;
+        return false;
+      }
+      case 1:
+        return students.length === 0;
+      case 2:
+        return counselors.length === 0;
+      default:
+        return false;
     }
-    if (!projectName || projectName.trim().length < 2) return false;
-    if (!fromDate || !toDate) return false;
-    if (new Date(fromDate) > new Date(toDate)) return false;
-    return true;
-  }, [instituteMode, selectedInstituteId, newInstitute, projectName, fromDate, toDate]);
+  }, [wizardStep, instituteDetails, counselors, students]);
+
+  const handleFinish = () => {
+    createMutation.mutate({
+      instituteDetails: {
+        ...instituteDetails,
+        name: instituteDetails.name.trim(),
+      },
+      counselors,
+      students,
+    });
+  };
 
   const renderStepContent = () => {
     switch (wizardStep) {
@@ -103,6 +93,8 @@ export const AddProjectWizard: React.FC = () => {
         return <StepInstitute />;
       case 1:
         return <StepStudents />;
+      case 2:
+        return <StepCounselors />;
       default:
         return null;
     }
@@ -110,37 +102,35 @@ export const AddProjectWizard: React.FC = () => {
 
   const isLastStep = wizardStep === WIZARD_STEPS.length - 1;
 
-  const handleClose = () => {
-    queryClient.invalidateQueries({ queryKey: ['projects'] });
-    closeWizard();
-  };
-
   const wizardFooter = (
     <FooterContainer>
       <FooterLeftSection>
-        {wizardStep > 0 && !createdProjectId && (
+        {wizardStep > 0 && (
           <Button variant="secondary" leftIcon={<RiArrowLeftLine size={16} />} onClick={prevStep}>
             Back
           </Button>
         )}
       </FooterLeftSection>
       <FooterRightSection>
-        <Button variant="ghost" onClick={handleClose}>
-          {isLastStep ? 'Done' : 'Cancel'}
+        <Button variant="ghost" onClick={closeWizard}>
+          Cancel
         </Button>
-        {!isLastStep && (
+        {isLastStep ? (
+          <Button
+            leftIcon={<RiCheckLine size={16} />}
+            onClick={handleFinish}
+            disabled={isNextDisabled}
+            isLoading={createMutation.isPending}
+          >
+            Finish
+          </Button>
+        ) : (
           <Button
             rightIcon={<RiArrowRightLine size={16} />}
-            onClick={() => createProjectMutation.mutate()}
-            disabled={!isStep0Valid}
-            isLoading={createProjectMutation.isPending}
+            onClick={nextStep}
+            // disabled={isNextDisabled}
           >
-            Create Project &amp; Continue
-          </Button>
-        )}
-        {isLastStep && (
-          <Button leftIcon={<RiCheckLine size={16} />} onClick={handleClose}>
-            Finish
+            Next
           </Button>
         )}
       </FooterRightSection>
@@ -150,9 +140,9 @@ export const AddProjectWizard: React.FC = () => {
   return (
     <Modal
       isOpen={isWizardOpen}
-      onClose={handleClose}
+      onClose={closeWizard}
       title="Create New Project"
-      subtitle="Set up the institute/project, then onboard students"
+      subtitle="Follow the steps below to set up a new project"
       size="xl"
       footer={wizardFooter}
     >

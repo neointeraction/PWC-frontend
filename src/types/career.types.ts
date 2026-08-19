@@ -32,6 +32,7 @@ export interface Career {
   status: 'active' | 'inactive' | 'pending';
   lastUpdated: string;
   sourceTenant?: string;
+  isShortlisted?: boolean; // used by the (master) shortlist UI on career browsing
 }
 
 export interface CareerCluster {
@@ -92,6 +93,7 @@ export interface EntranceExam {
   requirement12th: string;
   website: string;
   datesText?: string;
+  isShortlisted?: boolean;
 }
 
 export interface CourseDetail {
@@ -114,4 +116,5 @@ export interface InstitutionDetail {
   programsOffered: string;
   ranking: string;
   website: string;
+  isShortlisted?: boolean;
 }

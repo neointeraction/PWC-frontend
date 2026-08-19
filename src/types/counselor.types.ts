@@ -9,14 +9,12 @@ export interface ProjectDeploymentDetail {
 
 export interface Counselor {
   id: string;
-  counselorId: string; // backend counsellorCode
+  counselorId: string;
   name: string;
-  firstName: string;
-  lastName: string;
   mobile: string;
   email: string;
-  instituteId: string;
-  instituteName: string;
+  meetingLink?: string;
+  pwd?: string;
   status: 'active' | 'inactive';
   deploymentStatus?: DeploymentStatus;
   projectDeployedName?: string;
@@ -35,18 +33,22 @@ export interface CounselorFilterParams {
 }
 
 export interface CreateCounselorInput {
-  counselorId: string; // -> counsellorCode
-  firstName: string;
-  lastName: string;
+  counselorId: string;
+  name: string;
   mobile: string;
   email: string;
-  instituteId: string;
+  meetingLink?: string;
+  pwd?: string;
+  status?: 'active' | 'inactive';
 }
 
 export interface UpdateCounselorInput {
-  firstName?: string;
-  lastName?: string;
+  counselorId?: string;
+  name?: string;
   mobile?: string;
+  email?: string;
+  meetingLink?: string;
+  pwd?: string;
   status?: 'active' | 'inactive';
 }
 
@@ -56,9 +58,4 @@ export interface CounselorListResponse {
   page: number;
   limit: number;
   totalPages: number;
-}
-
-export interface CreateCounselorResult {
-  counselor: Counselor;
-  tempPassword: string;
 }

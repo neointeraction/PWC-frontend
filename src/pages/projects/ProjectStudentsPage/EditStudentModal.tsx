@@ -49,13 +49,6 @@ const counselorsList = [
   'Manoj Chacko',
 ];
 
-const timeSlotsList = [
-  '09:30 AM - 10:30 AM',
-  '11:00 AM - 12:00 PM',
-  '02:00 PM - 03:00 PM',
-  '04:00 PM - 05:00 PM',
-];
-
 interface EditStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -90,8 +83,8 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={student?.id ? `Edit Student - ${formData.name}` : 'Add New Student'}
-      subtitle="Modify student personal details, grade, and session counselor assignments."
-      size="lg"
+      subtitle="Modify student personal details, grade, and assigned counselor."
+      size="md"
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
           <Button variant="secondary" onClick={onClose} disabled={isSaving}>
@@ -145,102 +138,6 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 });
               }}
               options={counselorsList.map(c => ({ value: c, label: c }))}
-            />
-          </FormGrid>
-        </SectionBox>
-
-        <SectionBox>
-          <SectionTitle>Session 1 Details</SectionTitle>
-          <FormGrid>
-            <Select
-              label="Session 1 Status"
-              value={formData.session1.status}
-              onChange={e =>
-                setFormData({
-                  ...formData,
-                  session1: {
-                    ...formData.session1,
-                    status: e.target.value as 'completed' | 'scheduled' | 'pending',
-                  },
-                })
-              }
-              options={[
-                { value: 'scheduled', label: 'Scheduled' },
-                { value: 'completed', label: 'Completed' },
-                { value: 'pending', label: 'Pending' },
-              ]}
-            />
-
-            <Input
-              label="Session Date"
-              type="date"
-              value={formData.session1.date}
-              onChange={e =>
-                setFormData({
-                  ...formData,
-                  session1: { ...formData.session1, date: e.target.value },
-                })
-              }
-            />
-
-            <Select
-              label="Time Slot"
-              value={formData.session1.timeSlot}
-              onChange={e =>
-                setFormData({
-                  ...formData,
-                  session1: { ...formData.session1, timeSlot: e.target.value },
-                })
-              }
-              options={timeSlotsList.map(t => ({ value: t, label: t }))}
-            />
-          </FormGrid>
-        </SectionBox>
-
-        <SectionBox>
-          <SectionTitle>Session 2 Details</SectionTitle>
-          <FormGrid>
-            <Select
-              label="Session 2 Status"
-              value={formData.session2.status}
-              onChange={e =>
-                setFormData({
-                  ...formData,
-                  session2: {
-                    ...formData.session2,
-                    status: e.target.value as 'completed' | 'scheduled' | 'pending',
-                  },
-                })
-              }
-              options={[
-                { value: 'scheduled', label: 'Scheduled' },
-                { value: 'completed', label: 'Completed' },
-                { value: 'pending', label: 'Pending' },
-              ]}
-            />
-
-            <Input
-              label="Session Date"
-              type="date"
-              value={formData.session2.date}
-              onChange={e =>
-                setFormData({
-                  ...formData,
-                  session2: { ...formData.session2, date: e.target.value },
-                })
-              }
-            />
-
-            <Select
-              label="Time Slot"
-              value={formData.session2.timeSlot}
-              onChange={e =>
-                setFormData({
-                  ...formData,
-                  session2: { ...formData.session2, timeSlot: e.target.value },
-                })
-              }
-              options={timeSlotsList.map(t => ({ value: t, label: t }))}
             />
           </FormGrid>
         </SectionBox>

@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { RiSearchLine, RiAddLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
@@ -8,7 +7,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Badge } from '@/components/Badge';
 import { Checkbox } from '@/components/Checkbox';
-import { careerService } from '@/services/career.service';
+import { mockCareers, mockClusters } from '@/mocks/careers.mock';
 import { CareerCompassItem } from '@/mocks/studentFormChart.mock';
 
 interface CareerLibraryPickerModalProps {
@@ -107,24 +106,12 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
   const [selectedCluster, setSelectedCluster] = useState('ALL');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const { data: mockClusters = [] } = useQuery({
-    queryKey: ['clusters'],
-    queryFn: () => careerService.getClusters(),
-    enabled: isOpen,
-  });
-
-  const { data: mockCareers = [] } = useQuery({
-    queryKey: ['jobRoles-all'],
-    queryFn: () => careerService.getJobRoles(),
-    enabled: isOpen,
-  });
-
   const clusterOptions = useMemo(() => {
     return [
       { label: 'All Career Clusters', value: 'ALL' },
       ...mockClusters.map(c => ({ label: c.name, value: c.name })),
     ];
-  }, [mockClusters]);
+  }, []);
 
   const filteredCareers = useMemo(() => {
     return mockCareers.filter(c => {
@@ -142,7 +129,7 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
 
       return matchesSearch && matchesCluster;
     });
-  }, [search, selectedCluster, mockCareers]);
+  }, [search, selectedCluster]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
