@@ -97,8 +97,10 @@ export const StudentPortalPage: React.FC = () => {
     const bookedDone = localStorage.getItem('pwc_sessions_booked') === 'true';
     const s1Done = localStorage.getItem('pwc_session_1_completed') === 'true';
     const s2Done = localStorage.getItem('pwc_session_2_completed') === 'true';
-    const slot1 = localStorage.getItem('pwc_session_1_slot') || 'May 12, 2026 • 05:00 PM - 06:00 PM';
-    const slot2 = localStorage.getItem('pwc_session_2_slot') || 'May 15, 2026 • 05:00 PM - 06:00 PM';
+    const slot1 =
+      localStorage.getItem('pwc_session_1_slot') || 'May 12, 2026 • 05:00 PM - 06:00 PM';
+    const slot2 =
+      localStorage.getItem('pwc_session_2_slot') || 'May 15, 2026 • 05:00 PM - 06:00 PM';
     const studentFeedbackDone = localStorage.getItem('pwc_student_feedback_submitted') === 'true';
     const parentFeedbackDone = localStorage.getItem('pwc_parent_feedback_submitted') === 'true';
 
@@ -145,7 +147,7 @@ export const StudentPortalPage: React.FC = () => {
     setIsSession2Completed(true);
     toast.success(
       'Session 2 Completed!',
-      'Session 2 completed. Feedback & Ikigai Report unlocked!'
+      'Session 2 completed. Feedback & kREATE Compass Report unlocked!'
     );
   };
 
@@ -161,10 +163,7 @@ export const StudentPortalPage: React.FC = () => {
   const handleCopyParentFeedbackLink = () => {
     const parentFeedbackLink = `${window.location.origin}${ROUTES.PARENT_FEEDBACK_FORM}`;
     navigator.clipboard.writeText(parentFeedbackLink);
-    toast.success(
-      'Parent Feedback Link Copied!',
-      'Parent Feedback Form link copied to clipboard.'
-    );
+    toast.success('Parent Feedback Link Copied!', 'Parent Feedback Form link copied to clipboard.');
   };
 
   const handleParentFormSubmit = () => {
@@ -172,17 +171,14 @@ export const StudentPortalPage: React.FC = () => {
     localStorage.setItem('pwc_parent_form_submitted', 'true');
     toast.success(
       'Pre-Counselling Form Parent Completed!',
-      "Parent form marked as completed (Form link sent via email to parent)."
+      'Parent form marked as completed (Form link sent via email to parent).'
     );
   };
 
   const handleParentFeedbackSubmit = () => {
     setIsParentFeedbackSubmitted(true);
     localStorage.setItem('pwc_parent_feedback_submitted', 'true');
-    toast.success(
-      'Parent Feedback Completed!',
-      "Parent feedback form marked as completed."
-    );
+    toast.success('Parent Feedback Completed!', 'Parent feedback form marked as completed.');
   };
 
   // Build the 8 primary student timeline steps
@@ -196,48 +192,48 @@ export const StudentPortalPage: React.FC = () => {
     const s2Status: 'completed' | 'current' | 'upcoming' = isPreCounsellingSubmitted
       ? 'completed'
       : isProfileCompleted
-      ? 'current'
-      : 'upcoming';
+        ? 'current'
+        : 'upcoming';
 
     // 3. Assessment Form
     const s3Status: 'completed' | 'current' | 'upcoming' = isAssessmentSubmitted
       ? 'completed'
       : isPreCounsellingSubmitted
-      ? 'current'
-      : 'upcoming';
+        ? 'current'
+        : 'upcoming';
 
     // 4. Booking session 1 & 2
     const s4Status: 'completed' | 'current' | 'upcoming' = isBooked
       ? 'completed'
       : isAssessmentSubmitted
-      ? 'current'
-      : 'upcoming';
+        ? 'current'
+        : 'upcoming';
 
     // 5. Video session 1 (12May 5pm-6pm)
     const s5Status: 'completed' | 'current' | 'upcoming' = isSession1Completed
       ? 'completed'
       : isBooked
-      ? 'current'
-      : 'upcoming';
+        ? 'current'
+        : 'upcoming';
 
     // 6. Video session 2 (15May 5pm-6pm)
     const s6Status: 'completed' | 'current' | 'upcoming' = isSession2Completed
       ? 'completed'
       : isSession1Completed
-      ? 'current'
-      : 'upcoming';
+        ? 'current'
+        : 'upcoming';
 
     // 7. Student Feedback Form
     const s7Status: 'completed' | 'current' | 'upcoming' = isStudentFeedbackSubmitted
       ? 'completed'
       : isSession2Completed
-      ? 'current'
-      : 'upcoming';
+        ? 'current'
+        : 'upcoming';
 
     return [
       {
         id: 1,
-        title: 'Student Profile Form',
+        title: 'Profile Form',
         subtext: isProfileCompleted ? 'Completed' : 'Mandatory Step 1 — Personal & Parent Details',
         status: s1Status,
         attachedStatus: null,
@@ -254,17 +250,17 @@ export const StudentPortalPage: React.FC = () => {
       },
       {
         id: 2,
-        title: 'Pre-Counselling Form Student',
+        title: 'Pre-Counselling Form',
         subtext: isPreCounsellingSubmitted
           ? 'Submitted'
           : isProfileCompleted
-          ? 'Step 2 — Ready to start 20-min interest assessment'
-          : 'Locked — Complete Student Profile Form first',
+            ? 'Step 2 — Ready to start 20-min interest assessment'
+            : 'Locked — Complete Profile Form first',
         status: s2Status,
         attachedStatus: !isParentFormSubmitted ? (
           <AttachedStatusBadge $variant="warning">
             <RiNotification3Line size={13} style={{ color: '#D97706' }} />
-            <span>waiting for parent to fill the pre counselling form</span>
+            <span>Waiting for Parent to fill Pre-Counselling Form</span>
           </AttachedStatusBadge>
         ) : (
           <AttachedStatusBadge $variant="success">
@@ -309,107 +305,111 @@ export const StudentPortalPage: React.FC = () => {
       },
       {
         id: 3,
-        title: 'Assessment Form',
+        title: 'Career Profiling',
         subtext: isAssessmentSubmitted
           ? 'Completed'
           : isPreCounsellingSubmitted
-          ? 'Step 3 — Psychometric abilities & career interest assessment'
-          : 'Locked — Complete Pre-Counselling Form first',
+            ? 'Step 3 — Psychometric abilities & career interest assessment'
+            : 'Locked — Complete Pre-Counselling Form first',
         status: s3Status,
         attachedStatus: null,
-        action: isPreCounsellingSubmitted && !isAssessmentSubmitted ? (
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<RiFileTextLine size={16} />}
-            onClick={() => navigate(ROUTES.ASSESSMENT_FORM)}
-          >
-            Start Assessment Form
-          </Button>
-        ) : null,
+        action:
+          isPreCounsellingSubmitted && !isAssessmentSubmitted ? (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<RiFileTextLine size={16} />}
+              onClick={() => navigate(ROUTES.ASSESSMENT_FORM)}
+            >
+              Start Career Profiling
+            </Button>
+          ) : null,
       },
       {
         id: 4,
-        title: 'Booking session 1 & 2',
+        title: 'Booking : Session 1 & 2',
         subtext: isBooked
           ? 'Sessions Scheduled'
           : isAssessmentSubmitted
-          ? 'Select dates and book 1-on-1 counseling video calls'
-          : 'Locked — Complete Assessment Form first',
+            ? 'Select dates and book 1-on-1 counseling video calls'
+            : 'Locked — Complete Career Profiling first',
         status: s4Status,
         attachedStatus: null,
-        action: isAssessmentSubmitted && !isBooked ? (
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<RiCalendarEventLine size={16} />}
-            onClick={handleBookWorkflow}
-          >
-            Book Sessions 1 & 2
-          </Button>
-        ) : null,
+        action:
+          isAssessmentSubmitted && !isBooked ? (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<RiCalendarEventLine size={16} />}
+              onClick={handleBookWorkflow}
+            >
+              Book Sessions 1 & 2
+            </Button>
+          ) : null,
       },
       {
         id: 5,
         title: 'Video session 1',
         subtext: isSession1Completed
-          ? `Completed (${s1SlotStr || 'May 12, 5pm-6pm'}) • Counsellor Notes Added by Sarah Jenkins`
+          ? `Completed (${s1SlotStr || '12-05-2026, 17:00 - 18:00'}) • Counsellor Notes Added by Hema Kurup`
           : isBooked
-          ? `Scheduled (${s1SlotStr || 'May 12, 5pm-6pm'}) • Email & WA Reminders Dispatched`
-          : 'Initial Career Exploration Call',
+            ? `Scheduled (${s1SlotStr || '12-05-2026, 17:00 - 18:00'}) • Email & WA Reminders Dispatched`
+            : 'Initial Career Exploration Call',
         status: s5Status,
         attachedStatus: null,
-        action: isBooked && !isSession1Completed ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<RiVideoChatLine size={16} />}
-              onClick={() => handleStartSession(1)}
-            >
-              {isSimulate10MinsBefore ? 'Join Video Call (Active)' : 'Join Video Call'}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={<RiCheckLine size={16} />}
-              onClick={handleCompleteSession1}
-            >
-              Mark Session 1 Completed
-            </Button>
-          </div>
-        ) : null,
+        action:
+          isBooked && !isSession1Completed ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<RiVideoChatLine size={16} />}
+                onClick={() => handleStartSession(1)}
+              >
+                {isSimulate10MinsBefore ? 'Join Video Call (Active)' : 'Join Video Call'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<RiCheckLine size={16} />}
+                onClick={handleCompleteSession1}
+              >
+                Mark Session 1 Completed
+              </Button>
+            </div>
+          ) : null,
       },
       {
         id: 6,
         title: 'Video session 2',
         subtext: isSession2Completed
-          ? `Completed (${s2SlotStr || 'May 15, 5pm-6pm'}) • Final Stream & Roadmap Notes Added`
+          ? `Completed (${s2SlotStr || '15-05-2026, 17:00 - 18:00'}) • Final Stream & Roadmap Notes Added`
           : isSession1Completed
-          ? `Active Session 2 (${s2SlotStr || 'May 15, 5pm-6pm'}) • Email & WA Reminders Dispatched`
-          : 'Ikigai & Stream Review Call',
+            ? `Active Session 2 (${s2SlotStr || '15-05-2026, 17:00 - 18:00'}) • Email & WA Reminders Dispatched`
+            : 'kREATE & Stream Review Call',
         status: s6Status,
         attachedStatus: null,
-        action: isSession1Completed && !isSession2Completed ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<RiVideoChatLine size={16} />}
-              onClick={() => handleStartSession(2)}
-            >
-              {isSimulate10MinsBefore ? 'Join Video Call (Active)' : 'Join Video Call'}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={<RiCheckLine size={16} />}
-              onClick={handleCompleteSession2}
-            >
-              Mark Session 2 Completed
-            </Button>
-          </div>
-        ) : null,
+        action:
+          isSession1Completed && !isSession2Completed ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<RiVideoChatLine size={16} />}
+                onClick={() => handleStartSession(2)}
+              >
+                {isSimulate10MinsBefore ? 'Join Video Call (Active)' : 'Join Video Call'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<RiCheckLine size={16} />}
+                onClick={handleCompleteSession2}
+              >
+                Mark Session 2 Completed
+              </Button>
+            </div>
+          ) : null,
       },
       {
         id: 7,
@@ -417,13 +417,13 @@ export const StudentPortalPage: React.FC = () => {
         subtext: isStudentFeedbackSubmitted
           ? 'Completed'
           : isSession2Completed
-          ? 'Share your feedback on the counseling experience'
-          : 'Locked — Complete Session 2 first',
+            ? 'Share your feedback on the counseling experience'
+            : 'Locked — Complete Session 2 first',
         status: s7Status,
         attachedStatus: !isParentFeedbackSubmitted ? (
           <AttachedStatusBadge $variant="warning">
             <RiNotification3Line size={13} style={{ color: '#D97706' }} />
-            <span>waiting for parent feedback</span>
+            <span>Waiting for Parent Feedback</span>
           </AttachedStatusBadge>
         ) : (
           <AttachedStatusBadge $variant="success">
@@ -474,7 +474,7 @@ export const StudentPortalPage: React.FC = () => {
   const overallPercent = Math.round((completedCount / steps.length) * 100);
 
   const handleRescheduleSession = (sessionNum: number) => {
-    navigate(ROUTES.BOOK_SESSIONS);
+    navigate(`${ROUTES.BOOK_SESSIONS}?session=${sessionNum}`);
     toast.info(
       `Reschedule Video Session ${sessionNum}`,
       'Select a new date and time slot for your counseling video session.'
@@ -503,7 +503,7 @@ export const StudentPortalPage: React.FC = () => {
       {/* Welcome Banner */}
       <WelcomeBanner>
         <BannerText>
-          <BannerTitle>Welcome back, {user?.name || 'Alex Johnson'}!</BannerTitle>
+          <BannerTitle>Hello, {user?.name}!</BannerTitle>
           <BannerSubtitle>
             <RiGraduationCapLine size={16} /> Grade 11 - Science
             <BadgePill>
@@ -556,15 +556,15 @@ export const StudentPortalPage: React.FC = () => {
                     {step.status === 'completed' ? (
                       <RiCheckLine size={14} />
                     ) : step.status === 'current' ? (
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+                      <span
+                        style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }}
+                      />
                     ) : (
                       <span style={{ fontSize: 10 }}>{step.id}</span>
                     )}
                   </NodeDot>
 
-                  {idx < steps.length - 1 && (
-                    <LineStem $completed={step.status === 'completed'} />
-                  )}
+                  {idx < steps.length - 1 && <LineStem $completed={step.status === 'completed'} />}
                 </NodeColumn>
 
                 <ItemContent>
@@ -614,8 +614,8 @@ export const StudentPortalPage: React.FC = () => {
                                 ? 'May 12, 2026 • 05:00 PM - 06:00 PM'
                                 : 'May 15, 2026 • 05:00 PM - 06:00 PM')
                             : sessionNum === 1
-                            ? 'Initial Career Exploration Call'
-                            : 'Ikigai & Stream Review Call'}
+                              ? 'Initial Career Exploration Call'
+                              : 'kREATE & Stream Review Call'}
                         </span>
                       </SessionDateTimeRow>
 
@@ -706,7 +706,7 @@ export const StudentPortalPage: React.FC = () => {
               </IconBox>
               <TestWidgetInfo>
                 <TestWidgetTitle>
-                  kREATE Compass
+                  kREATE Compass Report
                   {isViewable ? (
                     <Badge variant="success" size="sm">
                       Unlocked
@@ -719,10 +719,10 @@ export const StudentPortalPage: React.FC = () => {
                 </TestWidgetTitle>
                 <TestWidgetDesc>
                   {!isViewable
-                    ? 'Complete the Assessment Form to unlock your kREATE Compass report.'
+                    ? 'Complete Career Profiling to unlock your kREATE Compass report.'
                     : !isDownloadable
-                    ? 'Your kREATE Compass report is viewable online. Download will be unlocked after completing the Feedback step.'
-                    : 'Your comprehensive kREATE Compass report is complete and ready to view or download.'}
+                      ? 'Your kREATE Compass report is viewable online. Download will be unlocked after completing the Feedback step.'
+                      : 'Your comprehensive kREATE Compass report is complete and ready to view or download.'}
                 </TestWidgetDesc>
               </TestWidgetInfo>
             </TestWidgetContent>
@@ -737,7 +737,7 @@ export const StudentPortalPage: React.FC = () => {
                     navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'))
                   }
                 >
-                  View kREATE Compass
+                  View kREATE Compass Report
                 </Button>
                 {isDownloadable ? (
                   <Button
@@ -771,11 +771,11 @@ export const StudentPortalPage: React.FC = () => {
               <Button
                 variant="secondary"
                 size="md"
-                leftIcon={<RiEyeLine size={18} />}
+                leftIcon={<RiPrinterLine size={18} />}
                 disabled
-                title="Complete Assessment Form to unlock report"
+                title="Complete Career Profiling to unlock report"
               >
-                View kREATE Compass (Locked)
+                View kREATE Compass Report (Locked)
               </Button>
             )}
           </TestWidgetCard>

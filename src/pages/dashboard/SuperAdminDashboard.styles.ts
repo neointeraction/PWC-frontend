@@ -3,7 +3,6 @@ import styled from 'styled-components';
 export const DashboardWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.xl};
 `;
 
 export const WelcomeBanner = styled.div`
@@ -103,7 +102,6 @@ export const ActionCardContent = styled.div`
 `;
 
 export const SectionHeader = styled.div`
-  margin-top: ${({ theme }) => theme.spacing.md};
   margin-bottom: ${({ theme }) => theme.spacing.md};
 `;
 

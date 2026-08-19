@@ -17,7 +17,6 @@ import {
   WidgetHeaderRow,
   WidgetTitleGroup,
   WidgetTitle,
-  WidgetSubtitle,
   StatsGrid,
   ModernStatCard,
   CardHeader,
@@ -254,7 +253,6 @@ export const ProjectStudentStatsWidget: React.FC = () => {
       <WidgetHeaderRow>
         <WidgetTitleGroup>
           <WidgetTitle>Student Progress Stats (Project Wise)</WidgetTitle>
-          <WidgetSubtitle>Comprehensive student pipeline metrics across projects</WidgetSubtitle>
         </WidgetTitleGroup>
         <Select
           value={selectedProjectId}

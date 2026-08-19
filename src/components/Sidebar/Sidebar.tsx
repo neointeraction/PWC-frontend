@@ -20,7 +20,6 @@ import {
   LogoImage,
   SidebarNav,
   NavSection,
-  NavSectionLabel,
   NavItem,
   NavLabel,
   SidebarFooter,
@@ -150,15 +149,7 @@ export const Sidebar: React.FC = () => {
 
       <SidebarNav $collapsed={isCollapsed}>
         <NavSection>
-          <NavSectionLabel $collapsed={isCollapsed}>
-            {isSuperAdmin
-              ? 'Super Admin Menu'
-              : isCounselor
-                ? 'Counselor Menu'
-                : isStudent
-                  ? 'Student Menu'
-                  : 'Admin Menu'}
-          </NavSectionLabel>
+
           {navItems.map(item => (
             <NavItem
               key={item.href}

@@ -18,25 +18,20 @@ export const SingleUnifiedCard = styled.div`
 `;
 
 export const DocumentHeaderRow = styled.div`
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 8px;
-  padding: 28px 28px 24px 28px;
+  justify-content: center;
+  padding: 22px 24px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   background: linear-gradient(180deg, ${({ theme }) => theme.colors.surface} 0%, #fafaff 100%);
 `;
 
-export const HeaderTopNavRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: 8px;
-`;
-
 export const HeaderBackButton = styled.button`
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -118,7 +118,7 @@ export const CounselorDeploymentModal: React.FC<CounselorDeploymentModalProps> =
       isOpen={isOpen}
       onClose={onClose}
       title="Deployment &amp; Workload Breakdown"
-      size="lg"
+      size="xl"
     >
       <Container>
         <CounselorMetaCard>

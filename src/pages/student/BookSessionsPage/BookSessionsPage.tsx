@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import dayjs from 'dayjs';
 import {
   RiArrowLeftLine,
   RiCalendarEventLine,
@@ -13,13 +14,14 @@ import {
   RiFileCopyLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
+import { Tooltip } from '@/components/Tooltip';
 import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
 import {
   PageWrapper,
   MainCard,
   HeaderRow,
-  HeaderTopNavRow,
+  HeaderTitleGroup,
   HeaderBackButton,
   TitleText,
   SubtitleText,
@@ -80,29 +82,50 @@ const AVAILABLE_DATES = [
 ];
 
 const AVAILABLE_SLOTS = [
-  '10:00 AM - 11:00 AM',
-  '11:30 AM - 12:30 PM',
-  '02:00 PM - 03:00 PM',
-  '03:30 PM - 04:30 PM',
-  '05:00 PM - 06:00 PM',
-  '06:30 PM - 07:30 PM',
+  '10:00 - 11:00',
+  '11:30 - 12:30',
+  '14:00 - 15:00',
+  '15:30 - 16:30',
+  '17:00 - 18:00',
+  '18:30 - 19:30',
 ];
 
 export const BookSessionsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const toast = useToast();
+
+  const sessionParam = searchParams.get('session') || searchParams.get('reschedule');
+  const isSession1Completed = localStorage.getItem('pwc_session_1_completed') === 'true';
+  const isRescheduleSession2Only =
+    sessionParam === '2' || (isSession1Completed && sessionParam !== '1');
 
   const [isParentCompleted, setIsParentCompleted] = useState<boolean>(false);
   // State step: 1 = Dual Session Slot Selection, 2 = Final Confirmation
   const [step, setStep] = useState<number>(1);
 
   // Session 1 Selection
-  const [s1Date, setS1Date] = useState<string>('2026-05-12');
-  const [s1Time, setS1Time] = useState<string>('05:00 PM - 06:00 PM');
+  const [s1Date, setS1Date] = useState<string>(() => {
+    return localStorage.getItem('pwc_session_1_slot')?.split(' ')[0] || '2026-05-12';
+  });
+  const [s1Time, setS1Time] = useState<string>('17:00 - 18:00');
 
-  // Session 2 Selection
-  const [s2Date, setS2Date] = useState<string>('2026-05-15');
-  const [s2Time, setS2Time] = useState<string>('05:00 PM - 06:00 PM');
+  // Session 2 Selection: next available 3 sessions (+1 day gap from Session 1)
+  const session2AvailableDates = useMemo(() => {
+    const minDate = dayjs(s1Date).add(2, 'day').format('YYYY-MM-DD');
+    const eligible = AVAILABLE_DATES.filter(d => d.fullDate >= minDate);
+    return eligible.slice(0, 3);
+  }, [s1Date]);
+
+  const [s2Date, setS2Date] = useState<string>('2026-05-14');
+  const [s2Time, setS2Time] = useState<string>('17:00 - 18:00');
+
+  // Ensure s2Date is always one of the valid 3 available dates when s1Date changes
+  useEffect(() => {
+    if (session2AvailableDates.length > 0 && !session2AvailableDates.some(d => d.fullDate === s2Date)) {
+      setS2Date(session2AvailableDates[0].fullDate);
+    }
+  }, [session2AvailableDates, s2Date]);
 
   const s1DateRef = useRef<HTMLDivElement>(null);
   const s2DateRef = useRef<HTMLDivElement>(null);
@@ -121,12 +144,6 @@ export const BookSessionsPage: React.FC = () => {
 
   const handleSelectS1Date = (dateStr: string) => {
     setS1Date(dateStr);
-    if (s2Date <= dateStr) {
-      const nextAvailable = AVAILABLE_DATES.find(d => d.fullDate > dateStr);
-      if (nextAvailable) {
-        setS2Date(nextAvailable.fullDate);
-      }
-    }
   };
 
   const handleSimulateParentForm = () => {
@@ -152,7 +169,7 @@ export const BookSessionsPage: React.FC = () => {
   };
 
   const handleProceedToConfirmation = () => {
-    if (!s1Date || !s1Time) {
+    if (!isRescheduleSession2Only && (!s1Date || !s1Time)) {
       toast.warning('Select Session 1 Slot', 'Please choose a date and time slot for Session 1.');
       return;
     }
@@ -160,19 +177,32 @@ export const BookSessionsPage: React.FC = () => {
       toast.warning('Select Session 2 Slot', 'Please choose a date and time slot for Session 2.');
       return;
     }
-    toast.success('Session Slots Saved', `Session 1: ${s1Date} • Session 2: ${s2Date}`);
+    if (isRescheduleSession2Only) {
+      toast.success('Session 2 Slot Saved', `Session 2: ${s2Date} • ${s2Time}`);
+    } else {
+      toast.success('Session Slots Saved', `Session 1: ${s1Date} • Session 2: ${s2Date}`);
+    }
     setStep(2);
   };
 
   const handleFinalBooking = () => {
     localStorage.setItem('pwc_sessions_booked', 'true');
-    localStorage.setItem('pwc_session_1_slot', `${s1Date} ${s1Time}`);
+    if (!isRescheduleSession2Only) {
+      localStorage.setItem('pwc_session_1_slot', `${s1Date} ${s1Time}`);
+    }
     localStorage.setItem('pwc_session_2_slot', `${s2Date} ${s2Time}`);
 
-    toast.success(
-      'Sessions 1 & 2 Booked Successfully!',
-      'Confirmation notifications dispatched to Student, Parent, and Counsellor.'
-    );
+    if (isRescheduleSession2Only) {
+      toast.success(
+        'Session 2 Rescheduled Successfully!',
+        `New Slot: ${s2Date} • ${s2Time}`
+      );
+    } else {
+      toast.success(
+        'Sessions 1 & 2 Booked Successfully!',
+        'Confirmation notifications dispatched to Student, Parent, and Counsellor.'
+      );
+    }
 
     navigate(ROUTES.STUDENT_PORTAL);
   };
@@ -182,7 +212,7 @@ export const BookSessionsPage: React.FC = () => {
       <MainCard>
         {/* Header */}
         <HeaderRow>
-          <HeaderTopNavRow>
+          <Tooltip content="Back to Student Portal" position="right">
             <HeaderBackButton
               type="button"
               onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
@@ -190,13 +220,20 @@ export const BookSessionsPage: React.FC = () => {
             >
               <RiArrowLeftLine size={18} />
             </HeaderBackButton>
-          </HeaderTopNavRow>
+          </Tooltip>
 
-          <TitleText>BOOK YOUR COUNSELLING SESSIONS</TitleText>
-          <SubtitleText>
-            Schedule 1-on-1 Guidance Calls (Session 1 & Session 2) with Senior Counsellor Sarah
-            Jenkins (M.Sc Psych)
-          </SubtitleText>
+          <HeaderTitleGroup>
+            <TitleText>
+              {isRescheduleSession2Only
+                ? 'RESCHEDULE SESSION 2'
+                : 'BOOK YOUR COUNSELLING SESSIONS'}
+            </TitleText>
+            <SubtitleText>
+              {isRescheduleSession2Only
+                ? 'Select a new date & time slot for Session 2 (Roadmap & Recommendations)'
+                : 'Schedule 1-on-1 Guidance Calls (Session 1 & Session 2)'}
+            </SubtitleText>
+          </HeaderTitleGroup>
         </HeaderRow>
 
         {/* STEP 1 LOCK: IF PARENT FORM NOT COMPLETED */}
@@ -250,7 +287,9 @@ export const BookSessionsPage: React.FC = () => {
                   {step > 1 ? <RiCheckLine size={14} /> : '1'}
                 </StepBadge>
                 <StepLabel $active={step === 1} $completed={step > 1}>
-                  Select Session Slots (Session 1 & 2)
+                  {isRescheduleSession2Only
+                    ? 'Select Session 2 Slot'
+                    : 'Select Session Slots (Session 1 & 2)'}
                 </StepLabel>
               </StepItem>
 
@@ -266,73 +305,77 @@ export const BookSessionsPage: React.FC = () => {
               </StepItem>
             </StepIndicatorBar>
 
-            {/* STEP 1: UNIFIED SESSION 1 AND SESSION 2 SLOT SELECTION */}
+            {/* STEP 1: SLOT SELECTION */}
             {step === 1 && (
               <>
-                {/* SECTION 1: SESSION 1 SLOT */}
-                <SectionHeader>
-                  <SectionTitle>
-                    <RiCalendarEventLine size={20} style={{ color: '#2563EB' }} />
-                    <span>
-                      Select Date & Time Slot for Session 1 (Discovery & Assessment Review)
-                    </span>
-                  </SectionTitle>
-                  <SectionSubtext>
-                    Choose an available date and 1-hour time slot for your initial 1-on-1 video call.
-                  </SectionSubtext>
-                </SectionHeader>
+                {/* SECTION 1: SESSION 1 SLOT (Only shown when booking both sessions or Session 1) */}
+                {!isRescheduleSession2Only && (
+                  <>
+                    <SectionHeader>
+                      <SectionTitle>
+                        <RiCalendarEventLine size={20} style={{ color: '#2563EB' }} />
+                        <span>
+                          Select Date & Time Slot for Session 1 (Discovery & Assessment Review)
+                        </span>
+                      </SectionTitle>
+                      <SectionSubtext>
+                        Choose an available date and 1-hour time slot for your initial 1-on-1 video call.
+                      </SectionSubtext>
+                    </SectionHeader>
 
-                <div>
-                  <SectionSubtext style={{ fontWeight: 700, marginBottom: 8, color: '#1E293B' }}>
-                    Available Dates for Session 1:
-                  </SectionSubtext>
-                  <DateCarouselWrapper>
-                    <CarouselNavButton
-                      type="button"
-                      aria-label="Scroll dates left"
-                      onClick={() => scrollDates(s1DateRef, 'left')}
-                    >
-                      <RiArrowLeftLine size={18} />
-                    </CarouselNavButton>
-                    <DateCarouselContainer ref={s1DateRef}>
-                      {AVAILABLE_DATES.map(d => (
-                        <DateCard
-                          key={d.fullDate}
-                          $selected={s1Date === d.fullDate}
-                          onClick={() => handleSelectS1Date(d.fullDate)}
-                          style={{ minWidth: 120, flexShrink: 0 }}
+                    <div>
+                      <SectionSubtext style={{ fontWeight: 700, marginBottom: 8, color: '#1E293B' }}>
+                        Available Dates for Session 1:
+                      </SectionSubtext>
+                      <DateCarouselWrapper>
+                        <CarouselNavButton
+                          type="button"
+                          aria-label="Scroll dates left"
+                          onClick={() => scrollDates(s1DateRef, 'left')}
                         >
-                          <DateDay>{d.day}</DateDay>
-                          <DateNumber>{d.number}</DateNumber>
-                        </DateCard>
-                      ))}
-                    </DateCarouselContainer>
-                    <CarouselNavButton
-                      type="button"
-                      aria-label="Scroll dates right"
-                      onClick={() => scrollDates(s1DateRef, 'right')}
-                    >
-                      <RiArrowRightLine size={18} />
-                    </CarouselNavButton>
-                  </DateCarouselWrapper>
-                </div>
+                          <RiArrowLeftLine size={18} />
+                        </CarouselNavButton>
+                        <DateCarouselContainer ref={s1DateRef}>
+                          {AVAILABLE_DATES.map(d => (
+                            <DateCard
+                              key={d.fullDate}
+                              $selected={s1Date === d.fullDate}
+                              onClick={() => handleSelectS1Date(d.fullDate)}
+                              style={{ minWidth: 120, flexShrink: 0 }}
+                            >
+                              <DateDay>{d.day}</DateDay>
+                              <DateNumber>{d.number}</DateNumber>
+                            </DateCard>
+                          ))}
+                        </DateCarouselContainer>
+                        <CarouselNavButton
+                          type="button"
+                          aria-label="Scroll dates right"
+                          onClick={() => scrollDates(s1DateRef, 'right')}
+                        >
+                          <RiArrowRightLine size={18} />
+                        </CarouselNavButton>
+                      </DateCarouselWrapper>
+                    </div>
 
-                <div>
-                  <SectionSubtext style={{ fontWeight: 700, marginBottom: 8, color: '#1E293B' }}>
-                    Available Time Slots for Session 1 ({s1Date}):
-                  </SectionSubtext>
-                  <SlotGrid>
-                    {AVAILABLE_SLOTS.map(s => (
-                      <SlotCard key={s} $selected={s1Time === s} onClick={() => setS1Time(s)}>
-                        <RiTimeLine size={16} />
-                        <span>{s}</span>
-                      </SlotCard>
-                    ))}
-                  </SlotGrid>
-                </div>
+                    <div>
+                      <SectionSubtext style={{ fontWeight: 700, marginBottom: 8, color: '#1E293B' }}>
+                        Available Time Slots for Session 1 ({s1Date}):
+                      </SectionSubtext>
+                      <SlotGrid>
+                        {AVAILABLE_SLOTS.map(s => (
+                          <SlotCard key={s} $selected={s1Time === s} onClick={() => setS1Time(s)}>
+                            <RiTimeLine size={16} />
+                            <span>{s}</span>
+                          </SlotCard>
+                        ))}
+                      </SlotGrid>
+                    </div>
+                  </>
+                )}
 
                 {/* SECTION 2: SESSION 2 SLOT */}
-                <SectionHeader style={{ marginTop: 32 }}>
+                <SectionHeader style={{ marginTop: isRescheduleSession2Only ? 0 : 32 }}>
                   <SectionTitle>
                     <RiCalendarEventLine size={20} style={{ color: '#5D2384' }} />
                     <span>
@@ -340,7 +383,7 @@ export const BookSessionsPage: React.FC = () => {
                     </span>
                   </SectionTitle>
                   <SectionSubtext>
-                    Choose a date for your second session (Recommended 3–5 days after Session 1).
+                    Choose a date for your second session.
                   </SectionSubtext>
                 </SectionHeader>
 
@@ -349,15 +392,8 @@ export const BookSessionsPage: React.FC = () => {
                     Available Dates for Session 2:
                   </SectionSubtext>
                   <DateCarouselWrapper>
-                    <CarouselNavButton
-                      type="button"
-                      aria-label="Scroll dates left"
-                      onClick={() => scrollDates(s2DateRef, 'left')}
-                    >
-                      <RiArrowLeftLine size={18} />
-                    </CarouselNavButton>
-                    <DateCarouselContainer ref={s2DateRef}>
-                      {AVAILABLE_DATES.filter(d => d.fullDate > s1Date).map(d => (
+                    <DateCarouselContainer ref={s2DateRef} style={{ justifyContent: 'flex-start' }}>
+                      {session2AvailableDates.map(d => (
                         <DateCard
                           key={d.fullDate}
                           $selected={s2Date === d.fullDate}
@@ -369,13 +405,6 @@ export const BookSessionsPage: React.FC = () => {
                         </DateCard>
                       ))}
                     </DateCarouselContainer>
-                    <CarouselNavButton
-                      type="button"
-                      aria-label="Scroll dates right"
-                      onClick={() => scrollDates(s2DateRef, 'right')}
-                    >
-                      <RiArrowRightLine size={18} />
-                    </CarouselNavButton>
                   </DateCarouselWrapper>
                 </div>
 
@@ -393,26 +422,47 @@ export const BookSessionsPage: React.FC = () => {
                   </SlotGrid>
                 </div>
 
-                {/* UNIFIED SELECTION SUMMARY CARD FOR S1 & S2 */}
-                {s1Date && s1Time && s2Date && s2Time && (
-                  <SelectionSummaryCard>
-                    <SummaryTextGroup>
-                      <SummaryLabel>Selected Counselling Sessions</SummaryLabel>
-                      <SummaryValue style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
-                        <strong>Session 1:</strong> {s1Date} • {s1Time}
-                        <br />
-                        <strong>Session 2:</strong> {s2Date} • {s2Time}
-                      </SummaryValue>
-                    </SummaryTextGroup>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      rightIcon={<RiArrowRightLine size={16} />}
-                      onClick={handleProceedToConfirmation}
-                    >
-                      Proceed to Final Confirmation
-                    </Button>
-                  </SelectionSummaryCard>
+                {/* UNIFIED SELECTION SUMMARY CARD */}
+                {isRescheduleSession2Only ? (
+                  s2Date && s2Time && (
+                    <SelectionSummaryCard>
+                      <SummaryTextGroup>
+                        <SummaryLabel>Selected Session 2 Slot</SummaryLabel>
+                        <SummaryValue style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
+                          <strong>Session 2:</strong> {s2Date} • {s2Time}
+                        </SummaryValue>
+                      </SummaryTextGroup>
+                      <Button
+                        variant="primary"
+                        size="md"
+                        rightIcon={<RiArrowRightLine size={16} />}
+                        onClick={handleProceedToConfirmation}
+                      >
+                        Proceed to Final Confirmation
+                      </Button>
+                    </SelectionSummaryCard>
+                  )
+                ) : (
+                  s1Date && s1Time && s2Date && s2Time && (
+                    <SelectionSummaryCard>
+                      <SummaryTextGroup>
+                        <SummaryLabel>Selected Counselling Sessions</SummaryLabel>
+                        <SummaryValue style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
+                          <strong>Session 1:</strong> {s1Date} • {s1Time}
+                          <br />
+                          <strong>Session 2:</strong> {s2Date} • {s2Time}
+                        </SummaryValue>
+                      </SummaryTextGroup>
+                      <Button
+                        variant="primary"
+                        size="md"
+                        rightIcon={<RiArrowRightLine size={16} />}
+                        onClick={handleProceedToConfirmation}
+                      >
+                        Proceed to Final Confirmation
+                      </Button>
+                    </SelectionSummaryCard>
+                  )
                 )}
               </>
             )}
@@ -423,26 +473,34 @@ export const BookSessionsPage: React.FC = () => {
                 <SectionHeader>
                   <SectionTitle>
                     <RiSparklingLine size={20} style={{ color: '#5D2384' }} />
-                    <span>Review & Confirm Session Booking</span>
+                    <span>
+                      {isRescheduleSession2Only
+                        ? 'Review & Confirm Session 2 Reschedule'
+                        : 'Review & Confirm Session Booking'}
+                    </span>
                   </SectionTitle>
                   <SectionSubtext>
-                    Please double check your scheduled 1-on-1 sessions below.
+                    {isRescheduleSession2Only
+                      ? 'Please double check your updated Session 2 slot below.'
+                      : 'Please double check your scheduled 1-on-1 sessions below.'}
                   </SectionSubtext>
                 </SectionHeader>
 
-                <ConfirmationRow>
-                  <RiVideoChatLine
-                    size={24}
-                    style={{ color: '#2563EB', flexShrink: 0, marginTop: 2 }}
-                  />
-                  <div>
-                    <strong>Session 1 (Discovery & Assessment)</strong>
-                    <br />
-                    <span>
-                      Date: {s1Date} • Time: {s1Time}
-                    </span>
-                  </div>
-                </ConfirmationRow>
+                {!isRescheduleSession2Only && (
+                  <ConfirmationRow>
+                    <RiVideoChatLine
+                      size={24}
+                      style={{ color: '#2563EB', flexShrink: 0, marginTop: 2 }}
+                    />
+                    <div>
+                      <strong>Session 1 (Discovery & Assessment)</strong>
+                      <br />
+                      <span>
+                        Date: {s1Date} • Time: {s1Time}
+                      </span>
+                    </div>
+                  </ConfirmationRow>
+                )}
 
                 <ConfirmationRow>
                   <RiVideoChatLine
@@ -475,7 +533,9 @@ export const BookSessionsPage: React.FC = () => {
                     leftIcon={<RiCheckLine size={16} />}
                     onClick={handleFinalBooking}
                   >
-                    Confirm Both Sessions & Book Now
+                    {isRescheduleSession2Only
+                      ? 'Confirm & Reschedule Session 2'
+                      : 'Confirm Both Sessions & Book Now'}
                   </Button>
                 </NavigationFooter>
               </ConfirmationCard>

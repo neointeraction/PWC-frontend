@@ -23,16 +23,11 @@ import {
   FormPageContainer,
   SingleUnifiedCard,
   DocumentHeaderRow,
-  HeaderTopNavRow,
   HeaderBackButton,
-  DocHeaderBadge,
   DocTitle,
-  DocSubtitle,
   IntroGreetingNotice,
   GreetingHeadline,
   GreetingParagraph,
-  GreetingHighlightParagraph,
-  GreetingActionText,
   SectionBlock,
   SectionHeader,
   SectionHeaderIcon,
@@ -118,38 +113,39 @@ export const StudentProfileFormPage: React.FC = () => {
         <SingleUnifiedCard>
           {/* Header */}
           <DocumentHeaderRow>
-            <HeaderTopNavRow>
-              <Tooltip content="Back to Student Portal" position="right">
-                <HeaderBackButton
-                  type="button"
-                  onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
-                  aria-label="Back to Student Portal"
-                >
-                  <RiArrowLeftLine size={18} />
-                </HeaderBackButton>
-              </Tooltip>
-              <DocHeaderBadge>Student Onboarding · Class 9 & 10</DocHeaderBadge>
-            </HeaderTopNavRow>
+            <Tooltip content="Back to Student Portal" position="right">
+              <HeaderBackButton
+                type="button"
+                onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
+                aria-label="Back to Student Portal"
+              >
+                <RiArrowLeftLine size={18} />
+              </HeaderBackButton>
+            </Tooltip>
 
-            <DocTitle>Student Profile Form</DocTitle>
-            <DocSubtitle>
-              Please complete all section details accurately. Information collected here will be used
-              for your personalized counseling sessions.
-            </DocSubtitle>
+            <DocTitle>Champion&apos;s Profile</DocTitle>
           </DocumentHeaderRow>
 
           {/* Notice Card */}
           <IntroGreetingNotice>
-            <GreetingHeadline>Dear Student,</GreetingHeadline>
+            <GreetingHeadline>Hello Champion,</GreetingHeadline>
             <GreetingParagraph>
-              Welcome to the Phoenix Water Club Career Counselling program! To help us serve you
-              better, please fill in your details carefully.
+              Before you get started, a quick note on why this page matters.
             </GreetingParagraph>
-            <GreetingHighlightParagraph>
-              <GreetingActionText>
-                It will take only 5–7 minutes to complete this profile form.
-              </GreetingActionText>
-            </GreetingHighlightParagraph>
+            <GreetingParagraph>
+              Everything from here on reminders, links, forms and updates, will be sent to you only
+              through WhatsApp and Email, based on the details you enter below.
+            </GreetingParagraph>
+            <GreetingHeadline>
+              We won&apos;t be calling you at any point in the programme.
+            </GreetingHeadline>
+            <GreetingParagraph>
+              So please take a moment to enter accurate details. It&apos;s the only way we&apos;ll be
+              able to reach you at the right time, with the right information.
+            </GreetingParagraph>
+            <GreetingParagraph style={{ fontWeight: 600 }}>
+              Let&apos;s get started!
+            </GreetingParagraph>
           </IntroGreetingNotice>
 
           {/* SECTION 1 — FEW DETAILS ABOUT YOU */}
@@ -163,14 +159,14 @@ export const StudentProfileFormPage: React.FC = () => {
             <SectionBody>
               <FormRow>
                 <Input
-                  label="Full Name of the Student"
-                  placeholder="e.g. Alex Johnson"
+                  label="Full Name"
+                  placeholder="e.g. Aarav Sharma"
                   leftIcon={<RiUser3Line size={18} />}
                   error={errors.studentFullName?.message}
                   {...register('studentFullName')}
                 />
                 <Input
-                  label="Student Mobile Number"
+                  label="Mobile Number"
                   type="tel"
                   placeholder="10-digit mobile number"
                   leftIcon={<RiPhoneLine size={18} />}
@@ -181,7 +177,7 @@ export const StudentProfileFormPage: React.FC = () => {
 
               <FormRow>
                 <Input
-                  label="Student WhatsApp Number"
+                  label="WhatsApp Number"
                   type="tel"
                   placeholder="WhatsApp mobile number"
                   leftIcon={<RiPhoneLine size={18} />}
@@ -189,7 +185,7 @@ export const StudentProfileFormPage: React.FC = () => {
                   {...register('studentWhatsapp')}
                 />
                 <Input
-                  label="Student Email ID"
+                  label="Email ID"
                   type="email"
                   placeholder="For session links & updates"
                   leftIcon={<RiMailLine size={18} />}

@@ -30,6 +30,7 @@ export const ROUTES = {
   PROJECT_STUDENTS: '/projects/:projectId/students',
   COUNSELORS: '/counselors',
   REPORTS: '/reports',
+  FORGOT_PASSWORD: '/forgot-password',
 } as const;
 
 export const PLANS = [

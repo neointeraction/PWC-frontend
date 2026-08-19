@@ -144,87 +144,232 @@ export const StudentFeedbackFormPage: React.FC = () => {
 
   return (
     <>
-    <FormPageContainer>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        <SingleUnifiedCard>
-          {/* Header */}
-          <DocumentHeaderRow>
-            <HeaderTopNavRow>
-              <Tooltip content="Back to Student Dashboard" position="right">
-                <HeaderBackButton
-                  type="button"
-                  onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
-                  aria-label="Back to Dashboard"
-                >
-                  <RiArrowLeftLine size={18} />
-                </HeaderBackButton>
-              </Tooltip>
-              <DocHeaderBadge>Post-Counselling · Class 9 & 10</DocHeaderBadge>
-            </HeaderTopNavRow>
-            <DocTitle>STUDENT FEEDBACK QUESTIONNAIRE</DocTitle>
-            <DocSubtitle>Design Destiny · kREATE Career Counselling Programme</DocSubtitle>
-            <DocNote>
-              Please share your feedback regarding your recent career guidance experience. Your
-              responses help us enhance our programme for future students. Your honesty is genuinely
-              valued — there are no right or wrong answers.
-            </DocNote>
-          </DocumentHeaderRow>
+      <FormPageContainer>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <SingleUnifiedCard>
+            {/* Header */}
+            <DocumentHeaderRow>
+              <HeaderTopNavRow>
+                <Tooltip content="Back to Student Dashboard" position="right">
+                  <HeaderBackButton
+                    type="button"
+                    onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
+                    aria-label="Back to Dashboard"
+                  >
+                    <RiArrowLeftLine size={18} />
+                  </HeaderBackButton>
+                </Tooltip>
+                <DocHeaderBadge>Post-Counselling · Class 9 & 10</DocHeaderBadge>
+              </HeaderTopNavRow>
+              <DocTitle>STUDENT FEEDBACK QUESTIONNAIRE</DocTitle>
+              <DocSubtitle>Design Destiny · kREATE Career Counselling Programme</DocSubtitle>
+              <DocNote>
+                Please share your feedback regarding your recent career guidance experience. Your
+                responses help us enhance our programme for future students. Your honesty is
+                genuinely valued — there are no right or wrong answers.
+              </DocNote>
+            </DocumentHeaderRow>
 
-          {/* Student Meta Details */}
-          <StudentMetaGrid>
-            <MetaItem>
-              <MetaLabel>Student Name / Code</MetaLabel>
-              <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <RiUser3Line size={16} /> Alex Johnson (STU-2026-89)
-              </MetaValue>
-            </MetaItem>
-            <MetaItem>
-              <MetaLabel>Counsellor</MetaLabel>
-              <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <RiUserHeartLine size={16} /> Sarah Jenkins (M.Sc Psych)
-              </MetaValue>
-            </MetaItem>
-            <MetaItem>
-              <MetaLabel>Date</MetaLabel>
-              <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <RiCalendarEventLine size={16} /> May 15, 2026
-              </MetaValue>
-            </MetaItem>
-          </StudentMetaGrid>
+            {/* Student Meta Details */}
+            <StudentMetaGrid>
+              <MetaItem>
+                <MetaLabel>Student Name / Code</MetaLabel>
+                <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <RiUser3Line size={16} /> Alex Johnson (STU-2026-89)
+                </MetaValue>
+              </MetaItem>
+              <MetaItem>
+                <MetaLabel>Counsellor</MetaLabel>
+                <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <RiUserHeartLine size={16} /> Sarah Jenkins (M.Sc Psych)
+                </MetaValue>
+              </MetaItem>
+              <MetaItem>
+                <MetaLabel>Date</MetaLabel>
+                <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <RiCalendarEventLine size={16} /> May 15, 2026
+                </MetaValue>
+              </MetaItem>
+            </StudentMetaGrid>
 
-          {/* Section 1: Session Experience */}
-          <SectionBlock>
-            <SectionHeader>
-              <SectionHeaderIcon>
-                <RiEmotionHappyLine size={20} />
-              </SectionHeaderIcon>
-              <SectionTitleText>Session Experience</SectionTitleText>
-            </SectionHeader>
+            {/* Section 1: Session Experience */}
+            <SectionBlock>
+              <SectionHeader>
+                <SectionHeaderIcon>
+                  <RiEmotionHappyLine size={20} />
+                </SectionHeaderIcon>
+                <SectionTitleText>Session Experience</SectionTitleText>
+              </SectionHeader>
 
-            {[
-              {
-                name: 'se_q1' as const,
-                title: '1. The counsellor explained my assessment results in a way I clearly understood.',
-              },
-              {
-                name: 'se_q2' as const,
-                title: '2. I felt comfortable, safe, and genuinely heard throughout the sessions.',
-              },
-              {
-                name: 'se_q3' as const,
-                title:
-                  '3. The counsellor asked meaningful questions to understand me as an individual, not just my marks.',
-              },
-              {
-                name: 'se_q4' as const,
-                title:
-                  '4. The session felt personalised to my specific stream, strengths, and career interests, and not generic.',
-              },
-            ].map(q => (
-              <QuestionCard key={q.name}>
-                <QuestionTitle>{q.title}</QuestionTitle>
+              {[
+                {
+                  name: 'se_q1' as const,
+                  title:
+                    '1. The counsellor explained my assessment results in a way I clearly understood.',
+                },
+                {
+                  name: 'se_q2' as const,
+                  title:
+                    '2. I felt comfortable, safe, and genuinely heard throughout the sessions.',
+                },
+                {
+                  name: 'se_q3' as const,
+                  title:
+                    '3. The counsellor asked meaningful questions to understand me as an individual, not just my marks.',
+                },
+                {
+                  name: 'se_q4' as const,
+                  title:
+                    '4. The session felt personalised to my specific stream, strengths, and career interests, and not generic.',
+                },
+              ].map(q => (
+                <QuestionCard key={q.name}>
+                  <QuestionTitle>{q.title}</QuestionTitle>
+                  <Controller
+                    name={q.name}
+                    control={control}
+                    render={({ field }) => (
+                      <RatingOptionsGroup>
+                        {EFFECTIVENESS_SCALE.map(option => (
+                          <RatingOptionButton
+                            key={option.score}
+                            type="button"
+                            $isSelected={field.value === option.score}
+                            onClick={() => field.onChange(option.score)}
+                          >
+                            <OptionScoreBadge $isSelected={field.value === option.score}>
+                              {option.score}
+                            </OptionScoreBadge>
+                            <OptionText>{option.label}</OptionText>
+                          </RatingOptionButton>
+                        ))}
+                      </RatingOptionsGroup>
+                    )}
+                  />
+                </QuestionCard>
+              ))}
+            </SectionBlock>
+
+            {/* Section 2: Clarity & Decision Confidence */}
+            <SectionBlock>
+              <SectionHeader>
+                <SectionHeaderIcon>
+                  <RiCompass3Line size={20} />
+                </SectionHeaderIcon>
+                <SectionTitleText>Clarity & Decision Confidence</SectionTitleText>
+              </SectionHeader>
+
+              {[
+                {
+                  name: 'cd_q1' as const,
+                  title: '1. I clearly understand my top 2 career options.',
+                },
+                {
+                  name: 'cd_q2' as const,
+                  title:
+                    '2. I understand why these career options suit my personality, strengths, and aptitude.',
+                },
+                {
+                  name: 'cd_q3' as const,
+                  title: '3. I feel confident about the career direction I am now heading in.',
+                },
+                {
+                  name: 'cd_q4' as const,
+                  title: '4. I know the next steps (subjects, exams, colleges).',
+                },
+              ].map(q => (
+                <QuestionCard key={q.name}>
+                  <QuestionTitle>{q.title}</QuestionTitle>
+                  <Controller
+                    name={q.name}
+                    control={control}
+                    render={({ field }) => (
+                      <RatingOptionsGroup>
+                        {CLARITY_SCALE.map(option => (
+                          <RatingOptionButton
+                            key={option.score}
+                            type="button"
+                            $isSelected={field.value === option.score}
+                            onClick={() => field.onChange(option.score)}
+                          >
+                            <OptionScoreBadge $isSelected={field.value === option.score}>
+                              {option.score}
+                            </OptionScoreBadge>
+                            <OptionText>{option.label}</OptionText>
+                          </RatingOptionButton>
+                        ))}
+                      </RatingOptionsGroup>
+                    )}
+                  />
+                </QuestionCard>
+              ))}
+            </SectionBlock>
+
+            {/* Section 3: Outcome Quality */}
+            <SectionBlock>
+              <SectionHeader>
+                <SectionHeaderIcon>
+                  <RiAwardLine size={20} />
+                </SectionHeaderIcon>
+                <SectionTitleText>Outcome Quality</SectionTitleText>
+              </SectionHeader>
+
+              {[
+                {
+                  name: 'oq_q1' as const,
+                  title: '1. The career options suggested felt relevant to me.',
+                },
+                {
+                  name: 'oq_q2' as const,
+                  title: '2. The roadmap (Plan A & Plan B) is practical and achievable.',
+                },
+                {
+                  name: 'oq_q3' as const,
+                  title: '3. My doubts were resolved during the sessions.',
+                },
+              ].map(q => (
+                <QuestionCard key={q.name}>
+                  <QuestionTitle>{q.title}</QuestionTitle>
+                  <Controller
+                    name={q.name}
+                    control={control}
+                    render={({ field }) => (
+                      <RatingOptionsGroup>
+                        {CLARITY_SCALE.map(option => (
+                          <RatingOptionButton
+                            key={option.score}
+                            type="button"
+                            $isSelected={field.value === option.score}
+                            onClick={() => field.onChange(option.score)}
+                          >
+                            <OptionScoreBadge $isSelected={field.value === option.score}>
+                              {option.score}
+                            </OptionScoreBadge>
+                            <OptionText>{option.label}</OptionText>
+                          </RatingOptionButton>
+                        ))}
+                      </RatingOptionsGroup>
+                    )}
+                  />
+                </QuestionCard>
+              ))}
+            </SectionBlock>
+
+            {/* Section 4: Overall Satisfaction */}
+            <SectionBlock>
+              <SectionHeader>
+                <SectionHeaderIcon>
+                  <RiStarLine size={20} />
+                </SectionHeaderIcon>
+                <SectionTitleText>Overall Satisfaction</SectionTitleText>
+              </SectionHeader>
+
+              <QuestionCard>
+                <QuestionTitle>
+                  1. This programme reduced my confusion about the future.
+                </QuestionTitle>
                 <Controller
-                  name={q.name}
+                  name="os_q1"
                   control={control}
                   render={({ field }) => (
                     <RatingOptionsGroup>
@@ -245,45 +390,15 @@ export const StudentFeedbackFormPage: React.FC = () => {
                   )}
                 />
               </QuestionCard>
-            ))}
-          </SectionBlock>
 
-          {/* Section 2: Clarity & Decision Confidence */}
-          <SectionBlock>
-            <SectionHeader>
-              <SectionHeaderIcon>
-                <RiCompass3Line size={20} />
-              </SectionHeaderIcon>
-              <SectionTitleText>Clarity & Decision Confidence</SectionTitleText>
-            </SectionHeader>
-
-            {[
-              {
-                name: 'cd_q1' as const,
-                title: '1. I clearly understand my top 2 career options.',
-              },
-              {
-                name: 'cd_q2' as const,
-                title:
-                  '2. I understand why these career options suit my personality, strengths, and aptitude.',
-              },
-              {
-                name: 'cd_q3' as const,
-                title: '3. I feel confident about the career direction I am now heading in.',
-              },
-              {
-                name: 'cd_q4' as const,
-                title: '4. I know the next steps (subjects, exams, colleges).',
-              },
-            ].map(q => (
-              <QuestionCard key={q.name}>
-                <QuestionTitle>{q.title}</QuestionTitle>
+              <QuestionCard>
+                <QuestionTitle>2. I would recommend this programme to my friends.</QuestionTitle>
                 <Controller
-                  name={q.name}
+                  name="os_q2"
                   control={control}
                   render={({ field }) => (
                     <RatingOptionsGroup>
-                      {CLARITY_SCALE.map(option => (
+                      {RECOMMENDATION_OPTIONS.map(option => (
                         <RatingOptionButton
                           key={option.score}
                           type="button"
@@ -300,177 +415,66 @@ export const StudentFeedbackFormPage: React.FC = () => {
                   )}
                 />
               </QuestionCard>
-            ))}
-          </SectionBlock>
+            </SectionBlock>
 
-          {/* Section 3: Outcome Quality */}
-          <SectionBlock>
-            <SectionHeader>
-              <SectionHeaderIcon>
-                <RiAwardLine size={20} />
-              </SectionHeaderIcon>
-              <SectionTitleText>Outcome Quality</SectionTitleText>
-            </SectionHeader>
+            {/* Section 5: Open Feedback */}
+            <SectionBlock>
+              <SectionHeader>
+                <SectionHeaderIcon>
+                  <RiChat3Line size={20} />
+                </SectionHeaderIcon>
+                <SectionTitleText>Open Feedback</SectionTitleText>
+              </SectionHeader>
 
-            {[
-              {
-                name: 'oq_q1' as const,
-                title: '1. The career options suggested felt relevant to me.',
-              },
-              {
-                name: 'oq_q2' as const,
-                title: '2. The roadmap (Plan A & Plan B) is practical and achievable.',
-              },
-              {
-                name: 'oq_q3' as const,
-                title: '3. My doubts were resolved during the sessions.',
-              },
-            ].map(q => (
-              <QuestionCard key={q.name}>
-                <QuestionTitle>{q.title}</QuestionTitle>
-                <Controller
-                  name={q.name}
-                  control={control}
-                  render={({ field }) => (
-                    <RatingOptionsGroup>
-                      {CLARITY_SCALE.map(option => (
-                        <RatingOptionButton
-                          key={option.score}
-                          type="button"
-                          $isSelected={field.value === option.score}
-                          onClick={() => field.onChange(option.score)}
-                        >
-                          <OptionScoreBadge $isSelected={field.value === option.score}>
-                            {option.score}
-                          </OptionScoreBadge>
-                          <OptionText>{option.label}</OptionText>
-                        </RatingOptionButton>
-                      ))}
-                    </RatingOptionsGroup>
-                  )}
+              <QuestionCard>
+                <QuestionTitle>1. What was the most helpful part?</QuestionTitle>
+                <CustomTextArea
+                  placeholder="Share what worked best for you during the counselling sessions..."
+                  {...register('helpful_part')}
                 />
               </QuestionCard>
-            ))}
-          </SectionBlock>
 
-          {/* Section 4: Overall Satisfaction */}
-          <SectionBlock>
-            <SectionHeader>
-              <SectionHeaderIcon>
-                <RiStarLine size={20} />
-              </SectionHeaderIcon>
-              <SectionTitleText>Overall Satisfaction</SectionTitleText>
-            </SectionHeader>
+              <QuestionCard>
+                <QuestionTitle>2. What could be improved?</QuestionTitle>
+                <CustomTextArea
+                  placeholder="Let us know how we can make the experience even better..."
+                  {...register('improvement_part')}
+                />
+              </QuestionCard>
+            </SectionBlock>
 
-            <QuestionCard>
-              <QuestionTitle>1. This programme reduced my confusion about the future.</QuestionTitle>
-              <Controller
-                name="os_q1"
-                control={control}
-                render={({ field }) => (
-                  <RatingOptionsGroup>
-                    {EFFECTIVENESS_SCALE.map(option => (
-                      <RatingOptionButton
-                        key={option.score}
-                        type="button"
-                        $isSelected={field.value === option.score}
-                        onClick={() => field.onChange(option.score)}
-                      >
-                        <OptionScoreBadge $isSelected={field.value === option.score}>
-                          {option.score}
-                        </OptionScoreBadge>
-                        <OptionText>{option.label}</OptionText>
-                      </RatingOptionButton>
-                    ))}
-                  </RatingOptionsGroup>
-                )}
-              />
-            </QuestionCard>
+            {/* Form Actions */}
+            <FormFooterActions>
+              <Button
+                type="button"
+                variant="secondary"
+                leftIcon={<RiArrowLeftLine size={16} />}
+                onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
+              >
+                Back to Dashboard
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={isSubmitting}
+                leftIcon={<RiCheckLine size={18} />}
+              >
+                Submit Feedback
+              </Button>
+            </FormFooterActions>
+          </SingleUnifiedCard>
+        </form>
+      </FormPageContainer>
 
-            <QuestionCard>
-              <QuestionTitle>2. I would recommend this programme to my friends.</QuestionTitle>
-              <Controller
-                name="os_q2"
-                control={control}
-                render={({ field }) => (
-                  <RatingOptionsGroup>
-                    {RECOMMENDATION_OPTIONS.map(option => (
-                      <RatingOptionButton
-                        key={option.score}
-                        type="button"
-                        $isSelected={field.value === option.score}
-                        onClick={() => field.onChange(option.score)}
-                      >
-                        <OptionScoreBadge $isSelected={field.value === option.score}>
-                          {option.score}
-                        </OptionScoreBadge>
-                        <OptionText>{option.label}</OptionText>
-                      </RatingOptionButton>
-                    ))}
-                  </RatingOptionsGroup>
-                )}
-              />
-            </QuestionCard>
-          </SectionBlock>
-
-          {/* Section 5: Open Feedback */}
-          <SectionBlock>
-            <SectionHeader>
-              <SectionHeaderIcon>
-                <RiChat3Line size={20} />
-              </SectionHeaderIcon>
-              <SectionTitleText>Open Feedback</SectionTitleText>
-            </SectionHeader>
-
-            <QuestionCard>
-              <QuestionTitle>1. What was the most helpful part?</QuestionTitle>
-              <CustomTextArea
-                placeholder="Share what worked best for you during the counselling sessions..."
-                {...register('helpful_part')}
-              />
-            </QuestionCard>
-
-            <QuestionCard>
-              <QuestionTitle>2. What could be improved?</QuestionTitle>
-              <CustomTextArea
-                placeholder="Let us know how we can make the experience even better..."
-                {...register('improvement_part')}
-              />
-            </QuestionCard>
-          </SectionBlock>
-
-          {/* Form Actions */}
-          <FormFooterActions>
-            <Button
-              type="button"
-              variant="secondary"
-              leftIcon={<RiArrowLeftLine size={16} />}
-              onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
-            >
-              Back to Dashboard
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              isLoading={isSubmitting}
-              leftIcon={<RiCheckLine size={18} />}
-            >
-              Submit Feedback
-            </Button>
-          </FormFooterActions>
-        </SingleUnifiedCard>
-      </form>
-    </FormPageContainer>
-
-    {/* Completion Confirmation Popup Modal */}
-    <SuccessModal
-      isOpen={isCompletionModalOpen}
-      onClose={() => setIsCompletionModalOpen(false)}
-      title="Feedback Submitted Successfully!"
-      message="Thank you for your valuable feedback on the counselling session."
-      confirmText="Go to Student Portal"
-      onConfirm={handleConfirmCompletion}
-    />
+      {/* Completion Confirmation Popup Modal */}
+      <SuccessModal
+        isOpen={isCompletionModalOpen}
+        onClose={() => setIsCompletionModalOpen(false)}
+        title="Feedback Submitted Successfully!"
+        message="Thank you for your valuable feedback on the counselling session."
+        confirmText="Go to Student Portal"
+        onConfirm={handleConfirmCompletion}
+      />
     </>
   );
 };
