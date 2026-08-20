@@ -15,6 +15,20 @@ const timeSlots = [
   '16:00 - 17:00',
 ];
 
+export const PROJECT_STAGES = [
+  'Login Activated',
+  'Profile Completed',
+  'Pre-Counselling — Student',
+  'Pre-Counselling — Parent',
+  'Assessment Completed',
+  'Session Booked',
+  'Session 1 Completed',
+  'Session 2 Completed',
+  'Feedback — Student',
+  'Feedback — Parent',
+  'Report Downloaded',
+] as const;
+
 const generateProjectStudents = (count: number): ProjectStudentDetail[] => {
   const firstNames = [
     'Aarav', 'Ananya', 'Rohan', 'Priya', 'Siddharth', 'Kavya', 'Vikram', 'Meera',
@@ -32,6 +46,7 @@ const generateProjectStudents = (count: number): ProjectStudentDetail[] => {
     const fname = firstNames[i % firstNames.length];
     const lname = lastNames[(i * 3) % lastNames.length];
     const grade = grades[i % grades.length];
+    const stage = PROJECT_STAGES[(i * 3 + 2) % PROJECT_STAGES.length];
     const c1 = counselorsList[i % counselorsList.length];
     const c2 = counselorsList[(i + 2) % counselorsList.length];
 
@@ -42,10 +57,12 @@ const generateProjectStudents = (count: number): ProjectStudentDetail[] => {
 
     students.push({
       id: `std-det-${i}`,
+      studentId: `ST${100 + i}`,
       name: `${fname} ${lname}`,
       email: `${fname.toLowerCase()}.${lname.toLowerCase()}${i}@student.edu`,
       mobile: `+91 98${(10000000 + i * 12345).toString().slice(0, 8)}`,
       grade,
+      stage,
       session1: {
         sessionNumber: 1,
         status: s1Status,
@@ -62,6 +79,7 @@ const generateProjectStudents = (count: number): ProjectStudentDetail[] => {
         counselorName: c2.name,
         counselorEmail: c2.email,
       },
+      isFlagged: i % 3 === 0 || i % 7 === 1,
     });
   }
 

@@ -1,23 +1,34 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiDownloadLine,
   RiTimeLine,
   RiDeleteBinLine,
   RiArrowLeftLine,
-  RiPhoneLine,
-  RiFlag2Fill,
+  RiCloseCircleLine,
+  RiSearchLine,
+  RiUserLine,
+  RiEditLine,
+  RiUserAddLine,
+  RiFlag2Line,
+  RiFileExcel2Line,
 } from 'react-icons/ri';
-import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { Select } from '@/components/Select';
 import { Table, Column } from '@/components/Table';
 import { AlertModal, Tooltip } from '@/components';
+import { projectService } from '@/services/project.service';
+import { ProjectStudentDetail } from '@/types/project.types';
 import { mockProjects } from '@/mocks/projects.mock';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
+import { formatDateDDMMYYYY } from '@/utils';
 import { EditProjectModal } from '../components/EditProjectModal';
-import { LogCallModal } from '../components/LogCallModal';
+import { EditStudentModal } from '../ProjectStudentsPage/EditStudentModal';
+import { ViewStudentModal } from '../ProjectSessionsPage/ViewStudentModal';
 import {
   DashboardContainer,
   ProjectTopHeaderCard,
@@ -35,168 +46,85 @@ import {
   OverviewCard,
   OverviewCardLabel,
   OverviewCardValue,
-  SectionHeading,
-  StageProgressLayout,
-  FollowUpCardsGrid,
-  FollowUpStatCard,
-  FollowUpCardLabel,
-  FollowUpCardValue,
-  StagesCard,
-  StagesTableHeader,
-  StageList,
-  StageRowItem,
-  StageNameWrapper,
-  PendingBadge,
-  AgeingFootnote,
+  FilterBar,
+  FiltersLeft,
+  FiltersRight,
+  SearchWrapper,
+  ToolbarIconButton,
+  StudentNameButton,
+  StageCellWrapper,
+  SessionTimeText,
+  CounselorSubtext,
   ActionIconButtonGroup,
   ActionIconButton,
-  DaysAgeingPill,
 } from './ProjectDashboardPage.styles';
 
-export interface FollowUpStudent {
-  id: string;
-  studentId: string;
-  studentName: string;
-  stageKey: string;
-  stuckAtStage: string;
-  daysAgeing: number;
-  lastCall: string;
-}
-
-const INDIAN_FIRST_NAMES = [
-  'Aarav', 'Aditya', 'Ananya', 'Devika', 'Diya', 'Ishaan', 'Kabir', 'Meera',
-  'Pooja', 'Priya', 'Rahul', 'Rhea', 'Rohan', 'Sana', 'Siddharth', 'Tanvi',
-  'Varun', 'Vihaan', 'Yash', 'Zoya', 'Karan', 'Aryan', 'Neha', 'Shreya',
-  'Nikhil', 'Gaurav', 'Manish', 'Kavya', 'Deepak', 'Sanjay', 'Arjun', 'Pranav'
+export const PROJECT_STAGES_OPTIONS = [
+  { value: 'all', label: 'All Stages' },
+  { value: 'Login Activated', label: 'Login Activated' },
+  { value: 'Profile Completed', label: 'Profile Completed' },
+  { value: 'Pre-Counselling — Student', label: 'Pre-Counselling — Student' },
+  { value: 'Pre-Counselling — Parent', label: 'Pre-Counselling — Parent' },
+  { value: 'Assessment Completed', label: 'Assessment Completed' },
+  { value: 'Session Booked', label: 'Session Booked' },
+  { value: 'Session 1 Completed', label: 'Session 1 Completed' },
+  { value: 'Session 2 Completed', label: 'Session 2 Completed' },
+  { value: 'Feedback — Student', label: 'Feedback — Student' },
+  { value: 'Feedback — Parent', label: 'Feedback — Parent' },
+  { value: 'Report Downloaded', label: 'Report Downloaded' },
 ];
-
-const INDIAN_LAST_NAMES = [
-  'Sharma', 'Patel', 'Nair', 'Menon', 'Verma', 'Gupta', 'Iyer', 'Deshmukh',
-  'Kulkarni', 'Rao', 'Farooqui', 'Sheikh', 'Joshi', 'Bhat', 'Hegde', 'Kapoor',
-  'Singhania', 'Khan', 'Reddy', 'Chopra', 'Malhotra', 'Bose', 'Mukherjee', 'Das'
-];
-
-export const STAGES_LIST = [
-  { key: 'login_activated', label: 'Login Activated', pending: 10, isFlagged: true },
-  { key: 'profile_completed', label: 'Profile Completed', pending: 22, isFlagged: false },
-  { key: 'pre_counselling_student', label: 'Pre-Counselling — Student', pending: 23, isFlagged: false },
-  { key: 'pre_counselling_parent', label: 'Pre-Counselling — Parent', pending: 28, isFlagged: false },
-  { key: 'assessment_completed', label: 'Assessment Completed', pending: 29, isFlagged: true },
-  { key: 'session_booked', label: 'Session Booked', pending: 45, isFlagged: false },
-  { key: 'session_1_completed', label: 'Session 1 Completed', pending: 55, isFlagged: true },
-  { key: 'session_2_completed', label: 'Session 2 Completed', pending: 66, isFlagged: false },
-  { key: 'feedback_student', label: 'Feedback — Student', pending: 68, isFlagged: false },
-  { key: 'feedback_parent', label: 'Feedback — Parent', pending: 71, isFlagged: false },
-  { key: 'report_downloaded', label: 'Report Downloaded', pending: 12, isFlagged: false },
-];
-
-const LAST_CALL_OPTIONS = ['Not called', '1 day ago', '2 days ago', '3 days ago', '4 days ago'];
-
-// Helper to generate deterministic mock students for any stage count
-const generateStudentsForStage = (stageKey: string, stageLabel: string, count: number): FollowUpStudent[] => {
-  const result: FollowUpStudent[] = [];
-  for (let i = 0; i < count; i++) {
-    const fn = INDIAN_FIRST_NAMES[(i * 3 + stageKey.length) % INDIAN_FIRST_NAMES.length];
-    const ln = INDIAN_LAST_NAMES[(i * 2 + stageKey.length) % INDIAN_LAST_NAMES.length];
-    const idNum = 100 + ((i * 7 + stageKey.charCodeAt(0)) % 899);
-    const daysAgeing = ((i + stageKey.length) % 7) + 1;
-    const lastCall = LAST_CALL_OPTIONS[(i + stageKey.length) % LAST_CALL_OPTIONS.length];
-
-    result.push({
-      id: `${stageKey}-${i + 1}`,
-      studentId: `ST${idNum}`,
-      studentName: `${fn} ${ln}`,
-      stageKey,
-      stuckAtStage: stageLabel,
-      daysAgeing,
-      lastCall,
-    });
-  }
-  return result;
-};
-
-// Helper for follow-up metric card generators
-const generateStudentsForCategory = (category: string, count: number): FollowUpStudent[] => {
-  const result: FollowUpStudent[] = [];
-  const stageLabels = [
-    'Pre-Counselling (Parent)',
-    'Assessment',
-    'Session 1 Missed',
-    'Session 2 Missed',
-    'Session Booking',
-    'Report Download',
-    'Profile Completed',
-  ];
-
-  for (let i = 0; i < count; i++) {
-    const fn = INDIAN_FIRST_NAMES[(i * 5 + category.length) % INDIAN_FIRST_NAMES.length];
-    const ln = INDIAN_LAST_NAMES[(i * 3 + category.length) % INDIAN_LAST_NAMES.length];
-    const idNum = 200 + ((i * 11 + category.charCodeAt(0)) % 799);
-    const stuckLabel = category === 'missed_session_1'
-      ? 'Session 1 Missed'
-      : category === 'missed_session_2'
-      ? 'Session 2 Missed'
-      : stageLabels[i % stageLabels.length];
-    const daysAgeing = category === 'overdue' ? 3 + (i % 6) : ((i + 2) % 5) + 1;
-    const lastCall = LAST_CALL_OPTIONS[i % LAST_CALL_OPTIONS.length];
-
-    result.push({
-      id: `${category}-${i + 1}`,
-      studentId: `ST${idNum}`,
-      studentName: `${fn} ${ln}`,
-      stageKey: category,
-      stuckAtStage: stuckLabel,
-      daysAgeing,
-      lastCall,
-    });
-  }
-  return result;
-};
 
 export const ProjectDashboardPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const toast = useToast();
-
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedStageKey, setSelectedStageKey] = useState<string>('login_activated');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [logCallStudent, setLogCallStudent] = useState<FollowUpStudent | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
 
   const project =
     mockProjects.find(p => p.id === projectId) || mockProjects[0];
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+  const [isProjectClosed, setIsProjectClosed] = useState(project.status === 'completed');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Table Filters State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [stageFilter, setStageFilter] = useState('all');
+  const [isFlagFilterActive, setIsFlagFilterActive] = useState(false);
+  const [page, setPage] = useState(1);
+  const [editingStudent, setEditingStudent] = useState<ProjectStudentDetail | null>(null);
+  const [viewingStudent, setViewingStudent] = useState<ProjectStudentDetail | null>(null);
+  const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const limit = 10;
+
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ['projectStudents', projectId],
+    queryFn: () => projectService.getProjectStudents(projectId || 'proj-001'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (updatedStudent: ProjectStudentDetail) =>
+      projectService.updateProjectStudent(projectId || 'proj-001', updatedStudent),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      toast.success('Student Saved', 'Student information and session details updated successfully.');
+      setEditingStudent(null);
+      setIsAddStudentModalOpen(false);
+    },
+    onError: () => {
+      toast.error('Save Failed', 'Could not update student details.');
+    },
+  });
 
   const handleExtendProject = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleExportReport = () => {
-    const csvContent =
-      `Project Stage-Wise Progress Report\n` +
-      `Project Name,${project.name}\n` +
-      `Institute,${project.instituteName}\n` +
-      `Location,${project.location || 'Mumbai, Maharashtra'}\n` +
-      `Period,01 Aug 2026 – 31 Oct 2026\n\n` +
-      `Student ID,Student Name,Stuck at Stage,Days Ageing,Last Call\n` +
-      allCurrentStudents
-        .map(
-          s =>
-            `${s.studentId},${s.studentName},${s.stuckAtStage},${s.daysAgeing},${s.lastCall}`
-        )
-        .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Progress_Report.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Report Exported', `Downloaded stage-wise project report CSV.`);
+  const handleConfirmClose = () => {
+    setIsProjectClosed(true);
+    setIsCloseModalOpen(false);
+    toast.success('Project Closed', `"${project.name}" has been marked as completed.`);
   };
 
   const handleConfirmDelete = () => {
@@ -205,76 +133,152 @@ export const ProjectDashboardPage: React.FC = () => {
     navigate(ROUTES.PROJECTS);
   };
 
-  // Generate complete rows dynamically based on the active selection
-  const allCurrentStudents = useMemo(() => {
-    if (selectedCategory) {
-      const counts: Record<string, number> = {
-        follow_up_today: 57,
-        overdue: 18,
-        missed_session_1: 3,
-        missed_session_2: 9,
-      };
-      return generateStudentsForCategory(selectedCategory, counts[selectedCategory] || 10);
+  const handleCreateNewStudent = () => {
+    const newStd: ProjectStudentDetail = {
+      id: `std-new-${Date.now()}`,
+      name: '',
+      email: '',
+      mobile: '+91 ',
+      grade: '12th',
+      stage: 'Login Activated',
+      session1: {
+        sessionNumber: 1,
+        status: 'scheduled',
+        date: new Date().toISOString().slice(0, 10),
+        timeSlot: '09:30 - 10:30',
+        counselorName: 'Anil Iyer',
+        counselorEmail: 'anil.iyer1@outlook.com',
+      },
+      session2: {
+        sessionNumber: 2,
+        status: 'pending',
+        date: new Date().toISOString().slice(0, 10),
+        timeSlot: '11:00 - 12:00',
+        counselorName: 'Mahesh Pillai',
+        counselorEmail: 'mahesh.pillai2@rediffmail.com',
+      },
+    };
+    setEditingStudent(newStd);
+    setIsAddStudentModalOpen(true);
+  };
+
+  const handleExportExcel = () => {
+    const csvContent =
+      `Student ID,Student Name,Stage,Counselor,Session 1 Date,Session 1 Slot,Session 1 Status,Session 2 Date,Session 2 Slot,Session 2 Status\n` +
+      filteredStudents
+        .map(
+          s =>
+            `"${s.studentId || s.id}","${s.name}","${s.stage || 'Login Activated'}","${s.session1.counselorName || s.session2.counselorName}","${s.session1.date}","${s.session1.timeSlot}","${s.session1.status}","${s.session2.date}","${s.session2.timeSlot}","${s.session2.status}"`
+        )
+        .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Students_List.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Excel Export Started', 'Downloaded project students list (.csv).');
+  };
+
+  const filteredStudents = students.filter(std => {
+    if (isFlagFilterActive && !std.isFlagged) return false;
+    if (stageFilter !== 'all' && std.stage !== stageFilter) return false;
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (
+        std.name.toLowerCase().includes(q) ||
+        (std.studentId && std.studentId.toLowerCase().includes(q)) ||
+        (std.stage && std.stage.toLowerCase().includes(q)) ||
+        std.email.toLowerCase().includes(q) ||
+        std.mobile.toLowerCase().includes(q) ||
+        std.session1.counselorName.toLowerCase().includes(q) ||
+        std.session2.counselorName.toLowerCase().includes(q)
+      );
     }
+    return true;
+  });
 
-    const matchedStage = STAGES_LIST.find(s => s.key === selectedStageKey) || STAGES_LIST[0];
-    return generateStudentsForStage(matchedStage.key, matchedStage.label, matchedStage.pending);
-  }, [selectedStageKey, selectedCategory]);
-
-  // Paginate the student rows
-  const paginatedStudents = useMemo(() => {
-    const start = (page - 1) * limit;
-    return allCurrentStudents.slice(start, start + limit);
-  }, [allCurrentStudents, page, limit]);
-
-  const totalPages = Math.ceil(allCurrentStudents.length / limit);
-
-  const columns: Column<FollowUpStudent>[] = [
+  const columns: Column<ProjectStudentDetail>[] = [
     {
       key: 'studentId',
       header: 'Student ID',
-      accessor: 'studentId',
       width: '120px',
+      render: row => row.studentId || `ST${100 + (parseInt(row.id.replace(/\D/g, ''), 10) || 1)}`,
     },
     {
-      key: 'studentName',
+      key: 'name',
       header: 'Student',
-      accessor: 'studentName',
-      render: (row: FollowUpStudent) => <strong>{row.studentName}</strong>,
-    },
-    {
-      key: 'stuckAtStage',
-      header: 'Stuck at stage',
-      accessor: 'stuckAtStage',
-    },
-    {
-      key: 'daysAgeing',
-      header: 'Days Ageing',
-      accessor: 'daysAgeing',
-      render: (row: FollowUpStudent) => (
-        <DaysAgeingPill $days={row.daysAgeing}>{row.daysAgeing}</DaysAgeingPill>
+      width: '200px',
+      render: row => (
+        <StudentNameButton
+          type="button"
+          onClick={() => setViewingStudent(row)}
+          aria-label={`View details for ${row.name}`}
+        >
+          {row.name}
+        </StudentNameButton>
       ),
     },
     {
-      key: 'lastCall',
-      header: 'Last call',
-      accessor: 'lastCall',
+      key: 'stage',
+      header: 'Stage',
+      width: '240px',
+      render: row => (
+        <StageCellWrapper>
+          <span>{row.stage || 'Login Activated'}</span>
+          {row.isFlagged && (
+            <Tooltip content="Flagged for admin follow-up">
+              <span>
+                <RiFlag2Line size={15} style={{ color: '#EF4444', verticalAlign: '-2px' }} />
+              </span>
+            </Tooltip>
+          )}
+        </StageCellWrapper>
+      ),
     },
     {
-      key: 'action',
-      header: 'Action',
+      key: 'counselor',
+      header: 'Counselor',
+      width: '180px',
+      render: row => (
+        <CounselorSubtext style={{ fontSize: '13px', color: '#1f2937' }}>
+          <RiUserLine size={14} /> {row.session1.counselorName || row.session2.counselorName}
+        </CounselorSubtext>
+      ),
+    },
+    {
+      key: 'session1',
+      header: 'Session 1',
+      width: '220px',
+      render: row => (
+        <SessionTimeText>
+          <RiTimeLine size={13} /> {formatDateDDMMYYYY(row.session1.date)} ({row.session1.timeSlot})
+        </SessionTimeText>
+      ),
+    },
+    {
+      key: 'session2',
+      header: 'Session 2',
+      width: '220px',
+      render: row => (
+        <SessionTimeText>
+          <RiTimeLine size={13} /> {formatDateDDMMYYYY(row.session2.date)} ({row.session2.timeSlot})
+        </SessionTimeText>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
       width: '80px',
-      render: (row: FollowUpStudent) => (
+      render: row => (
         <ActionIconButtonGroup>
-          <Tooltip content="Log Call">
-            <ActionIconButton
-              type="button"
-              aria-label="Log Call"
-              onClick={() => {
-                setLogCallStudent(row);
-              }}
-            >
-              <RiPhoneLine size={16} />
+          <Tooltip content="Edit Student & Sessions">
+            <ActionIconButton onClick={() => setEditingStudent(row)}>
+              <RiEditLine size={16} />
             </ActionIconButton>
           </Tooltip>
         </ActionIconButtonGroup>
@@ -284,14 +288,6 @@ export const ProjectDashboardPage: React.FC = () => {
 
   return (
     <DashboardContainer>
-      <PageHeader
-        title=""
-        breadcrumbs={[
-          { label: 'Projects', href: ROUTES.PROJECTS },
-          { label: project.name },
-        ]}
-      />
-
       {/* Top Project Identity Banner */}
       <ProjectTopHeaderCard>
         <TopHeaderLeft>
@@ -303,7 +299,9 @@ export const ProjectDashboardPage: React.FC = () => {
             <ProjectTitleRow>
               <ProjectInstituteTitle>{project.instituteName}</ProjectInstituteTitle>
               <InstCodeBadge>INS001</InstCodeBadge>
-              <StatusPill>Ongoing</StatusPill>
+              <StatusPill $isClosed={isProjectClosed}>
+                {isProjectClosed ? 'Completed' : 'Ongoing'}
+              </StatusPill>
             </ProjectTitleRow>
             <LocationAndPeriod>
               <span>{project.location || 'Mumbai, Maharashtra'}</span>
@@ -323,6 +321,14 @@ export const ProjectDashboardPage: React.FC = () => {
             Extend Project
           </Button>
           <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<RiCloseCircleLine size={16} />}
+            onClick={() => setIsCloseModalOpen(true)}
+          >
+            {isProjectClosed ? 'Closed' : 'Close Project'}
+          </Button>
+          <Button
             variant="danger"
             size="sm"
             leftIcon={<RiDeleteBinLine size={16} />}
@@ -334,7 +340,7 @@ export const ProjectDashboardPage: React.FC = () => {
             variant="primary"
             size="sm"
             leftIcon={<RiDownloadLine size={16} />}
-            onClick={handleExportReport}
+            onClick={handleExportExcel}
           >
             Export Report
           </Button>
@@ -343,14 +349,25 @@ export const ProjectDashboardPage: React.FC = () => {
 
       {/* 4 Top Overview Metrics */}
       <OverviewStatsGrid>
-        <OverviewCard>
+        <OverviewCard
+          $clickable
+          onClick={() =>
+            navigate(
+              ROUTES.PROJECT_SESSIONS.replace(
+                ':projectId',
+                projectId || 'proj-001'
+              )
+            )
+          }
+          title="Click to view Project Sessions"
+        >
           <OverviewCardLabel>Counsellors</OverviewCardLabel>
           <OverviewCardValue>44</OverviewCardValue>
         </OverviewCard>
 
         <OverviewCard>
           <OverviewCardLabel>Total Students</OverviewCardLabel>
-          <OverviewCardValue>350</OverviewCardValue>
+          <OverviewCardValue>{students.length || 350}</OverviewCardValue>
         </OverviewCard>
 
         <OverviewCard>
@@ -364,130 +381,104 @@ export const ProjectDashboardPage: React.FC = () => {
         </OverviewCard>
       </OverviewStatsGrid>
 
-      {/* Section Title */}
-      <SectionHeading>Stage Wise Progress</SectionHeading>
+      {/* Students Data Table Section */}
+      <Card padding="lg">
+        <FilterBar>
+          <FiltersLeft>
+            <SearchWrapper>
+              <Input
+                placeholder="Search student, ID, stage or counselor..."
+                leftIcon={<RiSearchLine size={16} />}
+                value={searchQuery}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </SearchWrapper>
 
-      {/* 4 Follow-up Stat Filter Cards */}
-      <FollowUpCardsGrid>
-        <FollowUpStatCard
-          type="button"
-          $isActive={selectedCategory === 'follow_up_today'}
-          onClick={() => {
-            setSelectedCategory(prev => (prev === 'follow_up_today' ? null : 'follow_up_today'));
-            setPage(1);
+            <div style={{ width: '260px' }}>
+              <Select
+                value={stageFilter}
+                onChange={e => {
+                  setStageFilter(e.target.value);
+                  setPage(1);
+                }}
+                options={PROJECT_STAGES_OPTIONS}
+              />
+            </div>
+          </FiltersLeft>
+
+          <FiltersRight>
+            <Tooltip content={isFlagFilterActive ? 'Show All Students' : 'Filter by Red Flag'}>
+              <ToolbarIconButton
+                type="button"
+                $active={isFlagFilterActive}
+                $variant="flag"
+                onClick={() => {
+                  setIsFlagFilterActive(prev => !prev);
+                  setPage(1);
+                }}
+                aria-label="Filter by Red Flag"
+              >
+                <RiFlag2Line size={18} />
+              </ToolbarIconButton>
+            </Tooltip>
+
+            <Tooltip content="Export Students to Excel">
+              <ToolbarIconButton
+                type="button"
+                $variant="excel"
+                onClick={handleExportExcel}
+                aria-label="Export Students to Excel"
+              >
+                <RiFileExcel2Line size={18} />
+              </ToolbarIconButton>
+            </Tooltip>
+
+            <Button
+              leftIcon={<RiUserAddLine size={16} />}
+              onClick={handleCreateNewStudent}
+            >
+              Add Student
+            </Button>
+          </FiltersRight>
+        </FilterBar>
+
+        <Table
+          columns={columns}
+          data={filteredStudents.slice((page - 1) * limit, page * limit)}
+          isLoading={isLoading}
+          keyExtractor={row => row.id}
+          emptyMessage="No project students found matching filters."
+          pagination={{
+            page,
+            limit,
+            total: filteredStudents.length,
+            totalPages: Math.ceil(filteredStudents.length / limit) || 1,
+            onPageChange: setPage,
           }}
-        >
-          <FollowUpCardLabel>Follow-up today</FollowUpCardLabel>
-          <FollowUpCardValue $color="#5D2384">57</FollowUpCardValue>
-        </FollowUpStatCard>
+        />
+      </Card>
 
-        <FollowUpStatCard
-          type="button"
-          $isActive={selectedCategory === 'overdue'}
-          onClick={() => {
-            setSelectedCategory(prev => (prev === 'overdue' ? null : 'overdue'));
-            setPage(1);
-          }}
-        >
-          <FollowUpCardLabel>Overdue (&gt; 2 days)</FollowUpCardLabel>
-          <FollowUpCardValue $color="#DC2626">18</FollowUpCardValue>
-        </FollowUpStatCard>
+      {/* View Student Details Modal */}
+      <ViewStudentModal
+        isOpen={Boolean(viewingStudent)}
+        onClose={() => setViewingStudent(null)}
+        student={viewingStudent}
+        instituteName={project.instituteName}
+      />
 
-        <FollowUpStatCard
-          type="button"
-          $isActive={selectedCategory === 'missed_session_1'}
-          onClick={() => {
-            setSelectedCategory(prev => (prev === 'missed_session_1' ? null : 'missed_session_1'));
-            setPage(1);
-          }}
-        >
-          <FollowUpCardLabel>Missed Session - 1</FollowUpCardLabel>
-          <FollowUpCardValue $color="#EA580C">3</FollowUpCardValue>
-        </FollowUpStatCard>
-
-        <FollowUpStatCard
-          type="button"
-          $isActive={selectedCategory === 'missed_session_2'}
-          onClick={() => {
-            setSelectedCategory(prev => (prev === 'missed_session_2' ? null : 'missed_session_2'));
-            setPage(1);
-          }}
-        >
-          <FollowUpCardLabel>Missed Session - 2</FollowUpCardLabel>
-          <FollowUpCardValue $color="#EA580C">9</FollowUpCardValue>
-        </FollowUpStatCard>
-      </FollowUpCardsGrid>
-
-      {/* Interactive Stages & Follow-up Students Layout */}
-      <StageProgressLayout>
-        {/* Left Stages Table Card */}
-        <StagesCard>
-          <StagesTableHeader>
-            <span>Stages</span>
-            <span>Pending</span>
-          </StagesTableHeader>
-
-          <StageList>
-            {STAGES_LIST.map(stage => {
-              const isSelected = selectedStageKey === stage.key && !selectedCategory;
-              return (
-                <StageRowItem
-                  key={stage.key}
-                  type="button"
-                  $isSelected={isSelected}
-                  onClick={() => {
-                    setSelectedStageKey(stage.key);
-                    setSelectedCategory(null);
-                    setPage(1);
-                  }}
-                >
-                  <StageNameWrapper>
-                    <span>{stage.label}</span>
-                    {stage.isFlagged && (
-                      <RiFlag2Fill size={15} style={{ color: '#EF4444' }} />
-                    )}
-                  </StageNameWrapper>
-                  <PendingBadge $isFlagged={stage.isFlagged}>{stage.pending}</PendingBadge>
-                </StageRowItem>
-              );
-            })}
-          </StageList>
-
-          <AgeingFootnote>
-            <RiFlag2Fill size={13} style={{ color: '#EF4444', marginRight: '6px', verticalAlign: '-2px' }} />
-            <strong>Ageing</strong> = calendar days since the student completed the previous stage. Beyond 2 days idle, the stage is flagged for admin follow-up.
-          </AgeingFootnote>
-        </StagesCard>
-
-        {/* Right Content Area: Follow-up Students Table */}
-        <Card>
-          <Table
-            columns={columns}
-            data={paginatedStudents}
-            keyExtractor={row => row.id}
-            emptyMessage="No pending follow-ups found for the selected stage filter."
-            pagination={{
-              page,
-              totalPages,
-              total: allCurrentStudents.length,
-              limit,
-              onPageChange: p => setPage(p),
-              onLimitChange: l => {
-                setLimit(l);
-                setPage(1);
-              },
-            }}
-          />
-        </Card>
-      </StageProgressLayout>
-
-      {/* Log Call Modal */}
-      <LogCallModal
-        isOpen={Boolean(logCallStudent)}
-        onClose={() => setLogCallStudent(null)}
-        targetName={logCallStudent?.studentName || ''}
-        targetCode={logCallStudent?.studentId}
-        stageName={logCallStudent?.stuckAtStage}
+      {/* Edit Student Modal */}
+      <EditStudentModal
+        isOpen={Boolean(editingStudent) || isAddStudentModalOpen}
+        onClose={() => {
+          setEditingStudent(null);
+          setIsAddStudentModalOpen(false);
+        }}
+        student={editingStudent}
+        onSave={updated => updateMutation.mutate(updated)}
+        isSaving={updateMutation.isPending}
       />
 
       {/* Edit / Extend Project Modal */}
@@ -506,6 +497,18 @@ export const ProjectDashboardPage: React.FC = () => {
         description={`Are you sure you want to delete "${project.name}"? This action cannot be undone.`}
         variant="danger"
         confirmText="Delete Project"
+        cancelText="Cancel"
+      />
+
+      {/* Close Project Confirmation Modal */}
+      <AlertModal
+        isOpen={isCloseModalOpen}
+        onClose={() => setIsCloseModalOpen(false)}
+        onConfirm={handleConfirmClose}
+        title="Close Project"
+        description={`Are you sure you want to close "${project.name}"? This will mark the project status as completed.`}
+        variant="warning"
+        confirmText="Close Project"
         cancelText="Cancel"
       />
     </DashboardContainer>

@@ -7,13 +7,14 @@ import {
   RiUserLine,
   RiEditLine,
   RiUserAddLine,
+  RiFlag2Line,
+  RiFileExcel2Line,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Table, Column } from '@/components/Table';
-import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components';
 import { projectService } from '@/services/project.service';
@@ -22,19 +23,36 @@ import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
 import { formatDateDDMMYYYY } from '@/utils';
 import { EditStudentModal } from './EditStudentModal';
+import { ViewStudentModal } from '../ProjectSessionsPage/ViewStudentModal';
 import {
   Container,
   FilterBar,
   FiltersLeft,
+  FiltersRight,
+  ToolbarIconButton,
   SearchWrapper,
-  StudentCell,
-  StudentNameText,
-  StudentSubtext,
+  StudentNameButton,
+  StageCellWrapper,
   SessionTimeText,
   CounselorSubtext,
   ActionIconButtonGroup,
   ActionIconButton,
 } from './ProjectStudentsPage.styles';
+
+export const PROJECT_STAGES_OPTIONS = [
+  { value: 'all', label: 'All Stages' },
+  { value: 'Login Activated', label: 'Login Activated' },
+  { value: 'Profile Completed', label: 'Profile Completed' },
+  { value: 'Pre-Counselling — Student', label: 'Pre-Counselling — Student' },
+  { value: 'Pre-Counselling — Parent', label: 'Pre-Counselling — Parent' },
+  { value: 'Assessment Completed', label: 'Assessment Completed' },
+  { value: 'Session Booked', label: 'Session Booked' },
+  { value: 'Session 1 Completed', label: 'Session 1 Completed' },
+  { value: 'Session 2 Completed', label: 'Session 2 Completed' },
+  { value: 'Feedback — Student', label: 'Feedback — Student' },
+  { value: 'Feedback — Parent', label: 'Feedback — Parent' },
+  { value: 'Report Downloaded', label: 'Report Downloaded' },
+];
 
 export const ProjectStudentsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -43,10 +61,11 @@ export const ProjectStudentsPage: React.FC = () => {
   const toast = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [gradeFilter, setGradeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [stageFilter, setStageFilter] = useState('all');
+  const [isFlagFilterActive, setIsFlagFilterActive] = useState(false);
   const [page, setPage] = useState(1);
   const [editingStudent, setEditingStudent] = useState<ProjectStudentDetail | null>(null);
+  const [viewingStudent, setViewingStudent] = useState<ProjectStudentDetail | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const limit = 10;
 
@@ -81,6 +100,7 @@ export const ProjectStudentsPage: React.FC = () => {
       email: '',
       mobile: '+91 ',
       grade: '12th',
+      stage: 'Login Activated',
       session1: {
         sessionNumber: 1,
         status: 'scheduled',
@@ -102,16 +122,37 @@ export const ProjectStudentsPage: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
+  const handleExportExcel = () => {
+    const csvContent =
+      `Student ID,Student Name,Stage,Counselor,Session 1 Date,Session 1 Slot,Session 1 Status,Session 2 Date,Session 2 Slot,Session 2 Status\n` +
+      filteredStudents
+        .map(
+          s =>
+            `"${s.studentId || s.id}","${s.name}","${s.stage || 'Login Activated'}","${s.session1.counselorName || s.session2.counselorName}","${s.session1.date}","${s.session1.timeSlot}","${s.session1.status}","${s.session2.date}","${s.session2.timeSlot}","${s.session2.status}"`
+        )
+        .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${(project?.name || 'Project').replace(/\s+/g, '_')}_Students_List.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Excel Export Started', 'Downloaded project students list (.csv).');
+  };
+
   const filteredStudents = students.filter(std => {
-    if (gradeFilter !== 'all' && std.grade !== gradeFilter) return false;
-    if (statusFilter === 's1_completed' && std.session1.status !== 'completed') return false;
-    if (statusFilter === 's2_completed' && std.session2.status !== 'completed') return false;
-    if (statusFilter === 'pending' && std.session1.status !== 'pending' && std.session2.status !== 'pending') return false;
+    if (isFlagFilterActive && !std.isFlagged) return false;
+    if (stageFilter !== 'all' && std.stage !== stageFilter) return false;
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (
         std.name.toLowerCase().includes(q) ||
+        (std.studentId && std.studentId.toLowerCase().includes(q)) ||
+        (std.stage && std.stage.toLowerCase().includes(q)) ||
         std.email.toLowerCase().includes(q) ||
         std.mobile.toLowerCase().includes(q) ||
         std.session1.counselorName.toLowerCase().includes(q) ||
@@ -123,23 +164,41 @@ export const ProjectStudentsPage: React.FC = () => {
 
   const columns: Column<ProjectStudentDetail>[] = [
     {
+      key: 'studentId',
+      header: 'Student ID',
+      width: '120px',
+      render: row => row.studentId || `ST${100 + (parseInt(row.id.replace(/\D/g, ''), 10) || 1)}`,
+    },
+    {
       key: 'name',
-      header: 'Student Info',
-      width: '220px',
+      header: 'Student',
+      width: '200px',
       render: row => (
-        <StudentCell>
-          <StudentNameText>{row.name}</StudentNameText>
-          <StudentSubtext>
-            {row.email} • {row.mobile}
-          </StudentSubtext>
-        </StudentCell>
+        <StudentNameButton
+          type="button"
+          onClick={() => setViewingStudent(row)}
+          aria-label={`View details for ${row.name}`}
+        >
+          {row.name}
+        </StudentNameButton>
       ),
     },
     {
-      key: 'grade',
-      header: 'Grade',
-      width: '80px',
-      render: row => <Badge variant="default">{row.grade}</Badge>,
+      key: 'stage',
+      header: 'Stage',
+      width: '240px',
+      render: row => (
+        <StageCellWrapper>
+          <span>{row.stage || 'Login Activated'}</span>
+          {row.isFlagged && (
+            <Tooltip content="Flagged for admin follow-up">
+              <span>
+                <RiFlag2Line size={15} style={{ color: '#EF4444', verticalAlign: '-2px' }} />
+              </span>
+            </Tooltip>
+          )}
+        </StageCellWrapper>
+      ),
     },
     {
       key: 'counselor',
@@ -177,7 +236,7 @@ export const ProjectStudentsPage: React.FC = () => {
       width: '80px',
       render: row => (
         <ActionIconButtonGroup>
-          <Tooltip content="Edit Student &amp; Sessions">
+          <Tooltip content="Edit Student & Sessions">
             <ActionIconButton onClick={() => setEditingStudent(row)}>
               <RiEditLine size={16} />
             </ActionIconButton>
@@ -205,7 +264,7 @@ export const ProjectStudentsPage: React.FC = () => {
           <FiltersLeft>
             <SearchWrapper>
               <Input
-                placeholder="Search student or counselor name..."
+                placeholder="Search student, ID, stage or counselor..."
                 leftIcon={<RiSearchLine size={16} />}
                 value={searchQuery}
                 onChange={e => {
@@ -215,45 +274,52 @@ export const ProjectStudentsPage: React.FC = () => {
               />
             </SearchWrapper>
 
-            <div style={{ width: '160px' }}>
+            <div style={{ width: '260px' }}>
               <Select
-                value={gradeFilter}
+                value={stageFilter}
                 onChange={e => {
-                  setGradeFilter(e.target.value);
+                  setStageFilter(e.target.value);
                   setPage(1);
                 }}
-                options={[
-                  { value: 'all', label: 'All Grades' },
-                  { value: '10th', label: '10th Grade' },
-                  { value: '11th', label: '11th Grade' },
-                  { value: '12th', label: '12th Grade' },
-                ]}
-              />
-            </div>
-
-            <div style={{ width: '200px' }}>
-              <Select
-                value={statusFilter}
-                onChange={e => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                options={[
-                  { value: 'all', label: 'All Session Status' },
-                  { value: 's1_completed', label: 'Session 1 Completed' },
-                  { value: 's2_completed', label: 'Session 2 Completed' },
-                  { value: 'pending', label: 'Pending Sessions' },
-                ]}
+                options={PROJECT_STAGES_OPTIONS}
               />
             </div>
           </FiltersLeft>
 
-          <Button
-            leftIcon={<RiUserAddLine size={16} />}
-            onClick={handleCreateNewStudent}
-          >
-            Add Student
-          </Button>
+          <FiltersRight>
+            <Tooltip content={isFlagFilterActive ? 'Show All Students' : 'Filter by Red Flag'}>
+              <ToolbarIconButton
+                type="button"
+                $active={isFlagFilterActive}
+                $variant="flag"
+                onClick={() => {
+                  setIsFlagFilterActive(prev => !prev);
+                  setPage(1);
+                }}
+                aria-label="Filter by Red Flag"
+              >
+                <RiFlag2Line size={18} />
+              </ToolbarIconButton>
+            </Tooltip>
+
+            <Tooltip content="Export Students to Excel">
+              <ToolbarIconButton
+                type="button"
+                $variant="excel"
+                onClick={handleExportExcel}
+                aria-label="Export Students to Excel"
+              >
+                <RiFileExcel2Line size={18} />
+              </ToolbarIconButton>
+            </Tooltip>
+
+            <Button
+              leftIcon={<RiUserAddLine size={16} />}
+              onClick={handleCreateNewStudent}
+            >
+              Add Student
+            </Button>
+          </FiltersRight>
         </FilterBar>
 
         <Table
@@ -271,6 +337,14 @@ export const ProjectStudentsPage: React.FC = () => {
           }}
         />
       </Card>
+
+      {/* View Student Details Modal */}
+      <ViewStudentModal
+        isOpen={Boolean(viewingStudent)}
+        onClose={() => setViewingStudent(null)}
+        student={viewingStudent}
+        instituteName={project?.instituteName}
+      />
 
       <EditStudentModal
         isOpen={Boolean(editingStudent) || isAddModalOpen}

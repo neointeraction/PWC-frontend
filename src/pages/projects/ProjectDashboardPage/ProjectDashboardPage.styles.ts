@@ -75,9 +75,11 @@ export const InstCodeBadge = styled.span`
   letter-spacing: 0.5px;
 `;
 
-export const StatusPill = styled.span`
-  background-color: ${({ theme }) => theme.colors.successLight};
-  color: ${({ theme }) => theme.colors.success};
+export const StatusPill = styled.span<{ $isClosed?: boolean }>`
+  background-color: ${({ theme, $isClosed }) =>
+    $isClosed ? theme.colors.surfaceHover : theme.colors.successLight};
+  color: ${({ theme, $isClosed }) =>
+    $isClosed ? theme.colors.textSecondary : theme.colors.success};
   padding: 3px 10px;
   border-radius: 4px;
   font-size: 12px;
@@ -119,7 +121,7 @@ export const OverviewStatsGrid = styled.div`
   }
 `;
 
-export const OverviewCard = styled.div`
+export const OverviewCard = styled.div<{ $clickable?: boolean }>`
   background-color: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
@@ -127,6 +129,18 @@ export const OverviewCard = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
+  cursor: ${({ $clickable }) => ($clickable ? 'pointer' : 'default')};
+  transition: all 0.2s ease;
+
+  ${({ $clickable, theme }) =>
+    $clickable &&
+    `
+    &:hover {
+      border-color: ${theme.colors.primary};
+      box-shadow: 0 4px 12px rgba(93, 35, 132, 0.08);
+      transform: translateY(-1px);
+    }
+  `}
 `;
 
 export const OverviewCardLabel = styled.span`
@@ -141,150 +155,143 @@ export const OverviewCardValue = styled.span`
   color: ${({ theme }) => theme.colors.text};
 `;
 
-export const SectionHeading = styled.h3`
-  font-size: 18px;
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.text};
-  margin: 8px 0 0 0;
-`;
-
-export const StageProgressLayout = styled.div`
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 20px;
-  align-items: flex-start;
-
-  @media (max-width: 1080px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-export const FollowUpCardsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  width: 100%;
-  margin-top: 4px;
-  margin-bottom: 4px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 500px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-export const FollowUpStatCard = styled.button<{ $isActive?: boolean }>`
-  background-color: ${({ theme, $isActive }) =>
-    $isActive ? theme.colors.primaryLight : theme.colors.surface};
-  border: 1px solid
-    ${({ theme, $isActive }) => ($isActive ? theme.colors.primary : theme.colors.border)};
-  border-radius: 4px;
-  padding: 14px 16px;
+export const FilterBar = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
+  margin-bottom: 24px;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
+export const FiltersLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+  flex: 1;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
+export const FiltersRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+export const SearchWrapper = styled.div`
+  max-width: 320px;
+  width: 100%;
+`;
+
+export const ToolbarIconButton = styled.button<{
+  $active?: boolean;
+  $variant?: 'flag' | 'excel' | 'default';
+}>`
+  width: 38px;
+  height: 38px;
+  border: 1px solid ${({ theme, $active }) =>
+    $active ? '#EF4444' : theme.colors.border};
+  border-radius: 4px;
+  background-color: ${({ theme, $active }) =>
+    $active ? '#FEF2F2' : theme.colors.surface};
+  color: ${({ theme, $active, $variant }) =>
+    $active
+      ? '#DC2626'
+      : $variant === 'flag'
+      ? '#DC2626'
+      : $variant === 'excel'
+      ? '#16A34A'
+      : theme.colors.text};
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
+    border-color: ${({ $variant, theme }) =>
+      $variant === 'flag' ? '#DC2626' : $variant === 'excel' ? '#16A34A' : theme.colors.primary};
+    background-color: ${({ $variant, theme }) =>
+      $variant === 'flag' ? '#FEF2F2' : $variant === 'excel' ? '#F0FDF4' : theme.colors.primaryLight};
+    color: ${({ $variant, theme }) =>
+      $variant === 'flag' ? '#DC2626' : $variant === 'excel' ? '#16A34A' : theme.colors.primary};
   }
 `;
 
-export const FollowUpCardLabel = styled.span`
-  font-size: 12px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colors.textSecondary};
-`;
-
-export const FollowUpCardValue = styled.span<{ $color?: string }>`
-  font-size: 24px;
-  font-weight: 800;
-  color: ${({ $color, theme }) => $color || theme.colors.text};
-`;
-
-export const StagesCard = styled.div`
-  background-color: ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 4px;
-  overflow: hidden;
+export const StudentCell = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 2px;
 `;
 
-export const StagesTableHeader = styled.div`
+export const StudentNameRow = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background-color: ${({ theme }) => theme.colors.background};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  font-size: 13px;
-  font-weight: 700;
+  gap: 6px;
+`;
+
+export const StudentNameText = styled.span`
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
   color: ${({ theme }) => theme.colors.text};
 `;
 
-export const StageList = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-export const StageRowItem = styled.button<{ $isSelected?: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
+export const StudentNameButton = styled.button`
+  background: none;
   border: none;
-  background-color: ${({ $isSelected, theme }) =>
-    $isSelected ? theme.colors.primaryLight : 'transparent'};
+  padding: 0;
+  font-family: inherit;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
   color: ${({ theme }) => theme.colors.text};
-  font-size: 13px;
-  font-weight: ${({ $isSelected }) => ($isSelected ? 700 : 500)};
-  cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-
-  &:last-child {
-    border-bottom: none;
-  }
+  cursor: pointer;
+  transition: color ${({ theme }) => theme.transition.fast};
 
   &:hover {
-    background-color: ${({ theme, $isSelected }) =>
-      $isSelected ? theme.colors.primaryLight : theme.colors.surfaceHover};
+    color: ${({ theme }) => theme.colors.primary};
+    text-decoration: underline;
   }
 `;
 
-export const StageNameWrapper = styled.div`
+export const StageCellWrapper = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: 500;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
-export const PendingBadge = styled.span<{ $isFlagged?: boolean }>`
-  font-size: 13px;
-  font-weight: 700;
-  color: ${({ theme, $isFlagged }) => ($isFlagged ? theme.colors.danger : theme.colors.text)};
+export const SessionTimeText = styled.span`
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  font-weight: ${({ theme }) => theme.fontWeight.medium};
+  color: ${({ theme }) => theme.colors.text};
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
-export const AgeingFootnote = styled.div`
-  padding: 14px 16px;
-  background-color: ${({ theme }) => theme.colors.background};
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
-  font-size: 12px;
-  line-height: 1.5;
+export const CounselorSubtext = styled.span`
+  font-size: 11px;
   color: ${({ theme }) => theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 export const ActionIconButtonGroup = styled.div`
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  gap: ${({ theme }) => theme.spacing.xs};
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s ease, visibility 0.15s ease;
@@ -296,31 +303,21 @@ export const ActionIconButtonGroup = styled.div`
 `;
 
 export const ActionIconButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 4px;
   border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
   background-color: ${({ theme }) => theme.colors.surface};
-  color: ${({ theme }) => theme.colors.textSecondary};
+  color: ${({ theme }) => theme.colors.text};
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: all ${({ theme }) => theme.transition.fast};
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
+  transition: all 0.2s ease;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme }) => theme.colors.primaryLight};
   }
-`;
-
-export const DaysAgeingPill = styled.span<{ $days: number }>`
-  font-weight: 700;
-  color: ${({ $days, theme }) => ($days >= 5 ? theme.colors.danger : theme.colors.text)};
 `;

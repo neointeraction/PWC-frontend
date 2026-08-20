@@ -29,6 +29,49 @@ export const FiltersLeft = styled.div`
   }
 `;
 
+export const FiltersRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+export const ToolbarIconButton = styled.button<{
+  $active?: boolean;
+  $variant?: 'flag' | 'excel' | 'default';
+}>`
+  width: 38px;
+  height: 38px;
+  border: 1px solid ${({ theme, $active }) =>
+    $active
+      ? '#EF4444'
+      : theme.colors.border};
+  border-radius: 4px;
+  background-color: ${({ theme, $active }) =>
+    $active ? '#FEF2F2' : theme.colors.surface};
+  color: ${({ theme, $active, $variant }) =>
+    $active
+      ? '#DC2626'
+      : $variant === 'flag'
+      ? '#DC2626'
+      : $variant === 'excel'
+      ? '#16A34A'
+      : theme.colors.text};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ $variant, theme }) =>
+      $variant === 'flag' ? '#DC2626' : $variant === 'excel' ? '#16A34A' : theme.colors.primary};
+    background-color: ${({ $variant, theme }) =>
+      $variant === 'flag' ? '#FEF2F2' : $variant === 'excel' ? '#F0FDF4' : theme.colors.primaryLight};
+    color: ${({ $variant, theme }) =>
+      $variant === 'flag' ? '#DC2626' : $variant === 'excel' ? '#16A34A' : theme.colors.primary};
+  }
+`;
+
 export const SearchWrapper = styled.div`
   max-width: 320px;
   width: 100%;
@@ -40,15 +83,43 @@ export const StudentCell = styled.div`
   gap: 2px;
 `;
 
+export const StudentNameRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
 export const StudentNameText = styled.span`
   font-size: ${({ theme }) => theme.fontSize.sm};
   font-weight: ${({ theme }) => theme.fontWeight.semibold};
   color: ${({ theme }) => theme.colors.text};
 `;
 
-export const StudentSubtext = styled.span`
-  font-size: ${({ theme }) => theme.fontSize.xs};
-  color: ${({ theme }) => theme.colors.textSecondary};
+export const StudentNameButton = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  color: ${({ theme }) => theme.colors.text};
+  text-align: left;
+  cursor: pointer;
+  transition: color ${({ theme }) => theme.transition.fast};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+    text-decoration: underline;
+  }
+`;
+
+export const StageCellWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: 500;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 export const SessionCell = styled.div`
