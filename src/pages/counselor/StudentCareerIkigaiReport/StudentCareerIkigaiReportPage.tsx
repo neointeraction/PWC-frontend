@@ -46,7 +46,7 @@ import {
 
 const TOC_SECTIONS = [
   { id: 'introduction', label: 'Introduction', icon: <RiCompass3Line size={16} /> },
-  { id: 'student-profile', label: 'Student Profile', icon: <RiUser3Line size={16} /> },
+  { id: 'student-profile', label: "Champion's Profile", icon: <RiUser3Line size={16} /> },
   { id: 'trait-map', label: 'My Trait Map', icon: <RiTableLine size={16} /> },
   { id: 'reliability-dashboard', label: 'Reliability Dashboard', icon: <RiShieldCheckLine size={16} /> },
   { id: 'stream-fit', label: 'My Stream Fit Class 11 & 12', icon: <RiGitBranchLine size={16} /> },

@@ -6,7 +6,6 @@ import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
   StepHeaderCard,
   StepHeaderTitle,
-  StepHeaderDescription,
   SectionBlock,
   SectionBlockTitle,
   SectionBlockSubtitle,
@@ -51,11 +50,15 @@ const alignmentOptions = [
   { value: 'Not Yet Assessed', label: 'Not Yet Assessed' },
 ];
 
-const alignmentGuidanceMap: Record<string, string> = {
-  'Strongly Aligned': 'Use when student academic grades, aptitude scores, and target stream/career choice show total synergy.',
-  'Partially Aligned': 'Use when student has strong interest but requires academic improvement in key foundational subjects.',
-  'Misaligned': 'Use when target career choice conflicts with objective cognitive aptitude or current academic trend.',
-  'Not Yet Assessed': 'Use when assessment data is insufficient for definitive alignment determination.',
+const alignmentDescriptionMap: Record<string, string> = {
+  'Strongly Aligned':
+    "The subject you enjoy the most and the career direction that suits you both come from the same set of strengths. In other words, what you love doing in class and what you'd be good at in your future career are pointing in the same direction, that's a strong, natural connection to build on.",
+  'Partially Aligned':
+    "There's a genuine connection between what you enjoy and where your strengths point but it's not a perfect match. Some parts line up nicely, while other parts of the recommended path may need a bit more exploring or a slightly different subject combination than what you'd naturally pick.",
+  'Misaligned':
+    'Right now, the subject you enjoy most and the career direction your strengths point to seem to be pulling in two different directions. This isn\'t unusual, and it doesn\'t mean either one is "wrong" it just means this is worth talking through properly, so you understand why the gap exists and what your real options are.',
+  'Not Yet Assessed':
+    "There isn't enough information yet to compare your favourite subject with a career direction. This usually just means a part of the assessment or conversation is still pending nothing to worry about, please explore further with details.",
 };
 
 const bandReferenceTable = [
@@ -137,10 +140,7 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
   return (
     <>
       <StepHeaderCard>
-        <StepHeaderTitle>Student Career Readiness Index (SCRI) — Counsellor Rating</StepHeaderTitle>
-        <StepHeaderDescription>
-          Evaluate the Student Career Readiness Index (SCRI), record alignment notes, and synthesis observations.
-        </StepHeaderDescription>
+        <StepHeaderTitle>Student Career Readiness Index (SCRI)</StepHeaderTitle>
       </StepHeaderCard>
 
       {/* SCRI Block */}
@@ -255,16 +255,29 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
       {/* Academic × Career Alignment Block */}
       <SectionBlock>
         <SectionBlockTitle>Academic × Career Alignment</SectionBlockTitle>
-        <div style={{ maxWidth: '300px', marginTop: '8px' }}>
+        <div style={{ maxWidth: '320px', marginTop: '8px' }}>
           <Select
             value={academicCareerAlignment}
             onChange={e => onChangeAlignment(e.target.value as any)}
             options={alignmentOptions}
           />
         </div>
-        <div style={{ fontSize: '0.85rem', color: '#4A5568', marginTop: '12px', background: '#F7FAFC', padding: '12px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
-          <strong>Guidance Note:</strong> {alignmentGuidanceMap[academicCareerAlignment]}
-        </div>
+        {alignmentDescriptionMap[academicCareerAlignment] && (
+          <div
+            style={{
+              fontSize: '0.875rem',
+              color: '#334155',
+              lineHeight: 1.55,
+              marginTop: '12px',
+              background: '#F8FAFC',
+              padding: '14px 16px',
+              borderRadius: '4px',
+              border: '1px solid #E2E8F0',
+            }}
+          >
+            {alignmentDescriptionMap[academicCareerAlignment]}
+          </div>
+        )}
       </SectionBlock>
 
       {/* Synthesis Notes G1–G4 */}

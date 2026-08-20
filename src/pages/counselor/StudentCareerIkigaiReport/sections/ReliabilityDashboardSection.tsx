@@ -26,7 +26,7 @@ export const ReliabilityDashboardSection: React.FC<ReliabilityDashboardSectionPr
       <SectionHeaderGroup>
         <SectionTitle>
           <RiShieldCheckLine size={24} />
-          4. Reliability Dashboard — Assessment Integrity Check
+          Reliability Dashboard — Assessment Integrity Check
         </SectionTitle>
         <SectionSubtitle>
           Diagnostic verification measures confirming engagement integrity, testing consistency, self-awareness accuracy, and overall score reliability.

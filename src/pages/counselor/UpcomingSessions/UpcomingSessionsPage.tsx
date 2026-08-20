@@ -10,6 +10,7 @@ import {
   RiArrowDownLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
+import { Card } from '@/components/Card';
 import { PageHeader } from '@/components/PageHeader';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
@@ -149,11 +150,11 @@ export const UpcomingSessionsPage: React.FC = () => {
     <Container>
       <PageHeader
         title="Upcoming Counseling Sessions"
-        subtitle="Manage assigned counseling time slots, join video meetings, and record live student assessment notes"
-        breadcrumbs={[{ label: 'Upcoming Sessions' }]}
       />
 
-      <Table data={sortedSessions} columns={columns} keyExtractor={row => row.id} />
+      <Card>
+        <Table data={sortedSessions} columns={columns} keyExtractor={row => row.id} />
+      </Card>
     </Container>
   );
 };

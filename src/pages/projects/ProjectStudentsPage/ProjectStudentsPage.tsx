@@ -198,14 +198,6 @@ export const ProjectStudentsPage: React.FC = () => {
           { label: 'Project Students' },
         ]}
         onBack={() => navigate(ROUTES.PROJECTS)}
-        actions={
-          <Button
-            leftIcon={<RiUserAddLine size={16} />}
-            onClick={handleCreateNewStudent}
-          >
-            Add Student
-          </Button>
-        }
       />
 
       <Card padding="lg">
@@ -255,6 +247,13 @@ export const ProjectStudentsPage: React.FC = () => {
               />
             </div>
           </FiltersLeft>
+
+          <Button
+            leftIcon={<RiUserAddLine size={16} />}
+            onClick={handleCreateNewStudent}
+          >
+            Add Student
+          </Button>
         </FilterBar>
 
         <Table

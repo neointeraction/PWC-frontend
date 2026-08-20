@@ -13,6 +13,7 @@ import { Button } from '@/components/Button';
 import { Stepper, StepConfig } from '@/components/Stepper';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
+import { DatePicker } from '@/components/DatePicker';
 import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
 import { useToast } from '@/hooks';
@@ -170,17 +171,21 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
 
               <FormGroup>
                 <FormGrid>
-                  <Input
+                  <DatePicker
                     label="Valid From"
-                    type="date"
-                    value={instituteDetails.validFrom ? instituteDetails.validFrom.slice(0, 10) : ''}
-                    onChange={e => setInstituteDetails({ validFrom: e.target.value })}
+                    selected={instituteDetails.validFrom ? new Date(instituteDetails.validFrom) : null}
+                    onChange={(date: Date | null) =>
+                      setInstituteDetails({ validFrom: date ? date.toISOString() : '' })
+                    }
+                    placeholderText="Select start date"
                   />
-                  <Input
+                  <DatePicker
                     label="Valid To"
-                    type="date"
-                    value={instituteDetails.validTo ? instituteDetails.validTo.slice(0, 10) : ''}
-                    onChange={e => setInstituteDetails({ validTo: e.target.value })}
+                    selected={instituteDetails.validTo ? new Date(instituteDetails.validTo) : null}
+                    onChange={(date: Date | null) =>
+                      setInstituteDetails({ validTo: date ? date.toISOString() : '' })
+                    }
+                    placeholderText="Select end date"
                   />
                 </FormGrid>
 

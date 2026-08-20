@@ -96,4 +96,77 @@ export const getMockUpcomingSessions = (): UpcomingSession[] => {
   ];
 };
 
+export const getAllMockSessions = (): UpcomingSession[] => {
+  const upcoming = getMockUpcomingSessions();
+  const pastDate1 = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+  const pastDate2 = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+  const pastDate3 = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+
+  const completed: UpcomingSession[] = [
+    {
+      id: 'sess-counselor-4',
+      studentId: 'stud-104',
+      studentName: 'Ananya Iyer',
+      studentEmail: 'ananya.iyer@pwc-school.edu',
+      studentGrade: 'Grade 12 - Science (PCB)',
+      institutionName: 'Delhi Public School, R.K. Puram',
+      sessionTitle: 'Session 2: Biotechnology & Medical Sciences',
+      dateTime: pastDate1.toISOString(),
+      meetUrl: 'https://meet.google.com/pqr-stuv-wxy',
+      status: 'Completed',
+      assessmentSheet: {
+        aptitudeScore: '96/100 (Biological & Clinical Reasoning)',
+        topInterests: ['Biomedical Engineering', 'Genetics', 'Neuroscience'],
+        personalityType: 'INFJ - Insightful & Dedicated Researcher',
+        academicPerformance: 'Biology: 99%, Chemistry: 95%, English: 92%',
+        counselorNotes: 'Completed comprehensive stream & pathway selection. Student aims for medical research.',
+        actionItems: '1. Reviewed NEET and IISER research tracks.\n2. Finalized IKIGAI report.',
+      },
+    },
+    {
+      id: 'sess-counselor-5',
+      studentId: 'stud-105',
+      studentName: 'Siddharth Nair',
+      studentEmail: 'siddharth.nair@pwc-school.edu',
+      studentGrade: 'Grade 10 - Foundation',
+      institutionName: 'St. Xavier\'s High School, Mumbai',
+      sessionTitle: 'Session 1: Stream Selection Diagnostic',
+      dateTime: pastDate2.toISOString(),
+      meetUrl: 'https://meet.google.com/stu-vwxy-zab',
+      status: 'Completed',
+      assessmentSheet: {
+        aptitudeScore: '92/100 (Logical & Abstract Analysis)',
+        topInterests: ['Economics & Data', 'Computational Finance', 'Applied Mathematics'],
+        personalityType: 'ENTP - Inventive & Visionary Thinker',
+        academicPerformance: 'Mathematics: 97%, Social Studies: 93%, Science: 90%',
+        counselorNotes: 'Stream choice confirmed for Commerce with Mathematics.',
+        actionItems: '1. Complete Career Compass review with parents.',
+      },
+    },
+    {
+      id: 'sess-counselor-6',
+      studentId: 'stud-106',
+      studentName: 'Kavya Deshmukh',
+      studentEmail: 'kavya.deshmukh@pwc-school.edu',
+      studentGrade: 'Grade 12 - Humanities',
+      institutionName: 'National Public School, Bangalore',
+      sessionTitle: 'Session 3: International Relations & Public Policy',
+      dateTime: pastDate3.toISOString(),
+      meetUrl: 'https://meet.google.com/bcd-efgh-ijk',
+      status: 'Completed',
+      assessmentSheet: {
+        aptitudeScore: '95/100 (Verbal Fluency & Critical Debate)',
+        topInterests: ['International Relations', 'Public Policy', 'Journalism & Media'],
+        personalityType: 'ENFJ - Empathetic & Articulate Leader',
+        academicPerformance: 'Political Science: 98%, History: 96%, English: 95%',
+        counselorNotes: 'Finalized University applications and statement of purpose outline.',
+        actionItems: '1. Submit draft SOP for review.\n2. Attend global university fair.',
+      },
+    },
+  ];
+
+  return [...upcoming, ...completed];
+};
+
 export const UPCOMING_SESSIONS_MOCK = getMockUpcomingSessions();
+export const ALL_SESSIONS_MOCK = getAllMockSessions();

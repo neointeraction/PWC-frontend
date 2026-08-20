@@ -25,8 +25,6 @@ import {
   HeroHeaderCard,
   DocumentHeaderRow,
   DocTitle,
-  DocSubtitle,
-  DocNote,
   StatsGridBar,
   StatBlock,
   StatIconBox,
@@ -53,7 +51,6 @@ import {
   GoldenRuleDesc,
   ReadyEncouragementBanner,
   ReadyBannerTitle,
-  ReadyBannerSubtext,
   StartCtaBox,
   CtaSubtext,
   WizardContainer,
@@ -182,9 +179,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
       {!isFormStarted ? (
         <HeroHeaderCard>
           <DocumentHeaderRow>
-            <DocTitle>PARENT PRE-COUNSELLING FORM</DocTitle>
-            <DocSubtitle>Career Counselling Programme — Class 9 & 10</DocSubtitle>
-            <DocNote>Instructions for Parent • Read this carefully before you begin.</DocNote>
+            <DocTitle>PRE-COUNSELLING FORM</DocTitle>
           </DocumentHeaderRow>
 
           {/* 4 Floating Metric Cards */}
@@ -409,9 +404,6 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
           {/* Encouragement Banner */}
           <ReadyEncouragementBanner>
             <ReadyBannerTitle>Thank you for taking the time to do this thoughtfully.</ReadyBannerTitle>
-            <ReadyBannerSubtext>
-              Your honest perspective is one of the most important inputs your child&apos;s counsellor will have.
-            </ReadyBannerSubtext>
           </ReadyEncouragementBanner>
 
           <StartCtaBox>
@@ -425,9 +417,9 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
               }}
               style={{ minWidth: '320px' }}
             >
-              Start Parent Pre-Counselling Form
+              Start Pre-Counselling Form
             </Button>
-            <CtaSubtext>Estimated time: 12–15 minutes • Answers saved automatically as you navigate</CtaSubtext>
+            <CtaSubtext>Answers saved automatically as you navigate</CtaSubtext>
           </StartCtaBox>
         </HeroHeaderCard>
       ) : (
@@ -1170,8 +1162,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
       <SuccessModal
         isOpen={isCompletionModalOpen}
         onClose={() => setIsCompletionModalOpen(false)}
-        title="Thank you for completing your Parent Pre-Counselling Form!"
-        message="Your responses will be thoroughly analyzed by your child's career counsellor before the 1-on-1 video session."
+        title="Thank you for completing your Pre-Counselling Form!"
         confirmText="Back to Home"
         onConfirm={handleConfirmCompletion}
       />

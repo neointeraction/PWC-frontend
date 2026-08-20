@@ -4,7 +4,6 @@ import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
   StepHeaderCard,
   StepHeaderTitle,
-  StepHeaderDescription,
   SectionBlock,
   IndicatorBlock,
   ReliabilityCardHeader,
@@ -35,9 +34,6 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
     <>
       <StepHeaderCard>
         <StepHeaderTitle>Reliability of the Assessment</StepHeaderTitle>
-        <StepHeaderDescription>
-          Validates the integrity, consistency, and diagnostic reliability of the student psychometric test responses across 4 core indicators.
-        </StepHeaderDescription>
       </StepHeaderCard>
 
       <SectionBlock>
