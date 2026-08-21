@@ -26,6 +26,14 @@ interface ApiProject {
   createdAt?: string;
 }
 
+// Directory shape (GET /counsellors) — used to match project uploads by code.
+interface ApiCounsellorDir {
+  id: string;
+  counsellorCode: string;
+  mobile: string;
+  user?: { firstName: string; lastName: string; email: string };
+}
+
 const API_TO_STATUS: Record<string, ProjectStatus> = {
   ACTIVE: 'active',
   CLOSED: 'closed',
@@ -112,7 +120,7 @@ export const projectService = {
   // (bulk). Counsellor assignment + slot import land in Stage 2b. Institute = project
   // (1:1, created inline). Students are best-effort — a bad row doesn't abort the batch.
   create: async (payload: CreateProjectPayload): Promise<Project> => {
-    const { instituteDetails, students } = payload;
+    const { instituteDetails, students, counselors } = payload;
 
     // 1. Institute (address/location optional; contactNumber/primaryEmail from the form).
     const { data: institute } = await apiClient.post<{ id: string; name: string }>('/institutes', {
@@ -185,6 +193,33 @@ export const projectService = {
       }
     }
 
+    // 5. Counsellors: assign each matched (directory) counsellor to the project, and
+    //    collect their availability slots for a single one-time slot import.
+    const matched = counselors.filter(c => c.matchStatus === 'matched' && c.directoryId);
+    const slotPayload: { counsellorId: string; date: string; startTime: string; endTime: string }[] = [];
+    for (const c of matched) {
+      try {
+        await apiClient.post(`/counsellors/${c.directoryId}/projects`, { projectId: project.id });
+      } catch {
+        // already assigned / race — ignore; still import their slots below.
+      }
+      for (const slot of c.slots ?? []) {
+        slotPayload.push({
+          counsellorId: c.directoryId!,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        });
+      }
+    }
+    if (slotPayload.length > 0) {
+      try {
+        await apiClient.post('/sessions/slots/import', { projectId: project.id, slots: slotPayload });
+      } catch {
+        // slot import is one-shot per project; ignore if it was already done.
+      }
+    }
+
     return mapProject(project);
   },
 
@@ -233,6 +268,21 @@ export const projectService = {
     );
     sessionsDb[projectId] = updated;
     return updated;
+  },
+
+  // Real counsellor directory (GET /counsellors) — for matching availability-sheet
+  // uploads (by Counsellor ID) and manual adds (by email) in the project wizard.
+  getCounsellorDirectory: async (): Promise<
+    { id: string; counsellorCode: string; name: string; email: string; mobile: string }[]
+  > => {
+    const { data } = await apiClient.get<ApiCounsellorDir[]>('/counsellors');
+    return data.map(c => ({
+      id: c.id,
+      counsellorCode: c.counsellorCode,
+      name: `${c.user?.firstName ?? ''} ${c.user?.lastName ?? ''}`.trim(),
+      email: c.user?.email ?? '',
+      mobile: c.mobile ?? '',
+    }));
   },
 
   validateCounselors: async (

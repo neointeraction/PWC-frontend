@@ -22,11 +22,22 @@ export interface ProjectFilterParams {
   limit?: number;
 }
 
+export interface CounsellorSlotRow {
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+}
+
 export interface ProjectCounselor {
   name: string;
   email: string;
   mobile: string;
   matchStatus: 'matched' | 'new';
+  // Set from the availability-sheet flow: the counsellor's directory code, the
+  // matched backend id (when found), and their parsed availability slots.
+  counsellorCode?: string;
+  directoryId?: string;
+  slots?: CounsellorSlotRow[];
 }
 
 export interface ProjectStudent {
