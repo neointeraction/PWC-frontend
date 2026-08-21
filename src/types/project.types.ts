@@ -112,6 +112,8 @@ export interface ProjectStudentDetail {
   session2: StudentSessionDetail;
   comments?: StudentComment[];
   isFlagged?: boolean;
+  // Reason behind the derived 🚩 flag (backend stageInfo) — drives the flag tooltip.
+  flagReason?: 'IDLE' | 'MISSED_SESSION' | null;
 }
 
 export interface CreateProjectPayload {

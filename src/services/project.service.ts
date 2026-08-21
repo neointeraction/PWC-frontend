@@ -46,6 +46,15 @@ interface ApiStudent {
   workflowStatus: string;
   user: { firstName: string; lastName: string; email: string };
   division?: { name: string; class?: { name: string } };
+  // Computed live by the backend (never stored): derived stage + ageing/🚩 flag.
+  stageInfo?: {
+    stage: string;
+    stageLabel: string;
+    stageEnteredAt: string;
+    ageDays: number;
+    flagged: boolean;
+    flagReason: 'IDLE' | 'MISSED_SESSION' | null;
+  };
 }
 
 // GET /sessions?projectId  and  GET /sessions/slots?projectId
@@ -369,7 +378,11 @@ export const projectService = {
       mobile: st.mobile,
       parentMobile: st.parentMobile,
       grade: st.division?.class?.name || st.division?.name || '',
-      stage: WORKFLOW_STAGE[st.workflowStatus] ?? st.workflowStatus,
+      // Prefer the backend's derived stage label + live 🚩 flag; fall back to the coarse
+      // workflowStatus map if stageInfo isn't present (older backend).
+      stage: st.stageInfo?.stageLabel ?? WORKFLOW_STAGE[st.workflowStatus] ?? st.workflowStatus,
+      isFlagged: st.stageInfo?.flagged ?? false,
+      flagReason: st.stageInfo?.flagReason ?? null,
       session1: mapSess(byStudent.get(st.id)?.s1, 1),
       session2: mapSess(byStudent.get(st.id)?.s2, 2),
     }));

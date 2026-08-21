@@ -191,7 +191,15 @@ export const ProjectStudentsPage: React.FC = () => {
         <StageCellWrapper>
           <span>{row.stage || 'Login Activated'}</span>
           {row.isFlagged && (
-            <Tooltip content="Flagged for admin follow-up">
+            <Tooltip
+              content={
+                row.flagReason === 'MISSED_SESSION'
+                  ? 'Flagged: missed session — needs follow-up'
+                  : row.flagReason === 'IDLE'
+                  ? 'Flagged: idle too long — needs follow-up'
+                  : 'Flagged for admin follow-up'
+              }
+            >
               <span>
                 <RiFlag2Line size={15} style={{ color: '#EF4444', verticalAlign: '-2px' }} />
               </span>
