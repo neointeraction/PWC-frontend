@@ -13,6 +13,7 @@ import { Button } from '@/components/Button';
 import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { counselorService } from '@/services/counselor.service';
+import { parseExcelFile } from '@/utils/excelParser';
 import { useCounselorStore } from '@/store/counselor.store';
 import { useToast } from '@/hooks';
 import { CreateCounselorInput } from '@/types/counselor.types';
@@ -159,53 +160,47 @@ export const BulkUploadCounselorsModal: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const parseFileContent = (content: string) => {
-    const lines = content
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-
-    if (lines.length <= 1) {
-      toast.error('Invalid File', 'The CSV file appears to be empty or missing headers.');
+  // Header-based mapping — reads the directory sheet columns (incl. the PWD password).
+  const parseRows = (data: Record<string, string>[]) => {
+    if (data.length === 0) {
+      toast.error('Invalid File', 'The file appears to be empty or missing headers.');
       return;
     }
-
-    const rows: ParsedRow[] = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(',').map(p => p.trim());
-      const counselorId = parts[0] || `C0${i + 13}`;
-      const name = parts[2] || parts[1] || '';
-      const mobile = parts[3] || parts[2] || '';
-      const email = parts[4] || parts[3] || '';
-
+    const rows: ParsedRow[] = data.map((row, i) => {
+      const counselorId = (
+        row['Counsellor ID'] || row['Counselor ID'] || row['counsellorCode'] || `C${String(i + 1).padStart(3, '0')}`
+      ).trim();
+      const pwd = (row['PWD'] || row['Password'] || row['pwd'] || '').trim();
+      const name = (row['Counsellor Name'] || row['Counselor Name'] || row['Name'] || '').trim();
+      const mobile = (row['Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '').trim();
+      const email = (row['Email ID'] || row['Email'] || row['email'] || '').trim();
       const isValid = Boolean(name && email && email.includes('@'));
-      rows.push({
+      return {
         counselorId,
         name: name || 'Unknown Counselor',
         mobile: mobile || 'N/A',
         email: email || 'invalid@example.com',
+        pwd: pwd || undefined,
         status: 'active',
         isValid,
         validationError: !isValid ? 'Missing required name or email format' : undefined,
-      });
-    }
-
+      };
+    });
     setParsedRows(rows);
   };
 
-  const handleFileSelect = (file: File) => {
-    if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
-      toast.error('Unsupported File', 'Please upload a CSV or TXT file.');
+  const handleFileSelect = async (file: File) => {
+    if (!/\.(xlsx|xls|csv|txt)$/i.test(file.name)) {
+      toast.error('Unsupported File', 'Please upload an Excel (.xlsx) or CSV file.');
       return;
     }
     setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = e.target?.result as string;
-      parseFileContent(text);
-    };
-    reader.readAsText(file);
+    try {
+      const rows = await parseExcelFile(file);
+      parseRows(rows);
+    } catch {
+      toast.error('Parse Error', 'Failed to parse the uploaded file.');
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {

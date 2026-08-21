@@ -1,19 +1,57 @@
+import { apiClient } from './api';
 import {
   Counselor,
   CounselorFilterParams,
   CounselorListResponse,
   CreateCounselorInput,
   UpdateCounselorInput,
+  ProjectDeploymentDetail,
 } from '@/types/counselor.types';
-import { mockCounselors } from '@/mocks/counselors.mock';
 
-let counselorDb: Counselor[] = [...mockCounselors];
+// ---- Backend counsellor shape (GET /counsellors — user + institute + projects) ----
+interface ApiCounsellor {
+  id: string;
+  counsellorCode: string;
+  mobile: string;
+  createdAt?: string;
+  user: { id: string; email: string; firstName: string; lastName: string; isActive: boolean };
+  institute?: { id: string; name: string };
+  projects?: { projectId: string; project?: { id: string; name: string } }[];
+}
+
+const splitName = (full: string): { firstName: string; lastName: string } => {
+  const parts = full.trim().split(/\s+/);
+  return { firstName: parts[0] || full.trim(), lastName: parts.slice(1).join(' ') || parts[0] || '' };
+};
+
+const mapCounsellor = (c: ApiCounsellor): Counselor => {
+  const projectsList: ProjectDeploymentDetail[] = (c.projects ?? []).map(p => ({
+    schoolName: p.project?.name ?? '',
+    totalAllotted: 0,
+    session1Balance: 0,
+    session2Balance: 0,
+  }));
+  const active = c.user.isActive;
+  return {
+    id: c.id,
+    counselorId: c.counsellorCode,
+    name: `${c.user.firstName} ${c.user.lastName}`.trim(),
+    email: c.user.email,
+    mobile: c.mobile,
+    status: active ? 'active' : 'inactive',
+    deploymentStatus: !active ? 'inactive' : projectsList.length > 0 ? 'deployed' : 'bench',
+    projectDeployedName: projectsList[0]?.schoolName,
+    projectsList,
+    createdAt: c.createdAt ? c.createdAt.slice(0, 10) : '',
+  };
+};
 
 export const counselorService = {
+  // GET /api/v1/counsellors — flat array; search/status/pagination are client-side to
+  // keep the existing table contract.
   async getAll(params: CounselorFilterParams = {}): Promise<CounselorListResponse> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    let filtered = [...counselorDb];
+    const { data } = await apiClient.get<ApiCounsellor[]>('/counsellors');
+    let filtered = data.map(mapCounsellor);
 
     if (params.search) {
       const q = params.search.toLowerCase();
@@ -25,7 +63,6 @@ export const counselorService = {
           c.mobile.includes(q)
       );
     }
-
     if (params.status && params.status !== 'all') {
       filtered = filtered.filter(c => c.status === params.status);
     }
@@ -34,74 +71,58 @@ export const counselorService = {
     const limit = params.limit || 10;
     const total = filtered.length;
     const totalPages = Math.ceil(total / limit) || 1;
-
     const start = (page - 1) * limit;
-    const data = filtered.slice(start, start + limit);
-
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+    return { data: filtered.slice(start, start + limit), total, page, limit, totalPages };
   },
 
   async getById(id: string): Promise<Counselor> {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    const item = counselorDb.find(c => c.id === id);
-    if (!item) throw new Error('Counselor not found');
-    return item;
+    const { data } = await apiClient.get<ApiCounsellor>(`/counsellors/${id}`);
+    return mapCounsellor(data);
   },
 
+  // POST /api/v1/counsellors. The backend also returns a one-time tempPassword; the
+  // directory UI doesn't surface it, so only the mapped record is returned.
   async create(input: CreateCounselorInput): Promise<Counselor> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const newCounselor: Counselor = {
-      id: `cns-${Date.now()}`,
-      counselorId: input.counselorId || `C0${counselorDb.length + 1}`,
-      name: input.name,
+    const { firstName, lastName } = splitName(input.name);
+    const { data } = await apiClient.post<{ counsellor: ApiCounsellor }>('/counsellors', {
+      firstName,
+      lastName,
       email: input.email,
       mobile: input.mobile,
-      pwd: input.pwd || '',
-      status: input.status || 'active',
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    counselorDb.unshift(newCounselor);
-    return newCounselor;
+      counsellorCode: input.counselorId,
+      ...(input.pwd ? { password: input.pwd } : {}),
+    });
+    return mapCounsellor(data.counsellor);
   },
 
+  // No bulk endpoint — sequential creates; a failing row (e.g. duplicate) is skipped.
   async bulkCreate(inputs: CreateCounselorInput[]): Promise<Counselor[]> {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    const createdList: Counselor[] = inputs.map((input, index) => ({
-      id: `cns-${Date.now()}-${index}`,
-      counselorId: input.counselorId || `C${String(counselorDb.length + index + 1).padStart(3, '0')}`,
-      name: input.name,
-      email: input.email,
-      mobile: input.mobile,
-      pwd: input.pwd || '',
-      status: input.status || 'active',
-      createdAt: new Date().toISOString().split('T')[0],
-    }));
-    counselorDb.unshift(...createdList);
-    return createdList;
+    const created: Counselor[] = [];
+    for (const input of inputs) {
+      try {
+        created.push(await counselorService.create(input));
+      } catch {
+        // skip failed row; keep importing the rest
+      }
+    }
+    return created;
   },
 
   async update(id: string, input: UpdateCounselorInput): Promise<Counselor> {
-    await new Promise(resolve => setTimeout(resolve, 250));
-    const index = counselorDb.findIndex(c => c.id === id);
-    if (index === -1) throw new Error('Counselor not found');
-
-    const updated: Counselor = {
-      ...counselorDb[index],
-      ...input,
-    };
-    counselorDb[index] = updated;
-    return updated;
+    const body: Record<string, unknown> = {};
+    if (input.name !== undefined) {
+      const { firstName, lastName } = splitName(input.name);
+      body.firstName = firstName;
+      body.lastName = lastName;
+    }
+    if (input.mobile !== undefined) body.mobile = input.mobile;
+    if (input.status !== undefined) body.isActive = input.status === 'active';
+    const { data } = await apiClient.patch<ApiCounsellor>(`/counsellors/${id}`, body);
+    return mapCounsellor(data);
   },
 
   async delete(id: string): Promise<boolean> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    counselorDb = counselorDb.filter(c => c.id !== id);
+    await apiClient.delete(`/counsellors/${id}`);
     return true;
   },
 };
