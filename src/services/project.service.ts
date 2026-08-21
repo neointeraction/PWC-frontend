@@ -7,6 +7,9 @@ import {
   ProjectCounselor,
   CounselorSession,
   ProjectStudentDetail,
+  StudentSessionDetail,
+  ProjectStudent,
+  TimeSlot,
 } from '@/types/project.types';
 import { PaginatedResponse } from '@/types/api.types';
 import { mockCounselors } from '@/mocks/counselors.mock';
@@ -33,6 +36,57 @@ interface ApiCounsellorDir {
   mobile: string;
   user?: { firstName: string; lastName: string; email: string };
 }
+
+// GET /students?projectId
+interface ApiStudent {
+  id: string;
+  studentCode: string;
+  mobile: string;
+  parentMobile: string;
+  workflowStatus: string;
+  user: { firstName: string; lastName: string; email: string };
+  division?: { name: string; class?: { name: string } };
+}
+
+// GET /sessions?projectId  and  GET /sessions/slots?projectId
+interface ApiSession {
+  id: string;
+  studentId: string;
+  sessionNumber: 'SESSION_1' | 'SESSION_2';
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+  status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+  counsellor?: { id: string; counsellorCode: string; user: { firstName: string; lastName: string; email: string } };
+  student?: { id: string; studentCode: string; mobile: string; user: { firstName: string; lastName: string; email: string } };
+}
+interface ApiSlot {
+  id: string;
+  slotDate: string;
+  startTime: string;
+  endTime: string;
+  status: 'OPEN' | 'BOOKED';
+  counsellor?: { id: string; counsellorCode: string; user: { firstName: string; lastName: string } };
+}
+
+const SESSION_STATUS: Record<string, 'completed' | 'scheduled' | 'pending'> = {
+  COMPLETED: 'completed',
+  SCHEDULED: 'scheduled',
+  CANCELLED: 'pending',
+};
+
+// workflowStatus → a readable "stage" label for the students table.
+const WORKFLOW_STAGE: Record<string, string> = {
+  DRAFT: 'Login Activated',
+  PROFILE_COMPLETED: 'Profile Completed',
+  PRE_COUNSELLING_FORMS_SUBMITTED: 'Pre-Counselling Done',
+  ASSESSMENT_PENDING: 'Assessment Pending',
+  ASSESSMENT_COMPLETED: 'Assessment Done',
+  SESSION_SCHEDULED: 'Session Scheduled',
+  SESSION_1_COMPLETED: 'Session 1 Done',
+  SESSION_2_COMPLETED: 'Session 2 Done',
+  COMPLETED: 'Completed',
+};
 
 const API_TO_STATUS: Record<string, ProjectStatus> = {
   ACTIVE: 'active',
@@ -223,16 +277,102 @@ export const projectService = {
     return mapProject(project);
   },
 
-  // TODO(Stage 3): GET /sessions/slots?projectId + GET /sessions?projectId (booked only).
+  // Oversight: GET /sessions/slots?projectId (counsellor availability) + GET
+  // /sessions?projectId (bookings) → one CounselorSession per counsellor. Only booked
+  // students appear under a counsellor (unbooked slots stay as open time slots).
   getProjectSessions: async (projectId: string): Promise<CounselorSession[]> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return sessionsDb[projectId] || sessionsDb['proj-001'] || [];
+    const [slotsRes, sessionsRes] = await Promise.all([
+      apiClient.get<ApiSlot[]>('/sessions/slots', { params: { projectId } }),
+      apiClient.get<ApiSession[]>('/sessions', { params: { projectId } }),
+    ]);
+
+    const byCounsellor = new Map<
+      string,
+      { name: string; email: string; timeSlots: TimeSlot[]; assignedStudents: ProjectStudent[] }
+    >();
+    const ensure = (id: string, name: string, email: string) => {
+      if (!byCounsellor.has(id)) byCounsellor.set(id, { name, email, timeSlots: [], assignedStudents: [] });
+      return byCounsellor.get(id)!;
+    };
+
+    for (const slot of slotsRes.data) {
+      if (!slot.counsellor) continue;
+      const c = slot.counsellor;
+      const entry = ensure(c.id, `${c.user.firstName} ${c.user.lastName}`.trim(), '');
+      entry.timeSlots.push({
+        id: slot.id,
+        time: `${slot.slotDate.slice(0, 10)} ${slot.startTime}-${slot.endTime}`,
+        isSelected: slot.status === 'BOOKED',
+      });
+    }
+
+    for (const sess of sessionsRes.data) {
+      if (!sess.counsellor || sess.status === 'CANCELLED') continue; // booked only
+      const c = sess.counsellor;
+      const entry = ensure(c.id, `${c.user.firstName} ${c.user.lastName}`.trim(), c.user.email);
+      if (sess.student) {
+        entry.assignedStudents.push({
+          name: `${sess.student.user.firstName} ${sess.student.user.lastName}`.trim(),
+          email: sess.student.user.email,
+          mobile: sess.student.mobile,
+          grade: '',
+          sessionDate: sess.scheduledDate ? sess.scheduledDate.slice(0, 10) : '',
+          timeSlot: `${sess.startTime} - ${sess.endTime}`,
+          sessionType: sess.sessionNumber === 'SESSION_1' ? 'S1' : 'S2',
+        });
+      }
+    }
+
+    return Array.from(byCounsellor.entries()).map(([id, v]) => ({
+      id,
+      counselorId: id,
+      counselorName: v.name,
+      counselorEmail: v.email,
+      counselorPhone: '',
+      timeSlots: v.timeSlots,
+      assignedStudents: v.assignedStudents,
+    }));
   },
 
-  // TODO(Stage 3): GET /students?projectId (+ their sessions).
+  // GET /students?projectId + GET /sessions?projectId → merge each student's Session 1/2.
   getProjectStudents: async (projectId: string): Promise<ProjectStudentDetail[]> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return studentsDb[projectId] || studentsDb['proj-001'] || [];
+    const [studentsRes, sessionsRes] = await Promise.all([
+      apiClient.get<ApiStudent[]>('/students', { params: { projectId } }),
+      apiClient.get<ApiSession[]>('/sessions', { params: { projectId } }),
+    ]);
+    const byStudent = new Map<string, { s1?: ApiSession; s2?: ApiSession }>();
+    for (const sess of sessionsRes.data) {
+      const e = byStudent.get(sess.studentId) ?? {};
+      if (sess.sessionNumber === 'SESSION_1') e.s1 = sess;
+      else if (sess.sessionNumber === 'SESSION_2') e.s2 = sess;
+      byStudent.set(sess.studentId, e);
+    }
+    const mapSess = (sess: ApiSession | undefined, num: 1 | 2): StudentSessionDetail =>
+      sess
+        ? {
+            sessionNumber: num,
+            status: SESSION_STATUS[sess.status] ?? 'pending',
+            date: sess.scheduledDate ? sess.scheduledDate.slice(0, 10) : '',
+            timeSlot: sess.startTime ? `${sess.startTime} - ${sess.endTime}` : '',
+            counselorName: sess.counsellor
+              ? `${sess.counsellor.user.firstName} ${sess.counsellor.user.lastName}`.trim()
+              : '',
+            counselorEmail: sess.counsellor?.user.email ?? '',
+          }
+        : { sessionNumber: num, status: 'pending', date: '', timeSlot: '', counselorName: '', counselorEmail: '' };
+
+    return studentsRes.data.map(st => ({
+      id: st.id,
+      studentId: st.studentCode,
+      name: `${st.user.firstName} ${st.user.lastName}`.trim(),
+      email: st.user.email,
+      mobile: st.mobile,
+      parentMobile: st.parentMobile,
+      grade: st.division?.class?.name || st.division?.name || '',
+      stage: WORKFLOW_STAGE[st.workflowStatus] ?? st.workflowStatus,
+      session1: mapSess(byStudent.get(st.id)?.s1, 1),
+      session2: mapSess(byStudent.get(st.id)?.s2, 2),
+    }));
   },
 
   updateProjectStudent: async (
