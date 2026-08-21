@@ -67,6 +67,65 @@ export const FilterBar = styled.div`
   }
 `;
 
+export const FiltersLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+  flex: 1;
+`;
+
+export const FiltersRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+export const ToolbarIconButton = styled.button<{
+  $variant?: 'excel' | 'default';
+}>`
+  width: 38px;
+  height: 38px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  color: ${({ $variant, theme }) =>
+    $variant === 'excel' ? '#16A34A' : theme.colors.text};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ $variant, theme }) =>
+      $variant === 'excel' ? '#16A34A' : theme.colors.primary};
+    background-color: ${({ $variant, theme }) =>
+      $variant === 'excel' ? '#F0FDF4' : theme.colors.primaryLight};
+    color: ${({ $variant, theme }) =>
+      $variant === 'excel' ? '#16A34A' : theme.colors.primary};
+  }
+`;
+
+export const MeetIconButton = styled.button`
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.primary};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    background-color: ${({ theme }) => theme.colors.primaryLight};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
 export const SearchWrapper = styled.div`
   max-width: 380px;
   width: 100%;

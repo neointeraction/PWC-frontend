@@ -1,8 +1,11 @@
 import React from 'react';
 import styled from 'styled-components';
+import { RiWhatsappLine } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
-import { ProjectStudent } from '@/types/project.types';
+import { Tooltip } from '@/components';
+import { ProjectStudent, ProjectStudentDetail } from '@/types/project.types';
+import { formatDateDDMMYYYY } from '@/utils';
 
 const DetailGrid = styled.div`
   display: grid;
@@ -72,20 +75,68 @@ const StatusBadge = styled.span<{ $variant?: 'active' | 'pending' | 'completed' 
   }
 `;
 
+const WhatsAppPhoneLink = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  svg {
+    color: #16A34A;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover {
+    color: #16A34A;
+    text-decoration: underline;
+
+    svg {
+      transform: scale(1.15);
+    }
+  }
+`;
+
 interface ViewStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  student: ProjectStudent | null;
+  student: ProjectStudent | ProjectStudentDetail | null;
   instituteName?: string;
+  counselorPhone?: string;
 }
 
 export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
   isOpen,
   onClose,
   student,
-  instituteName = 'Greenwood High International School',
+  instituteName = "St. Xavier's College, Mumbai",
+  counselorPhone = '+91 98190 93786',
 }) => {
   if (!student) return null;
+
+  const stageDisplay =
+    ('stage' in student && student.stage) ||
+    ('sessionType' in student && student.sessionType) ||
+    'Session 1 (S1)';
+
+  const sessionSlotDisplay =
+    'session1' in student && student.session1?.date
+      ? `${formatDateDDMMYYYY(student.session1.date)} • ${student.session1.timeSlot || '09:30 - 10:30'}`
+      : `${('sessionDate' in student && student.sessionDate) || '18-02-2026'} • ${('timeSlot' in student && student.timeSlot) || '09:30 - 10:30'}`;
+
+  const studentIdDisplay =
+    ('studentId' in student && student.studentId) ||
+    ('id' in student && student.id && student.id.startsWith('ST')
+      ? student.id
+      : 'ST101');
+
+  const studentPhone = student.mobile || '+91 9810012345';
+  const cleanStudentPhone = studentPhone.replace(/\D/g, '');
+  const cleanCounselorPhone = counselorPhone.replace(/\D/g, '');
 
   return (
     <Modal
@@ -102,6 +153,13 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
     >
       <DetailGrid>
         <FieldItem>
+          <FieldLabel>Student ID</FieldLabel>
+          <FieldValue>
+            <strong>{studentIdDisplay}</strong>
+          </FieldValue>
+        </FieldItem>
+
+        <FieldItem>
           <FieldLabel>Full Name</FieldLabel>
           <FieldValue>{student.name}</FieldValue>
         </FieldItem>
@@ -109,14 +167,14 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
         <FieldItem>
           <FieldLabel>Grade / Class</FieldLabel>
           <FieldValue>
-            <PurplePill>{student.grade || 'Grade 11'}</PurplePill>
+            <PurplePill>{student.grade || '11th'}</PurplePill>
           </FieldValue>
         </FieldItem>
 
         <FieldItem>
           <FieldLabel>Session Stage</FieldLabel>
           <FieldValue>
-            <PurplePill>{student.sessionType || 'Session 1 (S1)'}</PurplePill>
+            <PurplePill>{stageDisplay}</PurplePill>
           </FieldValue>
         </FieldItem>
 
@@ -126,8 +184,35 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
         </FieldItem>
 
         <FieldItem>
-          <FieldLabel>Phone Number</FieldLabel>
-          <FieldValue>{student.mobile || '—'}</FieldValue>
+          <FieldLabel>Student Phone Number</FieldLabel>
+          <FieldValue>
+            <Tooltip content="Chat with student on WhatsApp">
+              <WhatsAppPhoneLink
+                href={`https://wa.me/${cleanStudentPhone}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <RiWhatsappLine size={16} />
+                <span>{studentPhone}</span>
+              </WhatsAppPhoneLink>
+            </Tooltip>
+          </FieldValue>
+        </FieldItem>
+
+        <FieldItem>
+          <FieldLabel>Counselor Phone Number</FieldLabel>
+          <FieldValue>
+            <Tooltip content="Chat with counselor on WhatsApp">
+              <WhatsAppPhoneLink
+                href={`https://wa.me/${cleanCounselorPhone}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <RiWhatsappLine size={16} />
+                <span>{counselorPhone}</span>
+              </WhatsAppPhoneLink>
+            </Tooltip>
+          </FieldValue>
         </FieldItem>
 
         <FieldItem>
@@ -144,9 +229,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
 
         <FieldItem>
           <FieldLabel>Session Slot</FieldLabel>
-          <FieldValue>
-            {student.sessionDate || '18-02-2026'} &bull; {student.timeSlot || '09:30 - 10:30'}
-          </FieldValue>
+          <FieldValue>{sessionSlotDisplay}</FieldValue>
         </FieldItem>
       </DetailGrid>
     </Modal>

@@ -3,19 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   RiSearchLine,
-  RiFileCopyLine,
   RiCheckLine,
   RiFlag2Fill,
-  RiMessage2Line,
   RiUserForbidLine,
   RiCalendarEventLine,
+  RiFileExcel2Line,
+  RiVideoChatLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Table, Column } from '@/components/Table';
-import { Badge } from '@/components/Badge';
 import { Tooltip, EmptyState, Loader } from '@/components';
 import { Modal } from '@/components/Modal';
 import { DatePicker } from '@/components/DatePicker';
@@ -26,7 +25,6 @@ import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
 import { ViewStudentModal } from './ViewStudentModal';
 import { AssignStudentModal, SlotData } from './AssignStudentModal';
-import { LogCallModal } from '../components/LogCallModal';
 import {
   Container,
   TopMetricCardsGrid,
@@ -34,6 +32,9 @@ import {
   MetricCardLabel,
   MetricCardValue,
   FilterBar,
+  FiltersLeft,
+  FiltersRight,
+  ToolbarIconButton,
   SearchWrapper,
   CounselorsGrid,
   CounselorCard,
@@ -45,13 +46,13 @@ import {
   CounselorName,
   CounselorSubtext,
   CounselorCode,
-  NoteIconButton,
   CounselorHeaderRight,
   CounselorMetricsGroup,
   MetricChip,
   MetricChipLabel,
   MetricChipValue,
   MissedMetricChip,
+  MeetIconButton,
   StudentsSection,
   StudentsTableWrapper,
   StudentNameButton,
@@ -86,11 +87,6 @@ export const ProjectSessionsPage: React.FC = () => {
   const [rescheduleSlot, setRescheduleSlot] = useState<{
     counselorName: string;
     slot: EnhancedSlotData;
-  } | null>(null);
-  const [logCallTarget, setLogCallTarget] = useState<{
-    targetName: string;
-    targetCode?: string;
-    stageName?: string;
   } | null>(null);
 
   // Reschedule form state
@@ -247,6 +243,33 @@ export const ProjectSessionsPage: React.FC = () => {
     );
   };
 
+  const handleExportExcel = () => {
+    const rows: string[] = [];
+    rows.push('Counselor Code,Counselor Name,Counselor Email,Counselor Phone,Date,Time,Student Name,Session,Student Phone,Status');
+
+    filteredSessions.forEach(session => {
+      const code = counselorCodes[session.id] || 'CN001';
+      const slots = counselorSlotsMap[session.id] || [];
+      slots.forEach(slot => {
+        const student = slot.studentName || 'Not Booked';
+        const sessionType = slot.sessionType || (slot.isBooked ? 'S1' : 'NB');
+        const phone = slot.mobile || '—';
+        const status = slot.isMissed ? 'Missed' : slot.isBooked ? 'Completed' : 'Available';
+        rows.push(`"${code}","${session.counselorName}","${session.counselorEmail}","${session.counselorPhone}","${slot.date}","${slot.time}","${student}","${sessionType}","${phone}","${status}"`);
+      });
+    });
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${(project?.name || 'Project_Sessions').replace(/\s+/g, '_')}_List.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Excel Export Started', 'Downloaded project sessions list (.csv).');
+  };
+
   const handleOpenAssignModal = (session: CounselorSession, slot: SlotData) => {
     setSelectedSlotForAssign({ session, slot });
   };
@@ -353,10 +376,12 @@ export const ProjectSessionsPage: React.FC = () => {
             type="button"
             onClick={() =>
               setSelectedStudentForView({
+                studentId: 'ST101',
                 name: row.studentName || '',
                 email: `${row.studentName?.toLowerCase().replace(/\s+/g, '.')}@student.edu`,
                 mobile: row.mobile || '+91 9810012345',
                 grade: '11th',
+                sessionType: row.sessionType === 'S2' ? 'S2' : 'S1',
               })
             }
           >
@@ -410,22 +435,6 @@ export const ProjectSessionsPage: React.FC = () => {
       header: 'Action',
       render: row => (
         <ActionCellWrapper>
-          {row.isBooked && (
-            <Tooltip content="Log a Call / View History">
-              <NoteIconButton
-                type="button"
-                onClick={() => {
-                  setLogCallTarget({
-                    targetName: row.studentName || 'Student',
-                    stageName: row.sessionType || 'Session 1',
-                  });
-                }}
-              >
-                <RiMessage2Line size={18} />
-              </NoteIconButton>
-            </Tooltip>
-          )}
-
           {row.isBooked && row.isMissed ? (
             <RescheduleButton
               type="button"
@@ -510,14 +519,29 @@ export const ProjectSessionsPage: React.FC = () => {
 
       <Card padding="lg">
         <FilterBar style={{ marginBottom: '20px' }}>
-          <SearchWrapper>
-            <Input
-              placeholder="Search counselor or student name..."
-              leftIcon={<RiSearchLine size={16} />}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </SearchWrapper>
+          <FiltersLeft>
+            <SearchWrapper>
+              <Input
+                placeholder="Search counselor or student name..."
+                leftIcon={<RiSearchLine size={16} />}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </SearchWrapper>
+          </FiltersLeft>
+
+          <FiltersRight>
+            <Tooltip content="Export Sessions to Excel">
+              <ToolbarIconButton
+                type="button"
+                $variant="excel"
+                onClick={handleExportExcel}
+                aria-label="Export Sessions to Excel"
+              >
+                <RiFileExcel2Line size={18} />
+              </ToolbarIconButton>
+            </Tooltip>
+          </FiltersRight>
         </FilterBar>
 
         {isLoading ? (
@@ -546,22 +570,7 @@ export const ProjectSessionsPage: React.FC = () => {
                       <CounselorDetails>
                         <CounselorNameRow>
                           <CounselorName>{session.counselorName}</CounselorName>
-                          <Badge variant="success">Matched Counselor</Badge>
                           <CounselorCode>{code}</CounselorCode>
-                          <Tooltip content={`Log a call for ${session.counselorName}`}>
-                            <NoteIconButton
-                              type="button"
-                              onClick={() => {
-                                setLogCallTarget({
-                                  targetName: session.counselorName,
-                                  targetCode: code,
-                                  stageName: 'Session 1',
-                                });
-                              }}
-                            >
-                              <RiMessage2Line size={18} />
-                            </NoteIconButton>
-                          </Tooltip>
                         </CounselorNameRow>
                         <CounselorSubtext>
                           {session.counselorEmail} • {session.counselorPhone}
@@ -572,13 +581,8 @@ export const ProjectSessionsPage: React.FC = () => {
                     <CounselorHeaderRight>
                       <CounselorMetricsGroup>
                         <MetricChip>
-                          <MetricChipLabel>Allotted</MetricChipLabel>
-                          <MetricChipValue>80 hrs</MetricChipValue>
-                        </MetricChip>
-
-                        <MetricChip>
                           <MetricChipLabel>Booked</MetricChipLabel>
-                          <MetricChipValue>80 hrs</MetricChipValue>
+                          <MetricChipValue>60/80 hrs</MetricChipValue>
                         </MetricChip>
 
                         <MetricChip>
@@ -598,14 +602,13 @@ export const ProjectSessionsPage: React.FC = () => {
                       </CounselorMetricsGroup>
 
                       <Tooltip content="Copy Google Meet link for this counselor">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          leftIcon={<RiFileCopyLine size={16} />}
+                        <MeetIconButton
+                          type="button"
                           onClick={() => handleCopyMeetLink(session)}
+                          aria-label="Copy Google Meet Link"
                         >
-                          Copy Meet Link
-                        </Button>
+                          <RiVideoChatLine size={18} />
+                        </MeetIconButton>
                       </Tooltip>
                     </CounselorHeaderRight>
                   </CounselorHeader>
@@ -688,15 +691,6 @@ export const ProjectSessionsPage: React.FC = () => {
           </div>
         </div>
       </Modal>
-
-      {/* Log Call Modal */}
-      <LogCallModal
-        isOpen={Boolean(logCallTarget)}
-        onClose={() => setLogCallTarget(null)}
-        targetName={logCallTarget?.targetName || ''}
-        targetCode={logCallTarget?.targetCode}
-        stageName={logCallTarget?.stageName}
-      />
     </Container>
   );
 };

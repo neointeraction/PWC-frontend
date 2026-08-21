@@ -41,6 +41,7 @@ export interface ProjectCounselor {
 }
 
 export interface ProjectStudent {
+  studentId?: string;
   name: string;
   email: string;
   mobile: string;
@@ -100,14 +101,17 @@ export interface StudentComment {
 
 export interface ProjectStudentDetail {
   id: string;
+  studentId?: string;
   name: string;
   email: string;
   mobile: string;
   parentMobile?: string;
   grade: string;
+  stage?: string;
   session1: StudentSessionDetail;
   session2: StudentSessionDetail;
   comments?: StudentComment[];
+  isFlagged?: boolean;
 }
 
 export interface CreateProjectPayload {
