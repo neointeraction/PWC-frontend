@@ -154,7 +154,7 @@ export const LoginPage: React.FC = () => {
               <ForgotPasswordLink type="button" onClick={() => navigate(ROUTES.FORGOT_PASSWORD)}>Forgot Password?</ForgotPasswordLink>
             </LoginForm>
 
-            <DemoAccordion>
+            {/* <DemoAccordion>
               <summary>Quick Demo Login Shortcuts & Mail Form Links</summary>
               <DemoButtons>
                 <Button size="sm" variant="secondary" onClick={fillSuperAdmin}>
@@ -189,7 +189,7 @@ export const LoginPage: React.FC = () => {
                   Mail 2 (Parent Feedback Form)
                 </Button>
               </DemoButtons>
-            </DemoAccordion>
+            </DemoAccordion> */}
           </LoginCard>
         </CenterContent>
 
