@@ -55,4 +55,10 @@ export const authService = {
     const { data } = await apiClient.post<ApiAuthResponse>('/auth/refresh');
     return mapAuthResponse(data);
   },
+
+  // POST /api/v1/auth/change-password — requires Bearer. Clears mustChangePassword and
+  // revokes all refresh sessions server-side (204, no body).
+  changePassword: async (payload: { currentPassword: string; newPassword: string }): Promise<void> => {
+    await apiClient.post('/auth/change-password', payload);
+  },
 };

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import {
   RiShieldLine,
   RiPaletteLine,
@@ -11,6 +12,8 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { useToast } from '@/hooks';
 import { useThemeStore } from '@/store';
+import { authService } from '@/services/auth.service';
+import { getApiErrorMessage } from '@/utils';
 import { ROUTES } from '@/constants';
 
 const TabsContainer = styled.div`
@@ -84,6 +87,23 @@ export const SuperAdminSettings: React.FC = () => {
 
   const [superTab, setSuperTab] = useState<'security' | 'appearance'>('security');
 
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: authService.changePassword,
+    onSuccess: () => {
+      toast.success('Password Updated', 'Your password has been changed successfully.');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    },
+    onError: err => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to change password.'));
+    },
+  });
+
   return (
     <div>
       <PageHeader
@@ -109,14 +129,50 @@ export const SuperAdminSettings: React.FC = () => {
           <Form
             onSubmit={e => {
               e.preventDefault();
-              toast.success('Password Updated', 'Your password has been changed successfully.');
+              if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+                toast.error('Password Mismatch', 'New password and confirm password do not match.');
+                return;
+              }
+              if (passwordForm.newPassword.length < 6) {
+                toast.error('Weak Password', 'Password must be at least 6 characters long.');
+                return;
+              }
+              changePasswordMutation.mutate({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword,
+              });
             }}
           >
-            <Input label="Current Password" type="password" placeholder="Enter current password" />
-            <Input label="New Password" type="password" placeholder="Enter new password" />
-            <Input label="Confirm New Password" type="password" placeholder="Confirm new password" />
+            <Input
+              label="Current Password"
+              type="password"
+              placeholder="Enter current password"
+              value={passwordForm.currentPassword}
+              onChange={e => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+              required
+            />
+            <Input
+              label="New Password"
+              type="password"
+              placeholder="Enter new password"
+              value={passwordForm.newPassword}
+              onChange={e => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+              required
+            />
+            <Input
+              label="Confirm New Password"
+              type="password"
+              placeholder="Confirm new password"
+              value={passwordForm.confirmPassword}
+              onChange={e => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+              required
+            />
             <div>
-              <Button type="submit" leftIcon={<RiSaveLine size={18} />}>
+              <Button
+                type="submit"
+                leftIcon={<RiSaveLine size={18} />}
+                isLoading={changePasswordMutation.isPending}
+              >
                 Update Password
               </Button>
             </div>

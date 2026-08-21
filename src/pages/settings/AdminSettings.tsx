@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import styled from 'styled-components';
 import {
   RiShieldLine,
@@ -11,6 +12,8 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { useToast } from '@/hooks';
 import { useThemeStore } from '@/store';
+import { authService } from '@/services/auth.service';
+import { getApiErrorMessage } from '@/utils';
 import { ROUTES } from '@/constants';
 
 const TabsContainer = styled.div`
@@ -98,6 +101,17 @@ export const AdminSettings: React.FC = () => {
     confirmPassword: '',
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: authService.changePassword,
+    onSuccess: () => {
+      toast.success('Password Updated', 'Your password has been changed successfully.');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    },
+    onError: err => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to change password.'));
+    },
+  });
+
   return (
     <div>
       <PageHeader
@@ -132,8 +146,10 @@ export const AdminSettings: React.FC = () => {
                 toast.error('Weak Password', 'Password must be at least 6 characters long.');
                 return;
               }
-              toast.success('Password Updated', 'Your password has been changed successfully.');
-              setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+              changePasswordMutation.mutate({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword,
+              });
             }}
           >
             <Input
@@ -165,7 +181,11 @@ export const AdminSettings: React.FC = () => {
               required
             />
             <div>
-              <Button type="submit" leftIcon={<RiSaveLine size={18} />}>
+              <Button
+                type="submit"
+                leftIcon={<RiSaveLine size={18} />}
+                isLoading={changePasswordMutation.isPending}
+              >
                 Update Password
               </Button>
             </div>
