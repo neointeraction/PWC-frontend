@@ -14,13 +14,11 @@ import {
   ResetPasswordWrapper,
   ResetPasswordCard,
   LogoWrapper,
-  LogoTextWrapper,
-  LogoTitle,
-  LogoSubtitle,
+  LogoImage,
   TitleWrapper,
   Heading,
-  Subtext,
   SecurityAlertBox,
+  SecurityAlertIcon,
   AlertText,
   Form,
   FormGroup,
@@ -73,35 +71,19 @@ export const ResetPasswordPage: React.FC = () => {
     <ResetPasswordWrapper>
       <ResetPasswordCard>
         <LogoWrapper>
-          <img
-            src={logoImg}
-            alt="kREATE Logo"
-            style={{ width: 40, height: 40, objectFit: 'contain' }}
-          />
-          <LogoTextWrapper>
-            <LogoTitle>kREATE Portal</LogoTitle>
-            <LogoSubtitle>Career Counselling Platform</LogoSubtitle>
-          </LogoTextWrapper>
+          <LogoImage src={logoImg} alt="kREATE Logo" />
         </LogoWrapper>
 
         <TitleWrapper>
           <Heading>Mandatory Password Change</Heading>
-          <Subtext>
-            {role === 'student'
-              ? 'Student first-time login detected. Please update your temporary account password to proceed.'
-              : 'Counselor first-time login detected. Please update your temporary account password to proceed.'}
-          </Subtext>
         </TitleWrapper>
 
         <SecurityAlertBox>
-          <RiShieldKeyholeLine
-            size={20}
-            style={{ color: '#5D2384', flexShrink: 0, marginTop: '2px' }}
-          />
+          <SecurityAlertIcon>
+            <RiShieldKeyholeLine size={20} />
+          </SecurityAlertIcon>
           <AlertText>
-            {role === 'student'
-              ? 'For privacy and security regulations, students are required to set a unique personal password upon first login.'
-              : 'For privacy and security regulations, counselors are required to set a unique personal password upon first login.'}
+            For privacy and security regulations, you are required to set a unique personal password upon first login.
           </AlertText>
         </SecurityAlertBox>
 
