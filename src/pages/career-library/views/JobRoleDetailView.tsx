@@ -13,6 +13,7 @@ import {
   RiMoneyDollarCircleLine,
   RiGlobalLine,
   RiUserStarLine,
+  RiEditLine,
 } from 'react-icons/ri';
 import { EducationPathTab } from '../tabs/EducationPathTab';
 import { EntranceExamsTab } from '../tabs/EntranceExamsTab';
@@ -51,6 +52,26 @@ const TitleGroup = styled.div`
   display: flex;
   align-items: flex-start;
   gap: ${({ theme }) => theme.spacing.md};
+`;
+
+const EditRoleButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.24);
+  }
 `;
 
 const RoleIconBadge = styled.div`
@@ -270,6 +291,7 @@ interface JobRoleDetailViewProps {
   entranceExams: EntranceExam[];
   courses: CourseDetail[];
   institutions: InstitutionDetail[];
+  onEditRole?: (role: Career) => void;
 }
 
 type TabType = 'overview' | 'education' | 'exams' | 'courses' | 'institutions';
@@ -279,6 +301,7 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
   entranceExams,
   courses,
   institutions,
+  onEditRole,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
@@ -300,6 +323,11 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
             </RoleHeaderInfo>
           </TitleGroup>
 
+          {onEditRole && (
+            <EditRoleButton type="button" onClick={() => onEditRole(role)}>
+              <RiEditLine size={16} /> Edit Role
+            </EditRoleButton>
+          )}
         </BannerHeader>
 
         <MetricsGrid>

@@ -74,13 +74,6 @@ const ContentCard = styled.div`
   padding: ${({ theme }) => theme.spacing.xl};
 `;
 
-const AddBar = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: ${({ theme }) => theme.spacing.sm};
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
-`;
-
 type LevelType = 'clusters' | 'industries' | 'domains' | 'roles' | 'detail';
 
 export const CareerListPage: React.FC = () => {
@@ -344,6 +337,7 @@ export const CareerListPage: React.FC = () => {
           domains={allDomains}
           selectedRole={selectedRole}
           onSelectRole={setSelectedRole}
+          onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}
           roles={allRoles}
         />
       ) : (
@@ -352,62 +346,63 @@ export const CareerListPage: React.FC = () => {
             steps={getBreadcrumbs()}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            actions={
+              canWrite && level !== 'detail' ? (
+                <>
+                  {level === 'clusters' && (
+                    <Button
+                      size="sm"
+                      leftIcon={<RiAddLine size={16} />}
+                      onClick={() => setTaxonomyModal({ level: 'cluster', mode: 'add' })}
+                    >
+                      Add Cluster
+                    </Button>
+                  )}
+                  {level === 'industries' && selectedCluster && (
+                    <Button
+                      size="sm"
+                      leftIcon={<RiAddLine size={16} />}
+                      onClick={() =>
+                        setTaxonomyModal({
+                          level: 'industry',
+                          mode: 'add',
+                          parentId: selectedCluster.id,
+                          parentLabel: selectedCluster.name,
+                        })
+                      }
+                    >
+                      Add Industry
+                    </Button>
+                  )}
+                  {level === 'domains' && selectedIndustry && (
+                    <Button
+                      size="sm"
+                      leftIcon={<RiAddLine size={16} />}
+                      onClick={() =>
+                        setTaxonomyModal({
+                          level: 'domain',
+                          mode: 'add',
+                          parentId: selectedIndustry.id,
+                          parentLabel: selectedIndustry.name,
+                        })
+                      }
+                    >
+                      Add Domain
+                    </Button>
+                  )}
+                  {level === 'roles' && selectedDomain && (
+                    <Button
+                      size="sm"
+                      leftIcon={<RiAddLine size={16} />}
+                      onClick={() => setRoleModal({ mode: 'add' })}
+                    >
+                      Add Job Role
+                    </Button>
+                  )}
+                </>
+              ) : undefined
+            }
           />
-
-          {canWrite && level !== 'detail' && (
-            <AddBar>
-              {level === 'clusters' && (
-                <Button
-                  size="sm"
-                  leftIcon={<RiAddLine size={16} />}
-                  onClick={() => setTaxonomyModal({ level: 'cluster', mode: 'add' })}
-                >
-                  Add Cluster
-                </Button>
-              )}
-              {level === 'industries' && selectedCluster && (
-                <Button
-                  size="sm"
-                  leftIcon={<RiAddLine size={16} />}
-                  onClick={() =>
-                    setTaxonomyModal({
-                      level: 'industry',
-                      mode: 'add',
-                      parentId: selectedCluster.id,
-                      parentLabel: selectedCluster.name,
-                    })
-                  }
-                >
-                  Add Industry
-                </Button>
-              )}
-              {level === 'domains' && selectedIndustry && (
-                <Button
-                  size="sm"
-                  leftIcon={<RiAddLine size={16} />}
-                  onClick={() =>
-                    setTaxonomyModal({
-                      level: 'domain',
-                      mode: 'add',
-                      parentId: selectedIndustry.id,
-                      parentLabel: selectedIndustry.name,
-                    })
-                  }
-                >
-                  Add Domain
-                </Button>
-              )}
-              {level === 'roles' && selectedDomain && (
-                <Button
-                  size="sm"
-                  leftIcon={<RiAddLine size={16} />}
-                  onClick={() => setRoleModal({ mode: 'add' })}
-                >
-                  Add Job Role
-                </Button>
-              )}
-            </AddBar>
-          )}
 
           {level === 'clusters' && (
             <ClustersView
@@ -511,6 +506,7 @@ export const CareerListPage: React.FC = () => {
               entranceExams={roleDetail.entranceExams}
               courses={roleDetail.courses}
               institutions={roleDetail.institutions}
+              onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}
             />
           )}
         </ContentCard>
@@ -535,6 +531,8 @@ export const CareerListPage: React.FC = () => {
         entity={roleModal?.entity}
         domainId={selectedDomain?.id}
         domainLabel={selectedDomain?.name}
+        clusterLabel={selectedCluster?.name}
+        industryLabel={selectedIndustry?.name}
       />
 
       <AlertModal

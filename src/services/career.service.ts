@@ -120,7 +120,23 @@ interface CareerLibraryDetailResponse extends ApiCareerEntry {
   relatedInstitutions: ApiUgInstitution[];
   relatedCourses: ApiUgCourse[];
   relatedEntranceExams: ApiUgEntranceExam[];
+  // Curated many-to-many links actually attached to this entry (with ids) — the source
+  // for pre-ticking the linked-reference lists when editing a job role.
+  linkedEntranceExams?: ApiUgEntranceExam[];
+  linkedCourses?: ApiUgCourse[];
+  linkedInstitutions?: ApiUgInstitution[];
 }
+
+// Typeahead endpoints ("dropdown" reads) may return a bare array or a `{ data }` wrapper.
+const unwrapList = <T>(payload: T[] | { data: T[] } | null | undefined): T[] =>
+  Array.isArray(payload) ? payload : payload?.data ?? [];
+
+const examOptionLabel = (e: ApiUgEntranceExam): string =>
+  e.fullForm ? `${e.examName} (${e.fullForm})` : e.examName;
+const courseOptionLabel = (c: ApiUgCourse): string =>
+  c.fullForm ? `${c.courseName} (${c.fullForm})` : c.courseName;
+const institutionOptionLabel = (i: ApiUgInstitution): string =>
+  [i.name, i.city].filter(Boolean).join(', ');
 
 // ---- Write payloads (create/update a job-role entry) ----
 
@@ -132,6 +148,15 @@ export interface CareerEntryLinkItem {
   level?: 'UG' | 'PG';
   city?: string;
   state?: string;
+}
+
+// Normalized option for the add/edit job-role linked-reference pickers (typeahead
+// results and an entry's currently-linked records). `id` identifies an existing
+// canonical row; `label` is what the tick-list shows.
+export interface CareerLinkOption {
+  id: string;
+  label: string;
+  level?: 'UG' | 'PG';
 }
 
 export interface CareerEntryPayload {
@@ -428,6 +453,10 @@ export const careerService = {
     entranceExams: EntranceExam[];
     courses: CourseDetail[];
     institutions: InstitutionDetail[];
+    // Currently-linked canonical records (ids) for the edit form's tick-lists.
+    linkedEntranceExams: CareerLinkOption[];
+    linkedCourses: CareerLinkOption[];
+    linkedInstitutions: CareerLinkOption[];
   }> => {
     const { data } = await apiClient.get<CareerLibraryDetailResponse>(`/career-library/${id}`);
     return {
@@ -435,7 +464,45 @@ export const careerService = {
       entranceExams: (data.relatedEntranceExams || []).map(mapExam),
       courses: (data.relatedCourses || []).map(mapCourse),
       institutions: (data.relatedInstitutions || []).map(mapInstitution),
+      linkedEntranceExams: (data.linkedEntranceExams || []).map(e => ({
+        id: e.id,
+        label: examOptionLabel(e),
+        level: e.level === 'PG' ? 'PG' : 'UG',
+      })),
+      linkedCourses: (data.linkedCourses || []).map(c => ({ id: c.id, label: courseOptionLabel(c) })),
+      linkedInstitutions: (data.linkedInstitutions || []).map(i => ({
+        id: i.id,
+        label: institutionOptionLabel(i),
+      })),
     };
+  },
+
+  // ---- Typeahead pickers for the add/edit job-role linked references (select-or-add) ----
+  // GET /api/v1/career-library/entrance-exams | /courses | /institutions
+  searchEntranceExams: async (search: string, level?: 'UG' | 'PG'): Promise<CareerLinkOption[]> => {
+    const { data } = await apiClient.get<ApiUgEntranceExam[] | { data: ApiUgEntranceExam[] }>(
+      '/career-library/entrance-exams',
+      { params: { search: search || undefined, level, limit: 20 } }
+    );
+    return unwrapList(data).map(e => ({
+      id: e.id,
+      label: examOptionLabel(e),
+      level: e.level === 'PG' ? 'PG' : 'UG',
+    }));
+  },
+  searchCourses: async (search: string, level?: 'UG' | 'PG'): Promise<CareerLinkOption[]> => {
+    const { data } = await apiClient.get<ApiUgCourse[] | { data: ApiUgCourse[] }>(
+      '/career-library/courses',
+      { params: { search: search || undefined, level, limit: 20 } }
+    );
+    return unwrapList(data).map(c => ({ id: c.id, label: courseOptionLabel(c) }));
+  },
+  searchInstitutions: async (search: string): Promise<CareerLinkOption[]> => {
+    const { data } = await apiClient.get<ApiUgInstitution[] | { data: ApiUgInstitution[] }>(
+      '/career-library/institutions',
+      { params: { search: search || undefined, limit: 20 } }
+    );
+    return unwrapList(data).map(i => ({ id: i.id, label: institutionOptionLabel(i) }));
   },
 
   // GET /api/v1/career-library/filters

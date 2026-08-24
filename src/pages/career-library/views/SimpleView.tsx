@@ -32,6 +32,7 @@ export interface SimpleViewProps {
   // Shared with Card View so the same job role stays selected across a view switch.
   selectedRole?: Career | null;
   onSelectRole?: (role: Career) => void;
+  onEditRole?: (role: Career) => void;
 }
 
 export const SimpleView: React.FC<SimpleViewProps> = ({
@@ -41,6 +42,7 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
   roles,
   selectedRole,
   onSelectRole,
+  onEditRole,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -256,6 +258,7 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
             entranceExams={roleDetail.entranceExams}
             courses={roleDetail.courses}
             institutions={roleDetail.institutions}
+            onEditRole={onEditRole}
           />
         ) : (
           <EmptyDetailCard>
