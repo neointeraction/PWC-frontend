@@ -59,10 +59,25 @@ export const LoginPage: React.FC = () => {
     mutationFn: (payload: LoginPayload) => authService.login(payload),
     onSuccess: data => {
       login(data.user, data.token);
-      if (data.user.role === 'counselor' || data.user.role === 'student') {
+      // Only force the change-password step when the backend actually requires it
+      // (first login / temp password). Otherwise land on the role's home — a returning
+      // student goes straight to their portal instead of being re-prompted to reset.
+      if (useAuthStore.getState().mustResetPassword) {
         navigate(ROUTES.RESET_PASSWORD);
-      } else {
-        navigate(ROUTES.DASHBOARD);
+        return;
+      }
+      switch (data.user.role) {
+        case 'student':
+          navigate(ROUTES.STUDENT_PORTAL);
+          break;
+        case 'counselor':
+          navigate(ROUTES.UPCOMING_SESSIONS);
+          break;
+        case 'admin':
+          navigate(ROUTES.PROJECTS);
+          break;
+        default:
+          navigate(ROUTES.DASHBOARD);
       }
     },
   });

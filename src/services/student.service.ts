@@ -1,4 +1,78 @@
-import { PreCounsellingForm, Student, StudentListResponse } from '@/types';
+import { apiClient } from './api';
+import {
+  PreCounsellingForm,
+  Student,
+  StudentListResponse,
+  CurrentStudent,
+  StudentWorkflowStatus,
+} from '@/types';
+
+// ---- Backend shape: GET /api/v1/students/me ----
+interface ApiCurrentStudent {
+  id: string;
+  userId: string;
+  studentCode: string;
+  mobile: string;
+  whatsappNumber?: string | null;
+  parentMobile: string;
+  parentEmail: string;
+  fatherName: string;
+  fatherOccupation?: string | null;
+  fatherEmployer?: string | null;
+  motherName?: string | null;
+  motherOccupation?: string | null;
+  motherEmployer?: string | null;
+  academicYear?: string | null;
+  workflowStatus: StudentWorkflowStatus;
+  user: { id: string; email: string; firstName: string; lastName: string; isActive: boolean };
+  project: { id: string; name: string; instituteId: string };
+  division: {
+    id: string;
+    name?: string | null;
+    class?: { id: string; name: string; instituteId: string } | null;
+  };
+  cohort?: { code: string; name: string } | null;
+  stageInfo?: {
+    stageLabel?: string;
+    flagged?: boolean;
+    flagReason?: string | null;
+  } | null;
+}
+
+const mapCurrentStudent = (s: ApiCurrentStudent): CurrentStudent => ({
+  id: s.id,
+  userId: s.userId,
+  studentCode: s.studentCode,
+  name: `${s.user.firstName} ${s.user.lastName}`.trim(),
+  email: s.user.email,
+  mobile: s.mobile,
+  whatsappNumber: s.whatsappNumber || undefined,
+  parentMobile: s.parentMobile,
+  parentEmail: s.parentEmail,
+  father: {
+    name: s.fatherName,
+    occupation: s.fatherOccupation || undefined,
+    employer: s.fatherEmployer || undefined,
+  },
+  mother: {
+    name: s.motherName || undefined,
+    occupation: s.motherOccupation || undefined,
+    employer: s.motherEmployer || undefined,
+  },
+  academicYear: s.academicYear || undefined,
+  workflowStatus: s.workflowStatus,
+  project: s.project,
+  division: {
+    id: s.division.id,
+    name: s.division.name || undefined,
+    className: s.division.class?.name,
+    classId: s.division.class?.id,
+  },
+  cohort: s.cohort || undefined,
+  stageLabel: s.stageInfo?.stageLabel,
+  isFlagged: s.stageInfo?.flagged ?? false,
+  flagReason: s.stageInfo?.flagReason ?? null,
+});
 
 const mockStudents: Student[] = [
   {
@@ -52,6 +126,19 @@ const mockFormAnswers: Record<string, PreCounsellingForm> = {
 };
 
 export const studentService = {
+  // GET /api/v1/students/me — the logged-in student's own record. The entry point every
+  // student-facing screen calls first to obtain its Student id + cohort + workflow stage.
+  getMe: async (): Promise<CurrentStudent> => {
+    const { data } = await apiClient.get<ApiCurrentStudent>('/students/me');
+    return mapCurrentStudent(data);
+  },
+
+  // POST /api/v1/students/{id}/confirm-profile — student confirms their profile is correct
+  // (DRAFT → PROFILE_COMPLETED).
+  confirmProfile: async (studentId: string): Promise<void> => {
+    await apiClient.post(`/students/${studentId}/confirm-profile`);
+  },
+
   getStudentsByCounselor: async (counselorId: string): Promise<StudentListResponse> => {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500));
