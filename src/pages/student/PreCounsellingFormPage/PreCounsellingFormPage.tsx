@@ -17,6 +17,7 @@ import {
   RiArrowLeftLine,
   RiArrowRightLine,
   RiCheckLine,
+  RiSaveLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
@@ -408,6 +409,33 @@ export const PreCounsellingFormPage: React.FC = () => {
       return;
     }
     submitMutation.mutate();
+  };
+
+  // "Save Draft" — PUT the current answers without the required-field validation, so the
+  // student can save partial progress and come back later.
+  const saveDraftMutation = useMutation({
+    mutationFn: () =>
+      formsService.saveDraft('PRE_COUNSELLING_STUDENT', me!.id, {
+        cohort: cohort!,
+        answers: buildAnswers(),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['form-submission', 'PRE_COUNSELLING_STUDENT', me?.id, cohort],
+      });
+      toast.success('Draft Saved', 'Your progress has been saved — you can come back and finish later.');
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to save your draft.'));
+    },
+  });
+
+  const handleSaveDraft = () => {
+    if (!me?.id || !cohort) {
+      toast.info('Please wait', 'Your student record is still loading — try again in a moment.');
+      return;
+    }
+    saveDraftMutation.mutate();
   };
 
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
@@ -1667,6 +1695,17 @@ export const PreCounsellingFormPage: React.FC = () => {
               onClick={handlePrevStep}
             >
               Previous Step
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              leftIcon={<RiSaveLine size={18} />}
+              isLoading={saveDraftMutation.isPending}
+              onClick={handleSaveDraft}
+            >
+              Save Draft
             </Button>
 
             {currentStep < totalSteps ? (

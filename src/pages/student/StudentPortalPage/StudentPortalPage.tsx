@@ -525,10 +525,10 @@ export const StudentPortalPage: React.FC = () => {
             {me?.division?.className
               ? `${me.division.className}${me.division.name ? ` - ${me.division.name}` : ''}`
               : 'Grade 11 - Science'}
-            {(me?.studentCode || me?.academicYear) && (
+            {me?.project?.name && (
               <BadgePill>
                 <RiBuilding4Line size={12} style={{ display: 'inline', marginRight: 4 }} />
-                {[me?.studentCode, me?.academicYear].filter(Boolean).join(' · ')}
+                {me.project.name}
               </BadgePill>
             )}
           </BannerSubtitle>
