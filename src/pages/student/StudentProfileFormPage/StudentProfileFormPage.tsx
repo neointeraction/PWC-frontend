@@ -21,7 +21,7 @@ import { Tooltip } from '@/components/Tooltip';
 import { SuccessModal } from '@/components/SuccessModal';
 import { ROUTES } from '@/constants';
 import { useToast, useCurrentStudent } from '@/hooks';
-import { studentService } from '@/services/student.service';
+import { studentService, StudentProfileUpdate } from '@/services/student.service';
 import { getApiErrorMessage } from '@/utils';
 import {
   FormPageContainer,
@@ -123,7 +123,7 @@ export const StudentProfileFormPage: React.FC = () => {
   // The backend captures profile fields at creation; the student can only *confirm* them
   // (PATCH is admin-only), so submitting confirms the profile (DRAFT -> PROFILE_COMPLETED).
   const confirmMutation = useMutation({
-    mutationFn: () => studentService.confirmProfile(me!.id),
+    mutationFn: (payload: StudentProfileUpdate) => studentService.confirmProfile(me!.id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
       setIsSuccessModalOpen(true);
@@ -135,18 +135,36 @@ export const StudentProfileFormPage: React.FC = () => {
         setIsSuccessModalOpen(true);
         return;
       }
-      toast.error('Error', getApiErrorMessage(err, 'Failed to confirm your profile.'));
+      toast.error('Error', getApiErrorMessage(err, 'Failed to save your profile.'));
     },
   });
 
-  const onSubmit = () => {
+  // Map the form fields to the student-editable payload. Field names mirror POST /students.
+  const buildProfilePayload = (data: StudentProfileFormData): StudentProfileUpdate => {
+    const fullName = (data.studentFullName || '').trim();
+    const [firstName, ...rest] = fullName.split(/\s+/);
+    return {
+      firstName: firstName || undefined,
+      lastName: rest.length ? rest.join(' ') : undefined,
+      mobile: data.studentMobile?.trim() || undefined,
+      whatsappNumber: data.studentWhatsapp?.trim() || undefined,
+      fatherName: data.fatherFullName?.trim() || undefined,
+      fatherOccupation: data.fatherOccupation?.trim() || undefined,
+      fatherEmployer: data.fatherEmployer?.trim() || undefined,
+      motherName: data.motherFullName?.trim() || undefined,
+      motherOccupation: data.motherOccupation?.trim() || undefined,
+      motherEmployer: data.motherEmployer?.trim() || undefined,
+    };
+  };
+
+  const onSubmit = (data: StudentProfileFormData) => {
     if (!me?.id) {
       // No student record resolved yet — fall back so the page still completes.
       localStorage.setItem('pwc_student_profile_completed', 'true');
       setIsSuccessModalOpen(true);
       return;
     }
-    confirmMutation.mutate();
+    confirmMutation.mutate(buildProfilePayload(data));
   };
 
   const handleProceedToDashboard = () => {

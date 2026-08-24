@@ -55,6 +55,24 @@ interface ApiFormsStatus {
   feedbackComplete?: boolean;
 }
 
+// Student-editable profile fields sent with confirm-profile. Field names mirror the
+// POST /students create body so the backend can reuse its validation; firstName/lastName
+// update the linked User, the rest are Student columns.
+export interface StudentProfileUpdate {
+  firstName?: string;
+  lastName?: string;
+  mobile?: string;
+  whatsappNumber?: string;
+  parentMobile?: string;
+  parentEmail?: string;
+  fatherName?: string;
+  fatherOccupation?: string;
+  fatherEmployer?: string;
+  motherName?: string;
+  motherOccupation?: string;
+  motherEmployer?: string;
+}
+
 export interface StudentFormsStatus {
   preCounsellingStudent: boolean;
   preCounsellingParent: boolean;
@@ -199,10 +217,13 @@ export const studentService = {
     return mapCurrentStudent(data);
   },
 
-  // POST /api/v1/students/{id}/confirm-profile — student confirms their profile is correct
-  // (DRAFT → PROFILE_COMPLETED).
-  confirmProfile: async (studentId: string): Promise<void> => {
-    await apiClient.post(`/students/${studentId}/confirm-profile`);
+  // POST /api/v1/students/{id}/confirm-profile — student confirms their profile
+  // (DRAFT → PROFILE_COMPLETED). Optionally saves the student-editable fields in the same
+  // call (contract mirrors the POST /students create body; firstName/lastName update the
+  // linked User). Backend support for the body is pending — sending it is a no-op until
+  // the endpoint accepts it, and the empty-body confirm still works today.
+  confirmProfile: async (studentId: string, payload?: StudentProfileUpdate): Promise<void> => {
+    await apiClient.post(`/students/${studentId}/confirm-profile`, payload);
   },
 
   // GET /api/v1/forms/students/{id}/status — per-form submission flags (finalized only).

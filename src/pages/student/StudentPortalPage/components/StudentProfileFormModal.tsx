@@ -11,7 +11,7 @@ import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import { useToast } from '@/hooks';
-import { studentService } from '@/services/student.service';
+import { studentService, StudentProfileUpdate } from '@/services/student.service';
 import { CurrentStudent } from '@/types';
 import { getApiErrorMessage } from '@/utils';
 
@@ -107,7 +107,7 @@ export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = (
   }, [isOpen, student, reset, initialName, initialEmail]);
 
   const confirmMutation = useMutation({
-    mutationFn: () => studentService.confirmProfile(student!.id),
+    mutationFn: (payload: StudentProfileUpdate) => studentService.confirmProfile(student!.id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
       toast.success(
@@ -130,15 +130,21 @@ export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = (
   });
 
   const onSubmit = (data: ProfileFormData) => {
-    // The backend captures profile fields at creation and only lets the student *confirm*
-    // them (PATCH is admin-only), so submitting confirms the profile is correct.
     if (!student?.id) {
       toast.success('Student Profile Completed!', `Profile details for ${data.fullName} saved.`);
       onSuccess?.();
       onClose();
       return;
     }
-    confirmMutation.mutate();
+    // Send the editable fields this modal exposes (contract mirrors POST /students).
+    const fullName = data.fullName.trim();
+    const [firstName, ...rest] = fullName.split(/\s+/);
+    confirmMutation.mutate({
+      firstName: firstName || undefined,
+      lastName: rest.length ? rest.join(' ') : undefined,
+      fatherName: data.guardianName?.trim() || undefined,
+      parentMobile: data.guardianPhone?.trim() || undefined,
+    });
   };
 
   return (
