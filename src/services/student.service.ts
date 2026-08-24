@@ -39,6 +39,31 @@ interface ApiCurrentStudent {
   } | null;
 }
 
+// ---- Backend shape: GET /api/v1/forms/students/{id}/status ----
+interface ApiFormSubmissionFlag {
+  submitted: boolean;
+  submittedAt: string | null;
+}
+interface ApiFormsStatus {
+  forms?: {
+    preCounsellingStudent?: ApiFormSubmissionFlag;
+    preCounsellingParent?: ApiFormSubmissionFlag;
+    feedbackStudent?: ApiFormSubmissionFlag;
+    feedbackParent?: ApiFormSubmissionFlag;
+  };
+  preCounsellingComplete?: boolean;
+  feedbackComplete?: boolean;
+}
+
+export interface StudentFormsStatus {
+  preCounsellingStudent: boolean;
+  preCounsellingParent: boolean;
+  feedbackStudent: boolean;
+  feedbackParent: boolean;
+  preCounsellingComplete: boolean;
+  feedbackComplete: boolean;
+}
+
 const mapCurrentStudent = (s: ApiCurrentStudent): CurrentStudent => ({
   id: s.id,
   userId: s.userId,
@@ -125,6 +150,47 @@ const mockFormAnswers: Record<string, PreCounsellingForm> = {
   },
 };
 
+// Ordered workflow stages — used to derive cumulative "reached this stage yet?" booleans
+// for the portal's step tracker from the single `workflowStatus` enum.
+const WORKFLOW_ORDER: StudentWorkflowStatus[] = [
+  'DRAFT',
+  'PROFILE_COMPLETED',
+  'PRE_COUNSELLING_FORMS_SUBMITTED',
+  'ASSESSMENT_PENDING',
+  'ASSESSMENT_COMPLETED',
+  'SESSION_SCHEDULED',
+  'SESSION_1_COMPLETED',
+  'COUNSELLOR_FEEDBACK_REPORT',
+  'SESSION_2_COMPLETED',
+  'COUNSELLOR_FEEDBACK',
+  'STUDENT_PARENT_FEEDBACK',
+  'CLOSED',
+];
+
+export interface StudentProgress {
+  profileCompleted: boolean;
+  preCounsellingSubmitted: boolean;
+  assessmentSubmitted: boolean;
+  booked: boolean;
+  session1Completed: boolean;
+  session2Completed: boolean;
+  feedbackStage: boolean;
+}
+
+export const deriveStudentProgress = (status: StudentWorkflowStatus): StudentProgress => {
+  const idx = WORKFLOW_ORDER.indexOf(status);
+  const reached = (s: StudentWorkflowStatus) => idx >= WORKFLOW_ORDER.indexOf(s);
+  return {
+    profileCompleted: reached('PROFILE_COMPLETED'),
+    preCounsellingSubmitted: reached('PRE_COUNSELLING_FORMS_SUBMITTED'),
+    assessmentSubmitted: reached('ASSESSMENT_COMPLETED'),
+    booked: reached('SESSION_SCHEDULED'),
+    session1Completed: reached('SESSION_1_COMPLETED'),
+    session2Completed: reached('SESSION_2_COMPLETED'),
+    feedbackStage: reached('STUDENT_PARENT_FEEDBACK'),
+  };
+};
+
 export const studentService = {
   // GET /api/v1/students/me — the logged-in student's own record. The entry point every
   // student-facing screen calls first to obtain its Student id + cohort + workflow stage.
@@ -137,6 +203,19 @@ export const studentService = {
   // (DRAFT → PROFILE_COMPLETED).
   confirmProfile: async (studentId: string): Promise<void> => {
     await apiClient.post(`/students/${studentId}/confirm-profile`);
+  },
+
+  // GET /api/v1/forms/students/{id}/status — per-form submission flags (finalized only).
+  getFormsStatus: async (studentId: string): Promise<StudentFormsStatus> => {
+    const { data } = await apiClient.get<ApiFormsStatus>(`/forms/students/${studentId}/status`);
+    return {
+      preCounsellingStudent: data.forms?.preCounsellingStudent?.submitted ?? false,
+      preCounsellingParent: data.forms?.preCounsellingParent?.submitted ?? false,
+      feedbackStudent: data.forms?.feedbackStudent?.submitted ?? false,
+      feedbackParent: data.forms?.feedbackParent?.submitted ?? false,
+      preCounsellingComplete: data.preCounsellingComplete ?? false,
+      feedbackComplete: data.feedbackComplete ?? false,
+    };
   },
 
   getStudentsByCounselor: async (counselorId: string): Promise<StudentListResponse> => {

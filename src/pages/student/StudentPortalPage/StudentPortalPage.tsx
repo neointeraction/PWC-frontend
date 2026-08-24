@@ -20,13 +20,15 @@ import {
   RiFileCopyLine,
   RiEyeLine,
 } from 'react-icons/ri';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { AlertModal } from '@/components/AlertModal';
 import { Tooltip } from '@/components/Tooltip';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
-import { useToast } from '@/hooks';
+import { useToast, useCurrentStudent } from '@/hooks';
+import { studentService, deriveStudentProgress } from '@/services/student.service';
 import { StudentProfileFormModal } from './components/StudentProfileFormModal';
 import {
   PortalContainer,
@@ -70,6 +72,16 @@ export const StudentPortalPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const user = useAuthStore(state => state.user);
+
+  // Real student record (Student id, cohort, workflow stage) + per-form submission flags.
+  const { data: me } = useCurrentStudent();
+  const { data: formsStatus } = useQuery({
+    queryKey: ['student-forms-status', me?.id],
+    queryFn: () => studentService.getFormsStatus(me!.id),
+    enabled: !!me?.id,
+    staleTime: 60_000,
+  });
+
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isProfileCompleted, setIsProfileCompleted] = useState<boolean>(false);
   const [isPreCounsellingSubmitted, setIsPreCounsellingSubmitted] = useState<boolean>(false);
@@ -87,35 +99,39 @@ export const StudentPortalPage: React.FC = () => {
   // Cancel Session AlertModal State
   const [cancelModalSessionNum, setCancelModalSessionNum] = useState<number | null>(null);
 
+  // Seed the step tracker from the real backend state (workflowStatus + per-form flags),
+  // OR'd with the local demo flags so the not-yet-integrated screens (assessment, booking,
+  // sessions) keep working within a session until they're wired to their own endpoints.
   useEffect(() => {
-    const profileDone = localStorage.getItem('pwc_student_profile_completed') === 'true';
-    const preCounsellingDone =
+    const localProfile = localStorage.getItem('pwc_student_profile_completed') === 'true';
+    const localPreCounselling =
       localStorage.getItem('pwc_precounselling_submitted') === 'true' ||
       localStorage.getItem('pwc_student_precounseling_form_submitted') === 'true';
-    const parentDone = localStorage.getItem('pwc_parent_form_submitted') === 'true';
-    const assessmentDone = localStorage.getItem('pwc_assessment_form_submitted') === 'true';
-    const bookedDone = localStorage.getItem('pwc_sessions_booked') === 'true';
-    const s1Done = localStorage.getItem('pwc_session_1_completed') === 'true';
-    const s2Done = localStorage.getItem('pwc_session_2_completed') === 'true';
-    const slot1 =
-      localStorage.getItem('pwc_session_1_slot') || 'May 12, 2026 • 05:00 PM - 06:00 PM';
-    const slot2 =
-      localStorage.getItem('pwc_session_2_slot') || 'May 15, 2026 • 05:00 PM - 06:00 PM';
-    const studentFeedbackDone = localStorage.getItem('pwc_student_feedback_submitted') === 'true';
-    const parentFeedbackDone = localStorage.getItem('pwc_parent_feedback_submitted') === 'true';
+    const localParent = localStorage.getItem('pwc_parent_form_submitted') === 'true';
+    const localAssessment = localStorage.getItem('pwc_assessment_form_submitted') === 'true';
+    const localBooked = localStorage.getItem('pwc_sessions_booked') === 'true';
+    const localS1 = localStorage.getItem('pwc_session_1_completed') === 'true';
+    const localS2 = localStorage.getItem('pwc_session_2_completed') === 'true';
+    const localStudentFeedback = localStorage.getItem('pwc_student_feedback_submitted') === 'true';
+    const localParentFeedback = localStorage.getItem('pwc_parent_feedback_submitted') === 'true';
 
-    setIsProfileCompleted(profileDone);
-    setIsPreCounsellingSubmitted(preCounsellingDone);
-    setIsParentFormSubmitted(parentDone);
-    setIsAssessmentSubmitted(assessmentDone);
-    setIsBooked(bookedDone);
-    setIsSession1Completed(s1Done);
-    setIsSession2Completed(s2Done);
-    setS1SlotStr(slot1);
-    setS2SlotStr(slot2);
-    setIsStudentFeedbackSubmitted(studentFeedbackDone);
-    setIsParentFeedbackSubmitted(parentFeedbackDone);
-  }, []);
+    const wf = me ? deriveStudentProgress(me.workflowStatus) : null;
+
+    setIsProfileCompleted((wf?.profileCompleted ?? false) || localProfile);
+    setIsPreCounsellingSubmitted(
+      (formsStatus?.preCounsellingStudent ?? wf?.preCounsellingSubmitted ?? false) || localPreCounselling
+    );
+    setIsParentFormSubmitted((formsStatus?.preCounsellingParent ?? false) || localParent);
+    setIsAssessmentSubmitted((wf?.assessmentSubmitted ?? false) || localAssessment);
+    setIsBooked((wf?.booked ?? false) || localBooked);
+    setIsSession1Completed((wf?.session1Completed ?? false) || localS1);
+    setIsSession2Completed((wf?.session2Completed ?? false) || localS2);
+    setIsStudentFeedbackSubmitted((formsStatus?.feedbackStudent ?? false) || localStudentFeedback);
+    setIsParentFeedbackSubmitted((formsStatus?.feedbackParent ?? false) || localParentFeedback);
+
+    setS1SlotStr(localStorage.getItem('pwc_session_1_slot') || 'May 12, 2026 • 05:00 PM - 06:00 PM');
+    setS2SlotStr(localStorage.getItem('pwc_session_2_slot') || 'May 15, 2026 • 05:00 PM - 06:00 PM');
+  }, [me, formsStatus]);
 
   const handleStartSession = (sessionNum: number) => {
     const meetUrl =
@@ -503,13 +519,18 @@ export const StudentPortalPage: React.FC = () => {
       {/* Welcome Banner */}
       <WelcomeBanner>
         <BannerText>
-          <BannerTitle>Hello, {user?.name}!</BannerTitle>
+          <BannerTitle>Hello, {me?.name || user?.name}!</BannerTitle>
           <BannerSubtitle>
-            <RiGraduationCapLine size={16} /> Grade 11 - Science
-            <BadgePill>
-              <RiBuilding4Line size={12} style={{ display: 'inline', marginRight: 4 }} />
-              St. Xavier&apos;s Senior Secondary School
-            </BadgePill>
+            <RiGraduationCapLine size={16} />{' '}
+            {me?.division?.className
+              ? `${me.division.className}${me.division.name ? ` - ${me.division.name}` : ''}`
+              : 'Grade 11 - Science'}
+            {(me?.studentCode || me?.academicYear) && (
+              <BadgePill>
+                <RiBuilding4Line size={12} style={{ display: 'inline', marginRight: 4 }} />
+                {[me?.studentCode, me?.academicYear].filter(Boolean).join(' · ')}
+              </BadgePill>
+            )}
           </BannerSubtitle>
         </BannerText>
         <Button
@@ -786,8 +807,9 @@ export const StudentPortalPage: React.FC = () => {
       <StudentProfileFormModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        initialName={user?.name || 'Alex Johnson'}
-        initialEmail={user?.email || 'student@pwc.com'}
+        student={me}
+        initialName={me?.name || user?.name || 'Alex Johnson'}
+        initialEmail={me?.email || user?.email || 'student@pwc.com'}
         onSuccess={() => {
           setIsProfileCompleted(true);
           localStorage.setItem('pwc_student_profile_completed', 'true');

@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { RiUser3Line, RiMailLine, RiBuilding4Line, RiPhoneLine, RiCheckLine } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import { useToast } from '@/hooks';
+import { studentService } from '@/services/student.service';
+import { CurrentStudent } from '@/types';
+import { getApiErrorMessage } from '@/utils';
 
 const profileSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
@@ -25,6 +30,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 interface StudentProfileFormModalProps {
   isOpen: boolean;
   onClose: () => void;
+  student?: CurrentStudent | null;
   initialName?: string;
   initialEmail?: string;
   onSuccess?: () => void;
@@ -58,18 +64,21 @@ const SectionHeader = styled.h4`
 export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = ({
   isOpen,
   onClose,
+  student,
   initialName = 'Alex Johnson',
   initialEmail = 'student@pwc.com',
   onSuccess,
 }) => {
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const {
     register,
     handleSubmit,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -83,14 +92,53 @@ export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = (
     },
   });
 
-  const onSubmit = async (data: ProfileFormData) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    toast.success(
-      'Student Profile Form Completed!',
-      `Profile details for ${data.fullName} saved successfully.`
-    );
-    if (onSuccess) onSuccess();
-    onClose();
+  // Prefill from the real student record once it loads.
+  useEffect(() => {
+    if (!isOpen || !student) return;
+    reset({
+      fullName: student.name || initialName,
+      email: student.email || initialEmail,
+      schoolName: "St. Xavier's Senior Secondary School",
+      grade: '11th Grade (Science)',
+      guardianName: student.father?.name || 'Robert Johnson',
+      guardianPhone: student.parentMobile || '+91 98765 43210',
+      targetStream: 'Engineering & Technology',
+    });
+  }, [isOpen, student, reset, initialName, initialEmail]);
+
+  const confirmMutation = useMutation({
+    mutationFn: () => studentService.confirmProfile(student!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-me'] });
+      toast.success(
+        'Profile Confirmed!',
+        'Your profile has been confirmed. You can now move on to the pre-counselling form.'
+      );
+      onSuccess?.();
+      onClose();
+    },
+    onError: (err: unknown) => {
+      // 409 = already confirmed (not DRAFT) — treat as done rather than an error.
+      if (err instanceof AxiosError && err.response?.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ['student-me'] });
+        onSuccess?.();
+        onClose();
+        return;
+      }
+      toast.error('Error', getApiErrorMessage(err, 'Failed to confirm your profile.'));
+    },
+  });
+
+  const onSubmit = (data: ProfileFormData) => {
+    // The backend captures profile fields at creation and only lets the student *confirm*
+    // them (PATCH is admin-only), so submitting confirms the profile is correct.
+    if (!student?.id) {
+      toast.success('Student Profile Completed!', `Profile details for ${data.fullName} saved.`);
+      onSuccess?.();
+      onClose();
+      return;
+    }
+    confirmMutation.mutate();
   };
 
   return (
@@ -188,9 +236,9 @@ export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = (
             type="submit"
             variant="primary"
             leftIcon={<RiCheckLine size={18} />}
-            isLoading={isSubmitting}
+            isLoading={confirmMutation.isPending}
           >
-            Save & Complete Profile
+            Save &amp; Complete Profile
           </Button>
         </div>
       </FormGrid>

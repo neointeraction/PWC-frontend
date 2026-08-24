@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import {
   RiUser3Line,
   RiMailLine,
@@ -18,7 +20,9 @@ import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
 import { SuccessModal } from '@/components/SuccessModal';
 import { ROUTES } from '@/constants';
-import { useToast } from '@/hooks';
+import { useToast, useCurrentStudent } from '@/hooks';
+import { studentService } from '@/services/student.service';
+import { getApiErrorMessage } from '@/utils';
 import {
   FormPageContainer,
   SingleUnifiedCard,
@@ -63,11 +67,14 @@ type StudentProfileFormData = z.infer<typeof studentProfileSchema>;
 export const StudentProfileFormPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
+  const { data: me } = useCurrentStudent();
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors },
   } = useForm<StudentProfileFormData>({
     resolver: zodResolver(studentProfileSchema),
     defaultValues: {
@@ -92,10 +99,54 @@ export const StudentProfileFormPage: React.FC = () => {
 
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-  const onSubmit = async (_data: StudentProfileFormData) => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    localStorage.setItem('pwc_student_profile_completed', 'true');
-    setIsSuccessModalOpen(true);
+  // Prefill from the logged-in student's real record once it loads.
+  useEffect(() => {
+    if (!me) return;
+    reset({
+      studentFullName: me.name || '',
+      studentMobile: me.mobile || '',
+      studentWhatsapp: me.whatsappNumber || '',
+      studentEmail: me.email || '',
+      alternateMobile: me.parentMobile || '',
+      alternateEmail: me.parentEmail || '',
+      fatherFullName: me.father?.name || '',
+      fatherOccupation: me.father?.occupation || '',
+      fatherEmployer: me.father?.employer || '',
+      fatherWhatsapp: '',
+      fatherEmail: me.parentEmail || '',
+      motherFullName: me.mother?.name || '',
+      motherOccupation: me.mother?.occupation || '',
+      motherEmployer: me.mother?.employer || '',
+    });
+  }, [me, reset]);
+
+  // The backend captures profile fields at creation; the student can only *confirm* them
+  // (PATCH is admin-only), so submitting confirms the profile (DRAFT -> PROFILE_COMPLETED).
+  const confirmMutation = useMutation({
+    mutationFn: () => studentService.confirmProfile(me!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-me'] });
+      setIsSuccessModalOpen(true);
+    },
+    onError: (err: unknown) => {
+      // 409 = already confirmed (not DRAFT) — treat as done rather than an error.
+      if (err instanceof AxiosError && err.response?.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ['student-me'] });
+        setIsSuccessModalOpen(true);
+        return;
+      }
+      toast.error('Error', getApiErrorMessage(err, 'Failed to confirm your profile.'));
+    },
+  });
+
+  const onSubmit = () => {
+    if (!me?.id) {
+      // No student record resolved yet — fall back so the page still completes.
+      localStorage.setItem('pwc_student_profile_completed', 'true');
+      setIsSuccessModalOpen(true);
+      return;
+    }
+    confirmMutation.mutate();
   };
 
   const handleProceedToDashboard = () => {
@@ -326,7 +377,7 @@ export const StudentProfileFormPage: React.FC = () => {
               variant="primary"
               size="md"
               leftIcon={<RiCheckLine size={18} />}
-              isLoading={isSubmitting}
+              isLoading={confirmMutation.isPending}
             >
               Save & Submit Profile
             </Button>
