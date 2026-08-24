@@ -1,5 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import {
   RiQuestionLine,
   RiGridLine,
@@ -21,7 +23,9 @@ import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
 import { SuccessModal } from '@/components';
 import { ROUTES } from '@/constants';
-import { useToast } from '@/hooks';
+import { useToast, useCurrentStudent } from '@/hooks';
+import { formsService, FormAnswerItem } from '@/services/forms.service';
+import { getApiErrorMessage } from '@/utils';
 import {
   FormPageContainer,
   HeroHeaderCard,
@@ -85,6 +89,18 @@ import {
 export const PreCounsellingFormPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
+  const { data: me } = useCurrentStudent();
+  const cohort = me?.cohort?.code;
+
+  // Load any existing draft/submission so the form prefills what was saved before.
+  const { data: existingSubmission } = useQuery({
+    queryKey: ['form-submission', 'PRE_COUNSELLING_STUDENT', me?.id, cohort],
+    queryFn: () => formsService.getSubmission('PRE_COUNSELLING_STUDENT', me!.id, cohort!),
+    enabled: !!me?.id && !!cohort,
+    staleTime: 30_000,
+  });
+
   const [isFormStarted, setIsFormStarted] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const totalSteps = 6;
@@ -188,6 +204,89 @@ export const PreCounsellingFormPage: React.FC = () => {
     ],
   });
 
+  // Serialize the form state into the backend's fieldKey-keyed answer array
+  // (PRE_COUNSELLING_STUDENT, 19 questions). Answer values are stored as free JSON.
+  const buildAnswers = (): FormAnswerItem[] => [
+    { fieldKey: 'academic_record_table', answer: { table: answers.q1_marksTable ?? {}, otherSubjectName: answers.q1_otherSubjectName ?? '' } },
+    { fieldKey: 'fav_subject_block', answer: { subject: answers.q2_favouriteSubject ?? '', reason: answers.q2_enjoyReason ?? '', reasonOther: answers.q2_enjoyReasonOther ?? '' } },
+    { fieldKey: 'hard_subject_block', answer: { subject: answers.q3_hardestSubject ?? '', reason: answers.q3_difficultReason ?? '', reasonOther: answers.q3_difficultReasonOther ?? '' } },
+    { fieldKey: 'free_time_activities', answer: { selected: answers.q4_freeTimeActivities ?? [], other: answers.q4_freeTimeOther ?? '' } },
+    { fieldKey: 'hobbies_table', answer: answers.q5_hobbiesTable ?? [] },
+    { fieldKey: 'interest_consistency', answer: answers.q6_hobbyConsistency ?? '' },
+    { fieldKey: 'school_activities', answer: { selected: answers.q7_schoolActivities ?? [], other: answers.q7_schoolActivitiesOther ?? '' } },
+    { fieldKey: 'learning_style', answer: answers.q8_learningStyle ?? '' },
+    { fieldKey: 'strengths_table', answer: answers.q9_strengthsRatings ?? {} },
+    { fieldKey: 'study_challenges', answer: { selected: answers.q10_studyChallenges ?? [], other: answers.q10_studyChallengesOther ?? '' } },
+    { fieldKey: 'energy_type', answer: answers.q11_personalityType ?? '' },
+    { fieldKey: 'decision_style', answer: { value: answers.q12_decisionStyle ?? '', other: answers.q12_decisionStyleOther ?? '' } },
+    { fieldKey: 'failure_response', answer: { value: answers.q13_failureResponse ?? '', other: answers.q13_failureResponseOther ?? '' } },
+    { fieldKey: 'career_in_mind', answer: answers.q14_specificCareersInput ?? '' },
+    { fieldKey: 'career_interest_reason', answer: { value: answers.q15_careerInterestReason ?? '', other: answers.q15_careerInterestReasonOther ?? '' } },
+    { fieldKey: 'career_influence', answer: { value: answers.q16_careerInfluencer ?? '', other: answers.q16_careerInfluencerOther ?? '' } },
+    { fieldKey: 'parent_understanding', answer: answers.q17_parentalUnderstanding ?? '' },
+    { fieldKey: 'programme_expectations', answer: { selected: answers.q18_programmeHopes ?? [], other: answers.q18_programmeHopesOther ?? '' } },
+    { fieldKey: 'notes_for_counsellor', answer: answers.q19_counsellorNotesInput ?? '' },
+  ];
+
+  // Prefill the form state from a previously saved submission (reverse of buildAnswers).
+  useEffect(() => {
+    if (!existingSubmission) return;
+    const byKey = new Map(existingSubmission.answers.map(a => [a.fieldKey, a.answer]));
+    const obj = <T,>(k: string): Partial<T> => (byKey.get(k) as Partial<T>) ?? {};
+    const str = (k: string): string => {
+      const v = byKey.get(k);
+      return typeof v === 'string' ? v : '';
+    };
+    const academic = obj<{ table?: typeof answers.q1_marksTable; otherSubjectName?: string }>('academic_record_table');
+    const fav = obj<{ subject?: string; reason?: string; reasonOther?: string }>('fav_subject_block');
+    const hard = obj<{ subject?: string; reason?: string; reasonOther?: string }>('hard_subject_block');
+    const freeTime = obj<{ selected?: string[]; other?: string }>('free_time_activities');
+    const school = obj<{ selected?: string[]; other?: string }>('school_activities');
+    const study = obj<{ selected?: string[]; other?: string }>('study_challenges');
+    const decision = obj<{ value?: string; other?: string }>('decision_style');
+    const failure = obj<{ value?: string; other?: string }>('failure_response');
+    const careerReason = obj<{ value?: string; other?: string }>('career_interest_reason');
+    const careerInfl = obj<{ value?: string; other?: string }>('career_influence');
+    const programme = obj<{ selected?: string[]; other?: string }>('programme_expectations');
+
+    setAnswers(prev => ({
+      ...prev,
+      q1_marksTable: academic.table ?? prev.q1_marksTable,
+      q1_otherSubjectName: academic.otherSubjectName ?? prev.q1_otherSubjectName,
+      q2_favouriteSubject: fav.subject ?? prev.q2_favouriteSubject,
+      q2_enjoyReason: fav.reason ?? prev.q2_enjoyReason,
+      q2_enjoyReasonOther: fav.reasonOther ?? prev.q2_enjoyReasonOther,
+      q3_hardestSubject: hard.subject ?? prev.q3_hardestSubject,
+      q3_difficultReason: hard.reason ?? prev.q3_difficultReason,
+      q3_difficultReasonOther: hard.reasonOther ?? prev.q3_difficultReasonOther,
+      q4_freeTimeActivities: freeTime.selected ?? prev.q4_freeTimeActivities,
+      q4_freeTimeOther: freeTime.other ?? prev.q4_freeTimeOther,
+      q5_hobbiesTable: (byKey.get('hobbies_table') as typeof prev.q5_hobbiesTable) ?? prev.q5_hobbiesTable,
+      q6_hobbyConsistency: str('interest_consistency') || prev.q6_hobbyConsistency,
+      q7_schoolActivities: school.selected ?? prev.q7_schoolActivities,
+      q7_schoolActivitiesOther: school.other ?? prev.q7_schoolActivitiesOther,
+      q8_learningStyle: str('learning_style') || prev.q8_learningStyle,
+      q9_strengthsRatings: (byKey.get('strengths_table') as typeof prev.q9_strengthsRatings) ?? prev.q9_strengthsRatings,
+      q10_studyChallenges: study.selected ?? prev.q10_studyChallenges,
+      q10_studyChallengesOther: study.other ?? prev.q10_studyChallengesOther,
+      q11_personalityType: str('energy_type') || prev.q11_personalityType,
+      q12_decisionStyle: decision.value ?? prev.q12_decisionStyle,
+      q12_decisionStyleOther: decision.other ?? prev.q12_decisionStyleOther,
+      q13_failureResponse: failure.value ?? prev.q13_failureResponse,
+      q13_failureResponseOther: failure.other ?? prev.q13_failureResponseOther,
+      q14_specificCareersInput: str('career_in_mind') || prev.q14_specificCareersInput,
+      q15_careerInterestReason: careerReason.value ?? prev.q15_careerInterestReason,
+      q15_careerInterestReasonOther: careerReason.other ?? prev.q15_careerInterestReasonOther,
+      q16_careerInfluencer: careerInfl.value ?? prev.q16_careerInfluencer,
+      q16_careerInfluencerOther: careerInfl.other ?? prev.q16_careerInfluencerOther,
+      q17_parentalUnderstanding: str('parent_understanding') || prev.q17_parentalUnderstanding,
+      q18_programmeHopes: programme.selected ?? prev.q18_programmeHopes,
+      q18_programmeHopesOther: programme.other ?? prev.q18_programmeHopesOther,
+      q19_counsellorNotesInput: str('notes_for_counsellor') || prev.q19_counsellorNotesInput,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingSubmission]);
+
   const handleQ10ChallengeToggle = (optKey: string) => {
     setAnswers(prev => {
       const current = prev.q10_studyChallenges || [];
@@ -262,15 +361,53 @@ export const PreCounsellingFormPage: React.FC = () => {
     setIsCompletionModalOpen(true);
   };
 
+  const submitMutation = useMutation({
+    mutationFn: () =>
+      formsService.submitForm('PRE_COUNSELLING_STUDENT', me!.id, {
+        cohort: cohort!,
+        answers: buildAnswers(),
+      }),
+    onSuccess: () => {
+      localStorage.setItem('pwc_precounselling_submitted', 'true');
+      localStorage.setItem('pwc_student_precounseling_form_submitted', 'true');
+      queryClient.invalidateQueries({ queryKey: ['student-me'] });
+      queryClient.invalidateQueries({ queryKey: ['student-forms-status'] });
+      toast.success(
+        'Pre-Counselling Form Submitted!',
+        'Thank you for completing the form. Your counsellor will review your responses before Session 1.'
+      );
+      setIsCompletionModalOpen(false);
+      navigate(ROUTES.STUDENT_PORTAL);
+    },
+    onError: (err: unknown) => {
+      setIsCompletionModalOpen(false);
+      // 400 with { missingFieldKeys } — a required question is still blank.
+      if (err instanceof AxiosError && err.response?.status === 400) {
+        const missing = (err.response.data as { error?: { details?: { missingFieldKeys?: string[] } } })
+          ?.error?.details?.missingFieldKeys;
+        toast.error(
+          'Some answers are missing',
+          missing?.length
+            ? `Please complete all required questions before submitting (${missing.length} remaining).`
+            : 'Please complete all required questions before submitting.'
+        );
+        return;
+      }
+      toast.error('Error', getApiErrorMessage(err, 'Failed to submit the form.'));
+    },
+  });
+
   const handleConfirmCompletion = () => {
-    localStorage.setItem('pwc_precounselling_submitted', 'true');
-    localStorage.setItem('pwc_student_precounseling_form_submitted', 'true');
-    toast.success(
-      'Pre-Counselling Form Submitted!',
-      'Thank you for completing the form. Your counsellor will review your responses before Session 1.'
-    );
-    setIsCompletionModalOpen(false);
-    navigate(ROUTES.STUDENT_PORTAL);
+    // Fallback if the student record/cohort hasn't resolved (keeps the demo flow working).
+    if (!me?.id || !cohort) {
+      localStorage.setItem('pwc_precounselling_submitted', 'true');
+      localStorage.setItem('pwc_student_precounseling_form_submitted', 'true');
+      toast.success('Pre-Counselling Form Submitted!', 'Thank you for completing the form.');
+      setIsCompletionModalOpen(false);
+      navigate(ROUTES.STUDENT_PORTAL);
+      return;
+    }
+    submitMutation.mutate();
   };
 
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
