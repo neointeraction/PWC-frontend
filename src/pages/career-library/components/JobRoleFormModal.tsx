@@ -153,7 +153,9 @@ interface LinkedSectionProps {
   searchFn: (q: string) => Promise<CareerLinkOption[]>;
   addButtonLabel: string;
   emptyHint: string;
-  showCap?: boolean;
+  // When set, the section is capped at this many selections (enforced) — used only when
+  // adding a new role. Left undefined when editing, so imported roles keep all their links.
+  capLimit?: number;
   capNoun?: string;
   renderSubform: (helpers: {
     addNew: (item: IncludedItem) => void;
@@ -171,7 +173,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
   searchFn,
   addButtonLabel,
   emptyHint,
-  showCap,
+  capLimit,
   capNoun,
   renderSubform,
 }) => {
@@ -192,15 +194,16 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
   });
 
   const selectedCount = items.filter(i => i.checked).length;
+  const atCap = capLimit != null && selectedCount >= capLimit;
 
   return (
     <S.SectionBox>
       <S.SectionTitle>{title}</S.SectionTitle>
 
-      {showCap && (
+      {capLimit != null && (
         <S.CapWarningBanner>
-          <RiInformationLine size={14} /> {selectedCount} selected · around {COMPASS_CAP} {capNoun} are
-          recommended for the Compass report
+          <RiInformationLine size={14} /> {selectedCount} of up to {capLimit} {capNoun} selected for the
+          Compass report{atCap ? ' — limit reached' : ''}
         </S.CapWarningBanner>
       )}
 
@@ -212,7 +215,11 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
           {items.map(item => (
             <S.EntryRow key={item.key} $checked={item.checked}>
               <S.EntryCheckboxWrapper>
-                <Checkbox checked={item.checked} onChange={() => onToggle(item.key)} />
+                <Checkbox
+                  checked={item.checked}
+                  disabled={!item.checked && atCap}
+                  onChange={() => onToggle(item.key)}
+                />
                 <span>{item.label}</span>
                 {item.isNew ? (
                   <S.NewTag>new</S.NewTag>
@@ -246,7 +253,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
                     <S.SearchResultRow
                       key={opt.id}
                       type="button"
-                      disabled={already}
+                      disabled={already || atCap}
                       onClick={() => {
                         onAddExisting(opt);
                         setQuery('');
@@ -254,7 +261,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
                     >
                       {opt.label}
                       {opt.level ? ` · ${opt.level}` : ''}
-                      {already ? ' — added' : ''}
+                      {already ? ' — added' : atCap ? ' — limit reached' : ''}
                     </S.SearchResultRow>
                   );
                 })}
@@ -271,6 +278,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
             variant="secondary"
             size="sm"
             leftIcon={<RiAddLine size={14} />}
+            disabled={atCap}
             onClick={() => setIsAdding(true)}
           >
             {addButtonLabel}
@@ -807,7 +815,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             searchFn={q => careerService.searchEntranceExams(q)}
             addButtonLabel="Add New Exam"
             emptyHint="No entrance exams linked yet. Search to add existing ones, or add a new exam."
-            showCap
+            capLimit={mode === 'add' ? COMPASS_CAP : undefined}
             capNoun="exams"
             renderSubform={({ addNew: a, close }) => <ExamSubform addNew={a} close={close} />}
           />
@@ -835,7 +843,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             searchFn={q => careerService.searchInstitutions(q)}
             addButtonLabel="Add New Institution"
             emptyHint="No institutions linked yet. Search to add existing ones, or add a new institution."
-            showCap
+            capLimit={mode === 'add' ? COMPASS_CAP : undefined}
             capNoun="institutions"
             renderSubform={({ addNew: a, close }) => <InstitutionSubform addNew={a} close={close} />}
           />
