@@ -35,6 +35,8 @@ export interface ProjectStudent {
   email: string;
   mobile: string;
   grade: string;
+  className?: string;
+  division?: string;
   sessionDate?: string;
   timeSlot?: string;
   sessionType?: 'S1' | 'S2';
@@ -101,6 +103,8 @@ export interface ProjectStudentDetail {
   parentMobile?: string;
   parentEmail?: string;
   grade: string;
+  className?: string;
+  division?: string;
   counselorId?: string;
   counselorName?: string;
   stage?: string;

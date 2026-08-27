@@ -9,6 +9,8 @@ import {
   RiCalendarEventLine,
   RiFileExcel2Line,
   RiVideoChatLine,
+  RiUserAddLine,
+  RiDeleteBinLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -17,14 +19,16 @@ import { Input } from '@/components/Input';
 import { Table, Column } from '@/components/Table';
 import { Tooltip, EmptyState, Loader } from '@/components';
 import { Modal } from '@/components/Modal';
+import { AlertModal } from '@/components/AlertModal';
 import { DatePicker } from '@/components/DatePicker';
 import { Select } from '@/components/Select';
 import { projectService } from '@/services/project.service';
-import { CounselorSession, ProjectStudent } from '@/types/project.types';
+import { CounselorSession, ProjectStudent, ProjectCounselor } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
 import { ViewStudentModal } from './ViewStudentModal';
 import { AssignStudentModal, SlotData } from './AssignStudentModal';
+import { AddCounselorModal } from './AddCounselorModal';
 import {
   Container,
   TopMetricCardsGrid,
@@ -79,6 +83,8 @@ export const ProjectSessionsPage: React.FC = () => {
   const [selectedFilterCategory, setSelectedFilterCategory] = useState<string | null>(null);
 
   // Modals state
+  const [isAddCounselorModalOpen, setIsAddCounselorModalOpen] = useState(false);
+  const [counselorToDelete, setCounselorToDelete] = useState<CounselorSession | null>(null);
   const [selectedSlotForAssign, setSelectedSlotForAssign] = useState<{
     session: CounselorSession;
     slot: SlotData;
@@ -92,6 +98,15 @@ export const ProjectSessionsPage: React.FC = () => {
   // Reschedule form state
   const [rescheduleDate, setRescheduleDate] = useState<Date | null>(new Date('2026-02-28'));
   const [rescheduleTime, setRescheduleTime] = useState('11:00 - 12:00');
+
+  // Counselors state
+  const [customSessions, setCustomSessions] = useState<CounselorSession[] | null>(null);
+  const [counselorCodes, setCounselorCodes] = useState<Record<string, string>>({
+    'cs-101': 'CN003',
+    'cs-102': 'CN004',
+    'cs-103': 'CN005',
+    'cs-104': 'CN006',
+  });
 
   // Local state for customized slot rows per counselor
   const [counselorSlotsMap, setCounselorSlotsMap] = useState<Record<string, EnhancedSlotData[]>>({
@@ -217,22 +232,79 @@ export const ProjectSessionsPage: React.FC = () => {
     ],
   });
 
-  const counselorCodes: Record<string, string> = {
-    'cs-101': 'CN003',
-    'cs-102': 'CN004',
-    'cs-103': 'CN005',
-    'cs-104': 'CN006',
-  };
-
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectService.getById(projectId || 'proj-001'),
   });
 
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: rawSessions = [], isLoading } = useQuery({
     queryKey: ['projectSessions', projectId],
     queryFn: () => projectService.getProjectSessions(projectId || 'proj-001'),
   });
+
+  const effectiveSessions = customSessions ?? rawSessions;
+
+  const handleCounselorsAssigned = (newCounselors: ProjectCounselor[]) => {
+    const currentSessionsList = [...effectiveSessions];
+    const newSlotsMap = { ...counselorSlotsMap };
+    const newCodesMap = { ...counselorCodes };
+
+    newCounselors.forEach((counselor, idx) => {
+      const newId = `cs-${Date.now()}-${idx}`;
+      const codeIndex = Object.keys(newCodesMap).length + 3;
+      const code = `CN${String(codeIndex).padStart(3, '0')}`;
+      newCodesMap[newId] = code;
+
+      const newSessionItem: CounselorSession = {
+        id: newId,
+        counselorId: `COU-${10 + idx}`,
+        counselorName: counselor.name,
+        counselorEmail: counselor.email,
+        counselorPhone: counselor.mobile || '+91 98100 00000',
+        timeSlots: [],
+        assignedStudents: [],
+      };
+
+      newSlotsMap[newId] = [
+        {
+          id: `${newId}-slot-1`,
+          date: '02 Mar 2026',
+          time: '09:30 - 10:30',
+          isBooked: false,
+        },
+        {
+          id: `${newId}-slot-2`,
+          date: '02 Mar 2026',
+          time: '11:00 - 12:00',
+          isBooked: false,
+        },
+        {
+          id: `${newId}-slot-3`,
+          date: '05 Mar 2026',
+          time: '14:00 - 15:00',
+          isBooked: false,
+        },
+      ];
+
+      currentSessionsList.push(newSessionItem);
+    });
+
+    setCounselorCodes(newCodesMap);
+    setCounselorSlotsMap(newSlotsMap);
+    setCustomSessions(currentSessionsList);
+    setIsAddCounselorModalOpen(false);
+  };
+
+  const handleConfirmDeleteCounselor = () => {
+    if (!counselorToDelete) return;
+    const filtered = effectiveSessions.filter(s => s.id !== counselorToDelete.id);
+    setCustomSessions(filtered);
+    toast.success(
+      'Counselor Removed',
+      `Removed ${counselorToDelete.counselorName} from project counselor assignments.`
+    );
+    setCounselorToDelete(null);
+  };
 
   const handleCopyMeetLink = (session: CounselorSession) => {
     const link = `https://meet.google.com/pwc-${session.counselorId.toLowerCase()}`;
@@ -324,7 +396,7 @@ export const ProjectSessionsPage: React.FC = () => {
     setRescheduleSlot(null);
   };
 
-  const filteredSessions = sessions.filter(s => {
+  const filteredSessions = effectiveSessions.filter(s => {
     const slots = counselorSlotsMap[s.id] || [];
 
     if (selectedFilterCategory === 'follow_up_today') {
@@ -541,6 +613,13 @@ export const ProjectSessionsPage: React.FC = () => {
                 <RiFileExcel2Line size={18} />
               </ToolbarIconButton>
             </Tooltip>
+
+            <Button
+              leftIcon={<RiUserAddLine size={16} />}
+              onClick={() => setIsAddCounselorModalOpen(true)}
+            >
+              Add Counselor
+            </Button>
           </FiltersRight>
         </FilterBar>
 
@@ -608,6 +687,17 @@ export const ProjectSessionsPage: React.FC = () => {
                           aria-label="Copy Google Meet Link"
                         >
                           <RiVideoChatLine size={18} />
+                        </MeetIconButton>
+                      </Tooltip>
+
+                      <Tooltip content="Remove Counselor from Project">
+                        <MeetIconButton
+                          type="button"
+                          onClick={() => setCounselorToDelete(session)}
+                          aria-label="Remove Counselor"
+                          style={{ color: '#DC2626' }}
+                        >
+                          <RiDeleteBinLine size={18} />
                         </MeetIconButton>
                       </Tooltip>
                     </CounselorHeaderRight>
@@ -691,6 +781,25 @@ export const ProjectSessionsPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Add / Assign Counselors Modal */}
+      <AddCounselorModal
+        isOpen={isAddCounselorModalOpen}
+        onClose={() => setIsAddCounselorModalOpen(false)}
+        onCounselorsAssigned={handleCounselorsAssigned}
+      />
+
+      {/* Counselor Delete / Unassign Confirmation Modal */}
+      <AlertModal
+        isOpen={Boolean(counselorToDelete)}
+        onClose={() => setCounselorToDelete(null)}
+        onConfirm={handleConfirmDeleteCounselor}
+        title="Remove Counselor from Project?"
+        description={`Are you sure you want to remove ${counselorToDelete?.counselorName} (${counselorCodes[counselorToDelete?.id || ''] || 'CN001'}) from this project? If this counselor has active or booked sessions, any uncompleted sessions will need to be rescheduled or reassigned.`}
+        variant="danger"
+        confirmText="Remove Counselor"
+        cancelText="Cancel"
+      />
     </Container>
   );
 };

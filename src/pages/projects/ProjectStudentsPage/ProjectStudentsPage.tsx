@@ -149,11 +149,17 @@ export const ProjectStudentsPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `${(project?.name || 'Project').replace(/\s+/g, '_')}_Stage_Report.csv`);
+    link.setAttribute(
+      'download',
+      `${(project?.name || 'Project').replace(/\s+/g, '_')}_Stage_Report.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Excel Export Started', 'Downloaded project stage distribution and students report (.csv).');
+    toast.success(
+      'Excel Export Started',
+      'Downloaded project stage distribution and students report (.csv).'
+    );
   };
 
   const totalFlaggedCount = students.filter(s => s.isFlagged).length;
@@ -237,7 +243,9 @@ export const ProjectStudentsPage: React.FC = () => {
             <RiCalendarLine size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
             <span>{rawDate ? formatDateDDMMYYYY(rawDate) : '—'}</span>
             {row.isFlagged && (
-              <Tooltip content={`Stage inactive for ${row.daysInStage || 3} days (> 2 days threshold) — follow up required`}>
+              <Tooltip
+                content={`Stage inactive for ${row.daysInStage || 3} days (> 2 days threshold) — follow up required`}
+              >
                 <FlagIconWrapper>
                   <RiFlag2Fill size={16} />
                 </FlagIconWrapper>
@@ -300,7 +308,9 @@ export const ProjectStudentsPage: React.FC = () => {
               aria-label="Filter by Overdue Flag"
             >
               <RiFlag2Fill size={16} />
-              <span>{isFlagFilterActive ? 'Showing Flagged' : `Flagged (${totalFlaggedCount})`}</span>
+              <span>
+                {isFlagFilterActive ? 'Showing Flagged' : `Flagged (${totalFlaggedCount})`}
+              </span>
             </FlagFilterButton>
 
             <Tooltip content="Export Students Stage Report to Excel">
@@ -314,10 +324,7 @@ export const ProjectStudentsPage: React.FC = () => {
               </ToolbarIconButton>
             </Tooltip>
 
-            <Button
-              leftIcon={<RiUserAddLine size={16} />}
-              onClick={handleCreateNewStudent}
-            >
+            <Button leftIcon={<RiUserAddLine size={16} />} onClick={handleCreateNewStudent}>
               Add Student
             </Button>
           </FiltersRight>

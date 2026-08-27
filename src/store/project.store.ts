@@ -56,7 +56,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(set => ({
     }),
 
   setWizardStep: wizardStep => set({ wizardStep }),
-  nextStep: () => set(state => ({ wizardStep: Math.min(state.wizardStep + 1, 2) })),
+  nextStep: () => set(state => ({ wizardStep: Math.min(state.wizardStep + 1, 1) })),
   prevStep: () => set(state => ({ wizardStep: Math.max(state.wizardStep - 1, 0) })),
 
   setInstituteDetails: details =>
