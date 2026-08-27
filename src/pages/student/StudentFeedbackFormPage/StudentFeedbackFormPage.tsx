@@ -1,8 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
+import { RiSaveLine } from 'react-icons/ri';
 import {
   RiArrowLeftLine,
   RiCheckLine,
@@ -18,6 +21,9 @@ import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
 import { ROUTES } from '@/constants';
 import { SuccessModal } from '@/components';
+import { useToast, useCurrentStudent } from '@/hooks';
+import { formsService, FormAnswerItem } from '@/services/forms.service';
+import { getApiErrorMessage } from '@/utils';
 import {
   FormPageContainer,
   SingleUnifiedCard,
@@ -99,12 +105,24 @@ type StudentFeedbackFormData = z.infer<typeof studentFeedbackSchema>;
 
 export const StudentFeedbackFormPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const { data: me } = useCurrentStudent();
+  const cohort = me?.cohort?.code;
+
+  const { data: existingSubmission } = useQuery({
+    queryKey: ['form-submission', 'FEEDBACK_STUDENT', me?.id, cohort],
+    queryFn: () => formsService.getSubmission('FEEDBACK_STUDENT', me!.id, cohort!),
+    enabled: !!me?.id && !!cohort,
+    staleTime: 30_000,
+  });
 
   const {
     control,
     handleSubmit,
     register,
-    formState: { isSubmitting },
+    reset,
+    getValues,
   } = useForm<StudentFeedbackFormData>({
     resolver: zodResolver(studentFeedbackSchema),
     defaultValues: {
@@ -128,10 +146,99 @@ export const StudentFeedbackFormPage: React.FC = () => {
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
 
-  const onSubmit = async (_data: StudentFeedbackFormData) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    localStorage.setItem('pwc_student_feedback_submitted', 'true');
-    setIsCompletionModalOpen(true);
+  // Frontend field names -> backend FEEDBACK_STUDENT fieldKeys.
+  const buildAnswers = (d: StudentFeedbackFormData): FormAnswerItem[] => [
+    { fieldKey: 'sse_q1', answer: d.se_q1 },
+    { fieldKey: 'sse_q2', answer: d.se_q2 },
+    { fieldKey: 'sse_q3', answer: d.se_q3 },
+    { fieldKey: 'sse_q4', answer: d.se_q4 },
+    { fieldKey: 'scd_q1', answer: d.cd_q1 },
+    { fieldKey: 'scd_q2', answer: d.cd_q2 },
+    { fieldKey: 'scd_q3', answer: d.cd_q3 },
+    { fieldKey: 'scd_q4', answer: d.cd_q4 },
+    { fieldKey: 'soq_q1', answer: d.oq_q1 },
+    { fieldKey: 'soq_q2', answer: d.oq_q2 },
+    { fieldKey: 'soq_q3', answer: d.oq_q3 },
+    { fieldKey: 'sos_q1', answer: d.os_q1 },
+    { fieldKey: 'sos_q2', answer: d.os_q2 },
+    { fieldKey: 'most_helpful_part', answer: d.helpful_part ?? '' },
+    { fieldKey: 'could_be_improved', answer: d.improvement_part ?? '' },
+  ];
+
+  // Prefill from a previously saved submission (reverse of buildAnswers).
+  useEffect(() => {
+    if (!existingSubmission) return;
+    const byKey = new Map(existingSubmission.answers.map(a => [a.fieldKey, a.answer]));
+    const num = (k: string, fallback: number): number => {
+      const v = byKey.get(k);
+      return typeof v === 'number' ? v : fallback;
+    };
+    const str = (k: string): string => {
+      const v = byKey.get(k);
+      return typeof v === 'string' ? v : '';
+    };
+    reset({
+      se_q1: num('sse_q1', 5),
+      se_q2: num('sse_q2', 5),
+      se_q3: num('sse_q3', 5),
+      se_q4: num('sse_q4', 5),
+      cd_q1: num('scd_q1', 4),
+      cd_q2: num('scd_q2', 5),
+      cd_q3: num('scd_q3', 4),
+      cd_q4: num('scd_q4', 5),
+      oq_q1: num('soq_q1', 5),
+      oq_q2: num('soq_q2', 4),
+      oq_q3: num('soq_q3', 5),
+      os_q1: num('sos_q1', 5),
+      os_q2: num('sos_q2', 5),
+      helpful_part: str('most_helpful_part'),
+      improvement_part: str('could_be_improved'),
+    });
+  }, [existingSubmission, reset]);
+
+  const submitMutation = useMutation({
+    mutationFn: (data: StudentFeedbackFormData) =>
+      formsService.submitForm('FEEDBACK_STUDENT', me!.id, { cohort: cohort!, answers: buildAnswers(data) }),
+    onSuccess: () => {
+      localStorage.setItem('pwc_student_feedback_submitted', 'true');
+      queryClient.invalidateQueries({ queryKey: ['student-me'] });
+      queryClient.invalidateQueries({ queryKey: ['student-forms-status'] });
+      setIsCompletionModalOpen(true);
+    },
+    onError: (err: unknown) => {
+      if (err instanceof AxiosError && err.response?.status === 400) {
+        toast.error('Some answers are missing', 'Please answer every question before submitting.');
+        return;
+      }
+      toast.error('Error', getApiErrorMessage(err, 'Failed to submit your feedback.'));
+    },
+  });
+
+  const saveDraftMutation = useMutation({
+    mutationFn: () =>
+      formsService.saveDraft('FEEDBACK_STUDENT', me!.id, { cohort: cohort!, answers: buildAnswers(getValues()) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['form-submission', 'FEEDBACK_STUDENT', me?.id, cohort] });
+      toast.success('Draft Saved', 'Your feedback has been saved — you can come back and finish later.');
+    },
+    onError: (err: unknown) => toast.error('Error', getApiErrorMessage(err, 'Failed to save your draft.')),
+  });
+
+  const onSubmit = (data: StudentFeedbackFormData) => {
+    if (!me?.id || !cohort) {
+      localStorage.setItem('pwc_student_feedback_submitted', 'true');
+      setIsCompletionModalOpen(true);
+      return;
+    }
+    submitMutation.mutate(data);
+  };
+
+  const handleSaveDraft = () => {
+    if (!me?.id || !cohort) {
+      toast.info('Please wait', 'Your student record is still loading — try again in a moment.');
+      return;
+    }
+    saveDraftMutation.mutate();
   };
 
   const handleConfirmCompletion = useCallback(() => {
@@ -170,7 +277,8 @@ export const StudentFeedbackFormPage: React.FC = () => {
               <MetaItem>
                 <MetaLabel>Student Name / Code</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUser3Line size={16} /> Aarav Sharma (STU-2026-89)
+                  <RiUser3Line size={16} />{' '}
+                  {me ? `${me.name}${me.studentCode ? ` (${me.studentCode})` : ''}` : '—'}
                 </MetaValue>
               </MetaItem>
               <MetaItem>
@@ -443,9 +551,18 @@ export const StudentFeedbackFormPage: React.FC = () => {
                 Back to Dashboard
               </Button>
               <Button
+                type="button"
+                variant="secondary"
+                leftIcon={<RiSaveLine size={16} />}
+                isLoading={saveDraftMutation.isPending}
+                onClick={handleSaveDraft}
+              >
+                Save Draft
+              </Button>
+              <Button
                 type="submit"
                 variant="primary"
-                isLoading={isSubmitting}
+                isLoading={submitMutation.isPending}
                 leftIcon={<RiCheckLine size={18} />}
               >
                 Submit Feedback
