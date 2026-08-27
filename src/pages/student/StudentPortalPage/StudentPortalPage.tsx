@@ -512,15 +512,6 @@ export const StudentPortalPage: React.FC = () => {
             </BadgePill>
           </BannerSubtitle>
         </BannerText>
-        <Button
-          variant="secondary"
-          size="md"
-          leftIcon={<RiCompass3Line size={18} />}
-          onClick={() => navigate(ROUTES.CAREER_LIBRARY)}
-          style={{ background: 'rgba(255, 255, 255, 0.95)', color: '#5D2384', border: 'none' }}
-        >
-          Explore Careers
-        </Button>
       </WelcomeBanner>
 
       {/* DYNAMIC VERTICAL TIMELINE PROGRESS WIDGET */}

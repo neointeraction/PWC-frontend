@@ -61,7 +61,6 @@ import {
   StartCtaBox,
   HeaderProgressCard,
   HeaderProgressRow,
-  HeaderStepTitle,
   HeaderStepCount,
   HeaderProgressTrack,
   HeaderProgressBar,
@@ -606,11 +605,8 @@ export const AssessmentFormPage: React.FC = () => {
           onBack={() => navigate(ROUTES.STUDENT_PORTAL)}
           actions={
             <HeaderProgressCard>
-              <HeaderProgressRow>
-                <HeaderStepTitle>
-                  SECTION {currentQuestion.sectionNum} OF 4: {currentQuestion.sectionTitle}
-                </HeaderStepTitle>
-                <HeaderStepCount>
+              <HeaderProgressRow style={{ justifyContent: 'flex-end' }}>
+                <HeaderStepCount style={{ fontWeight: 700, letterSpacing: '0.4px', color: '#ffffff' }}>
                   QUESTION {currentQuestionIndex + 1} OF {totalQuestions} ({progressPercent}%)
                 </HeaderStepCount>
               </HeaderProgressRow>

@@ -1,14 +1,12 @@
 import React from 'react';
 import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
 import { Select } from '@/components/Select';
-import { Badge, BadgeVariant } from '@/components/Badge';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
   StepHeaderCard,
   StepHeaderTitle,
   SectionBlock,
   SectionBlockTitle,
-  SectionBlockSubtitle,
   ScriRow,
   ScriInfo,
   ScriName,
@@ -17,30 +15,43 @@ import {
   RadioLabel,
   RadioInput,
   RadioCustom,
-  FormInput,
-  SummaryCardStrip,
-  SummaryCard,
-  SummaryCardLabel,
-  CompTableContainer,
-  CompTableHeaderRow,
-  CompTableHeaderCell,
-  CompDataRow,
-  CompParamCell,
-  CompResponseCell,
+  ScriResultCard,
+  ScriResultHeader,
+  ScriScoreValue,
+  ScriBandBadge,
+  ScriGuidanceText,
 } from '../StudentFormChartPage.styles';
 
 interface Step6SCRIProps {
   data: CounsellorFormChartData['sectionE'];
   onChangeScriRating: (code: string, rating: number) => void;
-  onChangeAlignment: (alignment: CounsellorFormChartData['sectionE']['academicCareerAlignment']) => void;
+  onChangeAlignment: (
+    alignment: CounsellorFormChartData['sectionE']['academicCareerAlignment']
+  ) => void;
   onChangeNotes: (code: string, value: string) => void;
 }
 
 const synthesisRowsGDef = [
-  { code: 'G1', placeholder: 'Behavioural Evidence : Note the specific behaviours or statements observed in-session that justify each S1–S6 score (e.g. "asked three follow-up questions unprompted" → strong S5).' },
-  { code: 'G2', placeholder: 'Pacing Decision : If the SCRI Band is 1 or 2 (Pre-/Early Exploration), soften the roadmap pacing: prioritise trust-building and low-pressure exploration over firm stream/degree decisions.' },
-  { code: 'G3', placeholder: 'Momentum Plan : If the SCRI Band is 3 or 4 (Active Exploration / Career Ready), proceed with concrete next steps in Section E and share the pathway confidently with parents at the PTM.' },
-  { code: 'G4', placeholder: 'Cross-check : Read the SCRI Band alongside the Academic × Career Alignment rating; a low Band combined with \'Misaligned\' means the stream/career recommendation should be treated as provisional, not final.' },
+  {
+    code: 'G1',
+    placeholder:
+      'Behavioural Evidence : Note the specific behaviours or statements observed in-session that justify each S1–S6 score (e.g. "asked three follow-up questions unprompted" → strong S5).',
+  },
+  {
+    code: 'G2',
+    placeholder:
+      'Pacing Decision : If the SCRI Band is 1 or 2 (Pre-/Early Exploration), soften the roadmap pacing: prioritise trust-building and low-pressure exploration over firm stream/degree decisions.',
+  },
+  {
+    code: 'G3',
+    placeholder:
+      'Momentum Plan : If the SCRI Band is 3 or 4 (Active Exploration / Career Ready), proceed with concrete next steps in Section E and share the pathway confidently with parents at the PTM.',
+  },
+  {
+    code: 'G4',
+    placeholder:
+      "Cross-check : Read the SCRI Band alongside the Academic × Career Alignment rating; a low Band combined with 'Misaligned' means the stream/career recommendation should be treated as provisional, not final.",
+  },
 ];
 
 const alignmentOptions = [
@@ -61,50 +72,43 @@ const alignmentDescriptionMap: Record<string, string> = {
     "There isn't enough information yet to compare your favourite subject with a career direction. This usually just means a part of the assessment or conversation is still pending nothing to worry about, please explore further with details.",
 };
 
-const bandReferenceTable = [
-  { range: '21 – 24', band: 'Band 4', label: 'Career Ready', guidance: 'The student is confidently driving their own career conversations — self-aware, curious, comfortable with ambiguity, and ready to commit to concrete next steps with real ownership.' },
-  { range: '16 – 20', band: 'Band 3', label: 'Active Exploration', guidance: 'The student is engaging meaningfully — reasoning through options in their own words, showing curiosity beyond the session, and able to sit with some uncertainty without needing it resolved immediately.' },
-  { range: '11 – 15', band: 'Band 2', label: 'Early Exploration', guidance: 'The student is beginning to engage but is still tentative — occasional flashes of independent thinking or curiosity, but still largely reassurance-seeking and not yet driving the conversation.' },
-  { range: '6 – 10', band: 'Band 1', label: 'Pre-Exploration', guidance: "The student isn't yet engaging with career thinking — conversations feel abstract or externally driven, and most responses in-session leaned on parents/others rather than the student's own view. This is a normal starting point for many students, not a deficiency." },
-];
-
 const scriDescriptors: Record<string, Record<number, string>> = {
   S1: {
     1: 'Hesitant, avoids the topic, monosyllabic answers',
     2: 'Engages only when prompted; visible hesitance',
     3: 'Generally comfortable; occasional hesitation',
-    4: 'Calm, clear, self-assured across the session'
+    4: 'Calm, clear, self-assured across the session',
   },
   S2: {
     1: 'Answers driven entirely by parent/peer opinion, no personal reasoning',
     2: 'Mostly borrowed reasoning with occasional personal input',
     3: 'Balances own view with external input; some justification given',
-    4: 'Consistently justifies choices with own reasoning'
+    4: 'Consistently justifies choices with own reasoning',
   },
   S3: {
     1: 'Visibly anxious, avoids ambiguity, seeks certainty urgently',
     2: 'Some discomfort with open-ended questions; needs reassurance',
     3: 'Manages uncertainty with mild support from counsellor',
-    4: 'Explores calmly and curiously, comfortable not having all answers'
+    4: 'Explores calmly and curiously, comfortable not having all answers',
   },
   S4: {
-    1: 'Unclear about own interests; largely echoes others\' expectations',
+    1: "Unclear about own interests; largely echoes others' expectations",
     2: 'Partial self-awareness; some confusion with external pressure',
     3: 'Fairly clear about self, with occasional external influence',
-    4: 'Clear self-narrative of interests, strengths, and values'
+    4: 'Clear self-narrative of interests, strengths, and values',
   },
   S5: {
     1: 'No independent exploration; entirely passive',
     2: 'Minimal exploration, only when directed to',
     3: 'Occasional independent exploration between sessions',
-    4: 'Active researcher; brings new questions and findings'
+    4: 'Active researcher; brings new questions and findings',
   },
   S6: {
     1: 'Decision fully driven by parents/others',
     2: 'Student has some voice, but parents largely decide',
     3: 'Shared ownership between student and parents',
-    4: 'Fully owns the decision; counsellor is a guide'
-  }
+    4: 'Fully owns the decision; counsellor is a guide',
+  },
 };
 
 export const Step6SCRI: React.FC<Step6SCRIProps> = ({
@@ -119,23 +123,39 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
   const scriTotal = scriItems.reduce((acc, item) => acc + item.rating, 0);
 
   const getScriBandInfo = (total: number) => {
-    if (total >= 21) return { band: 'Band 4', label: 'Career Ready' };
-    if (total >= 16) return { band: 'Band 3', label: 'Active Exploration' };
-    if (total >= 11) return { band: 'Band 2', label: 'Early Exploration' };
-    return { band: 'Band 1', label: 'Pre-Exploration' };
+    if (total >= 21) {
+      return {
+        band: 'Band 4',
+        label: 'Career Ready',
+        guidance:
+          'The student is confidently driving their own career conversations — self-aware, curious, comfortable with ambiguity, and ready to commit to concrete next steps with real ownership.',
+      };
+    }
+    if (total >= 16) {
+      return {
+        band: 'Band 3',
+        label: 'Active Exploration',
+        guidance:
+          'The student is engaging meaningfully — reasoning through options in their own words, showing curiosity beyond the session, and able to sit with some uncertainty without needing it resolved immediately.',
+      };
+    }
+    if (total >= 11) {
+      return {
+        band: 'Band 2',
+        label: 'Early Exploration',
+        guidance:
+          'The student is beginning to engage but is still tentative — occasional flashes of independent thinking or curiosity, but still largely reassurance-seeking and not yet driving the conversation.',
+      };
+    }
+    return {
+      band: 'Band 1',
+      label: 'Pre-Exploration',
+      guidance:
+        "The student isn't yet engaging with career thinking — conversations feel abstract or externally driven, and most responses in-session leaned on parents/others rather than the student's own view. This is a normal starting point for many students, not a deficiency.",
+    };
   };
 
   const currentBandInfo = getScriBandInfo(scriTotal);
-
-  const [scoreText, setScoreText] = React.useState(`${scriTotal} / 24`);
-  const [bandText, setBandText] = React.useState(currentBandInfo.band);
-  const [labelText, setLabelText] = React.useState(currentBandInfo.label);
-
-  React.useEffect(() => {
-    setScoreText(`${scriTotal} / 24`);
-    setBandText(currentBandInfo.band);
-    setLabelText(currentBandInfo.label);
-  }, [scriTotal]);
 
   return (
     <>
@@ -147,7 +167,10 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
       <SectionBlock>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {scriItems.map((item, index) => (
-            <ScriRow key={item.code} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+            <ScriRow
+              key={item.code}
+              style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}
+            >
               <ScriInfo>
                 <ScriName>
                   {index + 1} · {item.name}
@@ -175,81 +198,16 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
           ))}
         </div>
 
-        {/* SCRI Summary Output */}
-        <SummaryCardStrip style={{ marginTop: '24px' }}>
-          <SummaryCard>
-            <SummaryCardLabel>Total SCRI Score</SummaryCardLabel>
-            <FormInput
-              value={scoreText}
-              onChange={e => setScoreText(e.target.value)}
-              style={{ fontWeight: 700, color: scriTotal < 11 ? '#E53E3E' : '#2B6CB0', marginTop: '4px', width: '100%' }}
-            />
-          </SummaryCard>
-          <SummaryCard>
-            <SummaryCardLabel>Readiness Band</SummaryCardLabel>
-            <FormInput
-              value={bandText}
-              onChange={e => setBandText(e.target.value)}
-              style={{ fontWeight: 700, color: '#2B6CB0', marginTop: '4px', width: '100%' }}
-            />
-          </SummaryCard>
-          <SummaryCard>
-            <SummaryCardLabel>Diagnostic Label</SummaryCardLabel>
-            <FormInput
-              value={labelText}
-              onChange={e => setLabelText(e.target.value)}
-              style={{ fontWeight: 700, color: '#2B6CB0', marginTop: '4px', width: '100%' }}
-            />
-          </SummaryCard>
-        </SummaryCardStrip>
-
-        <div style={{ marginTop: '24px' }}>
-          <SectionBlockTitle style={{ fontSize: '0.95rem', marginBottom: '4px' }}>
-            Band Reference Guide
-          </SectionBlockTitle>
-          <SectionBlockSubtitle style={{ marginBottom: '12px' }}>
-            Diagnostic benchmark criteria across score ranges
-          </SectionBlockSubtitle>
-
-          <CompTableContainer>
-            <CompTableHeaderRow style={{ gridTemplateColumns: '110px 190px 1fr' }}>
-              <CompTableHeaderCell>Score Range</CompTableHeaderCell>
-              <CompTableHeaderCell>Band & Label</CompTableHeaderCell>
-              <CompTableHeaderCell>Guidance & Diagnostic Meaning</CompTableHeaderCell>
-            </CompTableHeaderRow>
-
-            {bandReferenceTable.map(b => {
-              const variantMap: Record<string, BadgeVariant> = {
-                'Band 4': 'success',
-                'Band 3': 'primary',
-                'Band 2': 'warning',
-                'Band 1': 'danger',
-              };
-
-              return (
-                <CompDataRow
-                  key={b.band}
-                  style={{
-                    gridTemplateColumns: '110px 190px 1fr',
-                    alignItems: 'center',
-                  }}
-                >
-                  <CompParamCell style={{ fontWeight: 700, fontSize: '0.85rem' }}>
-                    {b.range} pts
-                  </CompParamCell>
-                  <CompResponseCell style={{ borderLeft: 'none' }}>
-                    <Badge variant={variantMap[b.band] || 'default'} size="sm">
-                      {b.band}: {b.label}
-                    </Badge>
-                  </CompResponseCell>
-                  <CompResponseCell style={{ borderLeft: 'none', fontSize: '0.825rem', color: '#4B5563', lineHeight: 1.45 }}>
-                    {b.guidance}
-                  </CompResponseCell>
-                </CompDataRow>
-              );
-            })}
-          </CompTableContainer>
-        </div>
+        {/* Dynamic Auto-populated SCRI Summary Output */}
+        <ScriResultCard>
+          <ScriResultHeader>
+            <ScriScoreValue>{scriTotal}</ScriScoreValue>
+            <ScriBandBadge $band={currentBandInfo.band}>
+              ( {currentBandInfo.band} : {currentBandInfo.label} )
+            </ScriBandBadge>
+          </ScriResultHeader>
+          <ScriGuidanceText>{currentBandInfo.guidance}</ScriGuidanceText>
+        </ScriResultCard>
       </SectionBlock>
 
       {/* Academic × Career Alignment Block */}

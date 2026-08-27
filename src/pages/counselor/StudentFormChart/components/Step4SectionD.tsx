@@ -9,13 +9,13 @@ import {
   ReliabilityCardHeader,
   IndicatorTitle,
   IndicatorQuestion,
-  FormInput,
-  FormTextarea,
+  ReliabilityValueDisplay,
+  ReliabilityExplanationBox,
 } from '../StudentFormChartPage.styles';
 
 interface Step4SectionDProps {
   data: CounsellorFormChartData['sectionD'];
-  onChangeIndicator: (code: string, updated: Partial<ReliabilityCardData>) => void;
+  onChangeIndicator?: (code: string, updated: Partial<ReliabilityCardData>) => void;
   onChangeNotes: (code: string, value: string) => void;
 }
 
@@ -27,7 +27,6 @@ const synthesisRowsGDef = [
 
 export const Step4SectionD: React.FC<Step4SectionDProps> = ({
   data,
-  onChangeIndicator,
   onChangeNotes,
 }) => {
   return (
@@ -37,33 +36,59 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
       </StepHeaderCard>
 
       <SectionBlock>
-        {data.indicators.map(item => (
-          <IndicatorBlock key={item.code}>
-            <ReliabilityCardHeader>
-              <div>
-                <IndicatorTitle>
-                  {item.code} — {item.name}
-                </IndicatorTitle>
-                <IndicatorQuestion>{item.guidingQuestion}</IndicatorQuestion>
-              </div>
-              <div style={{ minWidth: '220px' }}>
-                <FormInput
-                  value={item.valueStatus}
-                  onChange={e => onChangeIndicator(item.code, { valueStatus: e.target.value })}
-                  placeholder="e.g. 95% — High / Not Provided"
-                  style={{ fontWeight: 700 }}
-                />
-              </div>
-            </ReliabilityCardHeader>
+        {data.indicators.map(item => {
+          // Parse score (e.g. "76%") and label (e.g. "High reliability")
+          const parts = item.valueStatus.split(' ');
+          const firstPartIsPercent = parts[0]?.includes('%');
+          const score = firstPartIsPercent ? parts[0] : '';
+          const label = firstPartIsPercent ? parts.slice(1).join(' ') : item.valueStatus;
 
-            <FormTextarea
-              value={item.explanationText}
-              onChange={e => onChangeIndicator(item.code, { explanationText: e.target.value })}
-              placeholder={`Explanatory analysis for ${item.name}...`}
-              style={{ minHeight: '60px' }}
-            />
-          </IndicatorBlock>
-        ))}
+          return (
+            <IndicatorBlock
+              key={item.code}
+              style={{
+                border: '1px solid #E2E8F0',
+                borderRadius: '4px',
+                padding: '16px 18px',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
+              }}
+            >
+              <ReliabilityCardHeader>
+                <div>
+                  <IndicatorTitle>
+                    {item.code} — {item.name}
+                  </IndicatorTitle>
+                  <IndicatorQuestion>{item.guidingQuestion}</IndicatorQuestion>
+                </div>
+                <ReliabilityValueDisplay>
+                  {score && (
+                    <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0F172A' }}>
+                      {score}
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      fontStyle: 'italic',
+                      color:
+                        label.toLowerCase().includes('high') || label.toLowerCase().includes('optimal')
+                          ? '#16A34A'
+                          : '#0F172A',
+                      fontSize: '0.95rem',
+                    }}
+                  >
+                    {label}
+                  </span>
+                </ReliabilityValueDisplay>
+              </ReliabilityCardHeader>
+
+              <ReliabilityExplanationBox>
+                {item.explanationText}
+              </ReliabilityExplanationBox>
+            </IndicatorBlock>
+          );
+        })}
       </SectionBlock>
 
       <SynthesisNotesPanel

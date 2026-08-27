@@ -23,7 +23,16 @@ export const projectService = {
     let results = [...projectDb];
 
     if (filters.status && filters.status !== 'all') {
-      results = results.filter(p => p.status === filters.status);
+      if (filters.status === 'to_extend') {
+        const today = new Date();
+        results = results.filter(p => {
+          if (!p.validTo || p.status === 'completed' || p.status === 'deleted') return false;
+          const diffDays = Math.ceil((new Date(p.validTo).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          return diffDays >= 0 && diffDays <= 15;
+        });
+      } else {
+        results = results.filter(p => p.status === filters.status);
+      }
     }
 
     if (filters.search) {

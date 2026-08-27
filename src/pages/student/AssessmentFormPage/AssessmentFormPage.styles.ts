@@ -457,13 +457,13 @@ export const StartCtaBox = styled.div`
 
 export const HeaderProgressCard = styled.div`
   background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, #2563EB 100%);
-  padding: 10px 16px;
+  padding: 8px 12px;
   border-radius: 4px;
   color: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 340px;
+  gap: 5px;
+  min-width: 190px;
   box-shadow: 0 2px 8px rgba(93, 35, 132, 0.15);
 
   @media (max-width: 768px) {

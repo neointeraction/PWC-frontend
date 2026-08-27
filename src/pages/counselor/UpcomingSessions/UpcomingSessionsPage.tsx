@@ -20,6 +20,8 @@ import {
   Container,
   TimeContainer,
   TimeText,
+  DateText,
+  SessionBadge,
   StatusPill,
   StudentCellWrapper,
   StudentInstiText,
@@ -63,56 +65,112 @@ export const UpcomingSessionsPage: React.FC = () => {
         accessor: 'studentName',
         cell: (row: UpcomingSession) => (
           <StudentCellWrapper>
-            <Tooltip content="Click to open Counsellor Form Chart & add session notes">
-              <Button
-                size="sm"
-                variant="secondary"
-                leftIcon={<RiUser3Line size={16} />}
-                onClick={() => handleOpenStudentChart(row)}
+            {row.isBooked && row.studentName ? (
+              <Tooltip content="Click to open Counsellor Form Chart & add session notes">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  leftIcon={<RiUser3Line size={16} />}
+                  onClick={() => handleOpenStudentChart(row)}
+                >
+                  {row.studentName}
+                </Button>
+              </Tooltip>
+            ) : (
+              <span
+                style={{
+                  fontStyle: 'italic',
+                  color: '#94A3B8',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  padding: '4px 0',
+                }}
               >
-                {row.studentName}
-              </Button>
-            </Tooltip>
+                Unbooked Slot
+              </span>
+            )}
             <StudentInstiText>
-              {row.institutionName} • {row.studentGrade}
+              {row.institutionName}
+              {row.studentGrade ? ` • ${row.studentGrade}` : ''}
             </StudentInstiText>
           </StudentCellWrapper>
         ),
       },
       {
-        key: 'dateTime',
+        key: 'date',
         header: (
           <SortHeaderButton type="button" onClick={handleToggleDateSort}>
-            Date & Time
+            Date
             {sortOrder === 'asc' ? <RiArrowUpLine size={14} /> : <RiArrowDownLine size={14} />}
           </SortHeaderButton>
         ),
         accessor: 'dateTime',
         sortable: true,
+        cell: (row: UpcomingSession) => (
+          <DateText>{dayjs(row.dateTime).format('DD MMM YYYY')}</DateText>
+        ),
+      },
+      {
+        key: 'time',
+        header: 'Time',
         cell: (row: UpcomingSession) => {
-          const canJoin = checkCanJoin(row.dateTime);
+          const canJoin = row.isBooked ? checkCanJoin(row.dateTime) : false;
           return (
             <TimeContainer>
-              <TimeText>{dayjs(row.dateTime).format('DD-MM-YYYY • HH:mm')}</TimeText>
-              <StatusPill $canJoin={canJoin}>
-                {canJoin ? (
-                  <>
-                    <RiCheckDoubleLine size={14} /> Ready to Join
-                  </>
-                ) : (
-                  <>
-                    <RiTimeLine size={14} /> Opens 30 mins prior
-                  </>
-                )}
-              </StatusPill>
+              <TimeText>{row.timeSlot || dayjs(row.dateTime).format('HH:mm')}</TimeText>
+              {row.isBooked ? (
+                <StatusPill $canJoin={canJoin}>
+                  {canJoin ? (
+                    <>
+                      <RiCheckDoubleLine size={14} /> Ready to Join
+                    </>
+                  ) : (
+                    <>
+                      <RiTimeLine size={14} /> Opens 30 mins prior
+                    </>
+                  )}
+                </StatusPill>
+              ) : (
+                <span style={{ fontSize: '11px', color: '#64748B', fontStyle: 'italic' }}>
+                  Available for Booking
+                </span>
+              )}
             </TimeContainer>
           );
         },
       },
       {
-        key: 'sessions',
-        header: 'Sessions',
+        key: 'sessionNumber',
+        header: 'Session',
+        cell: (row: UpcomingSession) =>
+          row.sessionNumber ? (
+            <SessionBadge $session={row.sessionNumber}>{row.sessionNumber}</SessionBadge>
+          ) : (
+            <span style={{ color: '#94A3B8' }}>—</span>
+          ),
+      },
+      {
+        key: 'actions',
+        header: 'Action',
         cell: (row: UpcomingSession) => {
+          if (!row.isBooked) {
+            return (
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#64748B',
+                  backgroundColor: '#F1F5F9',
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  border: '1px solid #E2E8F0',
+                }}
+              >
+                Unbooked
+              </span>
+            );
+          }
+
           const canJoin = checkCanJoin(row.dateTime);
 
           if (canJoin) {
@@ -148,9 +206,7 @@ export const UpcomingSessionsPage: React.FC = () => {
 
   return (
     <Container>
-      <PageHeader
-        title="Upcoming Counseling Sessions"
-      />
+      <PageHeader title="Upcoming Counseling Sessions" />
 
       <Card>
         <Table data={sortedSessions} columns={columns} keyExtractor={row => row.id} />

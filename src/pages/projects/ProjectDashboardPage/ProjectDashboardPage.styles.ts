@@ -288,36 +288,74 @@ export const CounselorSubtext = styled.span`
   gap: 4px;
 `;
 
-export const ActionIconButtonGroup = styled.div`
+export const CounselorWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.xs};
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
-
-  tr:hover & {
-    opacity: 1;
-    visibility: visible;
-  }
+  gap: 8px;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
-export const ActionIconButton = styled.button`
-  width: 32px;
-  height: 32px;
+export const CounselorIdBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.primary};
+  background-color: ${({ theme }) => theme.colors.primaryLight};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  color: ${({ theme }) => theme.colors.text};
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+`;
+
+export const GradeBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  background-color: ${({ theme }) => theme.colors.surfaceHover};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+`;
+
+export const DateCellWrapper = styled.div`
   display: flex;
   align-items: center;
+  gap: 8px;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const FlagIconWrapper = styled.span`
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  color: #EF4444;
+  cursor: pointer;
+`;
+
+export const FlagFilterButton = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  border: 1px solid ${({ theme, $active }) => ($active ? '#EF4444' : theme.colors.border)};
+  background-color: ${({ theme, $active }) => ($active ? '#FEF2F2' : theme.colors.surface)};
+  color: ${({ theme, $active }) => ($active ? '#DC2626' : theme.colors.textSecondary)};
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-    color: ${({ theme }) => theme.colors.primary};
-    background-color: ${({ theme }) => theme.colors.primaryLight};
+    border-color: #EF4444;
+    color: #DC2626;
+    background-color: #FEF2F2;
   }
 `;

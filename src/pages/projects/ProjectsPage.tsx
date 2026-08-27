@@ -28,6 +28,7 @@ import { Project, ProjectStatus } from '@/types/project.types';
 import {
   ProjectsContainer,
   StatsGrid,
+  InteractiveStatCardWrapper,
   StatMetricValue,
   MetaText,
   FilterBar,
@@ -196,7 +197,28 @@ export const ProjectsPage: React.FC = () => {
     {
       key: 'validTo',
       header: 'Valid To',
-      render: row => (row.validTo ? dayjs(row.validTo).format('DD MMM YYYY') : '—'),
+      render: row => {
+        if (!row.validTo) return '—';
+        const formattedDate = dayjs(row.validTo).format('DD MMM YYYY');
+        if (row.status === 'active') {
+          const daysLeft = Math.ceil(dayjs(row.validTo).diff(dayjs(), 'day', true));
+          if (daysLeft >= 0 && daysLeft <= 15) {
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                <span>{formattedDate}</span>
+                <Tooltip content={`Project validity ends in ${daysLeft} days. Click edit/extend.`}>
+                  <span>
+                    <Badge variant="warning" size="sm">
+                      {daysLeft === 0 ? 'Expires Today' : `${daysLeft} days left`}
+                    </Badge>
+                  </span>
+                </Tooltip>
+              </div>
+            );
+          }
+        }
+        return formattedDate;
+      },
     },
     {
       key: 'counselors',
@@ -300,10 +322,18 @@ export const ProjectsPage: React.FC = () => {
           <MetaText>Currently ongoing batches</MetaText>
         </Card>
 
-        <Card title="To Extend">
-          <StatMetricValue>1</StatMetricValue>
-          <MetaText>Expiring within 30 days</MetaText>
-        </Card>
+        <InteractiveStatCardWrapper
+          $active={statusFilter === 'to_extend'}
+          onClick={() => {
+            setStatusFilter(prev => (prev === 'to_extend' ? 'all' : 'to_extend'));
+            setPage(1);
+          }}
+        >
+          <Card title="To Extend">
+            <StatMetricValue $variant="warning">1</StatMetricValue>
+            <MetaText>Expiring within 15 days</MetaText>
+          </Card>
+        </InteractiveStatCardWrapper>
 
         <Card title="Completed">
           <StatMetricValue>2</StatMetricValue>
@@ -325,11 +355,12 @@ export const ProjectsPage: React.FC = () => {
                 }}
               />
             </SearchWrapper>
-            <div style={{ width: '180px' }}>
+            <div style={{ width: '220px' }}>
               <Select
                 options={[
                   { value: 'all', label: 'All Projects' },
                   { value: 'active', label: 'Active' },
+                  { value: 'to_extend', label: 'To Extend (≤ 15 days)' },
                   { value: 'draft', label: 'Draft' },
                   { value: 'completed', label: 'Completed' },
                   { value: 'deleted', label: 'Deleted Projects' },

@@ -8,11 +8,10 @@ import {
   RiArrowLeftLine,
   RiCloseCircleLine,
   RiSearchLine,
-  RiUserLine,
-  RiEditLine,
-  RiUserAddLine,
-  RiFlag2Line,
+  RiFlag2Fill,
   RiFileExcel2Line,
+  RiUserAddLine,
+  RiCalendarLine,
 } from 'react-icons/ri';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
@@ -28,7 +27,7 @@ import { ROUTES } from '@/constants';
 import { formatDateDDMMYYYY } from '@/utils';
 import { EditProjectModal } from '../components/EditProjectModal';
 import { EditStudentModal } from '../ProjectStudentsPage/EditStudentModal';
-import { ViewStudentModal } from '../ProjectSessionsPage/ViewStudentModal';
+import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
 import {
   DashboardContainer,
   ProjectTopHeaderCard,
@@ -50,13 +49,15 @@ import {
   FiltersLeft,
   FiltersRight,
   SearchWrapper,
-  ToolbarIconButton,
   StudentNameButton,
   StageCellWrapper,
-  SessionTimeText,
-  CounselorSubtext,
-  ActionIconButtonGroup,
-  ActionIconButton,
+  CounselorWrapper,
+  CounselorIdBadge,
+  GradeBadge,
+  DateCellWrapper,
+  FlagIconWrapper,
+  FlagFilterButton,
+  ToolbarIconButton,
 } from './ProjectDashboardPage.styles';
 
 export const PROJECT_STAGES_OPTIONS = [
@@ -108,7 +109,7 @@ export const ProjectDashboardPage: React.FC = () => {
       projectService.updateProjectStudent(projectId || 'proj-001', updatedStudent),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
-      toast.success('Student Saved', 'Student information and session details updated successfully.');
+      toast.success('Student Saved', 'Student information updated successfully.');
       setEditingStudent(null);
       setIsAddStudentModalOpen(false);
     },
@@ -136,52 +137,67 @@ export const ProjectDashboardPage: React.FC = () => {
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
       id: `std-new-${Date.now()}`,
+      studentId: `ST${100 + students.length + 1}`,
       name: '',
       email: '',
       mobile: '+91 ',
-      grade: '12th',
+      grade: 'Grade 11',
+      counselorId: 'COU-01',
+      counselorName: 'Dr. Rajeshwari Menon',
       stage: 'Login Activated',
-      session1: {
-        sessionNumber: 1,
-        status: 'scheduled',
-        date: new Date().toISOString().slice(0, 10),
-        timeSlot: '09:30 - 10:30',
-        counselorName: 'Anil Iyer',
-        counselorEmail: 'anil.iyer1@outlook.com',
-      },
-      session2: {
-        sessionNumber: 2,
-        status: 'pending',
-        date: new Date().toISOString().slice(0, 10),
-        timeSlot: '11:00 - 12:00',
-        counselorName: 'Mahesh Pillai',
-        counselorEmail: 'mahesh.pillai2@rediffmail.com',
-      },
+      stageCompletedDate: new Date().toISOString().slice(0, 10),
+      daysInStage: 0,
+      isFlagged: false,
     };
     setEditingStudent(newStd);
     setIsAddStudentModalOpen(true);
   };
 
   const handleExportExcel = () => {
-    const csvContent =
-      `Student ID,Student Name,Stage,Counselor,Session 1 Date,Session 1 Slot,Session 1 Status,Session 2 Date,Session 2 Slot,Session 2 Status\n` +
-      filteredStudents
-        .map(
-          s =>
-            `"${s.studentId || s.id}","${s.name}","${s.stage || 'Login Activated'}","${s.session1.counselorName || s.session2.counselorName}","${s.session1.date}","${s.session1.timeSlot}","${s.session1.status}","${s.session2.date}","${s.session2.timeSlot}","${s.session2.status}"`
-        )
-        .join('\n');
+    // Generate stage-wise distribution summary
+    const stageCounts: Record<string, number> = {};
+    PROJECT_STAGES_OPTIONS.filter(opt => opt.value !== 'all').forEach(opt => {
+      stageCounts[opt.value] = 0;
+    });
+
+    students.forEach(s => {
+      const stg = s.stage || 'Login Activated';
+      stageCounts[stg] = (stageCounts[stg] || 0) + 1;
+    });
+
+    const flaggedCount = students.filter(s => s.isFlagged).length;
+
+    let csvContent = `PROJECT STUDENTS STAGE REPORT\n`;
+    csvContent += `Project Name,${project.name}\n`;
+    csvContent += `Institution,${project.instituteName}\n`;
+    csvContent += `Total Enrolled Students,${students.length}\n`;
+    csvContent += `Total Overdue Flagged (>2 Days Inactive),${flaggedCount}\n\n`;
+
+    csvContent += `STAGE-WISE DISTRIBUTION SUMMARY\n`;
+    csvContent += `Stage Name,Student Count\n`;
+    Object.entries(stageCounts).forEach(([stageName, count]) => {
+      csvContent += `"${stageName}",${count}\n`;
+    });
+    csvContent += `\n`;
+
+    csvContent += `STUDENT-LEVEL DETAIL LIST\n`;
+    csvContent += `Student ID,Student Name,Grade / Class,Counselor ID,Counselor Name,Current Stage,Stage Date,Days In Stage,Follow-up Flag (>2 Days)\n`;
+    filteredStudents.forEach(s => {
+      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || 'COU-01'}","${s.counselorName || s.session1?.counselorName || 'Dr. Rajeshwari Menon'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
+    });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Students_List.csv`);
+    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Stage_Report.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Excel Export Started', 'Downloaded project students list (.csv).');
+    toast.success('Excel Export Started', 'Downloaded project stage distribution and students report (.csv).');
   };
+
+  const totalFlaggedCount = students.filter(s => s.isFlagged).length;
 
   const filteredStudents = students.filter(std => {
     if (isFlagFilterActive && !std.isFlagged) return false;
@@ -192,11 +208,12 @@ export const ProjectDashboardPage: React.FC = () => {
       return (
         std.name.toLowerCase().includes(q) ||
         (std.studentId && std.studentId.toLowerCase().includes(q)) ||
+        (std.grade && std.grade.toLowerCase().includes(q)) ||
         (std.stage && std.stage.toLowerCase().includes(q)) ||
+        (std.counselorId && std.counselorId.toLowerCase().includes(q)) ||
+        (std.counselorName && std.counselorName.toLowerCase().includes(q)) ||
         std.email.toLowerCase().includes(q) ||
-        std.mobile.toLowerCase().includes(q) ||
-        std.session1.counselorName.toLowerCase().includes(q) ||
-        std.session2.counselorName.toLowerCase().includes(q)
+        std.mobile.toLowerCase().includes(q)
       );
     }
     return true;
@@ -211,7 +228,7 @@ export const ProjectDashboardPage: React.FC = () => {
     },
     {
       key: 'name',
-      header: 'Student',
+      header: 'Student Name',
       width: '200px',
       render: row => (
         <StudentNameButton
@@ -224,65 +241,52 @@ export const ProjectDashboardPage: React.FC = () => {
       ),
     },
     {
-      key: 'stage',
-      header: 'Stage',
-      width: '240px',
-      render: row => (
-        <StageCellWrapper>
-          <span>{row.stage || 'Login Activated'}</span>
-          {row.isFlagged && (
-            <Tooltip content="Flagged for admin follow-up">
-              <span>
-                <RiFlag2Line size={15} style={{ color: '#EF4444', verticalAlign: '-2px' }} />
-              </span>
-            </Tooltip>
-          )}
-        </StageCellWrapper>
-      ),
+      key: 'grade',
+      header: 'Grade / Class',
+      width: '130px',
+      render: row => <GradeBadge>{row.grade}</GradeBadge>,
     },
     {
       key: 'counselor',
       header: 'Counselor',
+      width: '230px',
+      render: row => (
+        <CounselorWrapper>
+          <CounselorIdBadge>{row.counselorId || 'COU-01'}</CounselorIdBadge>
+          <span>{row.counselorName || row.session1?.counselorName || 'Dr. Rajeshwari Menon'}</span>
+        </CounselorWrapper>
+      ),
+    },
+    {
+      key: 'stage',
+      header: 'Current Stage',
+      width: '240px',
+      render: row => (
+        <StageCellWrapper>
+          <span>{row.stage || 'Login Activated'}</span>
+        </StageCellWrapper>
+      ),
+    },
+    {
+      key: 'stageCompletedDate',
+      header: 'Stage Date',
       width: '180px',
-      render: row => (
-        <CounselorSubtext style={{ fontSize: '13px', color: '#1f2937' }}>
-          <RiUserLine size={14} /> {row.session1.counselorName || row.session2.counselorName}
-        </CounselorSubtext>
-      ),
-    },
-    {
-      key: 'session1',
-      header: 'Session 1',
-      width: '220px',
-      render: row => (
-        <SessionTimeText>
-          <RiTimeLine size={13} /> {formatDateDDMMYYYY(row.session1.date)} ({row.session1.timeSlot})
-        </SessionTimeText>
-      ),
-    },
-    {
-      key: 'session2',
-      header: 'Session 2',
-      width: '220px',
-      render: row => (
-        <SessionTimeText>
-          <RiTimeLine size={13} /> {formatDateDDMMYYYY(row.session2.date)} ({row.session2.timeSlot})
-        </SessionTimeText>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      width: '80px',
-      render: row => (
-        <ActionIconButtonGroup>
-          <Tooltip content="Edit Student & Sessions">
-            <ActionIconButton onClick={() => setEditingStudent(row)}>
-              <RiEditLine size={16} />
-            </ActionIconButton>
-          </Tooltip>
-        </ActionIconButtonGroup>
-      ),
+      render: row => {
+        const rawDate = row.stageCompletedDate || row.session1?.date;
+        return (
+          <DateCellWrapper>
+            <RiCalendarLine size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
+            <span>{rawDate ? formatDateDDMMYYYY(rawDate) : '—'}</span>
+            {row.isFlagged && (
+              <Tooltip content={`Stage inactive for ${row.daysInStage || 3} days (> 2 days threshold) — follow up required`}>
+                <FlagIconWrapper>
+                  <RiFlag2Fill size={16} />
+                </FlagIconWrapper>
+              </Tooltip>
+            )}
+          </DateCellWrapper>
+        );
+      },
     },
   ];
 
@@ -410,22 +414,20 @@ export const ProjectDashboardPage: React.FC = () => {
           </FiltersLeft>
 
           <FiltersRight>
-            <Tooltip content={isFlagFilterActive ? 'Show All Students' : 'Filter by Red Flag'}>
-              <ToolbarIconButton
-                type="button"
-                $active={isFlagFilterActive}
-                $variant="flag"
-                onClick={() => {
-                  setIsFlagFilterActive(prev => !prev);
-                  setPage(1);
-                }}
-                aria-label="Filter by Red Flag"
-              >
-                <RiFlag2Line size={18} />
-              </ToolbarIconButton>
-            </Tooltip>
+            <FlagFilterButton
+              type="button"
+              $active={isFlagFilterActive}
+              onClick={() => {
+                setIsFlagFilterActive(prev => !prev);
+                setPage(1);
+              }}
+              aria-label="Filter by Overdue Flag"
+            >
+              <RiFlag2Fill size={16} />
+              <span>{isFlagFilterActive ? 'Showing Flagged' : `Flagged (${totalFlaggedCount})`}</span>
+            </FlagFilterButton>
 
-            <Tooltip content="Export Students to Excel">
+            <Tooltip content="Export Students Stage Report to Excel">
               <ToolbarIconButton
                 type="button"
                 $variant="excel"
@@ -461,12 +463,12 @@ export const ProjectDashboardPage: React.FC = () => {
         />
       </Card>
 
-      {/* View Student Details Modal */}
-      <ViewStudentModal
+      {/* Student Follow-up Details & WhatsApp Modal */}
+      <StudentFollowUpModal
         isOpen={Boolean(viewingStudent)}
         onClose={() => setViewingStudent(null)}
         student={viewingStudent}
-        instituteName={project.instituteName}
+        onSave={updated => updateMutation.mutate(updated)}
       />
 
       {/* Edit Student Modal */}

@@ -78,6 +78,46 @@ export const SortHeaderButton = styled.button`
   }
 `;
 
+export const DateText = styled.span`
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const SessionBadge = styled.span<{ $session?: 'S1' | 'S2' | string }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid;
+  ${({ $session, theme }) => {
+    if ($session === 'S1') {
+      return `
+        background-color: ${theme.colors.primaryLight || '#F4ECF8'};
+        color: ${theme.colors.primary || '#5D2384'};
+        border-color: ${theme.colors.primary}40;
+      `;
+    }
+    if ($session === 'S2') {
+      return `
+        background-color: #FFF7ED;
+        color: #EA580C;
+        border-color: #FDBA74;
+      `;
+    }
+    return `
+      background-color: ${theme.colors.background};
+      color: ${theme.colors.textSecondary};
+      border-color: ${theme.colors.border};
+    `;
+  }}
+`;
+
 
 export const ModalSection = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.lg};
