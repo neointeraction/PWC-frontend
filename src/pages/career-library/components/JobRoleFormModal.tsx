@@ -7,7 +7,6 @@ import {
   RiAddLine,
   RiCloseLine,
   RiLock2Line,
-  RiAlertLine,
   RiInformationLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
@@ -199,18 +198,9 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
       <S.SectionTitle>{title}</S.SectionTitle>
 
       {showCap && (
-        <S.CapWarningBanner $isOverCap={selectedCount > COMPASS_CAP}>
-          {selectedCount > COMPASS_CAP ? (
-            <>
-              <RiAlertLine size={14} /> Selected: {selectedCount} (exceeds the recommended {COMPASS_CAP} for
-              the Compass report)
-            </>
-          ) : (
-            <>
-              <RiInformationLine size={14} /> Selected for Compass: {selectedCount} / {COMPASS_CAP} recommended{' '}
-              {capNoun}
-            </>
-          )}
+        <S.CapWarningBanner>
+          <RiInformationLine size={14} /> {selectedCount} selected · around {COMPASS_CAP} {capNoun} are
+          recommended for the Compass report
         </S.CapWarningBanner>
       )}
 
