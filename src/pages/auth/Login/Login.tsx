@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
-import { RiUser3Line, RiLockLine, RiMailLine } from 'react-icons/ri';
+import { RiUser3Line, RiLockLine } from 'react-icons/ri';
+// import { RiMailLine } from 'react-icons/ri'; // used by the commented-out demo shortcuts below
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { authService } from '@/services/auth.service';
@@ -29,8 +30,8 @@ import {
   LoginForm,
   FormGroup,
   ForgotPasswordLink,
-  DemoAccordion,
-  DemoButtons,
+  // DemoAccordion,
+  // DemoButtons,
   ErrorAlert,
   FooterText,
 } from './Login.styles';
@@ -49,7 +50,7 @@ export const LoginPage: React.FC = () => {
   const {
     register,
     handleSubmit,
-    setValue,
+    // setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -82,30 +83,31 @@ export const LoginPage: React.FC = () => {
     },
   });
 
-  const fillPwcUser = () => {
-    setValue('email', 'sunita.sharma@pwc-global.com');
-    setValue('password', 'PWC@User2026!');
-  };
+  // Demo quick-login shortcuts — kept alongside the commented-out <DemoAccordion> block below.
+  // const fillPwcUser = () => {
+  //   setValue('email', 'sunita.sharma@pwc-global.com');
+  //   setValue('password', 'PWC@User2026!');
+  // };
 
-  const fillSuperAdmin = () => {
-    setValue('email', 'admin@pwc.com');
-    setValue('password', 'admin123');
-  };
+  // const fillSuperAdmin = () => {
+  //   setValue('email', 'admin@pwc.com');
+  //   setValue('password', 'admin123');
+  // };
 
-  const fillViewOnlyUser = () => {
-    setValue('email', 'viewer@pwc.com');
-    setValue('password', 'viewer123');
-  };
+  // const fillViewOnlyUser = () => {
+  //   setValue('email', 'viewer@pwc.com');
+  //   setValue('password', 'viewer123');
+  // };
 
-  const fillCounselor = () => {
-    setValue('email', 'counselor@pwc.com');
-    setValue('password', 'counselor123');
-  };
+  // const fillCounselor = () => {
+  //   setValue('email', 'counselor@pwc.com');
+  //   setValue('password', 'counselor123');
+  // };
 
-  const fillStudent = () => {
-    setValue('email', 'student@pwc.com');
-    setValue('password', 'student123');
-  };
+  // const fillStudent = () => {
+  //   setValue('email', 'student@pwc.com');
+  //   setValue('password', 'student123');
+  // };
 
   return (
     <LoginWrapper>
