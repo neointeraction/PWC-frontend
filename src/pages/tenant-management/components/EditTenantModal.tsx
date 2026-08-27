@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -31,6 +31,7 @@ export const EditTenantModal: React.FC = () => {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<EditTenantFormData>({
     resolver: zodResolver(editTenantSchema),
@@ -118,14 +119,22 @@ export const EditTenantModal: React.FC = () => {
           </label>
         </div>
 
-        <Select
-          label="Account Status"
-          options={[
-            { value: 'active', label: 'Active' },
-            { value: 'inactive', label: 'Inactive (login disabled)' },
-          ]}
-          error={errors.status?.message}
-          {...register('status')}
+        <Controller
+          name="status"
+          control={control}
+          render={({ field }) => (
+            <Select
+              label="Account Status"
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive (login disabled)' },
+              ]}
+              name={field.name}
+              value={field.value}
+              onChange={e => field.onChange(e.target.value)}
+              error={errors.status?.message}
+            />
+          )}
         />
       </ModalFormContainer>
     </Modal>

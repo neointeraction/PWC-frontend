@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RiFileCopyLine, RiEyeLine, RiEyeOffLine, RiRefreshLine, RiLockPasswordLine } from 'react-icons/ri';
+import { RiFileCopyLine, RiEyeLine, RiEyeOffLine, RiRefreshLine, RiLockPasswordLine, RiErrorWarningLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -56,6 +56,28 @@ const ReadonlyVal = styled.div`
   color: ${({ theme }) => theme.colors.text};
   user-select: all;
   min-height: 20px;
+`;
+
+const DeactivatedNotice = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: 10px 12px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background-color: ${({ theme }) => theme.colors.dangerLight};
+  border: 1px solid ${({ theme }) => theme.colors.danger};
+  color: ${({ theme }) => theme.colors.danger};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  line-height: 1.4;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  strong {
+    font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  }
 `;
 
 const SmallIconButton = styled.button`
@@ -122,6 +144,7 @@ export const CredentialsModal: React.FC = () => {
   };
 
   const usernameVal = selectedUser.username || selectedUser.email;
+  const isInactive = selectedUser.status === 'inactive';
   const hasPassword = Boolean(password);
   const passwordDisplay = hasPassword && showPassword ? password : '••••••••••••';
 
@@ -142,6 +165,17 @@ export const CredentialsModal: React.FC = () => {
             {selectedUser.userCategory.toUpperCase()} USER
           </Badge>
         </FlexRowBetween>
+
+        {isInactive && (
+          <DeactivatedNotice>
+            <RiErrorWarningLine size={18} />
+            <span>
+              <strong>Account deactivated.</strong> This tenant cannot log in until the
+              account is reactivated — a password won&apos;t work while it&apos;s
+              deactivated. Enable it from Edit Tenant &rarr; Account Status.
+            </span>
+          </DeactivatedNotice>
+        )}
 
         <CredentialsBox>
           <FieldRow>

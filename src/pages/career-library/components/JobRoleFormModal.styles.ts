@@ -88,12 +88,11 @@ export const ResilienceCommentBox = styled.div`
   gap: 4px;
 `;
 
-export const ResilienceCommentLabel = styled.span`
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.primary};
-  letter-spacing: 0.3px;
+export const ResilienceCommentText = styled.p`
+  font-size: 13px;
+  line-height: 1.5;
+  color: ${({ theme }) => theme.colors.text};
+  margin: 0;
 `;
 
 // ---- Locked hierarchy display (read-only cluster / industry / domain) ----

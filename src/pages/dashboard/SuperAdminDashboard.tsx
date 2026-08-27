@@ -7,7 +7,6 @@ import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { Loader } from '@/components/Loader';
 import { dashboardService } from '@/services/dashboard.service';
-import { DASHBOARD_MOCKS } from '@/mocks/dashboard.mock';
 import { useNotificationStore } from '@/store';
 import { JobRoleApprovalModal } from './components';
 import {
@@ -17,11 +16,22 @@ import {
   ApproveButton,
 } from './SuperAdminDashboard.styles';
 
+// Ratification requests raised by counsellors. No data is shown until this is wired
+// to the backend (`/career-library/requests`) — the table renders its empty state.
+interface CareerRequest {
+  id: string;
+  itemRequested: string;
+  type: string;
+  source: string;
+  date: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+}
+
 export const SuperAdminDashboard: React.FC = () => {
   const addNotification = useNotificationStore(state => state.addNotification);
 
-  const [requestsList, setRequestsList] = useState(DASHBOARD_MOCKS.careerRequests);
-  const [selectedRequest, setSelectedRequest] = useState<(typeof DASHBOARD_MOCKS.careerRequests)[0] | null>(null);
+  const [requestsList, setRequestsList] = useState<CareerRequest[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<CareerRequest | null>(null);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
   const { isLoading } = useQuery({
@@ -29,7 +39,7 @@ export const SuperAdminDashboard: React.FC = () => {
     queryFn: dashboardService.getSummary,
   });
 
-  const handleOpenApprovalModal = (req: (typeof DASHBOARD_MOCKS.careerRequests)[0]) => {
+  const handleOpenApprovalModal = (req: CareerRequest) => {
     setSelectedRequest(req);
     setIsApprovalModalOpen(true);
   };
@@ -72,7 +82,7 @@ export const SuperAdminDashboard: React.FC = () => {
     setSelectedRequest(null);
   };
 
-  const columns: Column<(typeof DASHBOARD_MOCKS.careerRequests)[0]>[] = [
+  const columns: Column<CareerRequest>[] = [
     {
       key: 'itemRequested',
       header: 'Item Requested',

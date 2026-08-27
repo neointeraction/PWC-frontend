@@ -516,6 +516,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -748,8 +749,8 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             </S.FormGrid>
 
             <S.ResilienceCommentBox>
-              <S.ResilienceCommentLabel>Auto-filled Comment (Editable)</S.ResilienceCommentLabel>
-              <S.StyledTextarea style={{ minHeight: '55px' }} {...register('aiResilienceComment')} />
+              <S.ResilienceCommentText>{watch('aiResilienceComment')}</S.ResilienceCommentText>
+              <input type="hidden" {...register('aiResilienceComment')} />
               {errors.aiResilienceComment && <S.ErrorText>{errors.aiResilienceComment.message}</S.ErrorText>}
             </S.ResilienceCommentBox>
 
