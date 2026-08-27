@@ -116,26 +116,48 @@ interface CareerLibraryFiltersResponse {
   aiResilienceGrades: string[];
 }
 
+// The curated links + typeahead lookups come from the NORMALIZED lookup tables
+// (`EntranceExam` / `Course` / `Institution`), whose short-name column is `name` — not
+// the legacy `UgEntranceExam.examName` / `UgCourse.courseName` used by the related* views.
+interface ApiNormalizedExam {
+  id: string;
+  name: string;
+  level?: 'UG' | 'PG' | string | null;
+  fullForm?: string | null;
+}
+interface ApiNormalizedCourse {
+  id: string;
+  name: string;
+  level?: string | null;
+  fullForm?: string | null;
+}
+interface ApiNormalizedInstitution {
+  id: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+}
+
 interface CareerLibraryDetailResponse extends ApiCareerEntry {
   relatedInstitutions: ApiUgInstitution[];
   relatedCourses: ApiUgCourse[];
   relatedEntranceExams: ApiUgEntranceExam[];
   // Curated many-to-many links actually attached to this entry (with ids) — the source
   // for pre-ticking the linked-reference lists when editing a job role.
-  linkedEntranceExams?: ApiUgEntranceExam[];
-  linkedCourses?: ApiUgCourse[];
-  linkedInstitutions?: ApiUgInstitution[];
+  linkedEntranceExams?: ApiNormalizedExam[];
+  linkedCourses?: ApiNormalizedCourse[];
+  linkedInstitutions?: ApiNormalizedInstitution[];
 }
 
 // Typeahead endpoints ("dropdown" reads) may return a bare array or a `{ data }` wrapper.
 const unwrapList = <T>(payload: T[] | { data: T[] } | null | undefined): T[] =>
   Array.isArray(payload) ? payload : payload?.data ?? [];
 
-const examOptionLabel = (e: ApiUgEntranceExam): string =>
-  e.fullForm ? `${e.examName} (${e.fullForm})` : e.examName;
-const courseOptionLabel = (c: ApiUgCourse): string =>
-  c.fullForm ? `${c.courseName} (${c.fullForm})` : c.courseName;
-const institutionOptionLabel = (i: ApiUgInstitution): string =>
+const examOptionLabel = (e: ApiNormalizedExam): string =>
+  e.fullForm ? `${e.name} (${e.fullForm})` : e.name;
+const courseOptionLabel = (c: ApiNormalizedCourse): string =>
+  c.fullForm ? `${c.name} (${c.fullForm})` : c.name;
+const institutionOptionLabel = (i: ApiNormalizedInstitution): string =>
   [i.name, i.city].filter(Boolean).join(', ');
 
 // ---- Write payloads (create/update a job-role entry) ----
@@ -480,7 +502,7 @@ export const careerService = {
   // ---- Typeahead pickers for the add/edit job-role linked references (select-or-add) ----
   // GET /api/v1/career-library/entrance-exams | /courses | /institutions
   searchEntranceExams: async (search: string, level?: 'UG' | 'PG'): Promise<CareerLinkOption[]> => {
-    const { data } = await apiClient.get<ApiUgEntranceExam[] | { data: ApiUgEntranceExam[] }>(
+    const { data } = await apiClient.get<ApiNormalizedExam[] | { data: ApiNormalizedExam[] }>(
       '/career-library/entrance-exams',
       { params: { search: search || undefined, level, limit: 20 } }
     );
@@ -491,14 +513,14 @@ export const careerService = {
     }));
   },
   searchCourses: async (search: string, level?: 'UG' | 'PG'): Promise<CareerLinkOption[]> => {
-    const { data } = await apiClient.get<ApiUgCourse[] | { data: ApiUgCourse[] }>(
+    const { data } = await apiClient.get<ApiNormalizedCourse[] | { data: ApiNormalizedCourse[] }>(
       '/career-library/courses',
       { params: { search: search || undefined, level, limit: 20 } }
     );
     return unwrapList(data).map(c => ({ id: c.id, label: courseOptionLabel(c) }));
   },
   searchInstitutions: async (search: string): Promise<CareerLinkOption[]> => {
-    const { data } = await apiClient.get<ApiUgInstitution[] | { data: ApiUgInstitution[] }>(
+    const { data } = await apiClient.get<ApiNormalizedInstitution[] | { data: ApiNormalizedInstitution[] }>(
       '/career-library/institutions',
       { params: { search: search || undefined, limit: 20 } }
     );
