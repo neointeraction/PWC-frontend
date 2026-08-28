@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { RiInformationLine } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { Select } from '@/components/Select';
+import { Checkbox } from '@/components/Checkbox';
 import { ProjectStudentDetail } from '@/types/project.types';
+import { useToast } from '@/hooks';
 
 const FormContainer = styled.div`
   display: flex;
@@ -41,6 +43,19 @@ const FormGrid = styled.div`
   }
 `;
 
+const EmailNoticeCard = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: ${({ theme }) => theme.colors.primaryLight};
+  border: 1px solid ${({ theme }) => theme.colors.primary}33;
+  border-radius: 4px;
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  color: ${({ theme }) => theme.colors.primary};
+  line-height: 1.4;
+`;
+
 interface EditStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -56,22 +71,52 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   onSave,
   isSaving,
 }) => {
+  const toast = useToast();
   const [formData, setFormData] = useState<ProjectStudentDetail | null>(null);
+  const [originalEmail, setOriginalEmail] = useState<string>('');
+  const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
 
   useEffect(() => {
     if (student) {
-      const copy = JSON.parse(JSON.stringify(student));
+      const copy = JSON.parse(JSON.stringify(student)) as ProjectStudentDetail;
       if (!copy.parentMobile) {
         copy.parentMobile = '+91 9820011223';
       }
+      if (!copy.className) {
+        const gradeDigits = copy.grade?.replace(/\D/g, '') || '9';
+        copy.className = gradeDigits;
+      }
+      if (!copy.division) {
+        copy.division = `${copy.className || '9'}A`;
+      }
       setFormData(copy);
+      setOriginalEmail(copy.email || '');
+      setSendWelcomeEmail(true);
     }
   }, [student]);
 
   if (!formData) return null;
 
+  const isEmailChanged =
+    originalEmail.trim() !== '' && formData.email.trim() !== originalEmail.trim();
+
   const handleSave = () => {
-    onSave(formData);
+    // Keep grade in sync with className & division
+    const updated: ProjectStudentDetail = {
+      ...formData,
+      grade: formData.className
+        ? `Grade ${formData.className} (${formData.division || 'A'})`
+        : formData.grade,
+    };
+
+    if (isEmailChanged && sendWelcomeEmail) {
+      toast.info(
+        'Welcome Email Sent',
+        `A new welcome email with login credentials has been sent to ${formData.email}.`
+      );
+    }
+
+    onSave(updated);
   };
 
   return (
@@ -101,12 +146,25 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
             />
-            <Input
-              label="Email Address"
-              type="email"
-              value={formData.email}
-              onChange={e => setFormData({ ...formData, email: e.target.value })}
-            />
+            <div>
+              <Input
+                label="Email Address"
+                type="email"
+                value={formData.email}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
+              />
+              {isEmailChanged && (
+                <div style={{ marginTop: '6px' }}>
+                  <Checkbox
+                    id="send-welcome-email-checkbox"
+                    checked={sendWelcomeEmail}
+                    onChange={e => setSendWelcomeEmail(e.target.checked)}
+                    label="Send new welcome email to updated address"
+                  />
+                </div>
+              )}
+            </div>
+
             <Input
               label="Mobile Number"
               value={formData.mobile}
@@ -118,17 +176,32 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               value={formData.parentMobile || ''}
               onChange={e => setFormData({ ...formData, parentMobile: e.target.value })}
             />
-            <Select
-              label="Grade / Class"
-              value={formData.grade}
-              onChange={e => setFormData({ ...formData, grade: e.target.value })}
-              options={[
-                { value: '10th', label: '10th Grade' },
-                { value: '11th', label: '11th Grade' },
-                { value: '12th', label: '12th Grade' },
-              ]}
+
+            <Input
+              label="Class"
+              placeholder="e.g. 11"
+              value={formData.className || ''}
+              onChange={e => setFormData({ ...formData, className: e.target.value })}
+            />
+
+            <Input
+              label="Division"
+              placeholder="e.g. 11A"
+              value={formData.division || ''}
+              onChange={e => setFormData({ ...formData, division: e.target.value })}
             />
           </FormGrid>
+
+          {isEmailChanged && (
+            <EmailNoticeCard>
+              <RiInformationLine size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <strong>Email Address Modified:</strong> If the email is changed, a new welcome
+                email with updated login instructions will automatically be dispatched to{' '}
+                <em>{formData.email}</em>.
+              </div>
+            </EmailNoticeCard>
+          )}
         </SectionBox>
       </FormContainer>
     </Modal>

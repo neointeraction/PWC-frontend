@@ -154,9 +154,9 @@ export const ParentFeedbackFormPage: React.FC = () => {
             {/* Parent Meta Details */}
             <StudentMetaGrid>
               <MetaItem>
-                <MetaLabel>Parent Name</MetaLabel>
+                <MetaLabel>Counsellor Name</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUser3Line size={16} /> Sunita Sharma
+                  <RiUser3Line size={16} /> Dr. Rajeshwari Menon
                 </MetaValue>
               </MetaItem>
               <MetaItem>

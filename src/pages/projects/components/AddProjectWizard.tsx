@@ -5,7 +5,6 @@ import {
   RiArrowRightLine,
   RiCheckLine,
   RiBuildingLine,
-  RiTeamLine,
   RiGraduationCapLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
@@ -15,7 +14,6 @@ import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
 import { useToast } from '@/hooks';
 import { StepInstitute } from './StepInstitute';
-import { StepCounselors } from './StepCounselors';
 import { StepStudents } from './StepStudents';
 import {
   WizardStepperWrapper,
@@ -28,7 +26,6 @@ import {
 const WIZARD_STEPS: StepConfig[] = [
   { label: 'Institute', description: 'Add institute details', icon: <RiBuildingLine size={16} /> },
   { label: 'Students', description: 'Onboard students', icon: <RiGraduationCapLine size={16} /> },
-  { label: 'Counselors', description: 'Assign counselors', icon: <RiTeamLine size={16} /> },
 ];
 
 export const AddProjectWizard: React.FC = () => {
@@ -69,12 +66,10 @@ export const AddProjectWizard: React.FC = () => {
       }
       case 1:
         return students.length === 0;
-      case 2:
-        return counselors.length === 0;
       default:
         return false;
     }
-  }, [wizardStep, instituteDetails, counselors, students]);
+  }, [wizardStep, instituteDetails, students]);
 
   const handleFinish = () => {
     createMutation.mutate({
@@ -93,8 +88,6 @@ export const AddProjectWizard: React.FC = () => {
         return <StepInstitute />;
       case 1:
         return <StepStudents />;
-      case 2:
-        return <StepCounselors />;
       default:
         return null;
     }
@@ -128,7 +121,6 @@ export const AddProjectWizard: React.FC = () => {
           <Button
             rightIcon={<RiArrowRightLine size={16} />}
             onClick={nextStep}
-            // disabled={isNextDisabled}
           >
             Next
           </Button>

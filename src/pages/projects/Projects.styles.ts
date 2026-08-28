@@ -21,11 +21,22 @@ export const StatsGrid = styled.div`
   }
 `;
 
-export const StatMetricValue = styled.div<{ $variant?: 'success' | 'info' | 'default' }>`
+export const InteractiveStatCardWrapper = styled.div<{ $active?: boolean }>`
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  ${({ $active, theme }) =>
+    $active &&
+    `
+    box-shadow: 0 0 0 2px ${theme.colors.primary};
+  `}
+`;
+
+export const StatMetricValue = styled.div<{ $variant?: 'success' | 'info' | 'warning' | 'default' }>`
   font-size: ${({ theme }) => theme.fontSize.display};
   font-weight: 700;
   color: ${({ theme, $variant }) =>
-    $variant === 'success' ? '#16A34A' : theme.colors.text};
+    $variant === 'success' ? '#16A34A' : $variant === 'warning' ? '#D97706' : theme.colors.text};
   margin-top: 4px;
 `;
 

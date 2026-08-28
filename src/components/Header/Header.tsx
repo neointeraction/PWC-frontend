@@ -3,13 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   RiMenuLine,
-  RiNotification3Line,
-  RiSunLine,
-  RiMoonLine,
   RiArrowDownSLine,
   RiLogoutBoxRLine,
 } from 'react-icons/ri';
-import { useAuthStore, useThemeStore, useSidebarStore } from '@/store';
+import { useAuthStore, useSidebarStore } from '@/store';
 import { Avatar } from '@/components/Avatar';
 import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
@@ -18,8 +15,6 @@ import {
   HeaderLeft,
   MobileMenuButton,
   HeaderRight,
-  IconButton,
-  NotificationBadge,
   UserSectionContainer,
   UserSection,
   UserInfo,
@@ -36,7 +31,6 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { user, logout } = useAuthStore();
-  const { theme, toggleTheme } = useThemeStore();
   const { toggleMobile } = useSidebarStore();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -80,18 +74,7 @@ export const Header: React.FC = () => {
       </HeaderLeft>
 
       <HeaderRight>
-        <IconButton
-          onClick={toggleTheme}
-          aria-label="Toggle theme"
-          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? <RiMoonLine size={20} /> : <RiSunLine size={20} />}
-        </IconButton>
-
-        <IconButton aria-label="Notifications">
-          <RiNotification3Line size={20} />
-          <NotificationBadge aria-hidden="true" />
-        </IconButton>
+        {/* Theme toggle and notification icons hidden as per requirement */}
 
         {user && (
           <UserSectionContainer ref={dropdownRef}>

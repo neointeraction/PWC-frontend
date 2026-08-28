@@ -2,6 +2,13 @@ import React from 'react';
 import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
 import styled from 'styled-components';
 import {
+  RiUser3Line,
+  RiGraduationCapLine,
+  RiBuilding4Line,
+  RiBriefcaseLine,
+  RiBookOpenLine,
+} from 'react-icons/ri';
+import {
   StepHeaderCard,
   StepHeaderTitle,
   StepHeaderDescription,
@@ -9,56 +16,92 @@ import {
   SectionBlockTitle,
 } from '../StudentFormChartPage.styles';
 
-const InfoTableWrapper = styled.div`
+const HeaderContainer = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 28px;
-  padding: 8px 0 16px 0;
+  align-items: center;
+  gap: 16px;
 `;
 
-const InfoGroupRow = styled.div`
+const HeaderIconBox = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  background-color: ${({ theme }) => theme.colors.primaryLight};
+  color: ${({ theme }) => theme.colors.primary};
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid ${({ theme }) => `${theme.colors.primary}26`};
 `;
 
-const HeaderRow = styled.div<{ $cols: 2 | 3 }>`
+const HeaderTextGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const CardsGrid = styled.div`
   display: grid;
-  grid-template-columns: ${({ $cols }) => ($cols === 3 ? '1fr 1fr 1.5fr' : '1fr 2.5fr')};
-  gap: 24px;
-  padding-bottom: 4px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
-    gap: 8px;
   }
 `;
 
-const ColumnHeader = styled.span`
+const InfoCard = styled.div<{ $fullWidth?: boolean }>`
+  background-color: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.2s ease;
+  ${({ $fullWidth }) => ($fullWidth ? 'grid-column: 1 / -1;' : '')}
+
+  &:hover {
+    border-color: ${({ theme }) => `${theme.colors.primary}40`};
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+`;
+
+const CardIconWrapper = styled.div`
+  width: 42px;
+  height: 42px;
+  border-radius: 4px;
+  background-color: ${({ theme }) => theme.colors.primaryLight};
+  color: ${({ theme }) => theme.colors.primary};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid ${({ theme }) => `${theme.colors.primary}20`};
+`;
+
+const CardContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+`;
+
+const CardLabel = styled.span`
   font-size: 11px;
   font-weight: 700;
-  color: #5b6b82;
+  color: ${({ theme }) => theme.colors.textSecondary};
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
 
-const ValueRow = styled.div<{ $cols: 2 | 3 }>`
-  display: grid;
-  grid-template-columns: ${({ $cols }) => ($cols === 3 ? '1fr 1fr 1.5fr' : '1fr 2.5fr')};
-  gap: 24px;
-  padding-top: 2px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-`;
-
-const ColumnValue = styled.span`
+const CardValue = styled.span`
   font-size: 14px;
   font-weight: 600;
   color: ${({ theme }) => theme.colors.text};
-  line-height: 1.5;
+  line-height: 1.4;
+  word-break: break-word;
 `;
 
 interface Step0StudentInfoProps {
@@ -70,54 +113,103 @@ export const Step0StudentInfo: React.FC<Step0StudentInfoProps> = ({ data }) => {
   return (
     <>
       <StepHeaderCard>
-        <StepHeaderTitle>Our Champion</StepHeaderTitle>
-        <StepHeaderDescription>
-          Core onboarding details pulled from the student profile.
-        </StepHeaderDescription>
+        <HeaderContainer>
+          <HeaderIconBox>
+            <RiUser3Line size={24} />
+          </HeaderIconBox>
+          <HeaderTextGroup>
+            <StepHeaderTitle style={{ margin: 0 }}>Our Champion</StepHeaderTitle>
+            <StepHeaderDescription>
+              Core onboarding details pulled from the student profile.
+            </StepHeaderDescription>
+          </HeaderTextGroup>
+        </HeaderContainer>
       </StepHeaderCard>
 
       <SectionBlock>
         <SectionBlockTitle>Champion Details</SectionBlockTitle>
 
-        <InfoTableWrapper>
-          {/* Row 1: Champion Core Info */}
-          <InfoGroupRow>
-            <HeaderRow $cols={3}>
-              <ColumnHeader>Name of the Champion</ColumnHeader>
-              <ColumnHeader>Current Academic Year</ColumnHeader>
-              <ColumnHeader>Name of the Institute & Location</ColumnHeader>
-            </HeaderRow>
-            <ValueRow $cols={3}>
-              <ColumnValue>{data.studentName}</ColumnValue>
-              <ColumnValue>{data.className}</ColumnValue>
-              <ColumnValue>{data.instituteName}</ColumnValue>
-            </ValueRow>
-          </InfoGroupRow>
+        <CardsGrid>
+          {/* Card 1: Champion Name */}
+          <InfoCard>
+            <CardIconWrapper>
+              <RiUser3Line size={20} />
+            </CardIconWrapper>
+            <CardContent>
+              <CardLabel>Name of the Champion</CardLabel>
+              <CardValue>{data.studentName || '—'}</CardValue>
+            </CardContent>
+          </InfoCard>
 
-          {/* Row 2: Father Info */}
-          <InfoGroupRow>
-            <HeaderRow $cols={2}>
-              <ColumnHeader>Father&apos;s Name</ColumnHeader>
-              <ColumnHeader>Occupation & Company (Father)</ColumnHeader>
-            </HeaderRow>
-            <ValueRow $cols={2}>
-              <ColumnValue>{data.fatherName}</ColumnValue>
-              <ColumnValue>{data.fatherOccupation}</ColumnValue>
-            </ValueRow>
-          </InfoGroupRow>
+          {/* Card 2: Current Academic Year */}
+          <InfoCard>
+            <CardIconWrapper>
+              <RiGraduationCapLine size={20} />
+            </CardIconWrapper>
+            <CardContent>
+              <CardLabel>Current Academic Year</CardLabel>
+              <CardValue>{data.className || '—'}</CardValue>
+            </CardContent>
+          </InfoCard>
 
-          {/* Row 3: Mother Info */}
-          <InfoGroupRow>
-            <HeaderRow $cols={2}>
-              <ColumnHeader>Mother&apos;s Name</ColumnHeader>
-              <ColumnHeader>Occupation & Company (Mother)</ColumnHeader>
-            </HeaderRow>
-            <ValueRow $cols={2}>
-              <ColumnValue>{data.motherName}</ColumnValue>
-              <ColumnValue>{data.motherOccupation}</ColumnValue>
-            </ValueRow>
-          </InfoGroupRow>
-        </InfoTableWrapper>
+          {/* Card 3: Institute & Location */}
+          <InfoCard>
+            <CardIconWrapper>
+              <RiBuilding4Line size={20} />
+            </CardIconWrapper>
+            <CardContent>
+              <CardLabel>Institute & Location</CardLabel>
+              <CardValue>{data.instituteName || '—'}</CardValue>
+            </CardContent>
+          </InfoCard>
+
+          {/* Spacer / Empty alignment or span */}
+          <div />
+
+          {/* Card 4: Father's Name */}
+          <InfoCard>
+            <CardIconWrapper>
+              <RiUser3Line size={20} />
+            </CardIconWrapper>
+            <CardContent>
+              <CardLabel>Father&apos;s Name</CardLabel>
+              <CardValue>{data.fatherName || '—'}</CardValue>
+            </CardContent>
+          </InfoCard>
+
+          {/* Card 5: Occupation & Company (Father) */}
+          <InfoCard>
+            <CardIconWrapper>
+              <RiBriefcaseLine size={20} />
+            </CardIconWrapper>
+            <CardContent>
+              <CardLabel>Occupation & Company (Father)</CardLabel>
+              <CardValue>{data.fatherOccupation || '—'}</CardValue>
+            </CardContent>
+          </InfoCard>
+
+          {/* Card 6: Mother's Name */}
+          <InfoCard>
+            <CardIconWrapper>
+              <RiUser3Line size={20} />
+            </CardIconWrapper>
+            <CardContent>
+              <CardLabel>Mother&apos;s Name</CardLabel>
+              <CardValue>{data.motherName || '—'}</CardValue>
+            </CardContent>
+          </InfoCard>
+
+          {/* Card 7: Occupation & Company (Mother) */}
+          <InfoCard>
+            <CardIconWrapper>
+              <RiBookOpenLine size={20} />
+            </CardIconWrapper>
+            <CardContent>
+              <CardLabel>Occupation & Company (Mother)</CardLabel>
+              <CardValue>{data.motherOccupation || '—'}</CardValue>
+            </CardContent>
+          </InfoCard>
+        </CardsGrid>
       </SectionBlock>
     </>
   );

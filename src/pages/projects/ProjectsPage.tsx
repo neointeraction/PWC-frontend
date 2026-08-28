@@ -28,6 +28,7 @@ import { ROUTES } from '@/constants';
 import {
   ProjectsContainer,
   StatsGrid,
+  InteractiveStatCardWrapper,
   StatMetricValue,
   MetaText,
   FilterBar,
@@ -182,7 +183,28 @@ export const ProjectsPage: React.FC = () => {
     {
       key: 'validTo',
       header: 'Valid To',
-      render: row => (row.validTo ? dayjs(row.validTo).format('DD MMM YYYY') : '—'),
+      render: row => {
+        if (!row.validTo) return '—';
+        const formattedDate = dayjs(row.validTo).format('DD MMM YYYY');
+        if (row.status === 'active') {
+          const daysLeft = Math.ceil(dayjs(row.validTo).diff(dayjs(), 'day', true));
+          if (daysLeft >= 0 && daysLeft <= 15) {
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                <span>{formattedDate}</span>
+                <Tooltip content={`Project validity ends in ${daysLeft} days. Click edit/extend.`}>
+                  <span>
+                    <Badge variant="warning" size="sm">
+                      {daysLeft === 0 ? 'Expires Today' : `${daysLeft} days left`}
+                    </Badge>
+                  </span>
+                </Tooltip>
+              </div>
+            );
+          }
+        }
+        return formattedDate;
+      },
     },
     {
       key: 'counselors',

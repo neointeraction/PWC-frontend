@@ -23,7 +23,7 @@ export const mockProjects: Project[] = [
     studentCount: 85,
     status: 'active',
     validFrom: '2026-06-15',
-    validTo: '2026-11-30',
+    validTo: '2026-09-02',
     createdAt: '2026-06-20',
     hasRedFlag: true,
   },

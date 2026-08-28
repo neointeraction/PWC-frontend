@@ -54,12 +54,17 @@ import {
   FormInput,
   FormTextarea,
   TableActionButton,
+  StreamFitTableContainer,
+  StreamFitTableHeaderRow,
+  StreamFitTableHeaderCell,
+  StreamFitDataRow,
+  StreamFitCell,
 } from '../StudentFormChartPage.styles';
 
 interface Step3SectionCProps {
   data: CounsellorFormChartData['sectionC'];
   onChangeNotesPre: (code: string, value: string) => void;
-  onChangeStreamTable: (table: StreamFitItem[]) => void;
+  onChangeStreamTable?: (table: StreamFitItem[]) => void;
   onChangeWhyStream1?: (value: string) => void;
   onChangeNotesE: (code: string, value: string) => void;
   onChangeGraduationTable: (table: GraduationItem[]) => void;
@@ -168,7 +173,6 @@ const synthesisRowsFDef = [
 export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   data,
   onChangeNotesPre,
-  onChangeStreamTable,
   onChangeNotesE,
   onChangeGraduationTable,
   onChangeWhyStream2,
@@ -211,171 +215,28 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
       <SectionBlock id="sec-c-stream-fit">
         <SectionBlockTitle>Assessment Result View — Stream Fit & Pathways</SectionBlockTitle>
 
-        {/* 1. Stream Fit Table */}
-        <CompTableContainer style={{ overflowX: 'auto' }}>
-          <CompTableHeaderRow
-            style={{
-              gridTemplateColumns: '120px 160px 180px 140px 180px 120px 1fr 60px',
-              minWidth: '1000px',
-            }}
-          >
-            <CompTableHeaderCell>Main Stream</CompTableHeaderCell>
-            <CompTableHeaderCell>Sub-Stream</CompTableHeaderCell>
-            <CompTableHeaderCell>Core Subjects</CompTableHeaderCell>
-            <CompTableHeaderCell>Electives</CompTableHeaderCell>
-            <CompTableHeaderCell>Stream Requirement</CompTableHeaderCell>
-            <CompTableHeaderCell>Grading Level</CompTableHeaderCell>
-            <CompTableHeaderCell>Meaning</CompTableHeaderCell>
-            <CompTableHeaderCell style={{ textAlign: 'center' }}>Action</CompTableHeaderCell>
-          </CompTableHeaderRow>
+        {/* 1. Stream Fit Table (View Only, Non-editable, Max 3 rows, Fits in one frame) */}
+        <StreamFitTableContainer>
+          <StreamFitTableHeaderRow>
+            <StreamFitTableHeaderCell>Main Stream</StreamFitTableHeaderCell>
+            <StreamFitTableHeaderCell>Sub-Streams</StreamFitTableHeaderCell>
+            <StreamFitTableHeaderCell>Core Subjects Usually Offered</StreamFitTableHeaderCell>
+            <StreamFitTableHeaderCell>Optional / Elective Subjects</StreamFitTableHeaderCell>
+            <StreamFitTableHeaderCell>Student & Parent-Friendly Explanation</StreamFitTableHeaderCell>
+          </StreamFitTableHeaderRow>
 
-          {data.streamFitTable.map(row => (
-            <CompDataRow
-              key={row.id}
-              style={{
-                gridTemplateColumns: '120px 160px 180px 140px 180px 120px 1fr 60px',
-                minWidth: '1000px',
-              }}
-            >
-              <CompParamCell style={{ padding: '4px' }}>
-                <FormInput
-                  value={row.mainStream}
-                  onChange={e =>
-                    onChangeStreamTable(
-                      data.streamFitTable.map(r =>
-                        r.id === row.id ? { ...r, mainStream: e.target.value } : r
-                      )
-                    )
-                  }
-                  style={{ width: '100%' }}
-                />
-              </CompParamCell>
-              <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                <FormInput
-                  value={row.subStream}
-                  onChange={e =>
-                    onChangeStreamTable(
-                      data.streamFitTable.map(r =>
-                        r.id === row.id ? { ...r, subStream: e.target.value } : r
-                      )
-                    )
-                  }
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                <FormInput
-                  value={row.coreSubjects}
-                  onChange={e =>
-                    onChangeStreamTable(
-                      data.streamFitTable.map(r =>
-                        r.id === row.id ? { ...r, coreSubjects: e.target.value } : r
-                      )
-                    )
-                  }
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                <FormInput
-                  value={row.electives}
-                  onChange={e =>
-                    onChangeStreamTable(
-                      data.streamFitTable.map(r =>
-                        r.id === row.id ? { ...r, electives: e.target.value } : r
-                      )
-                    )
-                  }
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                <FormInput
-                  value={row.streamRequirement || ''}
-                  onChange={e =>
-                    onChangeStreamTable(
-                      data.streamFitTable.map(r =>
-                        r.id === row.id ? { ...r, streamRequirement: e.target.value } : r
-                      )
-                    )
-                  }
-                  style={{ width: '100%' }}
-                  placeholder="Stream Requirement"
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                <FormInput
-                  value={row.gradingLevel}
-                  onChange={e =>
-                    onChangeStreamTable(
-                      data.streamFitTable.map(r =>
-                        r.id === row.id ? { ...r, gradingLevel: e.target.value } : r
-                      )
-                    )
-                  }
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                <FormInput
-                  value={row.meaning}
-                  onChange={e =>
-                    onChangeStreamTable(
-                      data.streamFitTable.map(r =>
-                        r.id === row.id ? { ...r, meaning: e.target.value } : r
-                      )
-                    )
-                  }
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell
-                style={{
-                  borderLeft: 'none',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <Tooltip content="Delete Row">
-                  <TableActionButton
-                    type="button"
-                    onClick={() =>
-                      onChangeStreamTable(data.streamFitTable.filter(r => r.id !== row.id))
-                    }
-                  >
-                    <RiDeleteBinLine size={16} />
-                  </TableActionButton>
-                </Tooltip>
-              </CompResponseCell>
-            </CompDataRow>
+          {data.streamFitTable.slice(0, 3).map(row => (
+            <StreamFitDataRow key={row.id}>
+              <StreamFitCell $bold>{row.mainStream}</StreamFitCell>
+              <StreamFitCell $bold>{row.subStream}</StreamFitCell>
+              <StreamFitCell>{row.coreSubjects}</StreamFitCell>
+              <StreamFitCell>{row.electives}</StreamFitCell>
+              <StreamFitCell $secondary>
+                {row.explanation || row.meaning || row.streamRequirement}
+              </StreamFitCell>
+            </StreamFitDataRow>
           ))}
-        </CompTableContainer>
-
-        <div>
-          <Button
-            size="sm"
-            variant="secondary"
-            leftIcon={<RiAddLine size={16} />}
-            onClick={() =>
-              onChangeStreamTable([
-                ...data.streamFitTable,
-                {
-                  id: `sf-${Date.now()}`,
-                  mainStream: '',
-                  subStream: '',
-                  coreSubjects: '',
-                  electives: '',
-                  streamRequirement: '',
-                  gradingLevel: '',
-                  meaning: '',
-                },
-              ])
-            }
-          >
-            Add Stream Fit Row
-          </Button>
-        </div>
+        </StreamFitTableContainer>
 
         {/* Synthesis Notes E1–E6 */}
         <SynthesisNotesPanel

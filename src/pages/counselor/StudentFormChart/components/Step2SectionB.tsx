@@ -1,8 +1,6 @@
 import React from 'react';
-import { RiAddLine, RiDeleteBinLine } from 'react-icons/ri';
+import { RiAlertLine } from 'react-icons/ri';
 import { CounsellorFormChartData, TraitAssessmentItem } from '@/mocks/studentFormChart.mock';
-import { Button } from '@/components/Button';
-import { Tooltip } from '@/components/Tooltip';
 import { ComparisonTable } from './ComparisonTable';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
@@ -12,29 +10,32 @@ import {
   SectionBlock,
   SectionBlockTitle,
   SectionBlockSubtitle,
-  CompTableContainer,
-  CompTableHeaderRow,
-  CompTableHeaderCell,
-  CompDataRow,
-  CompParamCell,
-  CompResponseCell,
   FormInput,
   SummaryCardStrip,
   SummaryCard,
   SummaryCardLabel,
-  TableActionButton,
+  TraitTableContainer,
+  TraitTableHeaderRow,
+  TraitTableHeaderCell,
+  TraitDataRow,
+  TraitCell,
+  TraitGradeTag,
+  CategoryBlockHeader,
+  CategoryBlockTitle,
+  CategoryCountBadge,
+  RedFlagNotice,
 } from '../StudentFormChartPage.styles';
 
 interface Step2SectionBProps {
   data: CounsellorFormChartData['sectionB'];
   onChangeNotesPre: (code: string, value: string) => void;
-  onChangeTraits: (traits: TraitAssessmentItem[]) => void;
+  onChangeTraits?: (traits: TraitAssessmentItem[]) => void;
   onChangeSummary: (summary: Partial<CounsellorFormChartData['sectionB']['summaryStrip']>) => void;
   onChangeDna: (
     field: keyof CounsellorFormChartData['sectionB']['careerDnaNarrative'],
     value: string
   ) => void;
-  onChangeRedFlags: (key: string, value: string) => void;
+  onChangeRedFlags?: (key: string, value: string) => void;
 }
 
 const synthesisRowsPreDef = [
@@ -93,34 +94,9 @@ const dnaRowsDef = [
 export const Step2SectionB: React.FC<Step2SectionBProps> = ({
   data,
   onChangeNotesPre,
-  onChangeTraits,
   onChangeSummary,
   onChangeDna,
-  onChangeRedFlags,
 }) => {
-  const handleTraitChange = (id: string, field: keyof TraitAssessmentItem, value: any) => {
-    const updated = data.traitsTable.map(t => (t.id === id ? { ...t, [field]: value } : t));
-    onChangeTraits(updated);
-  };
-
-  const handleAddTrait = (category: string) => {
-    const newTrait: TraitAssessmentItem = {
-      id: `t-${Date.now()}`,
-      no: data.traitsTable.length + 1,
-      layerTrait: category,
-      traitName: 'New Trait',
-      whatItMeasures: 'Description of measure',
-      percentage: '0.00',
-      grade: 'A',
-      gradeMeaning: 'Strong Capacity',
-    };
-    onChangeTraits([...data.traitsTable, newTrait]);
-  };
-
-  const handleDeleteTrait = (id: string) => {
-    onChangeTraits(data.traitsTable.filter(t => t.id !== id));
-  };
-
   const riasecTraits = data.traitsTable.filter(t => t.layerTrait.toLowerCase().includes('riasec'));
   const bigFiveTraits = data.traitsTable.filter(t =>
     t.layerTrait.toLowerCase().includes('big five')
@@ -142,132 +118,53 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
     <div
       style={{
         marginTop: '20px',
-        border: '1px solid #E5E7EB',
+        border: '1px solid #E2E8F0',
         borderRadius: '4px',
         padding: '16px',
-        backgroundColor: '#F9FAFB',
+        backgroundColor: '#FFFFFF',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '12px',
-        }}
-      >
-        <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>{categoryTitle}</h4>
-        <Button
-          size="sm"
-          variant="secondary"
-          leftIcon={<RiAddLine size={16} />}
-          onClick={() => handleAddTrait(categoryKey)}
-        >
-          Add Row
-        </Button>
-      </div>
+      <CategoryBlockHeader>
+        <CategoryBlockTitle>{categoryTitle}</CategoryBlockTitle>
+        <CategoryCountBadge>{traits.length} {traits.length === 1 ? 'Trait' : 'Traits'}</CategoryCountBadge>
+      </CategoryBlockHeader>
 
-      <CompTableContainer style={{ overflowX: 'auto', marginBottom: '12px' }}>
-        <CompTableHeaderRow
-          style={{
-            gridTemplateColumns: '50px 180px 1fr 100px 140px 200px 60px',
-            minWidth: '900px',
-          }}
-        >
-          <CompTableHeaderCell>No</CompTableHeaderCell>
-          <CompTableHeaderCell>Trait Name</CompTableHeaderCell>
-          <CompTableHeaderCell>What It Measures</CompTableHeaderCell>
-          <CompTableHeaderCell>%</CompTableHeaderCell>
-          <CompTableHeaderCell>Grade</CompTableHeaderCell>
-          <CompTableHeaderCell>Grade Meaning</CompTableHeaderCell>
-          <CompTableHeaderCell style={{ textAlign: 'center' }}>Action</CompTableHeaderCell>
-        </CompTableHeaderRow>
+      <TraitTableContainer>
+        <TraitTableHeaderRow>
+          <TraitTableHeaderCell $align="center">No</TraitTableHeaderCell>
+          <TraitTableHeaderCell>Trait Name</TraitTableHeaderCell>
+          <TraitTableHeaderCell>What It Means</TraitTableHeaderCell>
+          <TraitTableHeaderCell $align="center">Current Level</TraitTableHeaderCell>
+          <TraitTableHeaderCell>What It Means</TraitTableHeaderCell>
+        </TraitTableHeaderRow>
 
         {traits.length === 0 ? (
           <div
-            style={{ padding: '12px', textAlign: 'center', color: '#6B7280', fontSize: '0.875rem' }}
+            style={{ padding: '16px', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}
           >
-            No traits added in this category. Click "Add Row" to add one.
+            No traits available in this assessment category.
           </div>
         ) : (
           traits.map((t, idx) => (
-            <CompDataRow
-              key={t.id}
-              style={{
-                gridTemplateColumns: '50px 180px 1fr 100px 140px 200px 60px',
-                minWidth: '900px',
-              }}
-            >
-              <CompParamCell>{idx + 1}</CompParamCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>
-                <FormInput
-                  value={t.traitName}
-                  onChange={e => handleTraitChange(t.id, 'traitName', e.target.value)}
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>
-                <FormInput
-                  value={t.whatItMeasures}
-                  onChange={e => handleTraitChange(t.id, 'whatItMeasures', e.target.value)}
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>
-                <FormInput
-                  value={t.percentage || ''}
-                  onChange={e => handleTraitChange(t.id, 'percentage', e.target.value)}
-                  placeholder="e.g. 83.36"
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>
-                <FormInput
-                  value={t.grade}
-                  onChange={e => handleTraitChange(t.id, 'grade', e.target.value)}
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>
-                <FormInput
-                  value={t.gradeMeaning}
-                  onChange={e => handleTraitChange(t.id, 'gradeMeaning', e.target.value)}
-                  style={{ width: '100%' }}
-                />
-              </CompResponseCell>
-              <CompResponseCell
-                style={{
-                  borderLeft: 'none',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <Tooltip content="Delete Trait">
-                  <TableActionButton type="button" onClick={() => handleDeleteTrait(t.id)}>
-                    <RiDeleteBinLine size={16} />
-                  </TableActionButton>
-                </Tooltip>
-              </CompResponseCell>
-            </CompDataRow>
+            <TraitDataRow key={t.id}>
+              <TraitCell $align="center" $bold style={{ color: '#64748B' }}>
+                {idx + 1}
+              </TraitCell>
+              <TraitCell $bold>{t.traitName}</TraitCell>
+              <TraitCell $secondary>{t.whatItMeasures}</TraitCell>
+              <TraitCell $align="center">
+                <TraitGradeTag $type={t.grade}>{t.grade}</TraitGradeTag>
+              </TraitCell>
+              <TraitCell $secondary>{t.gradeMeaning}</TraitCell>
+            </TraitDataRow>
           ))
         )}
-      </CompTableContainer>
+      </TraitTableContainer>
 
-      <div>
-        <FormInput
-          value={data.redFlags?.[categoryKey] || ''}
-          onChange={e => onChangeRedFlags(categoryKey, e.target.value)}
-          placeholder={redFlagPlaceholder}
-          style={{
-            width: '100%',
-            fontStyle: 'italic',
-            color: '#DC2626',
-            borderColor: '#FCA5A5',
-            backgroundColor: '#FEF2F2',
-          }}
-        />
-      </div>
+      <RedFlagNotice>
+        <RiAlertLine size={15} style={{ flexShrink: 0 }} />
+        <span>{data.redFlags?.[categoryKey] || redFlagPlaceholder}</span>
+      </RedFlagNotice>
     </div>
   );
 

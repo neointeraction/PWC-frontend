@@ -112,7 +112,7 @@ export const Sidebar: React.FC = () => {
       icon: <RiDashboardLine size={18} />,
     },
     {
-      label: 'Career library',
+      label: 'Career Library',
       href: ROUTES.CAREER_LIBRARY,
       icon: <RiBookOpenLine size={18} />,
     },
@@ -144,7 +144,6 @@ export const Sidebar: React.FC = () => {
 
       <SidebarNav $collapsed={isCollapsed}>
         <NavSection>
-
           {navItems.map(item => (
             <NavItem
               key={item.href}

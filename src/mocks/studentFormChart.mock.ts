@@ -38,9 +38,10 @@ export interface StreamFitItem {
   subStream: string;
   coreSubjects: string;
   electives: string;
-  streamRequirement: string;
-  gradingLevel: string;
-  meaning: string;
+  explanation?: string;
+  streamRequirement?: string;
+  gradingLevel?: string;
+  meaning?: string;
 }
 
 export interface GraduationItem {
@@ -398,6 +399,7 @@ export const getMockStudentFormChartData = (
         B5: 'No major divergence flags detected between student self-perception and parent feedback.',
       },
       traitsTable: [
+        // 1. RIASEC (6 traits)
         {
           id: 't-1',
           no: 1,
@@ -405,45 +407,196 @@ export const getMockStudentFormChartData = (
           traitName: 'Systematic & Disciplined',
           whatItMeasures:
             'Preference for structured work, planning, accuracy, routines, and systematic procedures',
-          percentage: '83.36',
           grade: 'Highly Preferred',
           gradeMeaning: 'A strong trait with natural interest, you can expertise',
         },
         {
           id: 't-2',
           no: 2,
-          layerTrait: 'BIG Five - Openness',
-          traitName: 'Intellectual Curiosity',
+          layerTrait: 'RIASEC - Enterprising',
+          traitName: 'Ambitious Initiator',
           whatItMeasures:
-            'Willingness to explore new ideas, experiences, perspectives, creativity, and intellectual curiosity.',
-          percentage: '72.64',
-          grade: 'Evident',
-          gradeMeaning:
-            'This tendency is generally present and influences your behaviour in many situations',
+            'Preference for leadership, persuasion, initiative-taking, business activities, and influencing others.',
+          grade: 'Fairly Good',
+          gradeMeaning: 'Meaningful interest, above the crowd, can be developed further',
         },
         {
           id: 't-3',
           no: 3,
-          layerTrait: 'Cognitive & Decision - Learning Ability',
-          traitName: 'Knowledge Agility',
+          layerTrait: 'RIASEC - Social',
+          traitName: 'Interpersonal Mindset',
           whatItMeasures:
-            'Ability and willingness to learn new skills, adapt quickly, and absorb new concepts efficiently',
-          percentage: '52.82',
-          grade: 'Emerging',
-          gradeMeaning:
-            'This behaviour appears occasionally but is not yet consistently demonstrated',
+            'Interest in helping, teaching, guiding, supporting, and positively interacting with people.',
+          grade: 'Not Decisive',
+          gradeMeaning: "Not a prominent interest but it's there",
         },
         {
           id: 't-4',
           no: 4,
+          layerTrait: 'RIASEC - Artistic',
+          traitName: 'Creative Thinker',
+          whatItMeasures:
+            'Preference for creativity, imagination, self-expression, design, music, storytelling, or innovative thinking.',
+          grade: 'Best Avoided',
+          gradeMeaning: 'Activities associated with this trait may be less naturally appealing',
+        },
+        {
+          id: 't-5',
+          no: 5,
+          layerTrait: 'RIASEC - Investigative',
+          traitName: 'Analytical Explorer',
+          whatItMeasures:
+            'Interest in analytical thinking, research, problem solving, scientific exploration, and understanding how things work.',
+          grade: 'Highly Preferred',
+          gradeMeaning: 'A strong trait with natural interest, you can expertise',
+        },
+        {
+          id: 't-6',
+          no: 6,
+          layerTrait: 'RIASEC - Realistic',
+          traitName: 'Applied Thinker',
+          whatItMeasures:
+            'Preference for practical, hands-on activities involving tools, machines, building, fixing, or physical problem solving.',
+          grade: 'Highly Preferred',
+          gradeMeaning: 'A strong trait with natural interest, you can expertise',
+        },
+
+        // 2. BIG Five (5 traits)
+        {
+          id: 't-7',
+          no: 7,
+          layerTrait: 'BIG Five - Openness',
+          traitName: 'Intellectual Curiosity',
+          whatItMeasures:
+            'Willingness to explore new ideas, experiences, perspectives, and creativity',
+          percentage: '72.64',
+          grade: 'Evident',
+          gradeMeaning: 'This tendency is generally present and influences behaviour across situations',
+        },
+        {
+          id: 't-8',
+          no: 8,
+          layerTrait: 'BIG Five - Conscientiousness',
+          traitName: 'Methodical & Goal-Oriented',
+          whatItMeasures:
+            'Self-discipline, organization, persistence, and reliability in achieving goals',
+          percentage: '80.12',
+          grade: 'Evident',
+          gradeMeaning: 'Consistent high standard of organization, diligence, and dependability',
+        },
+        {
+          id: 't-9',
+          no: 9,
+          layerTrait: 'BIG Five - Extraversion',
+          traitName: 'Social Energy & Expressiveness',
+          whatItMeasures:
+            'Enthusiasm, assertiveness, sociability, and drawing energy from group interactions',
+          percentage: '55.30',
+          grade: 'Moderate',
+          gradeMeaning: 'Comfortable in social settings while also valuing independent focus',
+        },
+        {
+          id: 't-10',
+          no: 10,
+          layerTrait: 'BIG Five - Agreeableness',
+          traitName: 'Empathy & Cooperation',
+          whatItMeasures:
+            'Trust, compassion, kindness, and cooperative attitude toward peers and mentors',
+          percentage: '76.45',
+          grade: 'Evident',
+          gradeMeaning: 'Demonstrates warmth, active listening, and strong relational trust',
+        },
+        {
+          id: 't-11',
+          no: 11,
+          layerTrait: 'BIG Five - Emotional Stability',
+          traitName: 'Composure & Resilience',
+          whatItMeasures:
+            'Ability to manage stress, remain calm under pressure, and navigate challenges',
+          percentage: '68.90',
+          grade: 'Moderate',
+          gradeMeaning: 'Generally steady coping mechanisms with occasional sensitivity to pressure',
+        },
+
+        // 3. Cognitive & Decision (3 traits)
+        {
+          id: 't-12',
+          no: 12,
+          layerTrait: 'Cognitive & Decision - Learning Ability',
+          traitName: 'Knowledge Agility',
+          whatItMeasures:
+            'Ability and willingness to learn new skills, adapt quickly, and absorb new concepts',
+          percentage: '52.82',
+          grade: 'Emerging',
+          gradeMeaning: 'This behaviour appears occasionally but is not yet consistently demonstrated',
+        },
+        {
+          id: 't-13',
+          no: 13,
+          layerTrait: 'Cognitive & Decision - Critical Thinking',
+          traitName: 'Analytical Reasoning',
+          whatItMeasures:
+            'Evaluating arguments, identifying logical fallacies, and making data-backed conclusions',
+          percentage: '71.50',
+          grade: 'Strong',
+          gradeMeaning: 'Demonstrates sound logical evaluation and structured problem breakdown',
+        },
+        {
+          id: 't-14',
+          no: 14,
+          layerTrait: 'Cognitive & Decision - Decision Making',
+          traitName: 'Strategic Decision-Making',
+          whatItMeasures:
+            'Balancing intuitive vs analytical choices, risk weighing, and decisive resolution',
+          percentage: '66.20',
+          grade: 'Competent',
+          gradeMeaning: 'Takes balanced decisions with consultative and analytical inputs',
+        },
+
+        // 4. Aptitude (4 traits)
+        {
+          id: 't-15',
+          no: 15,
           layerTrait: 'Aptitude - Verbal Reasoning',
           traitName: 'Textual Intelligence',
           whatItMeasures:
-            'Language comprehension, reading interpretation, analogy, argument analysis, and verbal logic',
+            'Language comprehension, reading interpretation, analogy, and verbal logic',
           percentage: '47.33',
           grade: 'Developing Capability',
-          gradeMeaning:
-            'Demonstrates moderate potential but may require additional training and exposure',
+          gradeMeaning: 'Demonstrates moderate potential but may require additional exposure',
+        },
+        {
+          id: 't-16',
+          no: 16,
+          layerTrait: 'Aptitude - Numerical Reasoning',
+          traitName: 'Quantitative Aptitude',
+          whatItMeasures:
+            'Mathematical calculations, data interpretation, arithmetic speed, and numerical logic',
+          percentage: '79.40',
+          grade: 'Strong Capability',
+          gradeMeaning: 'High computational accuracy and swift numerical pattern recognition',
+        },
+        {
+          id: 't-17',
+          no: 17,
+          layerTrait: 'Aptitude - Spatial Reasoning',
+          traitName: 'Spatial Visualization',
+          whatItMeasures:
+            'Mental manipulation of 2D/3D shapes, pattern recognition, and geometric intuition',
+          percentage: '64.80',
+          grade: 'Moderate Capability',
+          gradeMeaning: 'Solid geometric understanding with room for advanced visualization',
+        },
+        {
+          id: 't-18',
+          no: 18,
+          layerTrait: 'Aptitude - Abstract Reasoning',
+          traitName: 'Inductive Logic',
+          whatItMeasures:
+            'Recognizing underlying rules, sequence progression, and abstract diagrammatic problem solving',
+          percentage: '73.10',
+          grade: 'Strong Capability',
+          gradeMeaning: 'High ability to deduce principles and solve non-verbal abstract puzzles',
         },
       ],
       summaryStrip: {
@@ -586,33 +739,22 @@ export const getMockStudentFormChartData = (
       streamFitTable: [
         {
           id: 'sf-1',
-          mainStream: 'Humanities / Arts',
-          subStream: 'Humanities with Psychology',
-          coreSubjects: 'Psychology, Sociology, Political Science, English',
-          electives: 'History, Physical Education',
-          streamRequirement: 'Pick from traits & wtgs table',
-          gradingLevel: 'Pick from table',
-          meaning: 'Pick from table',
+          mainStream: 'Science',
+          subStream: 'PCM (Physics, Chemistry, Maths)',
+          coreSubjects: 'Physics, Chemistry, Mathematics, English',
+          electives:
+            'Computer Science, Informatics Practices, Physical Education, Economics, Engineering Graphics',
+          explanation:
+            'PCM (Physics, Chemistry, Maths) is best suited to students who bring curiosity and analytical thinking, clear, logical thinking, strong number sense, discipline and reliability, and the ability to adapt and learn quickly. This blend of strengths supports you in subjects like Physics, Chemistry, Mathematics, English, where your curiosity and evidence-based thinking really makes the difference.',
         },
         {
           id: 'sf-2',
-          mainStream: 'Humanities / Arts',
-          subStream: 'Humanities with Fine Arts',
-          coreSubjects: 'Fine Arts, History, English',
-          electives: 'Sociology, Psychology',
-          streamRequirement: 'Pick from traits & wtgs table',
-          gradingLevel: 'Pick from table',
-          meaning: 'Pick from table',
-        },
-        {
-          id: 'sf-3',
-          mainStream: 'Humanities / Arts',
-          subStream: 'Humanities with Mass Media',
-          coreSubjects: 'Political Science, Sociology, English',
-          electives: 'Psychology, Multimedia',
-          streamRequirement: 'Pick from traits & wtgs table',
-          gradingLevel: 'Pick from table',
-          meaning: 'Pick from table',
+          mainStream: 'Science',
+          subStream: 'PCB (Physics, Chemistry, Biology)',
+          coreSubjects: 'Physics, Chemistry, Biology, English',
+          electives: 'Psychology, Physical Education, Biotechnology, Mathematics',
+          explanation:
+            'PCB (Physics, Chemistry, Biology) is best suited to students who bring curiosity and analytical thinking, clear, logical thinking, the ability to adapt and learn quickly, discipline and reliability, and curiosity and openness to new ideas. This blend of strengths supports you in subjects like Physics, Chemistry, Biology, English, where your curiosity and evidence-based thinking really makes the difference.',
         },
       ],
       whyThisStream1:
@@ -723,29 +865,33 @@ export const getMockStudentFormChartData = (
           code: 'EIM',
           name: 'Engagement Integrity Measure',
           guidingQuestion: 'How consistent were your personality answers?',
-          valueStatus: '% Grading',
-          explanationText: 'Grading meaning.',
+          valueStatus: '76% High reliability',
+          explanationText:
+            'Results are trustworthy and can be highly recommended for career recommendations',
         },
         {
           code: 'ACI',
           name: 'Aptitude Test Coherence Index',
           guidingQuestion: 'How logically did aptitude answers progress?',
-          valueStatus: '% Grading',
-          explanationText: 'Grading meaning..',
+          valueStatus: '82% High coherence',
+          explanationText:
+            'Responses show consistent logical progression across sections with steady accuracy and minimal random guesses.',
         },
         {
           code: 'AAI',
           name: 'Aptitude Accuracy Indicator',
           guidingQuestion: "How many questions were marked 'Not Sure'?",
-          valueStatus: '% Grading',
-          explanationText: 'Grading meaning..',
+          valueStatus: '90% High confidence',
+          explanationText:
+            "Minimal 'Not Sure' selections, reflecting clear decisiveness and genuine understanding of assessed concepts.",
         },
         {
           code: 'HRS',
           name: 'Holistic Reliability Score',
           guidingQuestion: 'Was the completion pace psychologically normal?',
-          valueStatus: '% Grading',
-          explanationText: 'Grading meaning.',
+          valueStatus: '88% Optimal completion pace',
+          explanationText:
+            'Pace was psychologically normal throughout all sections with adequate reflection time per question.',
         },
       ],
       synthesisNotes: {

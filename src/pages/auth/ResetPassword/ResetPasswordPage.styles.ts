@@ -27,61 +27,23 @@ export const ResetPasswordCard = styled.div`
 export const LogoWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
   margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
-export const LogoIcon = styled.div`
-  width: 44px;
-  height: 44px;
-  border-radius: 4px;
-  background: linear-gradient(
-    135deg,
-    ${({ theme }) => theme.colors.primary} 0%,
-    ${({ theme }) => theme.colors.primaryHover} 100%
-  );
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 22px;
-  box-shadow: 0 4px 12px ${({ theme }) => `${theme.colors.primary}33`};
-`;
-
-export const LogoTextWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-export const LogoTitle = styled.h1`
-  font-size: 20px;
-  font-weight: 800;
-  color: ${({ theme }) => theme.colors.text};
-  margin: 0;
-`;
-
-export const LogoSubtitle = styled.p`
-  font-size: 12px;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  margin: 0;
+export const LogoImage = styled.img`
+  height: 48px;
+  width: auto;
+  object-fit: contain;
 `;
 
 export const TitleWrapper = styled.div`
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
 `;
 
 export const Heading = styled.h2`
   font-size: ${({ theme }) => theme.fontSize.xl};
   font-weight: 700;
   color: ${({ theme }) => theme.colors.text};
-  margin: 0 0 6px 0;
-`;
-
-export const Subtext = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  line-height: 1.5;
   margin: 0;
 `;
 
@@ -94,6 +56,14 @@ export const SecurityAlertBox = styled.div`
   display: flex;
   align-items: flex-start;
   gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+export const SecurityAlertIcon = styled.div`
+  color: ${({ theme }) => theme.colors.primary};
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
 `;
 
 export const AlertText = styled.span`

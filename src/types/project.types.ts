@@ -99,18 +99,38 @@ export interface StudentComment {
   by?: string;
 }
 
+export interface FollowUpRecord {
+  id: string;
+  stage: string;
+  date: string;
+  timestamp: string;
+  type: 'whatsapp' | 'email' | 'call' | 'manual';
+  recipient: 'student' | 'parent' | 'both';
+  notes?: string;
+}
+
 export interface ProjectStudentDetail {
   id: string;
   studentId?: string;
   name: string;
   email: string;
   mobile: string;
+  parentName?: string;
   parentMobile?: string;
+  parentEmail?: string;
   grade: string;
+  className?: string;
+  division?: string;
+  counselorId?: string;
+  counselorName?: string;
   stage?: string;
-  session1: StudentSessionDetail;
-  session2: StudentSessionDetail;
+  stageCompletedDate?: string;
+  daysInStage?: number;
+  session1?: StudentSessionDetail;
+  session2?: StudentSessionDetail;
   comments?: StudentComment[];
+  followUpHistory?: FollowUpRecord[];
+  lastFollowUpDate?: string;
   isFlagged?: boolean;
   // Reason behind the derived 🚩 flag (backend stageInfo) — drives the flag tooltip.
   flagReason?: 'IDLE' | 'MISSED_SESSION' | null;

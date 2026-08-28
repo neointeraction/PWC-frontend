@@ -284,7 +284,7 @@ export const StudentFeedbackFormPage: React.FC = () => {
               <MetaItem>
                 <MetaLabel>Counsellor</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUserHeartLine size={16} /> Sarah Jenkins (M.Sc Psych)
+                  <RiUserHeartLine size={16} /> Dr. Rajeshwari Menon (M.Sc Psych)
                 </MetaValue>
               </MetaItem>
             </StudentMetaGrid>

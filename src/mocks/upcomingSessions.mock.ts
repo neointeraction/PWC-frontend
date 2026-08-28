@@ -1,15 +1,19 @@
 export interface UpcomingSession {
   id: string;
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  studentGrade: string;
+  studentId?: string;
+  studentName?: string;
+  studentEmail?: string;
+  studentGrade?: string;
   institutionName: string;
+  projectName?: string;
+  sessionNumber?: 'S1' | 'S2';
   sessionTitle: string;
   dateTime: string;
-  meetUrl: string;
-  status: 'Scheduled' | 'In Progress' | 'Completed';
-  assessmentSheet: {
+  timeSlot: string;
+  meetUrl?: string;
+  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Available';
+  isBooked: boolean;
+  assessmentSheet?: {
     aptitudeScore: string;
     topInterests: string[];
     personalityType: string;
@@ -33,11 +37,15 @@ export const getMockUpcomingSessions = (): UpcomingSession[] => {
       studentName: 'Aarav Sharma',
       studentEmail: 'aarav.sharma@pwc-school.edu',
       studentGrade: 'Grade 11 - Science (PCM)',
-      institutionName: 'Phoenix Water Club High School',
+      institutionName: "St. Xavier's College, Mumbai",
+      projectName: "St. Xavier's Career Guidance 2026",
+      sessionNumber: 'S1',
       sessionTitle: 'Session 1: STEM & Engineering Pathways',
       dateTime: soonDate.toISOString(),
+      timeSlot: '09:30 - 10:30',
       meetUrl: 'https://meet.google.com/abc-defg-hij',
       status: 'Scheduled',
+      isBooked: true,
       assessmentSheet: {
         aptitudeScore: '94/100 (Quantitative & Spatial Aptitude)',
         topInterests: ['Computer Science & AI', 'Robotics', 'Data Analytics'],
@@ -55,11 +63,15 @@ export const getMockUpcomingSessions = (): UpcomingSession[] => {
       studentName: 'Priya Patel',
       studentEmail: 'priya.patel@pwc-school.edu',
       studentGrade: 'Grade 12 - Commerce',
-      institutionName: 'Phoenix Water Club High School',
-      sessionTitle: 'Session 1: Finance & Global Economics',
+      institutionName: "St. Xavier's College, Mumbai",
+      projectName: "St. Xavier's Career Guidance 2026",
+      sessionNumber: 'S2',
+      sessionTitle: 'Session 2: Finance & Global Economics',
       dateTime: tomorrowDate.toISOString(),
+      timeSlot: '09:30 - 10:30',
       meetUrl: 'https://meet.google.com/xyz-uvwx-rst',
       status: 'Scheduled',
+      isBooked: true,
       assessmentSheet: {
         aptitudeScore: '89/100 (Verbal & Analytical Reasoning)',
         topInterests: ['Investment Banking', 'Chartered Accountancy', 'Corporate Law'],
@@ -72,16 +84,31 @@ export const getMockUpcomingSessions = (): UpcomingSession[] => {
       },
     },
     {
+      id: 'sess-counselor-slot-1',
+      institutionName: "St. Xavier's College, Mumbai",
+      projectName: "St. Xavier's Career Guidance 2026",
+      sessionNumber: 'S1',
+      sessionTitle: 'Available Slot - Session 1',
+      dateTime: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      timeSlot: '11:00 - 12:00',
+      status: 'Available',
+      isBooked: false,
+    },
+    {
       id: 'sess-counselor-3',
       studentId: 'stud-103',
       studentName: 'Rohan Verma',
       studentEmail: 'rohan.verma@pwc-school.edu',
       studentGrade: 'Grade 11 - Arts & Humanities',
-      institutionName: 'Phoenix Water Club High School',
-      sessionTitle: 'Session 2: Product Design & UX Research',
+      institutionName: 'Delhi Public School, Kochi',
+      projectName: 'DPS Kochi Senior Counselling',
+      sessionNumber: 'S1',
+      sessionTitle: 'Session 1: Product Design & UX Research',
       dateTime: nextWeekDate.toISOString(),
+      timeSlot: '14:00 - 15:00',
       meetUrl: 'https://meet.google.com/mno-pqrs-tuv',
       status: 'Scheduled',
+      isBooked: true,
       assessmentSheet: {
         aptitudeScore: '91/100 (Visual Design & Empathy Profiling)',
         topInterests: ['UI/UX Design', 'Industrial Product Design', 'Digital Media'],
@@ -92,6 +119,17 @@ export const getMockUpcomingSessions = (): UpcomingSession[] => {
         actionItems:
           '1. Finalize 5 portfolio projects.\n2. Apply for national design entrance test practice series.',
       },
+    },
+    {
+      id: 'sess-counselor-slot-2',
+      institutionName: 'Delhi Public School, Kochi',
+      projectName: 'DPS Kochi Senior Counselling',
+      sessionNumber: 'S2',
+      sessionTitle: 'Available Slot - Session 2',
+      dateTime: new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+      timeSlot: '15:30 - 16:30',
+      status: 'Available',
+      isBooked: false,
     },
   ];
 };
@@ -109,11 +147,15 @@ export const getAllMockSessions = (): UpcomingSession[] => {
       studentName: 'Ananya Iyer',
       studentEmail: 'ananya.iyer@pwc-school.edu',
       studentGrade: 'Grade 12 - Science (PCB)',
-      institutionName: 'Delhi Public School, R.K. Puram',
+      institutionName: "St. Xavier's College, Mumbai",
+      projectName: "St. Xavier's Career Guidance 2026",
+      sessionNumber: 'S2',
       sessionTitle: 'Session 2: Biotechnology & Medical Sciences',
       dateTime: pastDate1.toISOString(),
+      timeSlot: '09:30 - 10:30',
       meetUrl: 'https://meet.google.com/pqr-stuv-wxy',
       status: 'Completed',
+      isBooked: true,
       assessmentSheet: {
         aptitudeScore: '96/100 (Biological & Clinical Reasoning)',
         topInterests: ['Biomedical Engineering', 'Genetics', 'Neuroscience'],
@@ -129,11 +171,15 @@ export const getAllMockSessions = (): UpcomingSession[] => {
       studentName: 'Siddharth Nair',
       studentEmail: 'siddharth.nair@pwc-school.edu',
       studentGrade: 'Grade 10 - Foundation',
-      institutionName: 'St. Xavier\'s High School, Mumbai',
+      institutionName: 'Loyola College, Chennai',
+      projectName: 'Loyola Career Compass Project',
+      sessionNumber: 'S1',
       sessionTitle: 'Session 1: Stream Selection Diagnostic',
       dateTime: pastDate2.toISOString(),
+      timeSlot: '11:00 - 12:00',
       meetUrl: 'https://meet.google.com/stu-vwxy-zab',
       status: 'Completed',
+      isBooked: true,
       assessmentSheet: {
         aptitudeScore: '92/100 (Logical & Abstract Analysis)',
         topInterests: ['Economics & Data', 'Computational Finance', 'Applied Mathematics'],
@@ -149,11 +195,15 @@ export const getAllMockSessions = (): UpcomingSession[] => {
       studentName: 'Kavya Deshmukh',
       studentEmail: 'kavya.deshmukh@pwc-school.edu',
       studentGrade: 'Grade 12 - Humanities',
-      institutionName: 'National Public School, Bangalore',
-      sessionTitle: 'Session 3: International Relations & Public Policy',
+      institutionName: 'Loyola College, Chennai',
+      projectName: 'Loyola Career Compass Project',
+      sessionNumber: 'S2',
+      sessionTitle: 'Session 2: International Relations & Public Policy',
       dateTime: pastDate3.toISOString(),
+      timeSlot: '14:30 - 15:30',
       meetUrl: 'https://meet.google.com/bcd-efgh-ijk',
       status: 'Completed',
+      isBooked: true,
       assessmentSheet: {
         aptitudeScore: '95/100 (Verbal Fluency & Critical Debate)',
         topInterests: ['International Relations', 'Public Policy', 'Journalism & Media'],
