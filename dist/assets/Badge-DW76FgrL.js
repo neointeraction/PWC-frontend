@@ -1,0 +1,1 @@
+import{j as r}from"./index-BVWJ6WpZ.js";import{S as o}from"./Badge.styles-BS3Wf50w.js";const d=({variant:e="default",size:i="md",children:s,dot:t})=>r.jsxs(o,{$variant:e,$size:i,children:[t&&r.jsx("svg",{width:"6",height:"6",viewBox:"0 0 6 6",fill:"currentColor",children:r.jsx("circle",{cx:"3",cy:"3",r:"3"})}),s]});export{d as B};

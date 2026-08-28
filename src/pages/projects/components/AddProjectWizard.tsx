@@ -6,6 +6,7 @@ import {
   RiCheckLine,
   RiBuildingLine,
   RiGraduationCapLine,
+  RiTeamLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -15,6 +16,7 @@ import { projectService } from '@/services/project.service';
 import { useToast } from '@/hooks';
 import { StepInstitute } from './StepInstitute';
 import { StepStudents } from './StepStudents';
+import { StepCounselors } from './StepCounselors';
 import {
   WizardStepperWrapper,
   WizardContent,
@@ -26,6 +28,7 @@ import {
 const WIZARD_STEPS: StepConfig[] = [
   { label: 'Institute', description: 'Add institute details', icon: <RiBuildingLine size={16} /> },
   { label: 'Students', description: 'Onboard students', icon: <RiGraduationCapLine size={16} /> },
+  { label: 'Counselors', description: 'Assign counselors', icon: <RiTeamLine size={16} /> },
 ];
 
 export const AddProjectWizard: React.FC = () => {
@@ -66,6 +69,8 @@ export const AddProjectWizard: React.FC = () => {
       }
       case 1:
         return students.length === 0;
+      case 2:
+        return false;
       default:
         return false;
     }
@@ -88,6 +93,8 @@ export const AddProjectWizard: React.FC = () => {
         return <StepInstitute />;
       case 1:
         return <StepStudents />;
+      case 2:
+        return <StepCounselors />;
       default:
         return null;
     }
