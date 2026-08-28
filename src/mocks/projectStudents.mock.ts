@@ -117,7 +117,6 @@ const generateProjectStudents = (count: number): ProjectStudentDetail[] => {
         counselorEmail: counselorsList[(i + 1) % counselorsList.length].email,
       },
       isFlagged,
-      isDiscontinued: false,
     });
   }
 

@@ -191,7 +191,6 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
       ...student,
       stage: 'Discontinued',
       isFlagged: false, // Unflag
-      isDiscontinued: true,
       stageCompletedDate: todayStr,
       daysInStage: 0,
     };

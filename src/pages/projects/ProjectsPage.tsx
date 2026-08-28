@@ -28,7 +28,6 @@ import { ROUTES } from '@/constants';
 import {
   ProjectsContainer,
   StatsGrid,
-  InteractiveStatCardWrapper,
   StatMetricValue,
   MetaText,
   FilterBar,
