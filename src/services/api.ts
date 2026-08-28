@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store';
+import { ROUTES } from '@/constants';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 
@@ -44,7 +45,7 @@ apiClient.interceptors.response.use(
 
     if (originalRequest._retry) {
       useAuthStore.getState().clearSession();
-      window.location.href = '/login';
+      window.location.href = ROUTES.LOGIN;
       return Promise.reject(error);
     }
     originalRequest._retry = true;
@@ -56,7 +57,7 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     } catch (refreshError) {
       useAuthStore.getState().clearSession();
-      window.location.href = '/login';
+      window.location.href = ROUTES.LOGIN;
       return Promise.reject(refreshError);
     }
   }

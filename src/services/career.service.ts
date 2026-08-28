@@ -372,6 +372,24 @@ const getFullList = (): Promise<Career[]> => {
   return fullListCache;
 };
 
+// Entries for a single industry — used to compute per-domain role counts on the domains
+// view without downloading the whole library (an industry is almost always one page).
+const fetchEntriesByIndustry = async (industryId: string): Promise<Career[]> => {
+  const pageSize = 100;
+  let page = 1;
+  let totalPages = 1;
+  const all: ApiCareerEntry[] = [];
+  do {
+    const { data } = await apiClient.get<CareerLibraryListResponse>('/career-library', {
+      params: { industryId, page, pageSize },
+    });
+    all.push(...data.data);
+    totalPages = data.pagination.totalPages;
+    page += 1;
+  } while (page <= totalPages);
+  return all.map(mapCareerEntry);
+};
+
 let ratificationsDb: PendingRatification[] = [...mockPendingRatifications];
 
 export const careerService = {
@@ -416,7 +434,12 @@ export const careerService = {
   },
 
   getDomains: async (industryId?: string, search?: string): Promise<CareerDomain[]> => {
-    const [tree, all] = await Promise.all([getTree(), getFullList()]);
+    // Scope the role-count fetch to the current industry rather than the whole library
+    // (the previous getFullList() download was the domains view's main slow path).
+    const [tree, all] = await Promise.all([
+      getTree(),
+      industryId ? fetchEntriesByIndustry(industryId) : getFullList(),
+    ]);
     let domains: CareerDomain[] = [];
     tree.forEach(c =>
       c.industries.forEach(i => {
