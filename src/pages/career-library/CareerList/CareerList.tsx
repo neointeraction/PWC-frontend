@@ -268,7 +268,7 @@ export const CareerListPage: React.FC = () => {
     if (level === 'industries') return `Industries under ${selectedCluster?.name || ''}`;
     if (level === 'domains') return `Domains under ${selectedIndustry?.name || ''}`;
     if (level === 'roles') return `Job roles under ${selectedDomain?.name || ''}`;
-    return selectedRole?.oneLineDescription || 'Role profile & career pathway details';
+    return '';
   };
 
   const handleBack = () => {

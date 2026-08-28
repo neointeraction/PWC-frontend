@@ -12,7 +12,6 @@ import {
   RiShieldCheckLine,
   RiMoneyDollarCircleLine,
   RiGlobalLine,
-  RiUserStarLine,
   RiEditLine,
 } from 'react-icons/ri';
 import { EducationPathTab } from '../tabs/EducationPathTab';
@@ -43,15 +42,9 @@ const BannerCard = styled.div`
 const BannerHeader = styled.div`
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.md};
   flex-wrap: wrap;
-`;
-
-const TitleGroup = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: ${({ theme }) => theme.spacing.md};
 `;
 
 const EditRoleButton = styled.button`
@@ -72,40 +65,6 @@ const EditRoleButton = styled.button`
   &:hover {
     background-color: rgba(255, 255, 255, 0.24);
   }
-`;
-
-const RoleIconBadge = styled.div`
-  width: 52px;
-  height: 52px;
-  border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(4px);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-`;
-
-const RoleHeaderInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const RoleHeaderTitle = styled.h2`
-  font-size: 28px;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0;
-  line-height: 1.2;
-`;
-
-const RoleHeaderDesc = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.base};
-  color: rgba(255, 255, 255, 0.88);
-  font-style: italic;
-  margin: 0;
 `;
 
 const MetricsGrid = styled.div`
@@ -312,23 +271,13 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
   return (
     <Container>
       <BannerCard>
-        <BannerHeader>
-          <TitleGroup>
-            <RoleIconBadge>
-              <RiUserStarLine size={28} />
-            </RoleIconBadge>
-            <RoleHeaderInfo>
-              <RoleHeaderTitle>{role.jobRole}</RoleHeaderTitle>
-              <RoleHeaderDesc>{role.oneLineDescription}</RoleHeaderDesc>
-            </RoleHeaderInfo>
-          </TitleGroup>
-
-          {onEditRole && (
+        {onEditRole && (
+          <BannerHeader>
             <EditRoleButton type="button" onClick={() => onEditRole(role)}>
               <RiEditLine size={16} /> Edit Role
             </EditRoleButton>
-          )}
-        </BannerHeader>
+          </BannerHeader>
+        )}
 
         <MetricsGrid>
           <MetricCard $variant="green">
@@ -367,16 +316,16 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
             </Tooltip>
           </MetricCard>
         </MetricsGrid>
-      </BannerCard>
 
-      <RationaleBox>
-        <RiShieldCheckLine size={18} />
-        <div>
-          <strong>Why "{role.aiResilienceGrading || 'High'}":</strong>{' '}
-          {role.aiResilienceComment ||
-            'Centers on unique human creativity, emotional expression, and cultural nuance.'}
-        </div>
-      </RationaleBox>
+        <RationaleBox>
+          <RiShieldCheckLine size={18} />
+          <div>
+            <strong>Why "{role.aiResilienceGrading || 'High'}":</strong>{' '}
+            {role.aiResilienceComment ||
+              'Centers on unique human creativity, emotional expression, and cultural nuance.'}
+          </div>
+        </RationaleBox>
+      </BannerCard>
 
       <MainLayout>
         <VerticalTabsContainer>
@@ -416,8 +365,11 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
           {activeTab === 'overview' && (
             <SectionGrid>
               <SectionCard title="Role Overview & Scope">
-                {/* <SectionText>{role.oneLineDescription}</SectionText> */}
-                {role.roleOverview && <SectionText>{role.roleOverview}</SectionText>}
+                <SectionText>
+                  {role.roleOverview ||
+                    role.oneLineDescription ||
+                    'No role overview provided for this role yet.'}
+                </SectionText>
               </SectionCard>
 
               <SectionCard title="Key Skill Requirements">
