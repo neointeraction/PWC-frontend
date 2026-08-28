@@ -127,6 +127,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
     mutationFn: counselorService.bulkCreate,
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
+      queryClient.invalidateQueries({ queryKey: ['counselors-stats'] });
       toast.success('Bulk Upload Complete', `Successfully imported ${data.length} counselor records.`);
       handleReset();
       closeBulkUploadModal();

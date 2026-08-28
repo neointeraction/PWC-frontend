@@ -52,6 +52,7 @@ export const AddCounselorModal: React.FC = () => {
     mutationFn: counselorService.create,
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
+      queryClient.invalidateQueries({ queryKey: ['counselors-stats'] });
       toast.success('Counselor Added', `Successfully registered counselor ${data.name} (${data.counselorId}).`);
       reset();
       closeAddModal();

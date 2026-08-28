@@ -47,6 +47,7 @@ export const AddProjectWizard: React.FC = () => {
     mutationFn: projectService.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       toast.success('Project Created', 'The project has been created successfully.');
       closeWizard();
     },

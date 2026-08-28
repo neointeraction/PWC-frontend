@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiUserAddLine,
@@ -63,7 +63,7 @@ export const CounselorsListPage: React.FC = () => {
   const [counselorToDelete, setCounselorToDelete] = useState<Counselor | null>(null);
   const [counselorForDeployment, setCounselorForDeployment] = useState<Counselor | null>(null);
 
-  // Query counselors
+  // Query counselors for table with pagination
   const { data, isLoading } = useQuery({
     queryKey: ['counselors', searchQuery, statusFilter, page, limit],
     queryFn: () =>
@@ -75,11 +75,39 @@ export const CounselorsListPage: React.FC = () => {
       }),
   });
 
+  // Query all counselors for stats calculation (without pagination)
+  const { data: allCounselorsData } = useQuery({
+    queryKey: ['counselors-stats'],
+    queryFn: () => counselorService.getAll({}), // Get all without filters
+  });
+
+  // Calculate dynamic stats from all counselors
+  const stats = useMemo(() => {
+    if (!allCounselorsData?.data) {
+      return {
+        totalEmpanelled: 0,
+        deployed: 0,
+        onBench: 0,
+        inactive: 0,
+      };
+    }
+
+    const counselors = allCounselorsData.data;
+    
+    return {
+      totalEmpanelled: counselors.length,
+      deployed: counselors.filter(c => c.deploymentStatus === 'deployed').length,
+      onBench: counselors.filter(c => c.deploymentStatus === 'bench').length,
+      inactive: counselors.filter(c => c.deploymentStatus === 'inactive' || c.status === 'inactive').length,
+    };
+  }, [allCounselorsData]);
+
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: counselorService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
+      queryClient.invalidateQueries({ queryKey: ['counselors-stats'] });
       toast.success('Counselor Deleted', 'Successfully removed counselor record.');
       setCounselorToDelete(null);
     },
@@ -211,19 +239,19 @@ export const CounselorsListPage: React.FC = () => {
       {/* Top Metric Stat Cards matching mockup */}
       <StatsGrid>
         <Card title="Total Empanelled">
-          <StatMetricValue>58</StatMetricValue>
+          <StatMetricValue>{stats.totalEmpanelled}</StatMetricValue>
         </Card>
 
         <Card title="Deployed">
-          <StatMetricValue $color="#16A34A">44</StatMetricValue>
+          <StatMetricValue $color="#16A34A">{stats.deployed}</StatMetricValue>
         </Card>
 
         <Card title="On Bench">
-          <StatMetricValue $color="#0284C7">9</StatMetricValue>
+          <StatMetricValue $color="#0284C7">{stats.onBench}</StatMetricValue>
         </Card>
 
         <Card title="Inactive">
-          <StatMetricValue $color="#DC2626">5</StatMetricValue>
+          <StatMetricValue $color="#DC2626">{stats.inactive}</StatMetricValue>
         </Card>
       </StatsGrid>
 

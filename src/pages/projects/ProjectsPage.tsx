@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -96,10 +96,34 @@ export const ProjectsPage: React.FC = () => {
       }),
   });
 
+  // Query all projects for stats calculation (without pagination)
+  const { data: allProjectsData } = useQuery({
+    queryKey: ['projects-stats'],
+    queryFn: () => projectService.getAll({}), // Get all without filters
+  });
+
+  // Calculate dynamic stats from all projects
+  const stats = useMemo(() => {
+    if (!allProjectsData?.data) {
+      return {
+        totalProjects: 0,
+        liveProjects: 0,
+      };
+    }
+
+    const projects = allProjectsData.data;
+    
+    return {
+      totalProjects: projects.length,
+      liveProjects: projects.filter(p => p.status === 'active').length,
+    };
+  }, [allProjectsData]);
+
   const deleteMutation = useMutation({
     mutationFn: projectService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       toast.success('Project Deleted', 'Successfully removed project record.');
       setProjectToDelete(null);
     },
@@ -113,6 +137,7 @@ export const ProjectsPage: React.FC = () => {
     mutationFn: (id: string) => projectService.update(id, { status: 'active' }),
     onSuccess: updated => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       toast.success('Project Restored', `Restored ${updated.name} to active status.`);
     },
     onError: () => {
@@ -305,12 +330,12 @@ export const ProjectsPage: React.FC = () => {
 
       <StatsGrid>
         <Card title="Total Projects">
-          <StatMetricValue>{data?.total ?? 23}</StatMetricValue>
+          <StatMetricValue>{stats.totalProjects}</StatMetricValue>
           <MetaText>Active &amp; registered projects</MetaText>
         </Card>
 
         <Card title="Live">
-          <StatMetricValue $variant="success">14</StatMetricValue>
+          <StatMetricValue $variant="success">{stats.liveProjects}</StatMetricValue>
           <MetaText>Currently ongoing batches</MetaText>
         </Card>
       </StatsGrid>

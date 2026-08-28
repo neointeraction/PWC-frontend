@@ -58,6 +58,7 @@ export const EditCounselorModal: React.FC = () => {
       counselorService.update(selectedCounselorForEdit!.id, data),
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
+      queryClient.invalidateQueries({ queryKey: ['counselors-stats'] });
       toast.success('Counselor Updated', `Successfully updated profile for ${data.name}.`);
       closeEditModal();
     },

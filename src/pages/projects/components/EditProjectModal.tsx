@@ -108,6 +108,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
     },
     onSuccess: updated => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       toast.success(
         'Project Updated',
         `Successfully updated project "${updated.name}" with ${students.length} student(s) and ${counselors.length} counselor(s).`
