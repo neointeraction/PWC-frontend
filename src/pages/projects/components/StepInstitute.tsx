@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Input } from '@/components/Input';
 import { DatePicker } from '@/components/DatePicker';
 import { useProjectStore } from '@/store/project.store';
+import { isValidPhone } from '@/utils';
 import {
   StepFormContainer,
   StepSubtitle,
@@ -20,7 +21,11 @@ const instituteSchema = z
       .min(1, 'Institute name is required')
       .min(3, 'Institute name must be at least 3 characters'),
     email: z.string().min(1, 'Email is required').email('Invalid email format'),
-    phone: z.string().min(1, 'Phone number is required'),
+    location: z.string().min(1, 'Location is required'),
+    phone: z
+      .string()
+      .min(1, 'Phone number is required')
+      .refine(isValidPhone, 'Enter a valid number, e.g. +919876543210 (no leading zero)'),
     validFrom: z.string().min(1, 'Start date is required'),
     validTo: z.string().min(1, 'End date is required'),
   })
@@ -150,6 +155,14 @@ export const StepInstitute: React.FC = () => {
               )}
             />
           </FormGrid>
+          <Input
+            label="Location"
+            placeholder="Location"
+            error={errors.location?.message}
+            {...register('location', {
+              onChange: e => handleChange('location', e.target.value),
+            })}
+          />
         </FormGroup>
       </FormGrid>
     </StepFormContainer>

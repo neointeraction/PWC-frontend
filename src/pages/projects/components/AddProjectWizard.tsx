@@ -14,6 +14,7 @@ import { Stepper, StepConfig } from '@/components/Stepper';
 import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
 import { useToast } from '@/hooks';
+import { getApiErrorMessage, isValidPhone } from '@/utils';
 import { StepInstitute } from './StepInstitute';
 import { StepStudents } from './StepStudents';
 import { StepCounselors } from './StepCounselors';
@@ -48,23 +49,49 @@ export const AddProjectWizard: React.FC = () => {
 
   const createMutation = useMutation({
     mutationFn: projectService.create,
-    onSuccess: () => {
+    onSuccess: ({ studentImport }) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
-      toast.success('Project Created', 'The project has been created successfully.');
+      // Student rows are imported one by one and a bad row is skipped rather than
+      // aborting the batch, so say what actually landed instead of a blanket success.
+      if (studentImport.failed > 0) {
+        const examples = studentImport.failures
+          .slice(0, 3)
+          .map(f => `${f.name}: ${f.reason}`)
+          .join(' · ');
+        toast.warning(
+          'Project Created — Some Students Skipped',
+          `${studentImport.imported} of ${studentImport.total} students imported. ` +
+            `${studentImport.failed} skipped — ${examples}` +
+            (studentImport.failed > 3 ? ` (and ${studentImport.failed - 3} more)` : '')
+        );
+      } else {
+        toast.success(
+          'Project Created',
+          studentImport.total > 0
+            ? `The project was created and all ${studentImport.total} students were imported.`
+            : 'The project has been created successfully.'
+        );
+      }
       closeWizard();
     },
-    onError: () => {
-      toast.error('Error', 'Failed to create the project. Please try again.');
+    onError: (err: unknown) => {
+      // Surface what the server actually rejected — a duplicate institute name/email/phone
+      // is the common case, and a generic message makes it undiagnosable.
+      toast.error(
+        'Error',
+        getApiErrorMessage(err, 'Failed to create the project. Please try again.')
+      );
     },
   });
 
   const isNextDisabled = useMemo(() => {
     switch (wizardStep) {
       case 0: {
-        const { name, email, phone, validFrom, validTo } = instituteDetails;
+        const { name, email, location, phone, validFrom, validTo } = instituteDetails;
         if (!name || name.trim().length < 3) return true;
-        if (!email || !phone || !validFrom || !validTo) return true;
+        if (!email || !location || !phone || !validFrom || !validTo) return true;
+        if (!isValidPhone(phone)) return true;
         if (new Date(validFrom) > new Date(validTo)) return true;
         return false;
       }

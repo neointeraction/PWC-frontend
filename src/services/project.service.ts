@@ -12,6 +12,7 @@ import {
   TimeSlot,
 } from '@/types/project.types';
 import { PaginatedResponse } from '@/types/api.types';
+import { getApiErrorMessage, normalizePhone } from '@/utils';
 import { mockCounselors } from '@/mocks/counselors.mock';
 import { mockProjectSessions } from '@/mocks/projectSessions.mock';
 import { mockProjectStudents } from '@/mocks/projectStudents.mock';
@@ -121,6 +122,24 @@ const mapProject = (p: ApiProject): Project => ({
 });
 
 // ---- Mock stores still backing the not-yet-integrated methods (Stage 2/3) ----
+// One student row that never made it into the table, with the reason to show the user.
+export interface StudentImportFailure {
+  name: string;
+  reason: string;
+}
+
+export interface StudentImportSummary {
+  total: number;
+  imported: number;
+  failed: number;
+  failures: StudentImportFailure[];
+}
+
+export interface CreateProjectResult {
+  project: Project;
+  studentImport: StudentImportSummary;
+}
+
 let sessionsDb: Record<string, CounselorSession[]> = { ...mockProjectSessions };
 let studentsDb: Record<string, ProjectStudentDetail[]> = { ...mockProjectStudents };
 
@@ -181,14 +200,16 @@ export const projectService = {
 
   // Orchestrates real creation: institute → project → classes/divisions → students
   // (bulk). Counsellor assignment + slot import land in Stage 2b. Institute = project
-  // (1:1, created inline). Students are best-effort — a bad row doesn't abort the batch.
-  create: async (payload: CreateProjectPayload): Promise<Project> => {
+  // (1:1, created inline). A bad student row doesn't abort the batch, but every skipped
+  // row is counted and returned so the wizard can say what actually landed.
+  create: async (payload: CreateProjectPayload): Promise<CreateProjectResult> => {
     const { instituteDetails, students, counselors } = payload;
 
-    // 1. Institute (address/location optional; contactNumber/primaryEmail from the form).
+    // 1. Institute (address/contactNumber/primaryEmail all come from the institute step).
     const { data: institute } = await apiClient.post<{ id: string; name: string }>('/institutes', {
       name: instituteDetails.name.trim(),
-      contactNumber: instituteDetails.phone,
+      address: instituteDetails.location.trim(),
+      contactNumber: normalizePhone(instituteDetails.phone),
       primaryEmail: instituteDetails.email,
     });
 
@@ -227,13 +248,21 @@ export const projectService = {
 
     // 4. Bulk-create students. studentCode is auto-generated, ordered & unique per project.
     const projShort = project.id.slice(-5);
+    const failures: StudentImportFailure[] = [];
+    let imported = 0;
     let seq = 0;
     for (const s of students) {
       seq += 1;
       const className = (s.grade || 'General').trim();
       const divisionName = (s.division || className).trim();
       const divisionId = divisionIdByKey.get(keyOf(className, divisionName));
-      if (!divisionId) continue;
+      if (!divisionId) {
+        failures.push({
+          name: s.name || s.email || `Row ${seq}`,
+          reason: `No class/division matched "${className} ${divisionName}"`,
+        });
+        continue;
+      }
       const parts = s.name.trim().split(/\s+/);
       const firstName = parts[0] || s.name.trim();
       const lastName = parts.slice(1).join(' ') || firstName;
@@ -242,17 +271,22 @@ export const projectService = {
           firstName,
           lastName,
           email: s.email,
-          mobile: s.mobile,
+          mobile: normalizePhone(s.mobile),
           studentCode: `STU-${projShort}-${String(seq).padStart(3, '0')}`,
           projectId: project.id,
           divisionId,
-          parentMobile: s.parentMobile || s.mobile,
+          parentMobile: normalizePhone(s.parentMobile || s.mobile),
           parentEmail: s.parentEmail || s.email,
           ...(s.parentName ? { fatherName: s.parentName } : {}),
           ...(s.password ? { password: s.password } : {}),
         });
-      } catch {
-        // best-effort — master's wizard has no per-row surface to report failures.
+        imported += 1;
+      } catch (err) {
+        // One bad row must not abort the batch — record it and carry on.
+        failures.push({
+          name: s.name || s.email || `Row ${seq}`,
+          reason: getApiErrorMessage(err, 'Rejected by the server'),
+        });
       }
     }
 
@@ -283,7 +317,15 @@ export const projectService = {
       }
     }
 
-    return mapProject(project);
+    return {
+      project: mapProject(project),
+      studentImport: {
+        total: students.length,
+        imported,
+        failed: failures.length,
+        failures,
+      },
+    };
   },
 
   // Oversight: GET /sessions/slots?projectId (counsellor availability) + GET

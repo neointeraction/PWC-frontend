@@ -1144,6 +1144,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         isOpen={isCLModalOpen}
         onClose={() => setIsCLModalOpen(false)}
         onAddRoles={handleAddCLRoles}
+        existingCount={data.careerCompassTable.length}
       />
     </>
   );

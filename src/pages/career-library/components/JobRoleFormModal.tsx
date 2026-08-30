@@ -7,7 +7,6 @@ import {
   RiAddLine,
   RiCloseLine,
   RiLock2Line,
-  RiInformationLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Input } from '@/components/Input';
@@ -17,7 +16,10 @@ import { Checkbox } from '@/components/Checkbox';
 import {
   careerService,
   CareerEntryPayload,
-  CareerEntryLinkItem,
+  CareerEntryLinkRef,
+  CareerEntryExamInput,
+  CareerEntryCourseInput,
+  CareerEntryInstitutionInput,
   CareerLinkOption,
 } from '@/services/career.service';
 import { Career } from '@/types';
@@ -25,20 +27,11 @@ import { useToast } from '@/hooks';
 import { getApiErrorMessage } from '@/utils';
 import * as S from './JobRoleFormModal.styles';
 
-// Max linked exams / institutions recommended for the student Compass report — a soft
-// warning only, never blocks saving.
-const COMPASS_CAP = 3;
-
 const GRADE_OPTIONS = [
   { value: 'LOW', label: 'Low' },
   { value: 'MEDIUM', label: 'Medium' },
   { value: 'HIGH', label: 'High' },
   { value: 'VERY_HIGH', label: 'Very High' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 'DRAFT', label: 'Draft (not published)' },
-  { value: 'ACTIVE', label: 'Active (published)' },
 ];
 
 const LEVEL_OPTIONS = [
@@ -63,19 +56,27 @@ const AI_RESILIENCE_COMMENTS: Record<string, string> = {
     'Deeply human work — creativity, empathy, ethical judgment and accountability that automation cannot substitute.',
 };
 
+// The five NOT NULL columns on the entry (see docs/api-list.md -> POST /career-library)
+// are the required ones here; everything else is nullable server-side and stays optional.
+// Labels match the field labels so the "fix these first" toast reads sensibly.
 const schema = z.object({
-  jobRole: z.string().trim().min(1, 'Title is required'),
-  oneLineDescription: z.string().trim().min(1, 'Short description is required'),
-  aiResilienceGrade: z.enum(['LOW', 'MEDIUM', 'HIGH', 'VERY_HIGH']),
+  jobRole: z.string().trim().min(2, 'Title must be at least 2 characters').max(120, 'Title is too long (120 characters max)'),
+  oneLineDescription: z
+    .string()
+    .trim()
+    .min(10, 'Short description must be at least 10 characters')
+    .max(300, 'Short description is too long (300 characters max)'),
+  aiResilienceGrade: z.enum(['LOW', 'MEDIUM', 'HIGH', 'VERY_HIGH'], {
+    errorMap: () => ({ message: 'Select an AI resilience grade' }),
+  }),
   aiResilienceComment: z.string().trim().min(1, 'A rationale for the grade is required'),
-  status: z.enum(['DRAFT', 'ACTIVE']),
-  salaryIndiaRangeText: z.string().optional(),
-  salaryGlobalRangeText: z.string().optional(),
+  salaryIndiaRangeText: z.string().max(120, 'Salary (India) is too long').optional(),
+  salaryGlobalRangeText: z.string().max(120, 'Salary (Global) is too long').optional(),
   topCompanies: z.string().optional(),
   roleOverview: z.string().optional(),
   keySkills: z.string().optional(),
   // Education path -> qualification fields on the entry (not a separate table).
-  qualification10th12th: z.string().trim().min(1, '10th / 12th subjects are required'),
+  qualification10th12th: z.string().trim().min(1, '10th / 12th recommended subjects are required'),
   qualification10th12thExplanation: z.string().optional(),
   qualificationGraduation: z.string().optional(),
   qualificationGraduationDefined: z.string().optional(),
@@ -86,22 +87,38 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-// A row in a linked-reference list: an existing canonical record (`id`) or a brand-new
-// one added by name (`isNew`). Only backend-confirmed fields (name/level/city/state) are
-// persisted; the richer subform inputs feed the display label for now.
+// Order the "fix these first" message follows — the visual order of the form, so the
+// message names the topmost problem rather than whichever key zod happened to report.
+const FIELD_ORDER: (keyof FormData)[] = [
+  'jobRole',
+  'oneLineDescription',
+  'aiResilienceGrade',
+  'aiResilienceComment',
+  'salaryIndiaRangeText',
+  'salaryGlobalRangeText',
+  'qualification10th12th',
+];
+
+// A row in a linked-reference list: either an existing canonical record (`id`) or a new
+// one to find-or-create, in which case `newRecord` holds the complete payload the subform
+// collected — every field the API accepts is sent, not just the name.
+type NewRecord = CareerEntryExamInput | CareerEntryCourseInput | CareerEntryInstitutionInput;
+
 interface IncludedItem {
   key: string;
   id?: string;
   label: string;
   isNew?: boolean;
-  name?: string;
+  newRecord?: NewRecord;
   level?: 'UG' | 'PG';
-  city?: string;
-  state?: string;
   checked: boolean;
 }
 
 type LinkKind = 'exam' | 'course' | 'institution';
+
+// Trims to undefined so a blank subform input is omitted rather than sent as '' (which
+// the API rejects).
+const opt = (v: string): string | undefined => v.trim() || undefined;
 
 const splitList = (s?: string): string[] =>
   (s ?? '')
@@ -109,24 +126,10 @@ const splitList = (s?: string): string[] =>
     .map(x => x.trim())
     .filter(Boolean);
 
-const toArr = (s?: string): string[] | undefined => {
-  const items = splitList(s);
-  return items.length ? items : undefined;
-};
-
-const buildLinks = (items: IncludedItem[], kind: LinkKind): CareerEntryLinkItem[] =>
+const buildLinks = <T extends NewRecord>(items: IncludedItem[]): (CareerEntryLinkRef | T)[] =>
   items
-    .filter(i => i.checked)
-    .map(i => {
-      if (i.id) return { id: i.id };
-      const link: CareerEntryLinkItem = { name: (i.name || i.label).trim() };
-      if (kind === 'exam') link.level = i.level || 'UG';
-      if (kind === 'institution') {
-        if (i.city) link.city = i.city;
-        if (i.state) link.state = i.state;
-      }
-      return link;
-    });
+    .filter(i => i.checked && (i.id || i.newRecord))
+    .map(i => (i.id ? { id: i.id } : (i.newRecord as T)));
 
 // ---- small debounce for typeahead ----
 function useDebounced<T>(value: T, ms = 300): T {
@@ -153,10 +156,6 @@ interface LinkedSectionProps {
   searchFn: (q: string) => Promise<CareerLinkOption[]>;
   addButtonLabel: string;
   emptyHint: string;
-  // When set, the section is capped at this many selections (enforced) — used only when
-  // adding a new role. Left undefined when editing, so imported roles keep all their links.
-  capLimit?: number;
-  capNoun?: string;
   renderSubform: (helpers: {
     addNew: (item: IncludedItem) => void;
     close: () => void;
@@ -173,8 +172,6 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
   searchFn,
   addButtonLabel,
   emptyHint,
-  capLimit,
-  capNoun,
   renderSubform,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
@@ -193,19 +190,9 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
     staleTime: 60_000,
   });
 
-  const selectedCount = items.filter(i => i.checked).length;
-  const atCap = capLimit != null && selectedCount >= capLimit;
-
   return (
     <S.SectionBox>
       <S.SectionTitle>{title}</S.SectionTitle>
-
-      {capLimit != null && (
-        <S.CapWarningBanner>
-          <RiInformationLine size={14} /> {selectedCount} of up to {capLimit} {capNoun} selected for the
-          Compass report{atCap ? ' — limit reached' : ''}
-        </S.CapWarningBanner>
-      )}
 
       <S.FieldLabel>Included with this role (tick / untick):</S.FieldLabel>
       {items.length === 0 ? (
@@ -215,11 +202,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
           {items.map(item => (
             <S.EntryRow key={item.key} $checked={item.checked}>
               <S.EntryCheckboxWrapper>
-                <Checkbox
-                  checked={item.checked}
-                  disabled={!item.checked && atCap}
-                  onChange={() => onToggle(item.key)}
-                />
+                <Checkbox checked={item.checked} onChange={() => onToggle(item.key)} />
                 <span>{item.label}</span>
                 {item.isNew ? (
                   <S.NewTag>new</S.NewTag>
@@ -253,7 +236,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
                     <S.SearchResultRow
                       key={opt.id}
                       type="button"
-                      disabled={already || atCap}
+                      disabled={already}
                       onClick={() => {
                         onAddExisting(opt);
                         setQuery('');
@@ -261,7 +244,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
                     >
                       {opt.label}
                       {opt.level ? ` · ${opt.level}` : ''}
-                      {already ? ' — added' : atCap ? ' — limit reached' : ''}
+                      {already ? ' — added' : ''}
                     </S.SearchResultRow>
                   );
                 })}
@@ -278,7 +261,6 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
             variant="secondary"
             size="sm"
             leftIcon={<RiAddLine size={14} />}
-            disabled={atCap}
             onClick={() => setIsAdding(true)}
           >
             {addButtonLabel}
@@ -326,11 +308,31 @@ const ExamSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => vo
   const canAdd = name.trim() || abbr.trim();
   const submit = () => {
     if (!canAdd) return;
-    const canonicalName = (name.trim() || abbr.trim()).trim();
+    // Canonical `name` is the abbreviation, `fullForm` the expansion — that pair is the
+    // uniqueness key, so sending the long title as `name` would duplicate a seeded row.
+    const canonicalName = (abbr.trim() || name.trim()).trim();
     const label = `${abbr.trim() ? `${abbr.trim()} — ` : ''}${name.trim() || abbr.trim()}${
       conductedBy.trim() ? ` (${conductedBy.trim()})` : ''
     }`;
-    addNew({ key: `new-exam-${Date.now()}`, isNew: true, name: canonicalName, level, label, checked: true });
+    addNew({
+      key: `new-exam-${Date.now()}`,
+      isNew: true,
+      label,
+      level,
+      checked: true,
+      newRecord: {
+        name: canonicalName,
+        level,
+        fullForm: abbr.trim() ? opt(name) : undefined,
+        conductingBody: opt(conductedBy),
+        examMode: opt(mode),
+        frequency: opt(freq),
+        subjectRequirements12th: opt(req12th),
+        applicableFor: opt(applicableFor),
+        applicationWindow: opt(examWindow),
+        officialWebsite: opt(website),
+      },
+    });
   };
 
   return (
@@ -384,9 +386,24 @@ const CourseSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => 
   const canAdd = name.trim() || abbr.trim();
   const submit = () => {
     if (!canAdd) return;
-    const canonicalName = (name.trim() || abbr.trim()).trim();
+    // Same abbreviation-as-`name` convention as exams ("B.Des" + "Bachelor of Design").
+    const canonicalName = (abbr.trim() || name.trim()).trim();
     const label = `${abbr.trim() ? `${abbr.trim()} — ` : ''}${name.trim() || abbr.trim()}`;
-    addNew({ key: `new-course-${Date.now()}`, isNew: true, name: canonicalName, label, checked: true });
+    addNew({
+      key: `new-course-${Date.now()}`,
+      isNew: true,
+      label,
+      checked: true,
+      newRecord: {
+        name: canonicalName,
+        fullForm: abbr.trim() ? opt(name) : undefined,
+        stream12thRequirements: opt(req12th),
+        relevantEntranceExams: opt(exams),
+        programmesOffered: opt(programs),
+        topColleges: opt(colleges),
+        furtherStudyOptions: opt(furtherStudy),
+      },
+    });
   };
 
   return (
@@ -445,11 +462,20 @@ const InstitutionSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: (
     addNew({
       key: `new-inst-${Date.now()}`,
       isNew: true,
-      name: canonicalName,
-      city: city || undefined,
-      state: restState.length ? restState.join(', ') : undefined,
       label,
       checked: true,
+      // Inverted from exams/courses: `name` is the full institution name (unique on its
+      // own) and the abbreviation goes in `shortName`.
+      newRecord: {
+        name: canonicalName,
+        shortName: opt(abbr),
+        city: city || undefined,
+        state: restState.length ? restState.join(', ') : undefined,
+        entranceExamsRequired: opt(examReq),
+        programmesOffered: opt(programs),
+        ranking: opt(ranking),
+        website: opt(website),
+      },
     });
   };
 
@@ -459,7 +485,7 @@ const InstitutionSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: (
       <S.FormGrid $columns={2}>
         <Input label="Institution Abbreviation" placeholder="e.g. NIFT" value={abbr} onChange={e => setAbbr(e.target.value)} />
         <Input label="Institution Name *" placeholder="e.g. National Institute of Fashion Technology" value={name} onChange={e => setName(e.target.value)} />
-        <Input label="Location" placeholder="City, State" value={location} onChange={e => setLocation(e.target.value)} />
+        <Input label="Location" placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} />
         <Input label="Entrance Exam Required" placeholder="e.g. NID DAT" value={examReq} onChange={e => setExamReq(e.target.value)} />
       </S.FormGrid>
       <S.FieldGroup>
@@ -487,7 +513,9 @@ const InstitutionSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: (
 interface JobRoleFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  // Receives the saved entry so the list can show it immediately instead of waiting on
+  // the refetch that follows.
+  onSaved: (saved: Career, savedMode: 'add' | 'edit') => void;
   mode: 'add' | 'edit';
   entity?: Career;
   domainId?: string; // required for add
@@ -515,10 +543,13 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     reset,
     setValue,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { aiResilienceGrade: 'MEDIUM', status: 'DRAFT' },
+    defaultValues: {
+      aiResilienceGrade: 'MEDIUM',
+      aiResilienceComment: AI_RESILIENCE_COMMENTS.MEDIUM,
+    },
   });
 
   const [exams, setExams] = useState<IncludedItem[]>([]);
@@ -539,36 +570,45 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     staleTime: 30_000,
   });
 
+  // Prefill values for a role. `entity` comes from the list; once the detail fetch lands
+  // we re-apply from it (see below) so nothing the list response trimmed is lost.
+  const toFormValues = (c: Career): FormData => ({
+    jobRole: c.jobRole,
+    oneLineDescription: c.oneLineDescription,
+    aiResilienceGrade: GRADE_TO_API[c.aiResilienceGrading] ?? 'MEDIUM',
+    aiResilienceComment:
+      c.aiResilienceComment || AI_RESILIENCE_COMMENTS[GRADE_TO_API[c.aiResilienceGrading]] || '',
+    salaryIndiaRangeText: c.approxSalaryRangeIndia || '',
+    salaryGlobalRangeText: c.globalSalaryRange || '',
+    topCompanies: (c.topCompaniesRecruiting || []).join(', '),
+    roleOverview: c.roleOverview || '',
+    keySkills: (c.keySkills || []).join('\n'),
+    qualification10th12th: c.minQual10th12thRecommendedSubjects,
+    qualification10th12thExplanation: c.qualification10th12thExplanation || '',
+    qualificationGraduation: c.minQualGradRecommendedSubjects || '',
+    qualificationGraduationDefined: c.qualificationGraduationDefined || '',
+    qualificationPG: c.minQualPGRecommendedSubjects || '',
+    qualificationPGDefined: c.qualificationPGDefined || '',
+    certificationsStudent: c.certificationsStudents || '',
+    certificationsUG: c.certificationsUG || '',
+  });
+
   useEffect(() => {
     if (!isOpen) return;
+    // Linked lists always start empty: in edit mode they are re-seeded from the detail
+    // fetch below. Leaving the previous role's links in state would otherwise carry them
+    // onto the next role opened, and PATCH replaces whatever array it is given.
+    setExams([]);
+    setCourses([]);
+    setInstitutions([]);
     if (mode === 'edit' && entity) {
-      reset({
-        jobRole: entity.jobRole,
-        oneLineDescription: entity.oneLineDescription,
-        aiResilienceGrade: GRADE_TO_API[entity.aiResilienceGrading] ?? 'MEDIUM',
-        aiResilienceComment: entity.aiResilienceComment,
-        status: entity.status === 'active' ? 'ACTIVE' : 'DRAFT',
-        salaryIndiaRangeText: entity.approxSalaryRangeIndia || '',
-        salaryGlobalRangeText: entity.globalSalaryRange || '',
-        topCompanies: (entity.topCompaniesRecruiting || []).join(', '),
-        roleOverview: entity.roleOverview || '',
-        keySkills: (entity.keySkills || []).join('\n'),
-        qualification10th12th: entity.minQual10th12thRecommendedSubjects,
-        qualification10th12thExplanation: entity.qualification10th12thExplanation || '',
-        qualificationGraduation: entity.minQualGradRecommendedSubjects || '',
-        qualificationGraduationDefined: entity.qualificationGraduationDefined || '',
-        qualificationPG: entity.minQualPGRecommendedSubjects || '',
-        qualificationPGDefined: entity.qualificationPGDefined || '',
-        certificationsStudent: entity.certificationsStudents || '',
-        certificationsUG: entity.certificationsUG || '',
-      });
+      reset(toFormValues(entity));
     } else {
       reset({
         jobRole: '',
         oneLineDescription: '',
         aiResilienceGrade: 'MEDIUM',
-        aiResilienceComment: '',
-        status: 'DRAFT',
+        aiResilienceComment: AI_RESILIENCE_COMMENTS.MEDIUM,
         salaryIndiaRangeText: '',
         salaryGlobalRangeText: '',
         topCompanies: '',
@@ -583,9 +623,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         certificationsStudent: '',
         certificationsUG: '',
       });
-      setExams([]);
-      setCourses([]);
-      setInstitutions([]);
     }
   }, [isOpen, mode, entity, reset]);
 
@@ -597,7 +634,15 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     setExams(toItems(detail.linkedEntranceExams));
     setCourses(toItems(detail.linkedCourses));
     setInstitutions(toItems(detail.linkedInstitutions));
+    // The detail response is the authoritative record; re-apply it over the list-derived
+    // prefill, but never on top of edits the user has already started making.
+    if (!isDirty) reset(toFormValues(detail.career));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, mode, detail]);
+
+  // Edit mode replaces the entry's links with whatever is in state, so saving before the
+  // detail fetch resolves would wipe every link the role already has.
+  const linksReady = mode !== 'edit' || Boolean(detail);
 
   const toggle = (setter: React.Dispatch<React.SetStateAction<IncludedItem[]>>) => (key: string) =>
     setter(prev => prev.map(i => (i.key === key ? { ...i, checked: !i.checked } : i)));
@@ -612,6 +657,16 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
   const addNew = (setter: React.Dispatch<React.SetStateAction<IncludedItem[]>>) => (item: IncludedItem) =>
     setter(prev => [...prev, item]);
 
+  // On PATCH, omitting a field leaves the old value and '' is rejected — so an emptied
+  // input has to be sent as an explicit `null` (lists as `[]`) for the clear to stick.
+  // On create there is nothing to clear, so blanks are simply omitted.
+  const clearing = mode === 'edit';
+  const optText = (v?: string) => v?.trim() || (clearing ? null : undefined);
+  const optList = (v?: string) => {
+    const items = splitList(v);
+    return items.length ? items : clearing ? [] : undefined;
+  };
+
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
       const base: Omit<CareerEntryPayload, 'domainId'> = {
@@ -619,26 +674,33 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         aiResilienceGrade: data.aiResilienceGrade,
         aiResilienceComment: data.aiResilienceComment.trim(),
         oneLineDescription: data.oneLineDescription.trim(),
-        roleOverview: data.roleOverview?.trim() || undefined,
-        keySkills: toArr(data.keySkills),
-        topCompanies: toArr(data.topCompanies),
-        salaryIndiaRangeText: data.salaryIndiaRangeText?.trim() || undefined,
-        salaryGlobalRangeText: data.salaryGlobalRangeText?.trim() || undefined,
+        roleOverview: optText(data.roleOverview),
+        keySkills: optList(data.keySkills),
+        topCompanies: optList(data.topCompanies),
+        salaryIndiaRangeText: optText(data.salaryIndiaRangeText),
+        salaryGlobalRangeText: optText(data.salaryGlobalRangeText),
+        // Clear the imported numeric columns — the mapper prefers them over the text
+        // range, so leaving them set makes an edited salary look like it never saved.
+        // Only meaningful on edit; a new entry has nothing to clear.
+        salaryIndiaMinLPA: clearing ? null : undefined,
+        salaryIndiaMaxLPA: clearing ? null : undefined,
+        salaryGlobalMinUSD: clearing ? null : undefined,
+        salaryGlobalMaxUSD: clearing ? null : undefined,
         qualification10th12th: data.qualification10th12th.trim(),
-        qualification10th12thExplanation: data.qualification10th12thExplanation?.trim() || undefined,
-        qualificationGraduation: data.qualificationGraduation?.trim() || undefined,
-        qualificationGraduationDefined: data.qualificationGraduationDefined?.trim() || undefined,
-        qualificationPG: data.qualificationPG?.trim() || undefined,
-        qualificationPGDefined: data.qualificationPGDefined?.trim() || undefined,
-        certificationsStudent: toArr(data.certificationsStudent),
-        certificationsUG: toArr(data.certificationsUG),
-        status: data.status,
-        entranceExams: buildLinks(exams, 'exam'),
-        courses: buildLinks(courses, 'course'),
-        institutions: buildLinks(institutions, 'institution'),
+        qualification10th12thExplanation: optText(data.qualification10th12thExplanation),
+        qualificationGraduation: optText(data.qualificationGraduation),
+        qualificationGraduationDefined: optText(data.qualificationGraduationDefined),
+        qualificationPG: optText(data.qualificationPG),
+        qualificationPGDefined: optText(data.qualificationPGDefined),
+        certificationsStudent: optList(data.certificationsStudent),
+        certificationsUG: optList(data.certificationsUG),
+        entranceExams: buildLinks<CareerEntryExamInput>(exams),
+        courses: buildLinks<CareerEntryCourseInput>(courses),
+        institutions: buildLinks<CareerEntryInstitutionInput>(institutions),
       };
       if (mode === 'add') {
-        return careerService.createEntry({ ...base, domainId: domainId! });
+        // No Status field on the form — a role added by a super admin goes live at once.
+        return careerService.createEntry({ ...base, domainId: domainId!, status: 'ACTIVE' });
       }
       return careerService.updateEntry(entity!.id, base);
     },
@@ -647,7 +709,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         `Job Role ${mode === 'add' ? 'Created' : 'Updated'}`,
         `${saved.jobRole} was saved successfully.`
       );
-      onSaved();
+      onSaved(saved, mode);
       onClose();
     },
     onError: (err: unknown) => {
@@ -663,6 +725,26 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     mutation.mutate(data);
   };
 
+  // The form is taller than the modal's scroll area and two of its required fields (the
+  // grade select and the auto-filled rationale) can't take focus, so react-hook-form's
+  // built-in focus-the-first-error does nothing for them and Save looks like a no-op.
+  // Name the topmost problem in a toast and scroll its field into view instead.
+  const onInvalid = (formErrors: typeof errors) => {
+    const firstField =
+      FIELD_ORDER.find(f => formErrors[f]) ?? (Object.keys(formErrors)[0] as keyof FormData | undefined);
+    const message = firstField ? formErrors[firstField]?.message : undefined;
+    toast.error(
+      'Check the highlighted fields',
+      (message as string | undefined) || 'Some required details are missing or invalid.'
+    );
+    if (firstField) {
+      document
+        .querySelector(`[name="${firstField}"]`)
+        ?.closest('div')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const gradeReg = register('aiResilienceGrade');
 
   return (
@@ -672,7 +754,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
       title={mode === 'add' ? 'Add New Job Role' : 'Edit Job Role'}
       subtitle={
         mode === 'add'
-          ? 'Create a new career specification. New entries default to Draft.'
+          ? 'Create a new career specification.'
           : `Update the specification for ${entity?.jobRole || 'this role'}`
       }
       size="2xl"
@@ -681,13 +763,19 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="career-job-role-form" variant="primary" isLoading={mutation.isPending}>
+          <Button
+            type="submit"
+            form="career-job-role-form"
+            variant="primary"
+            disabled={!linksReady}
+            isLoading={mutation.isPending}
+          >
             Save Job Role
           </Button>
         </>
       }
     >
-      <form id="career-job-role-form" onSubmit={handleSubmit(onSubmit)}>
+      <form id="career-job-role-form" onSubmit={handleSubmit(onSubmit, onInvalid)}>
         <S.ModalScrollContainer>
           {/* Domain Hierarchy — read-only, never editable once entered */}
           <S.SectionBox>
@@ -736,6 +824,10 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
                 options={GRADE_OPTIONS}
                 error={errors.aiResilienceGrade?.message}
                 {...gradeReg}
+                // Select keeps its own display state, so without this it shows the
+                // placeholder instead of the form's value — the default on add, and the
+                // role's saved grade on edit (which then re-saves as something else).
+                value={watch('aiResilienceGrade')}
                 onChange={e => {
                   gradeReg.onChange(e);
                   setValue('aiResilienceComment', AI_RESILIENCE_COMMENTS[e.target.value] ?? '', {
@@ -743,7 +835,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
                   });
                 }}
               />
-              <Select label="Status" options={STATUS_OPTIONS} error={errors.status?.message} {...register('status')} />
             </S.FormGrid>
 
             <S.ResilienceCommentBox>
@@ -815,8 +906,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             searchFn={q => careerService.searchEntranceExams(q)}
             addButtonLabel="Add New Exam"
             emptyHint="No entrance exams linked yet. Search to add existing ones, or add a new exam."
-            capLimit={mode === 'add' ? COMPASS_CAP : undefined}
-            capNoun="exams"
             renderSubform={({ addNew: a, close }) => <ExamSubform addNew={a} close={close} />}
           />
 
@@ -843,8 +932,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             searchFn={q => careerService.searchInstitutions(q)}
             addButtonLabel="Add New Institution"
             emptyHint="No institutions linked yet. Search to add existing ones, or add a new institution."
-            capLimit={mode === 'add' ? COMPASS_CAP : undefined}
-            capNoun="institutions"
             renderSubform={({ addNew: a, close }) => <InstitutionSubform addNew={a} close={close} />}
           />
         </S.ModalScrollContainer>

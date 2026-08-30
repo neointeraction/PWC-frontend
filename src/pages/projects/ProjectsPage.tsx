@@ -319,13 +319,6 @@ export const ProjectsPage: React.FC = () => {
         title="Projects"
         subtitle="Manage institution projects and counselling initiatives"
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Projects' }]}
-        actions={
-          isViewOnlyUser ? undefined : (
-            <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
-              Add Project
-            </Button>
-          )
-        }
       />
 
       <StatsGrid>
@@ -368,6 +361,11 @@ export const ProjectsPage: React.FC = () => {
               }}
             />
           </div>
+          {!isViewOnlyUser && (
+            <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>
+              Add Project
+            </Button>
+          )}
         </FilterBar>
 
         <Table

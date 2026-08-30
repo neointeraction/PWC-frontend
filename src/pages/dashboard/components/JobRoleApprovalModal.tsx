@@ -3,8 +3,6 @@ import {
   RiAddLine,
   RiCheckLine,
   RiCloseLine,
-  RiAlertLine,
-  RiInformationLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -14,7 +12,6 @@ import { Checkbox } from '@/components/Checkbox';
 import { useToast } from '@/hooks';
 import {
   ModalScrollContainer,
-  CapWarningBanner,
   SectionBox,
   SectionTitle,
   FormGrid,
@@ -124,7 +121,6 @@ export const JobRoleApprovalModal: React.FC<JobRoleApprovalModalProps> = ({
   const [newExamWindow, setNewExamWindow] = useState('');
   const [newExamWebsite, setNewExamWebsite] = useState('');
 
-  const selectedExamsCount = examsList.filter(e => e.checked).length;
 
   const handleAddExam = () => {
     if (!newExamName.trim() && !newExamAbbr.trim()) return;
@@ -185,7 +181,6 @@ export const JobRoleApprovalModal: React.FC<JobRoleApprovalModalProps> = ({
   const [newInstRanking, setNewInstRanking] = useState('');
   const [newInstWebsite, setNewInstWebsite] = useState('');
 
-  const selectedInstCount = institutionsList.filter(i => i.checked).length;
 
   const handleAddInst = () => {
     if (!newInstName.trim() && !newInstAbbr.trim()) return;
@@ -451,18 +446,6 @@ export const JobRoleApprovalModal: React.FC<JobRoleApprovalModalProps> = ({
         <SectionBox>
           <SectionTitle>Entrance Exams</SectionTitle>
 
-          <CapWarningBanner $isOverCap={selectedExamsCount > 3}>
-            {selectedExamsCount > 3 ? (
-              <>
-                <RiAlertLine size={14} /> Selected: {selectedExamsCount} (Exceeds max recommended limit of 3 for Compass Report)
-              </>
-            ) : (
-              <>
-                <RiInformationLine size={14} /> Selected for Compass: {selectedExamsCount} / 3 recommended picks
-              </>
-            )}
-          </CapWarningBanner>
-
           <FieldLabel>Existing entries pulled from this Domain (Tick / Untick to include):</FieldLabel>
           <ExistingEntriesList>
             {examsList.map(item => (
@@ -690,18 +673,6 @@ export const JobRoleApprovalModal: React.FC<JobRoleApprovalModalProps> = ({
         {/* Institutions Section */}
         <SectionBox>
           <SectionTitle>Institutions</SectionTitle>
-
-          <CapWarningBanner $isOverCap={selectedInstCount > 3}>
-            {selectedInstCount > 3 ? (
-              <>
-                <RiAlertLine size={14} /> Selected: {selectedInstCount} (Exceeds max recommended limit of 3 for Compass Report)
-              </>
-            ) : (
-              <>
-                <RiInformationLine size={14} /> Selected for Compass: {selectedInstCount} / 3 recommended institutions
-              </>
-            )}
-          </CapWarningBanner>
 
           <FieldLabel>Existing entries pulled from this Domain (Tick / Untick to include):</FieldLabel>
           <ExistingEntriesList>

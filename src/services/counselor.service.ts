@@ -7,6 +7,18 @@ import {
   UpdateCounselorInput,
   ProjectDeploymentDetail,
 } from '@/types/counselor.types';
+import { getApiErrorMessage, normalizePhone } from '@/utils';
+
+// One import row that never made it in, with the reason to show the user.
+export interface BulkCreateFailure {
+  name: string;
+  reason: string;
+}
+
+export interface BulkCreateResult {
+  created: Counselor[];
+  failures: BulkCreateFailure[];
+}
 
 // ---- Backend counsellor shape (GET /counsellors — user + institute + projects) ----
 interface ApiCounsellor {
@@ -88,24 +100,30 @@ export const counselorService = {
       firstName,
       lastName,
       email: input.email,
-      mobile: input.mobile,
+      mobile: normalizePhone(input.mobile),
       counsellorCode: input.counselorId,
       ...(input.pwd ? { password: input.pwd } : {}),
     });
     return mapCounsellor(data.counsellor);
   },
 
-  // No bulk endpoint — sequential creates; a failing row (e.g. duplicate) is skipped.
-  async bulkCreate(inputs: CreateCounselorInput[]): Promise<Counselor[]> {
+  // No bulk endpoint — sequential creates. A failing row (duplicate email/mobile, bad
+  // format) is skipped rather than aborting the batch, but the reason is returned so the
+  // caller can tell the user which rows never made it in.
+  async bulkCreate(inputs: CreateCounselorInput[]): Promise<BulkCreateResult> {
     const created: Counselor[] = [];
+    const failures: BulkCreateFailure[] = [];
     for (const input of inputs) {
       try {
         created.push(await counselorService.create(input));
-      } catch {
-        // skip failed row; keep importing the rest
+      } catch (err) {
+        failures.push({
+          name: input.name || input.email || input.counselorId,
+          reason: getApiErrorMessage(err, 'Rejected by the server'),
+        });
       }
     }
-    return created;
+    return { created, failures };
   },
 
   async update(id: string, input: UpdateCounselorInput): Promise<Counselor> {

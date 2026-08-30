@@ -12,12 +12,12 @@ Institute (tenant)
  ├─ Counsellor ── ProjectCounsellor ─┐  │
  └─ Project (counselling cycle)     │  │
        ├─ Student ─────────────────┴──┘
-       ├─ CounsellorAvailability
+       ├─ CounsellorSlot
        └─ ProjectCounsellor
 
 Student
  ├─ User (1:1, role=STUDENT)
- ├─ Session (x2: SESSION_1, SESSION_2)
+ ├─ Session (x2: SESSION_1, SESSION_2) ── CounsellorSlot (1:1, the slot it consumed)
  ├─ FormSubmission (profile / pre-counselling / feedback)
  ├─ AssessmentAttempt → AssessmentResult
  ├─ CounsellorChart (1:1)
@@ -25,7 +25,7 @@ Student
 
 Counsellor
  ├─ User (1:1, role=COUNSELLOR)
- ├─ CounsellorAvailability (per project)
+ ├─ CounsellorSlot (per project — discrete bookable slots)
  ├─ ProjectCounsellor (assigned projects)
  ├─ Session (as the assigned counsellor)
  └─ CareerLibraryRequest (submitted by)
@@ -64,18 +64,88 @@ the base user yet).
 | firstName, lastName | String | |
 | isActive | Boolean | default true |
 | mustChangePassword | Boolean | default true; forces reset on first login (Student and Counsellor both get admin-generated temp passwords) |
+| lastLoginAt | DateTime? | null until the first successful password login; set on every `POST /auth/login` (token refreshes don't touch it). Backs the admin list's "Last Active" column |
 | createdAt, updatedAt | DateTime | |
 
 ### `RefreshToken`
-Hashed refresh tokens, one row per active session, revocable individually.
+Hashed refresh tokens, one row per active session, revocable individually. Written by
+`src/modules/auth/auth.service.ts` — `tokenHash` is a SHA-256 digest of the opaque
+random token handed to the client in an httpOnly cookie (the raw token itself is never
+persisted). `POST /auth/refresh` rotates: the presented token's row gets `revokedAt`
+set and a new row is created, so a stolen-then-reused refresh token fails on its second
+use. `POST /auth/logout` just sets `revokedAt` on the current row.
 
 | Field | Type | Notes |
 |---|---|---|
 | id | String (cuid) | PK |
-| tokenHash | String | unique |
+| tokenHash | String | unique, SHA-256 of the raw token |
 | userId | String | FK → User, cascade delete |
-| expiresAt | DateTime | |
-| revokedAt | DateTime? | null while active |
+| expiresAt | DateTime | `now() + JWT_REFRESH_EXPIRES_IN` at issue time |
+| revokedAt | DateTime? | null while active; set on refresh (rotation) or logout |
+
+### `PasswordResetToken`
+Hashed, single-use password-reset tokens for the forgot-password flow. Written by
+`src/modules/auth/auth.service.ts` — like `RefreshToken`, only the SHA-256 `tokenHash` is
+stored; the raw token lives only in the emailed `${APP_WEB_URL}/reset-password?token=...`
+link. `POST /auth/reset-password` consumes a row (sets `usedAt`); expired or already-used
+tokens are rejected. A password change or reset also revokes all of the user's
+`RefreshToken` rows.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | String (cuid) | PK |
+| tokenHash | String | unique, SHA-256 of the raw token |
+| userId | String | FK → User, cascade delete |
+| expiresAt | DateTime | `now() + PASSWORD_RESET_EXPIRES_IN` (default 1h) at issue time |
+| usedAt | DateTime? | null while unused; set when the token is consumed (single-use) |
+
+### `Cohort`
+Read-only lookup of counselling cohorts, to populate cohort dropdowns (`GET /cohorts`).
+Deliberately **decoupled** from the cohort-scoped content: `FormTemplate.cohort`,
+`AssessmentQuestion.cohort` and `AssessmentAttempt.cohort` stay plain strings that *match*
+`Cohort.code` by convention, **not** FKs — this avoids a large migration while there's a
+single cohort. Only `CLASS_9_10` exists today; managed via `prisma/seed.ts` (no CRUD API).
+Linking a `Project` (or `Student`) to a cohort is deferred until a second cohort is onboarded.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | String (cuid) | PK |
+| code | String | unique, e.g. `CLASS_9_10` — the join key to cohort-scoped content |
+| name | String | human label, e.g. "Class 9 & 10" |
+| isActive | Boolean | default true; `GET /cohorts` returns active only |
+| displayOrder | Int | default 0; dropdown ordering |
+
+### `Language`
+Read-only lookup of the language a project is delivered in, to populate the project-creation
+dropdown (`GET /languages`). `English` is seeded as the default (`isDefault: true`) and is the
+only row today; managed via `prisma/seed.ts` (no CRUD API). A `Project` references it via the
+nullable `languageId` FK — the service resolves the default on create, so new projects always
+carry a language (see `Project`).
+
+| Field | Type | Notes |
+|---|---|---|
+| id | String (cuid) | PK |
+| code | String | unique, BCP 47 / ISO 639-1, e.g. `en` |
+| name | String | human label, e.g. "English" |
+| isActive | Boolean | default true; `GET /languages` returns active only |
+| isDefault | Boolean | default false; exactly one row (English) is the default used when a project omits `languageId` |
+| displayOrder | Int | default 0; dropdown ordering |
+
+### `CodeSequence`
+Monotonic counters that back the human-readable entity codes: `Student.studentCode`
+(`S0001`), `Counsellor.counsellorCode` (`C0001`), `Project.code` (`P0001`). One row per
+entity type, keyed by `key` (`STUDENT` / `COUNSELLOR` / `PROJECT`); `value` is the last
+number issued. `nextCode()` (`src/common/utils/codeSequence.ts`) does an atomic
+row-locked increment and formats `${prefix}${zero-padded value}`. Callers pull the next
+code **inside the same `$transaction` as the entity create**, so a rolled-back create
+rolls back the increment too, keeping the sequence gap-free. The migration seeds each
+counter at the current row count. Padding is a minimum — numbers grow past it (`S10000`).
+
+| Field | Type | Notes |
+|---|---|---|
+| key | String | PK; `STUDENT` / `COUNSELLOR` / `PROJECT` |
+| value | Int | default 0; last number issued |
+| updatedAt | DateTime | auto |
 
 ### `Institute`
 The tenant. Onboarded by Super Admin.
@@ -101,10 +171,12 @@ A counselling cycle/cohort under an institute.
 | Field | Type | Notes |
 |---|---|---|
 | id | String (cuid) | PK |
+| code | String? | unique; auto-generated human-readable id, e.g. `P0001` (see `CodeSequence`). Nullable at the DB level (pre-code backfill / raw test fixtures), but the service always sets it on create, so API-created projects always carry one. |
 | instituteId | String | FK → Institute, cascade delete |
 | name | String | unique per institute |
 | fromDate, toDate | DateTime | cohort duration |
-| status | `ProjectStatus` enum | ACTIVE / CLOSED |
+| status | `ProjectStatus` enum | ACTIVE / CLOSED / DELETED (DELETED = reversible soft-delete via `DELETE` + `PATCH /:id/restore`; hidden from default listings) |
+| languageId | String? | FK → Language. Nullable at the DB level (pre-language backfill), but the service resolves the default (English) on create, so new projects always carry one. Future: admins pick another language at creation. |
 
 ### `Counsellor`
 Extends `User` (role=COUNSELLOR). Belongs to exactly one institute; assigned to
@@ -114,6 +186,7 @@ specific projects via `ProjectCounsellor`.
 |---|---|---|
 | id | String (cuid) | PK |
 | userId | String | FK → User, unique, cascade delete |
+| counsellorCode | String | unique; auto-generated login id, e.g. `C0001` (see `CodeSequence`), or a supplied legacy/import code |
 | instituteId | String | FK → Institute |
 | mobile | String | unique, E.164 |
 
@@ -121,16 +194,27 @@ specific projects via `ProjectCounsellor`.
 Join table: which counsellors are assigned to which project. Unique on
 `(projectId, counsellorId)`.
 
-### `CounsellorAvailability`
-Recurring weekly availability window, **scoped per project** — the same counsellor can
-have different hours on different projects.
+### `CounsellorSlot`
+Discrete, individually-bookable slot — **not** a recurring weekly pattern. Fed into the
+system **once**, at project creation, from the institute's counsellor-availability
+Excel sheet (`Counsellor ID, Counsellor Name, Date, Day, Time Slot, Start Time, End
+Time`), one row per bookable instance. Never added to afterward (single upload, ever —
+see `docs/session-scheduling-use-cases.md` resolved decisions #1 and B). A slot moves
+`OPEN → BOOKED` when a `Session` is created against it (`sessionId` set), and back to
+`OPEN` if that session is later cancelled or rescheduled off of it.
 
 | Field | Type | Notes |
 |---|---|---|
 | counsellorId | String | FK → Counsellor |
 | projectId | String | FK → Project |
-| daysOfWeek | `Weekday[]` | native Postgres array (MON..SUN) |
+| slotDate | Date | |
 | startTime, endTime | String | "HH:mm", 24h |
+| status | `SlotStatus` enum | OPEN / BOOKED |
+| sessionId | String? | FK → Session, unique — the session currently holding this slot |
+
+Unique on `(counsellorId, slotDate, startTime)`. This model replaced the earlier
+`CounsellorAvailability` (a recurring `daysOfWeek[] + startTime/endTime` rule), which
+didn't match the real flow.
 
 ### `Student`
 Extends `User` (role=STUDENT).
@@ -139,16 +223,17 @@ Extends `User` (role=STUDENT).
 |---|---|---|
 | id | String (cuid) | PK |
 | userId | String | FK → User, unique, cascade delete |
-| studentCode | String | unique; admin-generated login id, e.g. "CB1" |
+| studentCode | String | unique; auto-generated login id, e.g. `S0001` (see `CodeSequence`), or a supplied legacy/import code |
 | projectId | String | FK → Project, cascade delete |
 | divisionId | String | FK → InstituteDivision |
 | mobile | String | unique, E.164 |
 | whatsappNumber | String? | optional, only if different from mobile |
 | parentMobile | String | unique, E.164; primary contact for session links/notifications (Student Profile Form, Section A) |
 | parentEmail | String | unique; primary contact, same as above |
-| fatherName, fatherOccupation | String | Student Profile Form, Section B |
+| fatherName | String | Student Profile Form, Section B |
+| fatherOccupation | String? | optional (bulk imports may omit) |
 | fatherEmployer | String? | optional ("if applicable") |
-| motherName, motherOccupation | String | Student Profile Form, Section C |
+| motherName, motherOccupation | String? | Student Profile Form, Section C; optional (bulk imports may omit) |
 | motherEmployer | String? | optional ("if applicable") |
 | workflowStatus | `WorkflowStatus` enum | see lifecycle below |
 
@@ -175,8 +260,12 @@ SESSION_2_COMPLETED → COUNSELLOR_FEEDBACK → STUDENT_PARENT_FEEDBACK → CLOS
 ### `Session`
 One row per counselling session (max 2 per student: `SESSION_1`, `SESSION_2`).
 Session 1 is booked **blind** — the student picks an open slot without seeing whose it
-is, and `counsellorId` is derived from the slot owner at booking time. Session 2 must
-reuse the same `counsellorId` as Session 1 (enforced in the service layer, not the DB).
+is, and `counsellorId` is derived from the slot owner at booking time (first-available
+`CounsellorSlot` matching the picked date/time, in upload/creation order — see
+`docs/session-scheduling-use-cases.md` resolved decision A). Session 2 must reuse the
+same `counsellorId` as Session 1, and every future reschedule of either session keeps
+that same counsellor (enforced in the service layer via `CounsellorSlot`, not a DB
+constraint).
 
 | Field | Type | Notes |
 |---|---|---|
@@ -186,6 +275,9 @@ reuse the same `counsellorId` as Session 1 (enforced in the service layer, not t
 | scheduledDate | Date | |
 | startTime, endTime | String | "HH:mm" |
 | status | `SessionStatus` enum | SCHEDULED / COMPLETED / RESCHEDULED / CANCELLED |
+| meetingLink | String? | plain opaque string — pasted manually (Admin/Counsellor); no Calendly/Google Meet integration yet. Also what's emailed to the parent (same link, no separate access control). |
+| studentJoinedAt, counsellorJoinedAt | DateTime? | set on the "Join Now" click, not just on window entry |
+| studentNoShow, counsellorNoShow | Boolean | lazily reconciled on read once `endTime` has passed with no matching join timestamp — see "Deliberate scope gaps" |
 | notes | String? | counsellor's session notes/agenda |
 | cancellationReason | `CancellationReason`? | STUDENT_UNAVAILABLE / COUNSELLOR_UNAVAILABLE / INSTITUTION_REQUEST / OTHER |
 | cancellationNotes | String? | free text |
@@ -193,27 +285,59 @@ reuse the same `counsellorId` as Session 1 (enforced in the service layer, not t
 
 Unique constraints: `(studentId, sessionNumber)` — a student can't double-book the same
 session number; `(counsellorId, scheduledDate, startTime)` — prevents double-booking a
-counsellor's slot.
+counsellor's slot. Also has a 1:1 back-reference from `CounsellorSlot.sessionId`, the
+slot this session currently holds (released back to `OPEN` on cancel/reschedule).
+
+"Join Now" stays active from 10 minutes before `startTime` through `endTime` — a party
+can join late, any time up to the scheduled end (resolved decision E).
+
+### `CareerCluster` / `CareerIndustry` / `CareerDomain` — career taxonomy
+Admin-managed 3-level classification hierarchy (Cluster → Industry → Domain), seeded from the
+workbook's distinct values (13 clusters / 43 industries / 571 domains) and editable via the
+`/api/v1/career-taxonomy/*` endpoints. A `CareerLibraryEntry` points at its leaf `CareerDomain`.
+
+| Model | Key fields | Notes |
+|---|---|---|
+| `CareerCluster` | `name`, `deletedAt?` | top level; `name` unique among live rows |
+| `CareerIndustry` | `clusterId` (FK), `name`, `deletedAt?` | belongs to one cluster; `(clusterId, name)` unique among live rows |
+| `CareerDomain` | `industryId` (FK), `name`, `deletedAt?` | belongs to one industry; `(industryId, name)` unique among live rows. Domain **names repeat across industries** (e.g. "Academia" under several), so uniqueness is per-industry. Also owns the domain's Education Path (`DomainEducationEntry`, below) |
+
+- **Soft delete**: `deletedAt` (null = live). Deleting hides a node from the pickers/tree but keeps
+  its FK intact, so job roles that still reference it keep resolving; restorable via
+  `POST .../restore`. Name uniqueness is enforced in the service layer over live rows only (not a DB
+  constraint — a partial unique index can't be expressed in the Prisma schema without being flagged
+  as drift), so a soft-deleted name can be reused.
+- **Ids** may be cuid (app/seed-created) or uuid (rows backfilled by the `normalize_career_taxonomy`
+  migration via `gen_random_uuid()`).
 
 ### `CareerLibraryEntry`
-Central, PWC-owned career database. Populated from `Career Library_Updated_0508.xlsx`
-("CL" tab) — 1,317 rows imported via `scripts/export-career-library.py` +
-`prisma/seed-data/career-library/`. See "Career Library workbook import" below for
-the full import design and cross-table mapping.
+Central, PWC-owned career database. The "CL" tab is now imported from
+`docs/Career Library_Updated_1808.xlsx` — 1,317 rows via
+`scripts/export-career-library.py` + `prisma/seed-data/career-library/` (the 1808
+workbook added the yellow columns: `roleOverview`, `keySkills`,
+`qualification10th12thExplanation`, and the `*Defined` qualification variants). The
+reference tabs (UG/PG institutions, exams, courses) are imported from the same 1808
+workbook. See "Career Library workbook import" below for the full import design and
+cross-table mapping.
 
 | Field | Type | Notes |
 |---|---|---|
-| cluster, industry, domain, jobRole | String | classification |
+| domainId | String (FK → `CareerDomain`) | leaf of the normalized Cluster → Industry → Domain taxonomy; cluster/industry are derived by walking up the relations (was three free-text `cluster`/`industry`/`domain` columns before the `normalize_career_taxonomy` migration) |
+| jobRole | String | the career's title |
 | aiResilienceGrade | `AiResilienceGrade` enum | LOW / MEDIUM / HIGH / VERY_HIGH (source only uses the first three) |
 | aiResilienceComment | String | justifies the grade |
 | oneLineDescription | String | |
+| roleOverview | String? | longer-form role write-up (yellow "Role Overview & Scope" column added in the 1808 workbook) |
+| keySkills | String[] | key skill requirements (yellow "Key Skill Requirements" column; comma-separated in the source, split to a list) |
 | topCompanies | String[] | tag-style multi-value |
 | salaryIndiaRangeText | String? | raw source text, e.g. "₹6–25 LPA" (kept — source has non-numeric ranges like "0–Limitless") |
 | salaryIndiaMinLPA, salaryIndiaMaxLPA | Float? | best-effort parse of the above; null when unparseable |
 | salaryGlobalRangeText | String? | raw source text, e.g. "$70k–$160k" |
 | salaryGlobalMinUSD, salaryGlobalMaxUSD | Float? | best-effort parse (in USD, not $k); null when unparseable |
 | qualification10th12th | String | required |
+| qualification10th12thExplanation | String? | the "10+2 Explanation" note (yellow column) accompanying the 10th/12th qualification |
 | qualificationGraduation, qualificationPG | String? | source has 3 distinct qualification levels, not 1 |
+| qualificationGraduationDefined, qualificationPGDefined | String? | cleaned/normalized "DEFINED" variants of the graduation/PG qualifications (yellow columns added in the 1808 workbook) |
 | entranceExamsUGDescription | String? | full descriptive text from the source |
 | entranceExams | String[] | UG level, cleaned/short exam names — join key against `UgEntranceExam.examName` |
 | entranceExamsPG | String[] | PG level |
@@ -239,18 +363,21 @@ before becoming a permanent `CareerLibraryEntry`.
 
 ### Career Library workbook import — UG/PG reference tables
 
-`Career Library_Updated_0508.xlsx` has 8 tabs; the last (`Post-12_Entrance_Exams__India__`)
+`docs/Career Library_Updated_1808.xlsx` has 8 tabs; the last (`Post-12_Entrance_Exams__India__`)
 is out of scope per instruction and was not imported. The other 7 tabs each map to
 exactly one table — no FK relations to `CareerLibraryEntry` or to each other; they're
-matched **by value** at query time, not by foreign key:
+matched **by value** at query time, not by foreign key. (All tabs, including the UG/PG
+reference tables, are now sourced from the 1808 workbook; note its `UG Institutions_IND`
+tab dropped the "Programmes Offered After Class 12" and "Key Programmes Offered" columns,
+so `UgInstitution.programmesOfferedAfterClass12` / `keyProgrammesOffered` are now null.)
 
 | Workbook tab | Table | Rows | Join key → `CareerLibraryEntry` |
 |---|---|---|---|
 | CL | `CareerLibraryEntry` | 1,317 | (the hub table) |
-| UG Institutions_IND | `UgInstitution` | 702 | `industry` ↔ `CareerLibraryEntry.industry` |
+| UG Institutions_IND | `UgInstitution` | 702 | `industry` ↔ entry's `domain.industry.name` |
 | UG Inst+Uty_IND | `UgInstitutionUniversity` | 34 | none (general directory, not industry-mapped) |
 | UG Entrance_IND | `UgEntranceExam` | 109 | `examName` ↔ `CareerLibraryEntry.entranceExams` (UG, extracted) |
-| UG Courses_IND | `UgCourse` | 67 | `careerCluster` ↔ `CareerLibraryEntry.cluster` |
+| UG Courses_IND | `UgCourse` | 67 | `careerCluster` ↔ entry's `domain.industry.cluster.name` |
 | PG Institutions_IND | `PgInstitution` | 1,368 | none (not requested; `industry` field kept but unmapped) |
 | PG Entrance_IND | `PgEntranceExam` | 29 | none (not requested) |
 
@@ -279,10 +406,61 @@ corrected in the export script (`INDUSTRY_ALIASES`, `EXAM_ALIASES` in
   where `UG Entrance_IND` names the exam `"CUET UG"` — normalized to `"CUET UG"` on
   import.
 
-After these fixes, mapping coverage is 100%: every `CareerLibraryEntry.industry` value
+After these fixes, mapping coverage is 100%: every entry's `domain.industry.name` value
 has at least one matching `UgInstitution` row, every extracted UG exam token matches a
-`UgEntranceExam.examName`, and every `CareerLibraryEntry.cluster` value matches at
-least one `UgCourse.careerCluster`.
+`UgEntranceExam.examName`, and every entry's `domain.industry.cluster.name` value matches at
+least one `UgCourse.careerCluster`. (The `industry`/`cluster` names are now read through the
+normalized taxonomy relations rather than free-text columns on the entry.)
+
+### Career Library normalization — canonical lookups + join tables
+
+Layered on top of the value-match directories above, so the client can **select existing
+or add new** exams/courses/colleges per job role (full design:
+`docs/career-library-normalization-spec.md`). Deduped canonical lookups —
+`EntranceExam`/`Course` (`@@unique([name, level])`, `QualificationLevel` = UG/PG) and
+`Institution` (`name @unique`) — are seeded from the `Ug*`/`Pg*` directories + entries'
+arrays. Careers link to them many-to-many via `CareerEntranceExam` / `CareerCourse` /
+`CareerInstitution` (composite PK, cascade). Backfill (`prisma/seed-data/career-library/
+normalize.ts`, run after the import in `prisma/seed.ts`): exams/courses from each entry's
+`String[]` columns, colleges from the entry's industry match. The old `String[]` columns
+(`entranceExams`, `entranceExamsPG`, `topCourses`) are kept and **dual-written** during
+the transition, to be dropped in a later migration.
+
+Each canonical lookup also carries the detail an admin's "add new" form collects, so a
+hand-added row is as complete as an imported one (columns mirror the raw `Ug*` tables):
+
+| Model | Detail columns (all nullable) |
+|---|---|
+| `EntranceExam` | `fullForm`, `conductingBody`, `officialWebsite`, `examMode`, `frequency`, `applicableFor`, `subjectRequirements12th`, `applicationWindow` |
+| `Course` | `fullForm`, `durationYears`, `stream12thRequirements`, `relevantEntranceExams`, `programmesOffered`, `topColleges`, `furtherStudyOptions` |
+| `Institution` | `shortName`, `city`, `state`, `type`, `website`, `entranceExamsRequired`, `programmesOffered`, `ranking` |
+
+A course's "relevant entrance exams" / "top colleges" stay **free text**, deliberately: a
+course is reference data, not a second place to curate per-career links. When an inline
+"add new" names a row that already exists, only **blank** columns are filled — canonical
+rows are shared across job roles, so linking one must never overwrite another role's data.
+
+### `DomainEducationEntry` / `CareerEducationEntry` — Education Path
+
+The qualifications/programmes that lead into a career domain. Held at the **domain** level,
+not per job role, so every role in a domain shows the same tick-list and a programme added
+while creating one role is inherited by every future role there.
+
+| Model | Key fields | Notes |
+|---|---|---|
+| `DomainEducationEntry` | `domainId` (FK), `level` (`EducationPathLevel`), `programme`, `description?`, `deletedAt?` | `(domainId, level, programme)` unique among live rows, enforced in the service (same reason as the taxonomy) |
+| `CareerEducationEntry` | `careerEntryId` + `educationEntryId` (composite PK, cascade) | many-to-many; which of the domain's path entries this job role uses |
+
+`EducationPathLevel` = `CLASS_10_PLUS_2` \| `GRADUATE` \| `POST_GRADUATE` \|
+`CERTIFICATION_STUDENT` \| `CERTIFICATION_UG`.
+
+- **Soft delete**, like the taxonomy: a deleted entry leaves the domain's picker but stays
+  linked, so job roles already using it keep rendering it.
+- The flat `qualification10th12th` / `qualificationGraduation` / `qualificationPG` /
+  `certificationsStudent` / `certificationsUG` fields on `CareerLibraryEntry` are **not**
+  dual-written from this table, unlike the exam/course normalization. They hold descriptive
+  prose from the source workbook rather than a list, so there is nothing to derive — the two
+  layers coexist until the workbook prose is retired.
 
 ### Forms — `FormTemplate` / `FormQuestion` / `FormSubmission` / `FormAnswer`
 
@@ -324,35 +502,67 @@ date, parent name) are **not** stored as `FormQuestion`/`FormAnswer` rows — th
 derivable from `FormSubmission.studentId` / `submittedAt` and the student's assigned
 counsellor, so storing them again would be redundant.
 
+**Feedback scoring** (Counsellor Satisfaction Score) adds **no tables** — it's derived
+on demand from the submitted `FEEDBACK_STUDENT` / `FEEDBACK_PARENT` submissions by
+`src/modules/feedback/` (methodology: `docs/10…Feedback Form_Rating Methodology.pdf`).
+Each form's sections are identified by their question `fieldKey` prefix (`sse_`→S-SE,
+`scd_`→S-CD, …, `prc_`→P-RC); section % = (avg ÷ 5) × 100, weighted per section, then
+student 80% / parent 20%. A student's Final Score % requires **both** forms submitted;
+the counsellor's Overall Score % averages the Final Score % of their complete-pair
+students (linked via `Session`). Nothing is persisted — recomputed each request.
+
 ### Assessment — `AssessmentQuestion` / `AssessmentAttempt` / `AssessmentAnswer` / `AssessmentResult`
 
 Real content is seeded for cohort `CLASS_9_10` (`prisma/seed-data/assessment/class9to10.ts`):
 73 questions across four sections — RIASEC interest inventory (24, Likert), Big Five
 personality (20, Likert), Aptitude reasoning (20, single-correct MCQ with
-difficulty/weight), and Cognitive & Decision Style (9, Likert). PWC's proprietary
-scoring/weighting logic for trait aggregation and career-stream mapping is still
-pending — only the per-question `weight` and `difficulty` tags present in the source
-form are captured.
+difficulty/weight), and Cognitive & Decision Style (9, Likert). The aptitude
+`correctOption` answer key is seeded from the official questionnaire PDF, so attempts
+are auto-scored on submit.
 
-**`correctOption` is intentionally left unset for every aptitude question.** The source
-form doesn't mark correct answers, and guessing them would silently bake a possibly-wrong
-answer key into real student scoring — PWC needs to supply/confirm the official key
-before these can be auto-graded.
+**Scoring engine** (`src/modules/assessment/scoring/`): a set of pure functions run on
+submit. Trait % scoring, grading bands, tie-breaks and profile flags per the Assessment
+Tool Construct; Dominant Career Style (top-3 RIASEC → 1 of 120 codes) and Dominant
+Personality Style (top-2 Big Five → 1 of 20 codes); Stream Fit (weighted match against
+Class 11&12 sub-streams); and the reliability measures (Difficulty Consistency, ACI,
+ORI, RVS); Stream Fit; Graduation Pathways; and Career Fit. The lookup/weight tables and
+code-style descriptions are generated from the Traits & Weightages workbook by
+`scripts/export-assessment-scoring.py` into `scoring/data/*.ts` (bundled as TS so they
+compile into `dist` for runtime — they are scoring config, not queryable reference
+data). RVS uses the confirmed "sum" aggregation (`100 − Σ per-pair penalties`) so the
+grade bands are reachable.
+
+Career Fit ranks at the **domain** level: the workbook's "Domain Wtg" sheet is keyed by
+`(industry, domain)` — 40 industries carry a single "All Domains" row, while Defence /
+Merchant Navy / Entrepreneurship enumerate specific domains (a few of those rows sum to
+85-95, so the engine normalizes by weight total). Each career-library domain resolves its
+weights as exact `(industry, domain)` → industry "All Domains" → industry average. The
+top 6 industries' best domains become the career cards, one representative career each
+(highest AI-resilience). Graduation Pathways applies the same weighted method to the
+`Graduate_Streams` sheet (72 options, all summing to 100). **Deferred pending PWC
+sign-off**: only Time-Consistency + composite ARI (need per-question timing). See the
+"unresolved" list below.
 
 - `AssessmentQuestion`: `cohort, section` (`AssessmentSection`: RIASEC / BIG_FIVE /
   APTITUDE / COGNITIVE), `questionCode, fieldKey, questionText, format`
   (`AssessmentQuestionFormat`: LIKERT_5 / MCQ_SINGLE), `options` (Json, MCQ_SINGLE only),
   `trait, traitCode` (e.g. "REALISTIC"/"R1", "NUMERICAL"/"NR1"), `difficulty`
-  (aptitude only), `weight`, `correctOption` (aptitude only, currently unset). Unique on
+  (aptitude only), `weight`, `correctOption` (aptitude only). Unique on
   `(cohort, fieldKey)` and on `(cohort, order)` — same reasoning as `FormQuestion`: a
   future cohort (e.g. Class 11-12, with its own question count per the FSD) gets its
-  own `cohort` value and its own independent order sequence.
+  own `cohort` value and its own independent order sequence. Reverse-keyed items and
+  RVS mirror pairs are held in the scoring config, not on the row (a question can be in
+  more than one mirror pair).
 - `AssessmentAttempt`: one per student attempt, `status` (IN_PROGRESS / SUBMITTED),
   `startedAt, submittedAt`.
 - `AssessmentAnswer`: one per `(attemptId, questionId)`, `selectedOption` as Json (a
-  Likert value 1-5, or an MCQ option letter).
-- `AssessmentResult`: 1:1 with an attempt, `traitScores` (Json map of trait → score),
-  `recommendedStreams` (String[]), `summary`.
+  Likert value 1-5, or an MCQ option letter), plus optional `timeTakenMs` (per-question
+  elapsed time; feeds the aptitude Time-Consistency measure once the frontend sends it).
+- `AssessmentResult`: 1:1 with an attempt. `traitScores` (Json flat map trait → 0-100),
+  `report` (Json — the full computed report: layer scores + grades, DCS/DPS, Stream Fit,
+  reliability dashboard), `recommendedStreams` (String[], Stream Fit top-3),
+  `dominantCareerStyle` / `dominantPersonalityStyle` (denormalized style labels),
+  `engineVersion`, `summary`.
 
 ### `CounsellorChart`
 Auto-generated on assessment completion (aggregating pre-counselling + parent
@@ -363,11 +573,23 @@ sessions. 1:1 with `Student`.
 |---|---|---|
 | strengths, hobbies | String[] | counsellor-edited during sessions |
 | careerShortlist | String[] | narrowed from 6 → 2 across Session 1 → Session 2 |
-| rawData | Json | snapshot of pre-counselling + parent + assessment data |
-| lastEditedBy | String? | Counsellor id |
+| rawData | Json? | optional snapshot; the chart is assembled live on GET, not from here |
+| scri* (6 indicators) + scriTotal/scriBand/scriBandLabel | Int?/String? | Student Career Readiness Index — each indicator 1–4; total/band/label derived on save |
+| academicTrend | `AcademicTrend`? | IMPROVING / STABLE / DECLINING / NOT_ASSESSED |
+| alignmentRating | `AlignmentRating`? | Academic × Career alignment |
+| finalizedAt | DateTime? | set on finalize (advances workflow to `COUNSELLOR_FEEDBACK`) |
+| lastEditedBy | String? | Counsellor id (audit stamp, not an FK) |
 
-Exact editable field shape is provisional — pending the actual Counsellor Chart
-template from PWC.
+`CounsellorChartNote` (child, `@@unique([chartId, code])`) holds one synthesis note per
+section code (`A1`..`H4`). The chart is **assembled live** by `src/modules/counsellor-chart/`
+(profile + both pre-counselling forms side-by-side + assessment result + flagged mirror
+pairs); only the counsellor-authored fields above are persisted.
+
+**Mirror-pair amendments** write to `AssessmentAnswer.counsellorOverrideOption`
+(`+ overriddenByCounsellorId/overriddenAt`), preserving the student's original
+`selectedOption`. Scoring uses `override ?? selectedOption`, so an amendment re-runs the
+whole engine and updates the `AssessmentResult` — the counsellor's change affects the
+actual results, not just RVS.
 
 ### `Report`
 Generated PDF outputs. One student can have multiple report rows (different
@@ -383,32 +605,44 @@ audiences).
 
 ## Deliberate scope gaps (not modeled yet)
 
-- **Assessment scoring/weighting logic** — PWC's proprietary rules for turning trait
-  scores into recommended career streams aren't supplied; `AssessmentResult.traitScores`
-  /`recommendedStreams` exist as storage but nothing computes them yet. Aptitude
-  `correctOption` is also unset for the same reason (see Assessment section above).
+- **Assessment scoring — deferred components.** The core engine ships (see Assessment
+  section above), but four report pieces await PWC confirmation and are `null`/omitted
+  until then: **Time-Consistency + composite ARI** — needs per-question `timeTakenMs`
+  from the frontend; the field and engine hook exist and activate automatically once
+  timing arrives. Everything else in the report is live. Two interpretation calls,
+  confirmed with PWC and documented in code: (a) RVS uses "sum" aggregation (the
+  Construct's "average" wording would make the lower grade bands unreachable); (b) a
+  Difficulty-Consistency clean sweep is treated as non-penalized (a perfect aptitude
+  pattern isn't one of the 6 "unusual" signatures). Career Fit ranks at domain level and
+  normalizes the few non-100 weight rows.
 - **Institution subscription fields** (renewal date, seats, career-library-sync status)
   — mentioned in the functional spec but no concrete field list supplied yet.
 - **Notification log** — email/reminder delivery isn't persisted; sending is treated as
   a side effect, not a DB record, for now.
 - **Audit log** (chart edits, report access, admin approvals) — a cross-cutting
   security requirement from the spec, not yet modeled as a table.
-- **Slot materialization** — `Session` booking is blind (counsellor derived from the
-  chosen slot), but available slots are computed on the fly from
-  `CounsellorAvailability` minus existing `Session` rows, rather than a persisted slot
-  inventory table.
+- **No-show reconciliation timing** — `studentNoShow`/`counsellorNoShow` are set
+  lazily, on the next read of a session after its `endTime` has passed with no
+  matching join timestamp, rather than by a background job. Functionally equivalent
+  for a UI that reads sessions on every dashboard load, but the flag won't flip until
+  something reads that session again.
+- **Real meeting-link generation** — `Session.meetingLink` is a plain opaque string,
+  populated manually. No Calendly/Google Meet integration exists.
+- **Session-scheduling role checks** — the Sessions API has no auth/role enforcement
+  yet (matches the rest of the app); `role`/`initiatedBy` are trusted request body
+  fields, not derived from an authenticated caller.
 
-## Known conflicts between source documents (unresolved)
+## Known conflicts between source documents (resolved)
 
 These came from comparing the original Functional Specification Document against the
-later Prompt Engineering Doc — flagged for confirmation, not yet reflected as a schema
-decision either way:
+later Prompt Engineering Doc — resolved via a direct walkthrough with the user on
+2026-08-06 (see `docs/session-scheduling-use-cases.md` for the full resolution log) and
+now reflected in the `CounsellorSlot`/`Session` schema and the Sessions module:
 
-1. **Session booking flow**: earlier doc describes truly blind booking with the
-   counsellor assigned from the slot; a later wireframe shows the counsellor already
-   named before slot selection, with Session 1 and Session 2 picked together in one
-   step. Current schema/service assumes blind booking (see above) — confirmed via a
-   direct question, but the wireframe still visually contradicts it.
+1. **Session booking flow**: confirmed **blind** — the student never sees the
+   counsellor; `counsellorId` is derived from the first-available slot matching their
+   date/time pick. Session 1 and Session 2 are booked together in one atomic flow, and
+   Session 2 is locked to Session 1's counsellor with a minimum 2-calendar-day gap.
 2. **Report/download gating**: one doc gates report *generation* on both student and
    parent feedback; another gates only the *download* action on parent feedback
    specifically, with no mention of student feedback gating anything.

@@ -30,30 +30,6 @@ export const NoteBanner = styled.div`
   }
 `;
 
-export const CapWarningBanner = styled.div<{ $isOverCap: boolean }>`
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-
-  ${({ $isOverCap }) =>
-    $isOverCap
-      ? `
-    background-color: #FEE2E2;
-    color: #DC2626;
-    border: 1px solid #FECACA;
-  `
-      : `
-    background-color: #ECFDF5;
-    color: #059669;
-    border: 1px solid #A7F3D0;
-  `}
-`;
-
 export const SectionBox = styled.div`
   display: flex;
   flex-direction: column;

@@ -162,15 +162,61 @@ const institutionOptionLabel = (i: ApiNormalizedInstitution): string =>
 
 // ---- Write payloads (create/update a job-role entry) ----
 
-// Each link item either references an existing row by `id` or adds a new one by `name`
-// (the backend upserts). `level` (UG|PG) is required for an exam added by name.
-export interface CareerEntryLinkItem {
-  id?: string;
-  name?: string;
+// Each link item either references an existing canonical row by `id` or adds a new one by
+// name (find-or-create). A by-name item carries the full canonical field set; on a name
+// that already exists the backend fills only still-blank columns, so an inline add never
+// overwrites reference data another job role shares. Unrecognised keys are silently
+// stripped server-side, so these names must match the API exactly.
+export interface CareerEntryLinkRef {
+  id: string;
+}
+
+// `name` is the abbreviation ("NID DAT") and `fullForm` the expansion — the pair is what
+// `@@unique([name, level])` matches on, so sending the long title as `name` would create a
+// duplicate row instead of finding the seeded one.
+export interface CareerEntryExamInput {
+  name: string;
+  level: 'UG' | 'PG';
+  fullForm?: string;
+  conductingBody?: string;
+  officialWebsite?: string;
+  examMode?: string;
+  frequency?: string;
+  applicableFor?: string;
+  subjectRequirements12th?: string;
+  applicationWindow?: string;
+}
+
+// Same abbreviation-as-`name` convention as exams ("B.Des" + "Bachelor of Design").
+export interface CareerEntryCourseInput {
+  name: string;
   level?: 'UG' | 'PG';
+  fullForm?: string;
+  durationYears?: string;
+  stream12thRequirements?: string;
+  relevantEntranceExams?: string;
+  programmesOffered?: string;
+  topColleges?: string;
+  furtherStudyOptions?: string;
+}
+
+// Inverted from exams/courses: `name` is the full institution name (it is unique on its
+// own) and the abbreviation goes in `shortName`.
+export interface CareerEntryInstitutionInput {
+  name: string;
+  shortName?: string;
   city?: string;
   state?: string;
+  type?: string;
+  website?: string;
+  entranceExamsRequired?: string;
+  programmesOffered?: string;
+  ranking?: string;
 }
+
+export type CareerEntryExamItem = CareerEntryLinkRef | CareerEntryExamInput;
+export type CareerEntryCourseItem = CareerEntryLinkRef | CareerEntryCourseInput;
+export type CareerEntryInstitutionItem = CareerEntryLinkRef | CareerEntryInstitutionInput;
 
 // Normalized option for the add/edit job-role linked-reference pickers (typeahead
 // results and an entry's currently-linked records). `id` identifies an existing
@@ -187,27 +233,29 @@ export interface CareerEntryPayload {
   aiResilienceGrade: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
   aiResilienceComment: string;
   oneLineDescription: string;
-  roleOverview?: string;
+  roleOverview?: string | null;
   keySkills?: string[];
   topCompanies?: string[];
-  salaryIndiaRangeText?: string;
-  salaryIndiaMinLPA?: number;
-  salaryIndiaMaxLPA?: number;
-  salaryGlobalRangeText?: string;
-  salaryGlobalMinUSD?: number;
-  salaryGlobalMaxUSD?: number;
+  salaryIndiaRangeText?: string | null;
+  // Nullable: the entry mapper prefers these imported numeric columns over the text
+  // range, so an edit that only changes the text has to clear them explicitly.
+  salaryIndiaMinLPA?: number | null;
+  salaryIndiaMaxLPA?: number | null;
+  salaryGlobalRangeText?: string | null;
+  salaryGlobalMinUSD?: number | null;
+  salaryGlobalMaxUSD?: number | null;
   qualification10th12th: string;
-  qualification10th12thExplanation?: string;
-  qualificationGraduation?: string;
-  qualificationGraduationDefined?: string;
-  qualificationPG?: string;
-  qualificationPGDefined?: string;
-  entranceExamsUGDescription?: string;
+  qualification10th12thExplanation?: string | null;
+  qualificationGraduation?: string | null;
+  qualificationGraduationDefined?: string | null;
+  qualificationPG?: string | null;
+  qualificationPGDefined?: string | null;
+  entranceExamsUGDescription?: string | null;
   certificationsStudent?: string[];
   certificationsUG?: string[];
-  entranceExams?: CareerEntryLinkItem[];
-  courses?: CareerEntryLinkItem[];
-  institutions?: CareerEntryLinkItem[];
+  entranceExams?: CareerEntryExamItem[];
+  courses?: CareerEntryCourseItem[];
+  institutions?: CareerEntryInstitutionItem[];
   status?: 'DRAFT' | 'ACTIVE';
 }
 

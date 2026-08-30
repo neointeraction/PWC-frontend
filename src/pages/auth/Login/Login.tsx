@@ -14,6 +14,7 @@ import { ROUTES } from '@/constants';
 import { LoginPayload } from '@/types';
 import designDestinyLogo from '@/assets/design-destiny.png';
 import kreateLogo from '@/assets/logo.jpg';
+import { getApiErrorMessage } from '@/utils';
 import {
   LoginWrapper,
   LeftBannerSection,
@@ -131,9 +132,7 @@ export const LoginPage: React.FC = () => {
             <LoginForm onSubmit={handleSubmit(data => mutation.mutate(data))} noValidate>
               {mutation.isError && (
                 <ErrorAlert role="alert">
-                  {mutation.error instanceof Error
-                    ? mutation.error.message
-                    : 'An error occurred. Please try again.'}
+                  {getApiErrorMessage(mutation.error, 'Unable to sign in. Please try again.')}
                 </ErrorAlert>
               )}
 

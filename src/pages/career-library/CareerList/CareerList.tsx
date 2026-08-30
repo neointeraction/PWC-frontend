@@ -97,18 +97,37 @@ export const CareerListPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   // A taxonomy/entry write can change any level, so refresh every career query.
-  const invalidateCareer = () => {
-    [
-      'clusters',
-      'clusters-all',
-      'industries',
-      'industries-all',
-      'domains',
-      'domains-all',
-      'jobRoles',
-      'jobRoles-all',
-      'careerDetail',
-    ].forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
+  // `refetchType: 'all'` matters: most of these queries are gated by `enabled` (level /
+  // viewMode), and the default `'active'` only refetches the ones currently switched on —
+  // the rest stay marked stale but keep serving their old data the moment they come back.
+  const invalidateCareer = () =>
+    Promise.all(
+      [
+        'clusters',
+        'clusters-all',
+        'industries',
+        'industries-all',
+        'domains',
+        'domains-all',
+        'jobRoles',
+        'jobRoles-all',
+        'careerDetail',
+        // The edit modal's own link-list fetch — without this a save is followed by a
+        // stale re-seed, and re-saving would restore links the user just removed.
+        'career-entry-detail',
+      ].map(key => queryClient.invalidateQueries({ queryKey: [key], refetchType: 'all' }))
+    );
+
+  // Put a newly-created role on screen straight away rather than waiting on the refetch
+  // that follows — the POST response is the assembled entry, so it is already everything
+  // the list row needs. The invalidation right after reconciles it with the server.
+  const handleRoleSaved = (saved: Career, savedMode: 'add' | 'edit') => {
+    if (savedMode === 'add' && selectedDomain) {
+      queryClient.setQueryData<Career[]>(['jobRoles', selectedDomain.id, searchQuery], prev =>
+        prev ? (prev.some(r => r.id === saved.id) ? prev : [...prev, saved]) : [saved]
+      );
+    }
+    invalidateCareer();
   };
 
   const deleteMutation = useMutation({
@@ -526,7 +545,7 @@ export const CareerListPage: React.FC = () => {
       <JobRoleFormModal
         isOpen={Boolean(roleModal)}
         onClose={() => setRoleModal(null)}
-        onSaved={invalidateCareer}
+        onSaved={handleRoleSaved}
         mode={roleModal?.mode ?? 'add'}
         entity={roleModal?.entity}
         domainId={selectedDomain?.id}

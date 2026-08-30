@@ -26,6 +26,7 @@ interface ProjectActions {
 const emptyInstituteDetails: InstituteDetails = {
   name: '',
   email: '',
+  location: '',
   phone: '',
   validFrom: '',
   validTo: '',

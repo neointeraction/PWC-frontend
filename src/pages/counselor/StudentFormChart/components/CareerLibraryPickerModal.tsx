@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { RiSearchLine, RiAddLine } from 'react-icons/ri';
+import { RiSearchLine, RiAddLine, RiInformationLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -10,10 +10,17 @@ import { Checkbox } from '@/components/Checkbox';
 import { mockCareers, mockClusters } from '@/mocks/careers.mock';
 import { CareerCompassItem } from '@/mocks/studentFormChart.mock';
 
+// The Compass Report only ever prints the counsellor's top picks, so the chart is
+// flagged past this many roles. Advisory only — never blocks adding more.
+const COMPASS_RECOMMENDED = 3;
+
 interface CareerLibraryPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddRoles: (roles: CareerCompassItem[]) => void;
+  // Roles already on the chart, so the hint reflects the real total rather than just
+  // this session's selection.
+  existingCount?: number;
 }
 
 const FilterHeaderRow = styled.div`
@@ -90,6 +97,27 @@ const RoleMetaRow = styled.div`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
+const CompassHint = styled.div<{ $overRecommended: boolean }>`
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  background-color: ${({ $overRecommended, theme }) =>
+    $overRecommended ? theme.colors.warningLight : theme.colors.surfaceHover};
+  color: ${({ $overRecommended, theme }) =>
+    $overRecommended ? theme.colors.warning : theme.colors.textSecondary};
+  border: 1px solid ${({ $overRecommended, theme }) =>
+    $overRecommended ? theme.colors.warning : theme.colors.border};
+
+  svg {
+    flex-shrink: 0;
+  }
+`;
+
 const FooterBar = styled.div`
   display: flex;
   align-items: center;
@@ -101,6 +129,7 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
   isOpen,
   onClose,
   onAddRoles,
+  existingCount = 0,
 }) => {
   const [search, setSearch] = useState('');
   const [selectedCluster, setSelectedCluster] = useState('ALL');
@@ -130,6 +159,10 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
       return matchesSearch && matchesCluster;
     });
   }, [search, selectedCluster]);
+
+  // Total the chart would hold if the current selection were added.
+  const compassTotal = existingCount + selectedIds.length;
+  const overRecommended = compassTotal > COMPASS_RECOMMENDED;
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
@@ -194,6 +227,13 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <CompassHint $overRecommended={overRecommended}>
+          <RiInformationLine size={14} />
+          {overRecommended
+            ? `${compassTotal} roles on the chart — the Compass Report shows the top ${COMPASS_RECOMMENDED}.`
+            : `${compassTotal} of ${COMPASS_RECOMMENDED} roles shown on the Compass Report.`}
+        </CompassHint>
+
         <FilterHeaderRow>
           <SearchInputWrapper>
             <Input

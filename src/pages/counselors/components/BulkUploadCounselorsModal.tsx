@@ -14,6 +14,7 @@ import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { counselorService } from '@/services/counselor.service';
 import { parseExcelFile } from '@/utils/excelParser';
+import { isValidPhone } from '@/utils';
 import { useCounselorStore } from '@/store/counselor.store';
 import { useToast } from '@/hooks';
 import { CreateCounselorInput } from '@/types/counselor.types';
@@ -125,12 +126,29 @@ export const BulkUploadCounselorsModal: React.FC = () => {
 
   const bulkMutation = useMutation({
     mutationFn: counselorService.bulkCreate,
-    onSuccess: data => {
+    onSuccess: ({ created, failures }) => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
       queryClient.invalidateQueries({ queryKey: ['counselors-stats'] });
-      toast.success('Bulk Upload Complete', `Successfully imported ${data.length} counselor records.`);
-      handleReset();
-      closeBulkUploadModal();
+      // Rows are created one at a time and a rejected row is skipped, so report what was
+      // actually written rather than calling a zero-row import a success.
+      if (failures.length > 0) {
+        const examples = failures.slice(0, 3).map(f => `${f.name}: ${f.reason}`).join(' · ');
+        toast.error(
+          created.length > 0 ? 'Partially Imported' : 'Nothing Imported',
+          `${created.length} of ${created.length + failures.length} counselors imported. ` +
+            `${failures.length} skipped — ${examples}` +
+            (failures.length > 3 ? ` (and ${failures.length - 3} more)` : '')
+        );
+      } else {
+        toast.success(
+          'Bulk Upload Complete',
+          `Successfully imported ${created.length} counselor records.`
+        );
+      }
+      if (created.length > 0) {
+        handleReset();
+        closeBulkUploadModal();
+      }
     },
     onError: () => {
       toast.error('Error', 'Failed to bulk upload counselor records.');
@@ -175,16 +193,24 @@ export const BulkUploadCounselorsModal: React.FC = () => {
       const name = (row['Counsellor Name'] || row['Counselor Name'] || row['Name'] || '').trim();
       const mobile = (row['Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '').trim();
       const email = (row['Email ID'] || row['Email'] || row['email'] || '').trim();
-      const isValid = Boolean(name && email && email.includes('@'));
+      const hasName = Boolean(name);
+      const hasEmail = Boolean(email && email.includes('@'));
+      const hasMobile = isValidPhone(mobile);
+      const isValid = hasName && hasEmail && hasMobile;
+      const problems = [
+        !hasName && 'name',
+        !hasEmail && 'valid email',
+        !hasMobile && (mobile ? 'valid mobile (E.164, e.g. +919876543210)' : 'mobile'),
+      ].filter(Boolean);
       return {
         counselorId,
         name: name || 'Unknown Counselor',
-        mobile: mobile || 'N/A',
+        mobile,
         email: email || 'invalid@example.com',
         pwd: pwd || undefined,
         status: 'active',
         isValid,
-        validationError: !isValid ? 'Missing required name or email format' : undefined,
+        validationError: isValid ? undefined : `Missing or invalid: ${problems.join(', ')}`,
       };
     });
     setParsedRows(rows);
@@ -314,7 +340,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
         <input
           type="file"
           ref={fileInputRef}
-          accept=".csv,.txt"
+          accept=".csv,.txt,.xlsx,.xls"
           style={{ display: 'none' }}
           onChange={e => {
             if (e.target.files && e.target.files[0]) {

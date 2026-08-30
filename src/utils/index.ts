@@ -71,11 +71,30 @@ export const getNestedValue = <T>(obj: Record<string, unknown>, path: string): T
  * network errors or unexpected shapes.
  */
 export const getApiErrorMessage = (error: unknown, fallback = 'Something went wrong. Please try again.'): string => {
-  if (error && typeof error === 'object' && 'response' in error) {
+  if (error && typeof error === 'object' && ('isAxiosError' in error || 'response' in error)) {
     const response = (error as { response?: { data?: { error?: { message?: string } } } }).response;
     const message = response?.data?.error?.message;
     if (message) return message;
+    // Stop here for API failures. An axios error's own `message` is transport-level noise
+    // ("Request failed with status code 401", "Network Error") and must never reach the UI,
+    // so anything without a server-supplied message falls back to the caller's copy.
+    return fallback;
   }
+  // Errors thrown by our own code carry messages written for the user, so those still show.
   if (error instanceof Error && error.message) return error.message;
   return fallback;
 };
+
+/**
+ * The backend accepts phone numbers as E.164 only — `/^\+?[1-9]\d{1,14}$/`, i.e. an
+ * optional `+` then digits, with no spaces, hyphens, brackets or leading zero (see
+ * `phoneSchema` in the backend's shared validators). Sheets and hand-typed input routinely
+ * carry separators, so strip them before sending. A leading trunk `0` is deliberately left
+ * alone: dropping it would silently rewrite the number, so let validation reject it instead.
+ */
+export const normalizePhone = (value?: string | null): string =>
+  (value ?? '').replace(/[\s()\-.]/g, '');
+
+/** Whether a phone number will pass the backend's E.164 check once normalized. */
+export const isValidPhone = (value?: string | null): boolean =>
+  /^\+?[1-9]\d{1,14}$/.test(normalizePhone(value));

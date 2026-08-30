@@ -130,21 +130,6 @@ export const HierarchyHint = styled.span`
 
 // ---- Linked reference lists (exams / courses / institutions) ----
 
-// Neutral, informational-only Compass cap hint (never an alarming red/green state).
-export const CapWarningBanner = styled.div`
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  background-color: ${({ theme }) => theme.colors.surfaceHover};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-`;
-
 export const ExistingEntriesList = styled.div`
   display: flex;
   flex-direction: column;
