@@ -152,7 +152,7 @@ export const ProjectStudentsPage: React.FC = () => {
     csvContent += `STUDENT-LEVEL DETAIL LIST\n`;
     csvContent += `Student ID,Student Name,Grade / Class,Counselor ID,Counselor Name,Current Stage,Stage Date,Days In Stage,Follow-up Flag (>2 Days)\n`;
     filteredStudents.forEach(s => {
-      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || '—'}","${s.counselorName || '—'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
+      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || ''}","${s.counselorName || ''}","${s.stage || ''}","${s.stageCompletedDate || s.session1?.date || ''}","${s.daysInStage ?? ''}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -199,7 +199,7 @@ export const ProjectStudentsPage: React.FC = () => {
       key: 'studentId',
       header: 'Student ID',
       width: '120px',
-      render: row => row.studentId || `ST${100 + (parseInt(row.id.replace(/\D/g, ''), 10) || 1)}`,
+      render: row => row.studentId || '',
     },
     {
       key: 'name',
@@ -216,12 +216,32 @@ export const ProjectStudentsPage: React.FC = () => {
       ),
     },
     {
+      key: 'grade',
+      header: 'Grade / Class',
+      width: '140px',
+      render: row => row.grade || '',
+    },
+    {
+      key: 'counselor',
+      header: 'Counselor',
+      width: '230px',
+      render: row =>
+        row.counselorName ? (
+          <CounselorWrapper>
+            {row.counselorId && <CounselorIdBadge>{row.counselorId}</CounselorIdBadge>}
+            <span>{row.counselorName}</span>
+          </CounselorWrapper>
+        ) : (
+          ''
+        ),
+    },
+    {
       key: 'stage',
-      header: 'Stage',
+      header: 'Current Stage',
       width: '240px',
       render: row => (
         <StageCellWrapper>
-          <span>{row.stage || 'Login Activated'}</span>
+          <span>{row.stage || ''}</span>
           {row.isFlagged && (
             <Tooltip
               content={
@@ -241,30 +261,6 @@ export const ProjectStudentsPage: React.FC = () => {
       ),
     },
     {
-      key: 'counselor',
-      header: 'Counselor',
-      width: '230px',
-      render: row =>
-        row.counselorName ? (
-          <CounselorWrapper>
-            {row.counselorId && <CounselorIdBadge>{row.counselorId}</CounselorIdBadge>}
-            <span>{row.counselorName}</span>
-          </CounselorWrapper>
-        ) : (
-          <span style={{ color: '#94A3B8' }}>Unassigned</span>
-        ),
-    },
-    {
-      key: 'stage',
-      header: 'Current Stage',
-      width: '240px',
-      render: row => (
-        <StageCellWrapper>
-          <span>{row.stage || 'Login Activated'}</span>
-        </StageCellWrapper>
-      ),
-    },
-    {
       key: 'stageCompletedDate',
       header: 'Stage Date',
       width: '180px',
@@ -273,10 +269,14 @@ export const ProjectStudentsPage: React.FC = () => {
         return (
           <DateCellWrapper>
             <RiCalendarLine size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
-            <span>{rawDate ? formatDateDDMMYYYY(rawDate) : '—'}</span>
+            <span>{rawDate ? formatDateDDMMYYYY(rawDate) : ''}</span>
             {row.isFlagged && (
               <Tooltip
-                content={`Stage inactive for ${row.daysInStage || 3} days (> 2 days threshold) — follow up required`}
+                content={
+                  row.daysInStage
+                    ? `Stage inactive for ${row.daysInStage} days (> 2 days threshold) — follow up required`
+                    : 'Flagged for admin follow-up'
+                }
               >
                 <FlagIconWrapper>
                   <RiFlag2Fill size={16} />
