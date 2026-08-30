@@ -270,3 +270,63 @@ export const AddRowWrapper = styled.div`
   display: flex;
   justify-content: flex-start;
 `;
+
+// ---- Education path (domain-level tick list) ----
+
+// Entries wrap to two lines, so the checkbox sits with the first line rather than
+// floating to the vertical middle of a tall row.
+export const EducationEntryRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.text};
+  line-height: 1.45;
+`;
+
+export const EducationEntryText = styled.span`
+  flex: 1;
+`;
+
+export const EducationLevelName = styled.strong`
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+`;
+
+export const AddEducationButton = styled.button`
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.colors.primary};
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+// Separates the domain-level education path from the free-text qualification notes
+// that still live under the same "Education Path" heading.
+export const SectionDivider = styled.hr`
+  border: none;
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  margin: 6px 0 2px;
+`;
+
+// Sits in the modal footer and says why Save is disabled. `margin-right: auto` parks it
+// on the left of the footer's flex-end row without moving the buttons.
+export const SaveHint = styled.span`
+  margin-right: auto;
+  max-width: 60%;
+  font-size: ${({ theme }) => theme.fontSize.xs};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  line-height: 1.35;
+  text-align: left;
+`;

@@ -21,6 +21,10 @@ import {
   CareerEntryCourseInput,
   CareerEntryInstitutionInput,
   CareerLinkOption,
+  DomainEducationEntry,
+  EducationLevel,
+  EDUCATION_LEVELS,
+  EDUCATION_LEVEL_LABEL,
 } from '@/services/career.service';
 import { Career } from '@/types';
 import { useToast } from '@/hooks';
@@ -75,13 +79,6 @@ const schema = z.object({
   topCompanies: z.string().optional(),
   roleOverview: z.string().optional(),
   keySkills: z.string().optional(),
-  // Education path -> qualification fields on the entry (not a separate table).
-  qualification10th12th: z.string().trim().min(1, '10th / 12th recommended subjects are required'),
-  qualification10th12thExplanation: z.string().optional(),
-  qualificationGraduation: z.string().optional(),
-  qualificationGraduationDefined: z.string().optional(),
-  qualificationPG: z.string().optional(),
-  qualificationPGDefined: z.string().optional(),
   certificationsStudent: z.string().optional(),
   certificationsUG: z.string().optional(),
 });
@@ -96,7 +93,6 @@ const FIELD_ORDER: (keyof FormData)[] = [
   'aiResilienceComment',
   'salaryIndiaRangeText',
   'salaryGlobalRangeText',
-  'qualification10th12th',
 ];
 
 // A row in a linked-reference list: either an existing canonical record (`id`) or a new
@@ -279,11 +275,294 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
   );
 };
 
+
+// ---- Education Path -------------------------------------------------------------
+// The domain's education entries, ticked per job role. Anything added here is saved to
+// the domain library (POST /career-taxonomy/domains/{id}/education), so every future
+// role in the domain inherits it — hence the wording on the add button.
+// The domain-scoped list is only pulled in edit mode (`pullDomainEntries`): a new role
+// starts with an empty path and picks its own entries by search, the same way the
+// exam / course / institution sections work.
+
+
+// Validation for a new education-path entry. Returns the problem, or null when valid.
+// Pure and exported so the edge cases can be exercised without rendering the form.
+export const validateEducationEntry = (
+  input: { level: EducationLevel; programme: string; description?: string },
+  existing: { level: EducationLevel; programme: string }[]
+): string | null => {
+  const programme = (input.programme ?? '').trim();
+  if (!programme) return 'Enter the programme / requirement name.';
+  if (programme.length > 200) return 'The programme name is too long (200 characters max).';
+  if (!EDUCATION_LEVELS.includes(input.level)) return 'Select a level for this entry.';
+  // The backend rejects a duplicate level+programme with a 409; catching it here names
+  // the clash instead of surfacing a raw conflict error.
+  const clash = existing.some(
+    e =>
+      e.level === input.level &&
+      e.programme.trim().toLowerCase() === programme.toLowerCase()
+  );
+  if (clash) return `"${programme}" is already in the education path at this level.`;
+  if ((input.description ?? '').trim().length > 1000) {
+    return 'The description is too long (1000 characters max).';
+  }
+  return null;
+};
+
+const EducationPathSection: React.FC<{
+  domainId?: string;
+  pullDomainEntries: boolean;
+  entries: DomainEducationEntry[];
+  checkedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onAdd: (entry: DomainEducationEntry) => void;
+  onEntriesLoaded: (entries: DomainEducationEntry[]) => void;
+}> = ({ domainId, pullDomainEntries, entries, checkedIds, onToggle, onAdd, onEntriesLoaded }) => {
+  const toast = useToast();
+  const [isAdding, setIsAdding] = useState(false);
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounced(query, 300);
+  const [level, setLevel] = useState<EducationLevel>('GRADUATE');
+  const [programme, setProgramme] = useState('');
+  const [description, setDescription] = useState('');
+
+  // Entries already linked to job roles in this domain — the "pulled from this Domain"
+  // list. Approved rows only; the endpoint defaults to that.
+  const { data: domainEntries, isLoading } = useQuery({
+    queryKey: ['education-entries', 'domain', domainId],
+    queryFn: () => careerService.listEducationEntries({ domainId }),
+    enabled: Boolean(domainId) && pullDomainEntries,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (domainEntries) onEntriesLoaded(domainEntries);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domainEntries]);
+
+  // The rows are global, so search is not limited to this domain — the same
+  // select-or-add contract the exam / course / institution pickers use.
+  const { data: results = [], isFetching } = useQuery({
+    queryKey: ['education-entries', 'search', debouncedQuery],
+    queryFn: () => careerService.listEducationEntries({ search: debouncedQuery.trim() }),
+    enabled: debouncedQuery.trim().length >= 2,
+    staleTime: 60_000,
+  });
+
+  const ordered = useMemo(
+    () =>
+      [...entries].sort((a, b) => {
+        const byLevel = EDUCATION_LEVELS.indexOf(a.level) - EDUCATION_LEVELS.indexOf(b.level);
+        return byLevel !== 0 ? byLevel : a.programme.localeCompare(b.programme);
+      }),
+    [entries]
+  );
+
+  const listedIds = useMemo(() => new Set(entries.map(e => e.id)), [entries]);
+  // Only rows that actually came back from the domain-scoped fetch are "pulled from this
+  // Domain"; anything added via search or created here is a plain addition.
+  const pulledIds = useMemo(
+    () => new Set((domainEntries ?? []).map(e => e.id)),
+    [domainEntries]
+  );
+
+  const resetForm = () => {
+    setLevel('GRADUATE');
+    setProgramme('');
+    setDescription('');
+    setIsAdding(false);
+  };
+
+  const addMutation = useMutation({
+    mutationFn: () =>
+      careerService.createEducationEntry({
+        level,
+        programme: programme.trim(),
+        description: description.trim() || undefined,
+      }),
+    onSuccess: entry => {
+      onAdd(entry);
+      resetForm();
+      toast.success('Education Entry Added', `"${entry.programme}" was added to the education path.`);
+    },
+    onError: err => {
+      toast.error(
+        'Could Not Add Entry',
+        getApiErrorMessage(err, 'Failed to save the education entry.')
+      );
+    },
+  });
+
+  const handleAdd = () => {
+    const problem = validateEducationEntry({ level, programme, description }, entries);
+    if (problem) {
+      toast.error('Check the entry', problem);
+      return;
+    }
+    addMutation.mutate();
+  };
+
+  return (
+    <S.SectionBox>
+      <S.SectionTitle>Education Path</S.SectionTitle>
+
+      {!domainId ? (
+        <S.EmptyListHint>Select a domain first to see its education path.</S.EmptyListHint>
+      ) : (
+        <>
+          {pullDomainEntries && (
+            <S.FieldLabel>
+              Existing entries pulled from this Domain (Tick / Untick to include):
+            </S.FieldLabel>
+          )}
+
+          {isLoading ? (
+            <S.EmptyListHint>Loading the education path…</S.EmptyListHint>
+          ) : ordered.length === 0 ? (
+            pullDomainEntries ? (
+              <S.EmptyListHint>
+                No education entries linked yet. Search to add existing ones, or add a new entry.
+              </S.EmptyListHint>
+            ) : null
+          ) : (
+            <S.ExistingEntriesList>
+              {ordered.map(entry => (
+                <S.EducationEntryRow key={entry.id}>
+                  <Checkbox checked={checkedIds.has(entry.id)} onChange={() => onToggle(entry.id)} />
+                  <S.EducationEntryText>
+                    <S.EducationLevelName>
+                      {EDUCATION_LEVEL_LABEL[entry.level]}:
+                    </S.EducationLevelName>{' '}
+                    {entry.programme}
+                    {pulledIds.has(entry.id) ? (
+                      <S.LinkedTag>(auto-pulled from Domain library)</S.LinkedTag>
+                    ) : (
+                      <S.NewTag>added</S.NewTag>
+                    )}
+                  </S.EducationEntryText>
+                </S.EducationEntryRow>
+              ))}
+            </S.ExistingEntriesList>
+          )}
+
+          <S.SearchWrapper>
+            <Input
+              placeholder="Search the library to add an existing record…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
+            {debouncedQuery.trim().length >= 2 && (
+              <>
+                {isFetching && <S.SearchStatus>Searching…</S.SearchStatus>}
+                {!isFetching && results.length === 0 && (
+                  <S.SearchStatus>
+                    No matches — use “Add New Education Entry” to create one.
+                  </S.SearchStatus>
+                )}
+                {!isFetching && results.length > 0 && (
+                  <S.SearchResults>
+                    {results.map(opt => {
+                      const already = listedIds.has(opt.id);
+                      return (
+                        <S.SearchResultRow
+                          key={opt.id}
+                          type="button"
+                          disabled={already}
+                          onClick={() => {
+                            onAdd(opt);
+                            setQuery('');
+                          }}
+                        >
+                          {EDUCATION_LEVEL_LABEL[opt.level]}: {opt.programme}
+                          {already ? ' — added' : ''}
+                        </S.SearchResultRow>
+                      );
+                    })}
+                  </S.SearchResults>
+                )}
+              </>
+            )}
+          </S.SearchWrapper>
+
+          {!isAdding ? (
+            <S.AddRowWrapper>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                leftIcon={<RiAddLine size={14} />}
+                onClick={() => setIsAdding(true)}
+              >
+                Add New Education Entry
+              </Button>
+            </S.AddRowWrapper>
+          ) : (
+            <S.ExpandedFormCard>
+              <SubformHeader label="ADD NEW EDUCATION ENTRY" onClose={resetForm} />
+
+              <S.FieldGroup>
+                <S.FieldLabel>Level</S.FieldLabel>
+                <Select
+                  value={level}
+                  onChange={e => setLevel(e.target.value as EducationLevel)}
+                  options={EDUCATION_LEVELS.map(value => ({
+                    value,
+                    label: EDUCATION_LEVEL_LABEL[value],
+                  }))}
+                />
+              </S.FieldGroup>
+
+              <S.FieldGroup>
+                <S.FieldLabel>Programme / Requirement Name</S.FieldLabel>
+                <Input
+                  placeholder="e.g. B.Des – Communication Design"
+                  value={programme}
+                  onChange={e => setProgramme(e.target.value)}
+                />
+              </S.FieldGroup>
+
+              <S.FieldGroup>
+                <S.FieldLabel>Description / Details</S.FieldLabel>
+                <S.StyledTextarea
+                  placeholder="Eligibility, focus area, notes…"
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                />
+              </S.FieldGroup>
+
+              <S.FormActions>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={resetForm}
+                  disabled={addMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleAdd}
+                  isLoading={addMutation.isPending}
+                >
+                  Add to Education Path
+                </Button>
+              </S.FormActions>
+            </S.ExpandedFormCard>
+          )}
+        </>
+      )}
+    </S.SectionBox>
+  );
+};
+
 // ---- Add-new subforms (fields per record type; only name/level/city/state persist) ----
 
 const SubformHeader: React.FC<{ label: string; onClose: () => void }> = ({ label, onClose }) => (
   <S.ExpandedFormTitle>
-    <span>+ {label} (saved to the library on approval)</span>
+    <span>+ {label}</span>
     <S.CloseFormButton type="button" onClick={onClose} aria-label="Close">
       <RiCloseLine size={18} />
     </S.CloseFormButton>
@@ -546,6 +825,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     formState: { errors, isDirty },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
+    mode: 'onChange',
     defaultValues: {
       aiResilienceGrade: 'MEDIUM',
       aiResilienceComment: AI_RESILIENCE_COMMENTS.MEDIUM,
@@ -555,12 +835,25 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
   const [exams, setExams] = useState<IncludedItem[]>([]);
   const [courses, setCourses] = useState<IncludedItem[]>([]);
   const [institutions, setInstitutions] = useState<IncludedItem[]>([]);
+  // Domain education entries ticked for this role. A new role starts empty and picks
+  // its own entries by search; an edit is re-seeded from the entry's own links.
+  const [educationIds, setEducationIds] = useState<Set<string>>(new Set());
+  const [domainEducation, setDomainEducation] = useState<DomainEducationEntry[]>([]);
+
+  const toggleEducation = (id: string) =>
+    setEducationIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // Hierarchy shown read-only. Add mode reads it from the browsing context; edit mode
   // reads it off the entry. It is never editable once entered.
   const cluster = mode === 'edit' ? entity?.careerCluster : clusterLabel;
   const industry = mode === 'edit' ? entity?.industry : industryLabel;
   const domain = mode === 'edit' ? entity?.domain : domainLabel;
+  const effectiveDomainId = mode === 'edit' ? entity?.domainId : domainId;
 
   // On edit, pull the entry's currently-linked canonical records to pre-tick the lists.
   const { data: detail } = useQuery({
@@ -583,12 +876,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     topCompanies: (c.topCompaniesRecruiting || []).join(', '),
     roleOverview: c.roleOverview || '',
     keySkills: (c.keySkills || []).join('\n'),
-    qualification10th12th: c.minQual10th12thRecommendedSubjects,
-    qualification10th12thExplanation: c.qualification10th12thExplanation || '',
-    qualificationGraduation: c.minQualGradRecommendedSubjects || '',
-    qualificationGraduationDefined: c.qualificationGraduationDefined || '',
-    qualificationPG: c.minQualPGRecommendedSubjects || '',
-    qualificationPGDefined: c.qualificationPGDefined || '',
     certificationsStudent: c.certificationsStudents || '',
     certificationsUG: c.certificationsUG || '',
   });
@@ -601,6 +888,8 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     setExams([]);
     setCourses([]);
     setInstitutions([]);
+    setEducationIds(new Set());
+    setDomainEducation([]);
     if (mode === 'edit' && entity) {
       reset(toFormValues(entity));
     } else {
@@ -614,12 +903,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         topCompanies: '',
         roleOverview: '',
         keySkills: '',
-        qualification10th12th: '',
-        qualification10th12thExplanation: '',
-        qualificationGraduation: '',
-        qualificationGraduationDefined: '',
-        qualificationPG: '',
-        qualificationPGDefined: '',
         certificationsStudent: '',
         certificationsUG: '',
       });
@@ -634,6 +917,14 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     setExams(toItems(detail.linkedEntranceExams));
     setCourses(toItems(detail.linkedCourses));
     setInstitutions(toItems(detail.linkedInstitutions));
+    setEducationIds(new Set(detail.linkedEducationEntries.map(e => e.id)));
+    setDomainEducation(prev => {
+      const merged = [...prev];
+      for (const e of detail.linkedEducationEntries) {
+        if (!merged.some(m => m.id === e.id)) merged.push(e);
+      }
+      return merged;
+    });
     // The detail response is the authoritative record; re-apply it over the list-derived
     // prefill, but never on top of edits the user has already started making.
     if (!isDirty) reset(toFormValues(detail.career));
@@ -661,15 +952,64 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
   // input has to be sent as an explicit `null` (lists as `[]`) for the clear to stick.
   // On create there is nothing to clear, so blanks are simply omitted.
   const clearing = mode === 'edit';
+  // The free-text qualification columns are no longer typed on this form — the domain
+  // education path is the input. They're still NOT NULL / rendered on the career detail
+  // tab, so a new role derives them from whatever it ticked: programmes become the
+  // recommended-subjects line, their descriptions the explanation/defined-pathway note.
+  const tickedEducation = domainEducation.filter(e => educationIds.has(e.id));
+  const programmesAt = (level: EducationLevel) =>
+    tickedEducation
+      .filter(e => e.level === level)
+      .map(e => e.programme.trim())
+      .filter(Boolean)
+      .join(', ');
+  const notesAt = (level: EducationLevel) =>
+    tickedEducation
+      .filter(e => e.level === level)
+      .map(e => (e.description || '').trim())
+      .filter(Boolean)
+      .join(' ');
+
   const optText = (v?: string) => v?.trim() || (clearing ? null : undefined);
   const optList = (v?: string) => {
     const items = splitList(v);
     return items.length ? items : clearing ? [] : undefined;
   };
 
+  // Live gate on Save. These are exactly the rules `onSubmit` enforces, but evaluated as
+  // the user types so the button is disabled rather than rejecting the click with a toast.
+  // The zod schema itself is re-run over the watched values, so this can never drift from
+  // the resolver's own verdict on the same form.
+  const watched = watch();
+  const parsed = schema.safeParse(watched);
+  const requiredFilled = parsed.success;
+  // Names the specific unmet rule (e.g. "Short Description must be at least 10
+  // characters") rather than a generic "fill in the required fields" — the generic
+  // version left users unable to tell which field, or why, was still blocking Save.
+  const firstZodIssueMessage = !parsed.success
+    ? FIELD_ORDER.map(f => parsed.error.issues.find(i => i.path[0] === f)?.message).find(Boolean) ??
+      parsed.error.issues[0]?.message
+    : undefined;
+  const saveBlockedReason = !linksReady
+    ? "Loading this role's linked references..."
+    : !requiredFilled
+      ? firstZodIssueMessage
+      : mode === 'add' && !domainId
+        ? 'Open a domain first, then add a job role within it.'
+        : undefined;
+
+  // Education Path / Entrance Exams / Courses / Institutions are optional on this form
+  // now, so on create an untouched section's list stays `[]` in local state — sending
+  // that as `"entranceExams": []` etc. is noise the API doesn't need (omitting the key
+  // is equivalent to an empty list on create). On edit, though, an emptied list is a
+  // real edit — PATCH replaces the entry's links with whatever array it's given, so an
+  // intentionally-unticked section still has to send `[]` to clear it.
+  const linkField = <T,>(items: T[]): T[] | undefined =>
+    mode === 'add' && items.length === 0 ? undefined : items;
+
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
-      const base: Omit<CareerEntryPayload, 'domainId'> = {
+      const base: Omit<CareerEntryPayload, 'domainId' | 'qualification10th12th'> = {
         jobRole: data.jobRole.trim(),
         aiResilienceGrade: data.aiResilienceGrade,
         aiResilienceComment: data.aiResilienceComment.trim(),
@@ -681,27 +1021,39 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         salaryGlobalRangeText: optText(data.salaryGlobalRangeText),
         // Clear the imported numeric columns — the mapper prefers them over the text
         // range, so leaving them set makes an edited salary look like it never saved.
-        // Only meaningful on edit; a new entry has nothing to clear.
-        salaryIndiaMinLPA: clearing ? null : undefined,
-        salaryIndiaMaxLPA: clearing ? null : undefined,
-        salaryGlobalMinUSD: clearing ? null : undefined,
-        salaryGlobalMaxUSD: clearing ? null : undefined,
-        qualification10th12th: data.qualification10th12th.trim(),
-        qualification10th12thExplanation: optText(data.qualification10th12thExplanation),
-        qualificationGraduation: optText(data.qualificationGraduation),
-        qualificationGraduationDefined: optText(data.qualificationGraduationDefined),
-        qualificationPG: optText(data.qualificationPG),
-        qualificationPGDefined: optText(data.qualificationPGDefined),
+        // Only meaningful on edit; a new entry has nothing to clear, so the keys are
+        // left out of the create payload entirely rather than sent as `null`.
+        ...(clearing
+          ? {
+              salaryIndiaMinLPA: null,
+              salaryIndiaMaxLPA: null,
+              salaryGlobalMinUSD: null,
+              salaryGlobalMaxUSD: null,
+            }
+          : {}),
         certificationsStudent: optList(data.certificationsStudent),
         certificationsUG: optList(data.certificationsUG),
-        entranceExams: buildLinks<CareerEntryExamInput>(exams),
-        courses: buildLinks<CareerEntryCourseInput>(courses),
-        institutions: buildLinks<CareerEntryInstitutionInput>(institutions),
+        entranceExams: linkField(buildLinks<CareerEntryExamInput>(exams)),
+        courses: linkField(buildLinks<CareerEntryCourseInput>(courses)),
+        institutions: linkField(buildLinks<CareerEntryInstitutionInput>(institutions)),
+        educationEntries: linkField(Array.from(educationIds).map(id => ({ id }))),
       };
       if (mode === 'add') {
         // No Status field on the form — a role added by a super admin goes live at once.
-        return careerService.createEntry({ ...base, domainId: domainId!, status: 'ACTIVE' });
+        return careerService.createEntry({
+          ...base,
+          domainId: domainId!,
+          status: 'ACTIVE',
+          qualification10th12th: optText(programmesAt('CLASS_10_PLUS_2')) || undefined,
+          qualification10th12thExplanation: optText(notesAt('CLASS_10_PLUS_2')),
+          qualificationGraduation: optText(programmesAt('GRADUATE')),
+          qualificationGraduationDefined: optText(notesAt('GRADUATE')),
+          qualificationPG: optText(programmesAt('POST_GRADUATE')),
+          qualificationPGDefined: optText(notesAt('POST_GRADUATE')),
+        });
       }
+      // Edit deliberately omits them: PATCH leaves an omitted scalar alone, and the
+      // imported roles carry descriptive prose a comma-joined list would destroy.
       return careerService.updateEntry(entity!.id, base);
     },
     onSuccess: saved => {
@@ -760,6 +1112,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
       size="2xl"
       footer={
         <>
+          {saveBlockedReason && <S.SaveHint>{saveBlockedReason}</S.SaveHint>}
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
@@ -767,7 +1120,8 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             type="submit"
             form="career-job-role-form"
             variant="primary"
-            disabled={!linksReady}
+            disabled={Boolean(saveBlockedReason)}
+            title={saveBlockedReason}
             isLoading={mutation.isPending}
           >
             Save Job Role
@@ -815,7 +1169,11 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             <S.FieldGroup>
               <S.FieldLabel>Short Description *</S.FieldLabel>
               <S.StyledTextarea placeholder="Designs intuitive user experiences across web and mobile." {...register('oneLineDescription')} />
-              {errors.oneLineDescription && <S.ErrorText>{errors.oneLineDescription.message}</S.ErrorText>}
+              {errors.oneLineDescription ? (
+                <S.ErrorText>{errors.oneLineDescription.message}</S.ErrorText>
+              ) : (
+                <S.HierarchyHint>Minimum 10 characters.</S.HierarchyHint>
+              )}
             </S.FieldGroup>
 
             <S.FormGrid $columns={2}>
@@ -859,41 +1217,39 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             </S.FieldGroup>
           </S.SectionBox>
 
-          {/* Education Path -> qualification fields */}
+          {/* Certifications — free-text lists kept on the entry itself. */}
           <S.SectionBox>
-            <S.SectionTitle>Education Path</S.SectionTitle>
-            <S.FieldGroup>
-              <S.FieldLabel>10th / 12th — Recommended Subjects *</S.FieldLabel>
-              <S.StyledTextarea placeholder="Subjects / stream recommended at school level" {...register('qualification10th12th')} />
-              {errors.qualification10th12th && <S.ErrorText>{errors.qualification10th12th.message}</S.ErrorText>}
-            </S.FieldGroup>
-            <S.FieldGroup>
-              <S.FieldLabel>10+2 Explanation</S.FieldLabel>
-              <S.StyledTextarea placeholder="Explanation note for the 10+2 requirement" {...register('qualification10th12thExplanation')} />
-            </S.FieldGroup>
-            <S.FormGrid $columns={2}>
-              <S.FieldGroup>
-                <S.FieldLabel>Graduation — Recommended Subjects</S.FieldLabel>
-                <S.StyledTextarea placeholder="Degree / subjects recommended at UG level" {...register('qualificationGraduation')} />
-              </S.FieldGroup>
-              <S.FieldGroup>
-                <S.FieldLabel>Graduation — Defined Pathway</S.FieldLabel>
-                <S.StyledTextarea placeholder="Defined graduation pathway / detail" {...register('qualificationGraduationDefined')} />
-              </S.FieldGroup>
-              <S.FieldGroup>
-                <S.FieldLabel>Post-graduation — Recommended Subjects</S.FieldLabel>
-                <S.StyledTextarea placeholder="Specialisations recommended at PG level" {...register('qualificationPG')} />
-              </S.FieldGroup>
-              <S.FieldGroup>
-                <S.FieldLabel>Post-graduation — Defined Pathway</S.FieldLabel>
-                <S.StyledTextarea placeholder="Defined post-graduation pathway / detail" {...register('qualificationPGDefined')} />
-              </S.FieldGroup>
-            </S.FormGrid>
+            <S.SectionTitle>Certifications</S.SectionTitle>
             <S.FormGrid $columns={2}>
               <Input label="Certifications (Student)" placeholder="Comma-separated" {...register('certificationsStudent')} />
               <Input label="Certifications (UG)" placeholder="Comma-separated" {...register('certificationsUG')} />
             </S.FormGrid>
           </S.SectionBox>
+
+          {/* Education Path. The tick-list is the input — the entry's own free-text
+              qualification columns are derived from it on create (see the mutation). */}
+          <EducationPathSection
+            domainId={effectiveDomainId}
+            pullDomainEntries={mode === 'edit'}
+            entries={domainEducation}
+            checkedIds={educationIds}
+            onToggle={toggleEducation}
+            onAdd={entry => {
+              setDomainEducation(prev =>
+                prev.some(e => e.id === entry.id) ? prev : [...prev, entry]
+              );
+              setEducationIds(prev => new Set(prev).add(entry.id));
+            }}
+            onEntriesLoaded={loaded => {
+              // Merge rather than replace: entries pulled in by search, or already
+              // linked to the role from another domain, must survive a refetch.
+              setDomainEducation(prev => {
+                const merged = [...loaded];
+                for (const e of prev) if (!merged.some(m => m.id === e.id)) merged.push(e);
+                return merged;
+              });
+            }}
+          />
 
           {/* Linked references */}
           <LinkedSection

@@ -20,7 +20,7 @@ import { projectService } from '@/services/project.service';
 import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
-import { formatDateDDMMYYYY } from '@/utils';
+import { formatDateDDMMYYYY, getApiErrorMessage } from '@/utils';
 import { EditStudentModal } from './EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
 import {
@@ -71,38 +71,48 @@ export const ProjectStudentsPage: React.FC = () => {
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
-    queryFn: () => projectService.getById(projectId || 'proj-001'),
+    queryFn: () => projectService.getById(projectId as string),
+    enabled: Boolean(projectId),
   });
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['projectStudents', projectId],
-    queryFn: () => projectService.getProjectStudents(projectId || 'proj-001'),
+    queryFn: () => projectService.getProjectStudents(projectId as string),
+    enabled: Boolean(projectId),
   });
 
   const updateMutation = useMutation({
     mutationFn: (updatedStudent: ProjectStudentDetail) =>
-      projectService.updateProjectStudent(projectId || 'proj-001', updatedStudent),
-    onSuccess: () => {
+      projectService.saveProjectStudent(projectId as string, updatedStudent),
+    onSuccess: result => {
       queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      // Student counts elsewhere read the project's `_count`, not the student list.
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       toast.success('Student Saved', 'Student information updated successfully.');
+      // PATCH /students/{id} has no email field, so an edited address never reached the
+      // backend — say so rather than letting the success toast imply it saved.
+      if (result.emailChangeIgnored) {
+        toast.warning(
+          'Email Not Changed',
+          "A student's login email can't be edited here — every other change was saved."
+        );
+      }
       setEditingStudent(null);
       setIsAddModalOpen(false);
     },
-    onError: () => {
-      toast.error('Save Failed', 'Could not update student details.');
+    onError: err => {
+      toast.error('Save Failed', getApiErrorMessage(err, 'Could not update student details.'));
     },
   });
 
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
-      id: `std-new-${Date.now()}`,
+      id: '',
       studentId: `ST${100 + students.length + 1}`,
       name: '',
       email: '',
       mobile: '+91 ',
       grade: 'Grade 11',
-      counselorId: 'COU-01',
-      counselorName: 'Dr. Rajeshwari Menon',
       stage: 'Login Activated',
       stageCompletedDate: new Date().toISOString().slice(0, 10),
       daysInStage: 0,
@@ -142,7 +152,7 @@ export const ProjectStudentsPage: React.FC = () => {
     csvContent += `STUDENT-LEVEL DETAIL LIST\n`;
     csvContent += `Student ID,Student Name,Grade / Class,Counselor ID,Counselor Name,Current Stage,Stage Date,Days In Stage,Follow-up Flag (>2 Days)\n`;
     filteredStudents.forEach(s => {
-      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || 'COU-01'}","${s.counselorName || s.session1?.counselorName || 'Dr. Rajeshwari Menon'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
+      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || '—'}","${s.counselorName || '—'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -234,12 +244,15 @@ export const ProjectStudentsPage: React.FC = () => {
       key: 'counselor',
       header: 'Counselor',
       width: '230px',
-      render: row => (
-        <CounselorWrapper>
-          <CounselorIdBadge>{row.counselorId || 'COU-01'}</CounselorIdBadge>
-          <span>{row.counselorName || row.session1?.counselorName || 'Dr. Rajeshwari Menon'}</span>
-        </CounselorWrapper>
-      ),
+      render: row =>
+        row.counselorName ? (
+          <CounselorWrapper>
+            {row.counselorId && <CounselorIdBadge>{row.counselorId}</CounselorIdBadge>}
+            <span>{row.counselorName}</span>
+          </CounselorWrapper>
+        ) : (
+          <span style={{ color: '#94A3B8' }}>Unassigned</span>
+        ),
     },
     {
       key: 'stage',

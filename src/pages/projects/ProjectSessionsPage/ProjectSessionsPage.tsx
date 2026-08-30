@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiSearchLine,
   RiCheckLine,
@@ -23,11 +23,12 @@ import { AlertModal } from '@/components/AlertModal';
 import { DatePicker } from '@/components/DatePicker';
 import { Select } from '@/components/Select';
 import { projectService } from '@/services/project.service';
-import { CounselorSession, ProjectStudent, ProjectCounselor } from '@/types/project.types';
+import { CounselorSession, ProjectStudent, ProjectCounselor, ProjectSlot } from '@/types/project.types';
 import { useToast } from '@/hooks';
+import { getApiErrorMessage } from '@/utils';
 import { ROUTES } from '@/constants';
 import { ViewStudentModal } from './ViewStudentModal';
-import { AssignStudentModal, SlotData } from './AssignStudentModal';
+import { AssignStudentModal } from './AssignStudentModal';
 import { AddCounselorModal } from './AddCounselorModal';
 import {
   Container,
@@ -68,16 +69,11 @@ import {
   ActionIconButton,
 } from './ProjectSessionsPage.styles';
 
-export interface EnhancedSlotData extends SlotData {
-  counselorCode?: string;
-  isMissed?: boolean;
-  notes?: string;
-}
-
 export const ProjectSessionsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilterCategory, setSelectedFilterCategory] = useState<string | null>(null);
@@ -87,223 +83,95 @@ export const ProjectSessionsPage: React.FC = () => {
   const [counselorToDelete, setCounselorToDelete] = useState<CounselorSession | null>(null);
   const [selectedSlotForAssign, setSelectedSlotForAssign] = useState<{
     session: CounselorSession;
-    slot: SlotData;
+    slot: ProjectSlot;
   } | null>(null);
   const [selectedStudentForView, setSelectedStudentForView] = useState<ProjectStudent | null>(null);
   const [rescheduleSlot, setRescheduleSlot] = useState<{
     counselorName: string;
-    slot: EnhancedSlotData;
+    slot: ProjectSlot;
   } | null>(null);
 
   // Reschedule form state
   const [rescheduleDate, setRescheduleDate] = useState<Date | null>(new Date('2026-02-28'));
   const [rescheduleTime, setRescheduleTime] = useState('11:00 - 12:00');
 
-  // Counselors state
-  const [customSessions, setCustomSessions] = useState<CounselorSession[] | null>(null);
-  const [counselorCodes, setCounselorCodes] = useState<Record<string, string>>({
-    'cs-101': 'CN003',
-    'cs-102': 'CN004',
-    'cs-103': 'CN005',
-    'cs-104': 'CN006',
-  });
-
-  // Local state for customized slot rows per counselor
-  const [counselorSlotsMap, setCounselorSlotsMap] = useState<Record<string, EnhancedSlotData[]>>({
-    'cs-101': [
-      {
-        id: 'anil-slot-1',
-        date: '18 Feb 2026',
-        time: '09:30 - 10:30',
-        studentName: 'Ananya Roy',
-        sessionType: 'S1',
-        mobile: '+91 9810012345',
-        isBooked: true,
-        isMissed: false,
-        notes: 'Session completed successfully. Recommended focus on science stream.',
-      },
-      {
-        id: 'anil-slot-2',
-        date: '22 Feb 2026',
-        time: '09:30 - 10:30',
-        studentName: 'Ananya Roy',
-        sessionType: 'S2',
-        mobile: '+91 9810012345',
-        isBooked: true,
-        isMissed: true,
-        notes: 'Student missed session due to illness. Parent requested reschedule.',
-      },
-      {
-        id: 'anil-slot-3',
-        date: '18 Feb 2026',
-        time: '11:00 - 12:00',
-        isBooked: false,
-      },
-      {
-        id: 'anil-slot-4',
-        date: '25 Feb 2026',
-        time: '14:00 - 15:00',
-        isBooked: false,
-      },
-    ],
-    'cs-102': [
-      {
-        id: 'mahesh-slot-1',
-        date: '18 Feb 2026',
-        time: '09:30 - 10:30',
-        studentName: 'Aarav Sharma',
-        sessionType: 'S1',
-        mobile: '+91 9810054321',
-        isBooked: true,
-        isMissed: false,
-        notes: 'Session completed.',
-      },
-      {
-        id: 'mahesh-slot-2',
-        date: '22 Feb 2026',
-        time: '09:30 - 10:30',
-        studentName: 'Rohan Menon',
-        sessionType: 'S2',
-        mobile: '+91 9810067890',
-        isBooked: true,
-        isMissed: true,
-        notes: 'Follow-up required with student.',
-      },
-      {
-        id: 'mahesh-slot-3',
-        date: '18 Feb 2026',
-        time: '11:00 - 12:00',
-        isBooked: false,
-      },
-      {
-        id: 'mahesh-slot-4',
-        date: '25 Feb 2026',
-        time: '14:00 - 15:00',
-        isBooked: false,
-      },
-    ],
-    'cs-103': [
-      {
-        id: 'hema-slot-1',
-        date: '19 Feb 2026',
-        time: '14:00 - 15:00',
-        studentName: 'Devika Nair',
-        sessionType: 'S2',
-        mobile: '+91 9810037035',
-        isBooked: true,
-        isMissed: false,
-      },
-      {
-        id: 'hema-slot-2',
-        date: '23 Feb 2026',
-        time: '11:00 - 12:00',
-        isBooked: false,
-      },
-      {
-        id: 'hema-slot-3',
-        date: '26 Feb 2026',
-        time: '16:00 - 17:00',
-        isBooked: false,
-      },
-    ],
-    'cs-104': [
-      {
-        id: 'girish-slot-1',
-        date: '19 Feb 2026',
-        time: '16:00 - 17:00',
-        studentName: 'Siddharth Pillai',
-        sessionType: 'S1',
-        mobile: '+91 9810049380',
-        isBooked: true,
-        isMissed: false,
-      },
-      {
-        id: 'girish-slot-2',
-        date: '24 Feb 2026',
-        time: '09:30 - 10:30',
-        isBooked: false,
-      },
-      {
-        id: 'girish-slot-3',
-        date: '27 Feb 2026',
-        time: '14:00 - 15:00',
-        isBooked: false,
-      },
-    ],
-  });
-
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
-    queryFn: () => projectService.getById(projectId || 'proj-001'),
+    queryFn: () => projectService.getById(projectId as string),
+    enabled: Boolean(projectId),
   });
 
-  const { data: rawSessions = [], isLoading } = useQuery({
+  const { data: effectiveSessions = [], isLoading } = useQuery({
     queryKey: ['projectSessions', projectId],
-    queryFn: () => projectService.getProjectSessions(projectId || 'proj-001'),
+    queryFn: () => projectService.getProjectSessions(projectId as string),
+    enabled: Boolean(projectId),
   });
 
-  const effectiveSessions = customSessions ?? rawSessions;
+  // Every schedule write lands back through the same two endpoints this page reads.
+  const refreshSchedule = () => {
+    queryClient.invalidateQueries({ queryKey: ['projectSessions', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+  };
+
+  // Assigns each counsellor to the project (POST /counsellors/{id}/projects). Only rows
+  // matched against the real directory carry the id that endpoint needs; anything else
+  // has to be created under Counselors List first.
+  const assignCounselorsMutation = useMutation({
+    mutationFn: async (newCounselors: ProjectCounselor[]) => {
+      const assignable = newCounselors.filter(c => c.directoryId);
+      const unmatched = newCounselors.filter(c => !c.directoryId).map(c => c.name || c.email);
+      for (const counselor of assignable) {
+        await projectService.assignCounsellorToProject(
+          counselor.directoryId as string,
+          projectId as string
+        );
+      }
+      return { assigned: assignable.length, unmatched };
+    },
+    onSuccess: ({ assigned, unmatched }) => {
+      refreshSchedule();
+      setIsAddCounselorModalOpen(false);
+      if (assigned > 0) {
+        toast.success(
+          'Counselors Assigned',
+          `Assigned ${assigned} counselor(s) to this project.`
+        );
+      }
+      if (unmatched.length > 0) {
+        toast.warning(
+          'Not In Directory',
+          `${unmatched.join(', ')} — create them under Counselors List before assigning.`
+        );
+      }
+    },
+    onError: err => {
+      toast.error('Assignment Failed', getApiErrorMessage(err, 'Could not assign counselors.'));
+    },
+  });
 
   const handleCounselorsAssigned = (newCounselors: ProjectCounselor[]) => {
-    const currentSessionsList = [...effectiveSessions];
-    const newSlotsMap = { ...counselorSlotsMap };
-    const newCodesMap = { ...counselorCodes };
-
-    newCounselors.forEach((counselor, idx) => {
-      const newId = `cs-${Date.now()}-${idx}`;
-      const codeIndex = Object.keys(newCodesMap).length + 3;
-      const code = `CN${String(codeIndex).padStart(3, '0')}`;
-      newCodesMap[newId] = code;
-
-      const newSessionItem: CounselorSession = {
-        id: newId,
-        counselorId: `COU-${10 + idx}`,
-        counselorName: counselor.name,
-        counselorEmail: counselor.email,
-        counselorPhone: counselor.mobile || '+91 98100 00000',
-        timeSlots: [],
-        assignedStudents: [],
-      };
-
-      newSlotsMap[newId] = [
-        {
-          id: `${newId}-slot-1`,
-          date: '02 Mar 2026',
-          time: '09:30 - 10:30',
-          isBooked: false,
-        },
-        {
-          id: `${newId}-slot-2`,
-          date: '02 Mar 2026',
-          time: '11:00 - 12:00',
-          isBooked: false,
-        },
-        {
-          id: `${newId}-slot-3`,
-          date: '05 Mar 2026',
-          time: '14:00 - 15:00',
-          isBooked: false,
-        },
-      ];
-
-      currentSessionsList.push(newSessionItem);
-    });
-
-    setCounselorCodes(newCodesMap);
-    setCounselorSlotsMap(newSlotsMap);
-    setCustomSessions(currentSessionsList);
-    setIsAddCounselorModalOpen(false);
+    assignCounselorsMutation.mutate(newCounselors);
   };
+
+  const unassignCounselorMutation = useMutation({
+    mutationFn: (counselor: CounselorSession) =>
+      projectService.unassignCounsellorFromProject(counselor.counselorId, projectId as string),
+    onSuccess: (_data, counselor) => {
+      refreshSchedule();
+      toast.success(
+        'Counselor Removed',
+        `Removed ${counselor.counselorName} from project counselor assignments.`
+      );
+      setCounselorToDelete(null);
+    },
+    onError: err => {
+      toast.error('Removal Failed', getApiErrorMessage(err, 'Could not remove this counselor.'));
+    },
+  });
 
   const handleConfirmDeleteCounselor = () => {
     if (!counselorToDelete) return;
-    const filtered = effectiveSessions.filter(s => s.id !== counselorToDelete.id);
-    setCustomSessions(filtered);
-    toast.success(
-      'Counselor Removed',
-      `Removed ${counselorToDelete.counselorName} from project counselor assignments.`
-    );
-    setCounselorToDelete(null);
+    unassignCounselorMutation.mutate(counselorToDelete);
   };
 
   const handleCopyMeetLink = (session: CounselorSession) => {
@@ -320,9 +188,8 @@ export const ProjectSessionsPage: React.FC = () => {
     rows.push('Counselor Code,Counselor Name,Counselor Email,Counselor Phone,Date,Time,Student Name,Session,Student Phone,Status');
 
     filteredSessions.forEach(session => {
-      const code = counselorCodes[session.id] || 'CN001';
-      const slots = counselorSlotsMap[session.id] || [];
-      slots.forEach(slot => {
+      const code = session.counselorCode;
+      session.slots.forEach(slot => {
         const student = slot.studentName || 'Not Booked';
         const sessionType = slot.sessionType || (slot.isBooked ? 'S1' : 'NB');
         const phone = slot.mobile || '—';
@@ -342,62 +209,82 @@ export const ProjectSessionsPage: React.FC = () => {
     toast.success('Excel Export Started', 'Downloaded project sessions list (.csv).');
   };
 
-  const handleOpenAssignModal = (session: CounselorSession, slot: SlotData) => {
+  const handleOpenAssignModal = (session: CounselorSession, slot: ProjectSlot) => {
     setSelectedSlotForAssign({ session, slot });
   };
 
-  const handleSaveSlotAssignment = (slotId: string, updatedSlot: Partial<SlotData>) => {
-    if (!selectedSlotForAssign) return;
-    const sessionKey = selectedSlotForAssign.session.id;
-
-    setCounselorSlotsMap(prev => {
-      const currentSlots = prev[sessionKey] || [];
-      const updatedSlots = currentSlots.map(s =>
-        s.id === slotId ? { ...s, ...updatedSlot, isMissed: false } : s
+  // POST /sessions — admin manual booking against the counsellor whose slot was clicked.
+  const assignStudentMutation = useMutation({
+    mutationFn: (input: { studentId: string; sessionType: 'S1' | 'S2' }) => {
+      if (!selectedSlotForAssign) throw new Error('No slot selected');
+      const { session, slot } = selectedSlotForAssign;
+      return projectService.assignStudentToSlot({
+        studentId: input.studentId,
+        counsellorId: session.counselorId,
+        sessionType: input.sessionType,
+        date: slot.slotDate,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+    },
+    onSuccess: () => {
+      const label = selectedSlotForAssign;
+      refreshSchedule();
+      toast.success(
+        'Schedule Saved',
+        `Assigned a student to ${label?.session.counselorName}'s session on ${label?.slot.date}.`
       );
-      return { ...prev, [sessionKey]: updatedSlots };
-    });
+      setSelectedSlotForAssign(null);
+    },
+    onError: err => {
+      toast.error('Assignment Failed', getApiErrorMessage(err, 'Could not book this session.'));
+    },
+  });
 
-    toast.success(
-      'Schedule Saved',
-      `Assigned ${updatedSlot.studentName} to ${selectedSlotForAssign.session.counselorName}'s session on ${selectedSlotForAssign.slot.date}.`
-    );
-    setSelectedSlotForAssign(null);
+  const handleSaveSlotAssignment = (input: { studentId: string; sessionType: 'S1' | 'S2' }) => {
+    assignStudentMutation.mutate(input);
   };
 
+  // POST /sessions/{id}/reschedule — same counsellor, new date/time. Only a booked row
+  // has a session behind it to move.
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ sessionId, date, startTime }: { sessionId: string; date: string; startTime: string }) =>
+      projectService.rescheduleSession(sessionId, date, startTime),
+    onSuccess: () => {
+      refreshSchedule();
+      toast.success(
+        'Session Rescheduled',
+        `Rescheduled session for ${rescheduleSlot?.slot.studentName ?? 'the student'}.`
+      );
+      setRescheduleSlot(null);
+    },
+    onError: err => {
+      toast.error('Reschedule Failed', getApiErrorMessage(err, 'Could not reschedule this session.'));
+    },
+  });
+
   const handleConfirmReschedule = () => {
-    if (!rescheduleSlot) return;
-    const dateFormatted = rescheduleDate
-      ? rescheduleDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-      : '28 Feb 2026';
-
-    // Update the slot in state
-    setCounselorSlotsMap(prev => {
-      const newMap = { ...prev };
-      Object.keys(newMap).forEach(key => {
-        newMap[key] = newMap[key].map(s =>
-          s.id === rescheduleSlot.slot.id
-            ? {
-                ...s,
-                date: dateFormatted,
-                time: rescheduleTime,
-                isMissed: false,
-              }
-            : s
-        );
-      });
-      return newMap;
-    });
-
-    toast.success(
-      'Session Rescheduled',
-      `Rescheduled session for ${rescheduleSlot.slot.studentName} to ${dateFormatted} at ${rescheduleTime}.`
-    );
-    setRescheduleSlot(null);
+    if (!rescheduleSlot?.slot.sessionId) {
+      toast.error('Nothing To Reschedule', 'This slot has no booked session behind it.');
+      return;
+    }
+    if (!rescheduleDate) {
+      toast.error('Date Required', 'Pick the new session date.');
+      return;
+    }
+    // The picker holds a local Date; the API takes a plain YYYY-MM-DD.
+    const date = [
+      rescheduleDate.getFullYear(),
+      String(rescheduleDate.getMonth() + 1).padStart(2, '0'),
+      String(rescheduleDate.getDate()).padStart(2, '0'),
+    ].join('-');
+    // "11:00 - 12:00" -> "11:00"; the backend derives the end from the slot it claims.
+    const startTime = rescheduleTime.split('-')[0].trim();
+    rescheduleMutation.mutate({ sessionId: rescheduleSlot.slot.sessionId, date, startTime });
   };
 
   const filteredSessions = effectiveSessions.filter(s => {
-    const slots = counselorSlotsMap[s.id] || [];
+    const slots = s.slots;
 
     if (selectedFilterCategory === 'follow_up_today') {
       return slots.some(slot => slot.isBooked);
@@ -413,14 +300,29 @@ export const ProjectSessionsPage: React.FC = () => {
     const q = searchQuery.toLowerCase();
     return (
       s.counselorName.toLowerCase().includes(q) ||
-      (counselorCodes[s.id] && counselorCodes[s.id].toLowerCase().includes(q)) ||
+      s.counselorCode.toLowerCase().includes(q) ||
       slots.some(slot => slot.studentName && slot.studentName.toLowerCase().includes(q))
     );
   });
 
+  const followUpTodayCount = effectiveSessions.reduce(
+    (count, s) => count + s.slots.filter(slot => slot.isBooked).length,
+    0
+  );
+  const missedSession1Count = effectiveSessions.reduce(
+    (count, s) =>
+      count + s.slots.filter(slot => slot.isBooked && slot.sessionType === 'S1' && slot.isMissed).length,
+    0
+  );
+  const missedSession2Count = effectiveSessions.reduce(
+    (count, s) =>
+      count + s.slots.filter(slot => slot.isBooked && slot.sessionType === 'S2' && slot.isMissed).length,
+    0
+  );
+
   const getSlotColumns = (
     session: CounselorSession
-  ): Column<EnhancedSlotData>[] => [
+  ): Column<ProjectSlot>[] => [
     {
       key: 'date',
       header: 'Date',
@@ -448,11 +350,13 @@ export const ProjectSessionsPage: React.FC = () => {
             type="button"
             onClick={() =>
               setSelectedStudentForView({
-                studentId: 'ST101',
+                studentId: row.studentCode,
                 name: row.studentName || '',
-                email: `${row.studentName?.toLowerCase().replace(/\s+/g, '.')}@student.edu`,
-                mobile: row.mobile || '+91 9810012345',
-                grade: '11th',
+                email: row.studentEmail || '',
+                mobile: row.mobile || '',
+                grade: row.grade || '',
+                sessionDate: row.slotDate,
+                timeSlot: row.time,
                 sessionType: row.sessionType === 'S2' ? 'S2' : 'S1',
               })
             }
@@ -559,7 +463,7 @@ export const ProjectSessionsPage: React.FC = () => {
           }
         >
           <MetricCardLabel>Follow-up today</MetricCardLabel>
-          <MetricCardValue $color="#5D2384">17</MetricCardValue>
+          <MetricCardValue $color="#5D2384">{followUpTodayCount}</MetricCardValue>
         </MetricFilterCard>
 
         <MetricFilterCard
@@ -572,7 +476,7 @@ export const ProjectSessionsPage: React.FC = () => {
           }
         >
           <MetricCardLabel>Missed Session - 1</MetricCardLabel>
-          <MetricCardValue $color="#EA580C">3</MetricCardValue>
+          <MetricCardValue $color="#EA580C">{missedSession1Count}</MetricCardValue>
         </MetricFilterCard>
 
         <MetricFilterCard
@@ -585,7 +489,7 @@ export const ProjectSessionsPage: React.FC = () => {
           }
         >
           <MetricCardLabel>Missed Session - 2</MetricCardLabel>
-          <MetricCardValue $color="#EA580C">9</MetricCardValue>
+          <MetricCardValue $color="#EA580C">{missedSession2Count}</MetricCardValue>
         </MetricFilterCard>
       </TopMetricCardsGrid>
 
@@ -633,8 +537,16 @@ export const ProjectSessionsPage: React.FC = () => {
         ) : (
           <CounselorsGrid>
             {filteredSessions.map(session => {
-              const code = counselorCodes[session.id] || 'CN001';
-              const slots = counselorSlotsMap[session.id] || [];
+              const code = session.counselorCode;
+              const slots = session.slots;
+              const bookedCount = slots.filter(slot => slot.isBooked).length;
+              const session1Count = slots.filter(
+                slot => slot.isBooked && slot.sessionType === 'S1'
+              ).length;
+              const session2Count = slots.filter(
+                slot => slot.isBooked && slot.sessionType === 'S2'
+              ).length;
+              const missedCount = slots.filter(slot => slot.isBooked && slot.isMissed).length;
 
               return (
                 <CounselorCard key={session.id}>
@@ -661,22 +573,22 @@ export const ProjectSessionsPage: React.FC = () => {
                       <CounselorMetricsGroup>
                         <MetricChip>
                           <MetricChipLabel>Booked</MetricChipLabel>
-                          <MetricChipValue>60/80 hrs</MetricChipValue>
+                          <MetricChipValue>{bookedCount}/{slots.length} hrs</MetricChipValue>
                         </MetricChip>
 
                         <MetricChip>
                           <MetricChipLabel>Session 1</MetricChipLabel>
-                          <MetricChipValue>32</MetricChipValue>
+                          <MetricChipValue>{session1Count}</MetricChipValue>
                         </MetricChip>
 
                         <MetricChip>
                           <MetricChipLabel>Session 2</MetricChipLabel>
-                          <MetricChipValue>32</MetricChipValue>
+                          <MetricChipValue>{session2Count}</MetricChipValue>
                         </MetricChip>
 
                         <MissedMetricChip>
                           <RiUserForbidLine size={15} />
-                          <span>4 Missed</span>
+                          <span>{missedCount} Missed</span>
                         </MissedMetricChip>
                       </CounselorMetricsGroup>
 
@@ -726,7 +638,9 @@ export const ProjectSessionsPage: React.FC = () => {
         onClose={() => setSelectedSlotForAssign(null)}
         session={selectedSlotForAssign?.session || null}
         slot={selectedSlotForAssign?.slot || null}
+        projectId={projectId}
         onSave={handleSaveSlotAssignment}
+        isSaving={assignStudentMutation.isPending}
       />
 
       {/* View Student Modal */}
@@ -795,7 +709,7 @@ export const ProjectSessionsPage: React.FC = () => {
         onClose={() => setCounselorToDelete(null)}
         onConfirm={handleConfirmDeleteCounselor}
         title="Remove Counselor from Project?"
-        description={`Are you sure you want to remove ${counselorToDelete?.counselorName} (${counselorCodes[counselorToDelete?.id || ''] || 'CN001'}) from this project? If this counselor has active or booked sessions, any uncompleted sessions will need to be rescheduled or reassigned.`}
+        description={`Are you sure you want to remove ${counselorToDelete?.counselorName} (${counselorToDelete?.counselorCode ?? ''}) from this project? If this counselor has active or booked sessions, any uncompleted sessions will need to be rescheduled or reassigned.`}
         variant="danger"
         confirmText="Remove Counselor"
         cancelText="Cancel"

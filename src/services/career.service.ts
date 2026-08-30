@@ -9,7 +9,7 @@ import {
   CourseDetail,
   InstitutionDetail,
 } from '@/types';
-import { mockPendingRatifications } from '@/mocks';
+import { formatDateDDMMYYYY } from '@/utils';
 
 // ---- Backend response shapes (docs/api-list.md -> Career Library) ----
 
@@ -60,50 +60,6 @@ interface ApiCareerEntry {
   updatedAt: string;
 }
 
-interface ApiUgInstitution {
-  id: string;
-  name: string;
-  city?: string | null;
-  state?: string | null;
-  type?: string | null;
-  category?: string | null;
-  programmesOffered?: string | null;
-  keyProgrammesOffered?: string | null;
-  primaryEntranceExams?: string | null;
-  nirfRanking?: string | null;
-  otherRankings?: string | null;
-  website?: string | null;
-}
-
-interface ApiUgCourse {
-  id: string;
-  courseName: string;
-  fullForm?: string | null;
-  level?: string | null;
-  stream12thRequirements?: string | null;
-  entranceExamsPrimary?: string | null;
-  entranceExamsAlternate?: string | null;
-  topSpecialisations?: string | null;
-  topGovtColleges?: string | null;
-  topPrivateColleges?: string | null;
-  furtherStudyOptions?: string | null;
-}
-
-interface ApiUgEntranceExam {
-  id: string;
-  examName: string;
-  fullForm?: string | null;
-  conductingBody?: string | null;
-  level?: string | null;
-  applicableFor?: string | null;
-  subjectRequirements12th?: string | null;
-  applicationWindow?: string | null;
-  examMonth?: string | null;
-  examMode?: string | null;
-  frequency?: string | null;
-  officialWebsite?: string | null;
-}
-
 interface CareerLibraryListResponse {
   data: ApiCareerEntry[];
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
@@ -118,35 +74,90 @@ interface CareerLibraryFiltersResponse {
 
 // The curated links + typeahead lookups come from the NORMALIZED lookup tables
 // (`EntranceExam` / `Course` / `Institution`), whose short-name column is `name` — not
-// the legacy `UgEntranceExam.examName` / `UgCourse.courseName` used by the related* views.
+// the legacy `UgEntranceExam.examName` / `UgCourse.courseName` used by the old related*
+// (broad, domain-wide value-match) view. These are the entry's *actual* linked records —
+// the canonical field set an add-new item can carry (docs/api-list.md -> Career Library
+// -> "Normalized links").
 interface ApiNormalizedExam {
   id: string;
   name: string;
   level?: 'UG' | 'PG' | string | null;
   fullForm?: string | null;
+  conductingBody?: string | null;
+  officialWebsite?: string | null;
+  examMode?: string | null;
+  frequency?: string | null;
+  applicableFor?: string | null;
+  subjectRequirements12th?: string | null;
+  applicationWindow?: string | null;
 }
 interface ApiNormalizedCourse {
   id: string;
   name: string;
   level?: string | null;
   fullForm?: string | null;
+  stream12thRequirements?: string | null;
+  relevantEntranceExams?: string | null;
+  programmesOffered?: string | null;
+  topColleges?: string | null;
+  furtherStudyOptions?: string | null;
 }
 interface ApiNormalizedInstitution {
   id: string;
   name: string;
   city?: string | null;
   state?: string | null;
+  type?: string | null;
+  website?: string | null;
+  entranceExamsRequired?: string | null;
+  programmesOffered?: string | null;
+  ranking?: string | null;
+}
+
+// ---- Domain education path (docs/api-list.md -> Career Taxonomy -> Education Path) ----
+
+export type EducationLevel =
+  | 'CLASS_10_PLUS_2'
+  | 'GRADUATE'
+  | 'POST_GRADUATE'
+  | 'CERTIFICATION_STUDENT'
+  | 'CERTIFICATION_UG';
+
+// The labels the job-role form shows against each entry.
+export const EDUCATION_LEVEL_LABEL: Record<EducationLevel, string> = {
+  CLASS_10_PLUS_2: '10+2',
+  GRADUATE: 'Graduate',
+  POST_GRADUATE: 'Post-Graduate',
+  CERTIFICATION_STUDENT: 'Certification (Student Level)',
+  CERTIFICATION_UG: 'Certification (Undergraduate Level)',
+};
+
+// Level order as the education path reads top to bottom.
+export const EDUCATION_LEVELS: EducationLevel[] = [
+  'CLASS_10_PLUS_2',
+  'GRADUATE',
+  'POST_GRADUATE',
+  'CERTIFICATION_STUDENT',
+  'CERTIFICATION_UG',
+];
+
+export interface DomainEducationEntry {
+  id: string;
+  level: EducationLevel;
+  programme: string;
+  description?: string | null;
 }
 
 interface CareerLibraryDetailResponse extends ApiCareerEntry {
-  relatedInstitutions: ApiUgInstitution[];
-  relatedCourses: ApiUgCourse[];
-  relatedEntranceExams: ApiUgEntranceExam[];
   // Curated many-to-many links actually attached to this entry (with ids) — the source
-  // for pre-ticking the linked-reference lists when editing a job role.
+  // for both the read-only detail tabs and pre-ticking the edit form's tick-lists.
+  // (The API also returns a legacy `related*` broad value-match view — matched by
+  // domain/cluster name, not by this entry's own links — which is deliberately not read
+  // here: it showed unrelated institutions/courses on every role in an industry.)
   linkedEntranceExams?: ApiNormalizedExam[];
   linkedCourses?: ApiNormalizedCourse[];
   linkedInstitutions?: ApiNormalizedInstitution[];
+  linkedEducationEntries?: DomainEducationEntry[];
 }
 
 // Typeahead endpoints ("dropdown" reads) may return a bare array or a `{ data }` wrapper.
@@ -244,7 +255,9 @@ export interface CareerEntryPayload {
   salaryGlobalRangeText?: string | null;
   salaryGlobalMinUSD?: number | null;
   salaryGlobalMaxUSD?: number | null;
-  qualification10th12th: string;
+  // Derived from the Education Path tick-list, which is optional on the form — omitted
+  // entirely (not sent as `''`) when nothing is ticked at that level.
+  qualification10th12th?: string;
   qualification10th12thExplanation?: string | null;
   qualificationGraduation?: string | null;
   qualificationGraduationDefined?: string | null;
@@ -256,6 +269,9 @@ export interface CareerEntryPayload {
   entranceExams?: CareerEntryExamItem[];
   courses?: CareerEntryCourseItem[];
   institutions?: CareerEntryInstitutionItem[];
+  // Ticked domain education entries. Sending the array replaces this role's links;
+  // omitting it leaves them unchanged.
+  educationEntries?: { id: string }[];
   status?: 'DRAFT' | 'ACTIVE';
 }
 
@@ -274,6 +290,7 @@ const mapCareerEntry = (entry: ApiCareerEntry): Career => ({
   careerCluster: entry.domain.industry.cluster.name,
   industry: entry.domain.industry.name,
   domain: entry.domain.name,
+  domainId: entry.domain.id,
   aiResilienceGrading: AI_GRADE_MAP[entry.aiResilienceGrade] || 'High',
   aiResilienceComment: entry.aiResilienceComment,
   oneLineDescription: entry.oneLineDescription,
@@ -307,31 +324,31 @@ const mapCareerEntry = (entry: ApiCareerEntry): Career => ({
   sourceTenant: entry.createdBy,
 });
 
-const mapInstitution = (inst: ApiUgInstitution): InstitutionDetail => ({
+const mapInstitution = (inst: ApiNormalizedInstitution): InstitutionDetail => ({
   id: inst.id,
-  badge: inst.type || inst.category || 'Institution',
+  badge: inst.type || 'Institution',
   name: inst.name,
   cityState: [inst.city, inst.state].filter(Boolean).join(', ') || '—',
-  entranceExam: inst.primaryEntranceExams || '—',
-  programsOffered: inst.keyProgrammesOffered || inst.programmesOffered || '—',
-  ranking: inst.nirfRanking || inst.otherRankings || '—',
+  entranceExam: inst.entranceExamsRequired || '—',
+  programsOffered: inst.programmesOffered || '—',
+  ranking: inst.ranking || '—',
   website: inst.website || '',
 });
 
-const mapCourse = (course: ApiUgCourse): CourseDetail => ({
+const mapCourse = (course: ApiNormalizedCourse): CourseDetail => ({
   id: course.id,
   badge: course.level || 'UG',
-  title: course.fullForm ? `${course.courseName} (${course.fullForm})` : course.courseName,
+  title: course.fullForm ? `${course.name} (${course.fullForm})` : course.name,
   streamRequirement: course.stream12thRequirements || '—',
-  entranceExams: course.entranceExamsPrimary || course.entranceExamsAlternate || '—',
-  programsOffered: course.topSpecialisations || '—',
-  topColleges: [course.topGovtColleges, course.topPrivateColleges].filter(Boolean).join('; ') || '—',
+  entranceExams: course.relevantEntranceExams || '—',
+  programsOffered: course.programmesOffered || '—',
+  topColleges: course.topColleges || '—',
   furtherStudyOptions: course.furtherStudyOptions || '—',
 });
 
-const mapExam = (exam: ApiUgEntranceExam): EntranceExam => ({
+const mapExam = (exam: ApiNormalizedExam): EntranceExam => ({
   id: exam.id,
-  name: exam.examName,
+  name: exam.name,
   fullTitle: exam.fullForm || '',
   level: exam.level === 'PG' ? 'PG' : 'UG',
   conductedBy: exam.conductingBody || '—',
@@ -340,7 +357,7 @@ const mapExam = (exam: ApiUgEntranceExam): EntranceExam => ({
   applicableFor: exam.applicableFor || '—',
   requirement12th: exam.subjectRequirements12th || '—',
   website: exam.officialWebsite || '',
-  datesText: [exam.applicationWindow, exam.examMonth].filter(Boolean).join(' / ') || undefined,
+  datesText: exam.applicationWindow || undefined,
 });
 
 // ---- Full-dataset cache: derives cluster/industry/domain browsing client-side
@@ -438,7 +455,81 @@ const fetchEntriesByIndustry = async (industryId: string): Promise<Career[]> => 
   return all.map(mapCareerEntry);
 };
 
-let ratificationsDb: PendingRatification[] = [...mockPendingRatifications];
+// ---- Ratification requests (docs/api-list.md -> Career Library -> Ratification requests) ----
+
+interface ApiCareerRequest {
+  id: string;
+  requestedById: string;
+  jobTitle: string;
+  suggestedCluster: string;
+  suggestedIndustry: string;
+  suggestedDomain: string | null;
+  oneLineDescription: string;
+  justification: string;
+  referenceLinks: string[];
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  resultingEntry: { id: string; jobRole: string; status: string } | null;
+  createdAt: string;
+}
+
+const REQUEST_STATUS: Record<ApiCareerRequest['status'], PendingRatification['status']> = {
+  PENDING: 'pending',
+  APPROVED: 'ratified',
+  REJECTED: 'rejected',
+};
+
+const API_REQUEST_STATUS: Record<PendingRatification['status'], ApiCareerRequest['status']> = {
+  pending: 'PENDING',
+  ratified: 'APPROVED',
+  rejected: 'REJECTED',
+};
+
+// A request row carries only `requestedById` (a counsellor id), so the requester's name
+// comes from the counsellor directory. A failure there must not blank the whole list.
+const getCounsellorNames = async (): Promise<Map<string, string>> => {
+  try {
+    const { data } = await apiClient.get<
+      { id: string; user?: { firstName: string; lastName: string } }[]
+    >('/counsellors');
+    return new Map(
+      data.map(c => [c.id, `${c.user?.firstName ?? ''} ${c.user?.lastName ?? ''}`.trim()])
+    );
+  } catch {
+    return new Map();
+  }
+};
+
+const mapCareerRequest = (
+  r: ApiCareerRequest,
+  names: Map<string, string>
+): PendingRatification => ({
+  id: r.id,
+  careerName: r.jobTitle,
+  sourceTenant: names.get(r.requestedById) || '\u2014',
+  suggestedCategory: r.suggestedCluster,
+  description: r.oneLineDescription,
+  submittedAt: formatDateDDMMYYYY(r.createdAt),
+  status: REQUEST_STATUS[r.status] ?? 'pending',
+  suggestedIndustry: r.suggestedIndustry,
+  suggestedDomain: r.suggestedDomain ?? undefined,
+  justification: r.justification,
+  referenceLinks: r.referenceLinks ?? [],
+  resultingEntryId: r.resultingEntry?.id ?? null,
+});
+
+const listRatificationRequests = async (
+  status?: PendingRatification['status']
+): Promise<PendingRatification[]> => {
+  const [{ data }, names] = await Promise.all([
+    apiClient.get<ApiCareerRequest[]>('/career-library/requests', {
+      params: status ? { status: API_REQUEST_STATUS[status] } : undefined,
+    }),
+    getCounsellorNames(),
+  ]);
+  return data.map(r => mapCareerRequest(r, names));
+};
 
 export const careerService = {
   // Cluster / Industry / Domain browsing — sourced from the live taxonomy tree so ids
@@ -550,13 +641,17 @@ export const careerService = {
     linkedEntranceExams: CareerLinkOption[];
     linkedCourses: CareerLinkOption[];
     linkedInstitutions: CareerLinkOption[];
+    linkedEducationEntries: DomainEducationEntry[];
   }> => {
     const { data } = await apiClient.get<CareerLibraryDetailResponse>(`/career-library/${id}`);
     return {
       career: mapCareerEntry(data),
-      entranceExams: (data.relatedEntranceExams || []).map(mapExam),
-      courses: (data.relatedCourses || []).map(mapCourse),
-      institutions: (data.relatedInstitutions || []).map(mapInstitution),
+      // The detail tabs show only what's actually linked to this entry — not the API's
+      // legacy `related*` view, which broad-matches by domain/cluster name and so showed
+      // the same institutions/courses on every role in an industry regardless of links.
+      entranceExams: (data.linkedEntranceExams || []).map(mapExam),
+      courses: (data.linkedCourses || []).map(mapCourse),
+      institutions: (data.linkedInstitutions || []).map(mapInstitution),
       linkedEntranceExams: (data.linkedEntranceExams || []).map(e => ({
         id: e.id,
         label: examOptionLabel(e),
@@ -567,11 +662,52 @@ export const careerService = {
         id: i.id,
         label: institutionOptionLabel(i),
       })),
+      linkedEducationEntries: data.linkedEducationEntries || [],
     };
   },
 
-  // ---- Typeahead pickers for the add/edit job-role linked references (select-or-add) ----
-  // GET /api/v1/career-library/entrance-exams | /courses | /institutions
+  // ---- Education path entries ----
+  // Global canonical rows (like exams / courses / institutions), NOT per-domain: one
+  // `{ level, programme }` row is reused by every job role that names it. `domainId`
+  // narrows the list to entries already linked to roles in that domain — which is what
+  // "pulled from this Domain" means on the job-role form. Pickers see APPROVED rows only
+  // (the endpoint defaults to that).
+  listEducationEntries: async (params: {
+    domainId?: string;
+    search?: string;
+    level?: EducationLevel;
+    limit?: number;
+  } = {}): Promise<DomainEducationEntry[]> => {
+    const { data } = await apiClient.get<DomainEducationEntry[] | { data: DomainEducationEntry[] }>(
+      '/career-library/education',
+      {
+        params: {
+          ...(params.domainId ? { domainId: params.domainId } : {}),
+          ...(params.search ? { search: params.search } : {}),
+          ...(params.level ? { level: params.level } : {}),
+          ...(params.limit ? { limit: params.limit } : {}),
+        },
+      }
+    );
+    return Array.isArray(data) ? data : data.data;
+  },
+
+  // POST /career-library/education. Submitted by an admin it is APPROVED immediately;
+  // a counsellor's proposal lands PENDING for review. 409 if the same level+programme
+  // already exists among live rows.
+  createEducationEntry: async (input: {
+    level: EducationLevel;
+    programme: string;
+    description?: string;
+  }): Promise<DomainEducationEntry> => {
+    const { data } = await apiClient.post<DomainEducationEntry>('/career-library/education', {
+      level: input.level,
+      programme: input.programme,
+      ...(input.description ? { description: input.description } : {}),
+    });
+    return data;
+  },
+
   searchEntranceExams: async (search: string, level?: 'UG' | 'PG'): Promise<CareerLinkOption[]> => {
     const { data } = await apiClient.get<ApiNormalizedExam[] | { data: ApiNormalizedExam[] }>(
       '/career-library/entrance-exams',
@@ -674,26 +810,27 @@ export const careerService = {
     invalidateCareerCaches();
   },
 
-  // Pending ratifications: no backend endpoint exists yet (career library is
-  // read-only) — kept on mock data until that module is built.
-  getPendingRatifications: async (): Promise<PendingRatification[]> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return ratificationsDb.filter(r => r.status === 'pending');
-  },
+  // ---- Ratification requests: counsellors propose careers, admins review ----
+  // GET /career-library/requests, POST .../{id}/approve, POST .../{id}/reject.
 
-  ratify: async (id: string): Promise<PendingRatification> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const idx = ratificationsDb.findIndex(r => r.id === id);
-    if (idx === -1) throw new Error('Pending ratification not found');
-    ratificationsDb[idx] = { ...ratificationsDb[idx], status: 'ratified' };
-    return ratificationsDb[idx];
+  getRatificationRequests: listRatificationRequests,
+
+  getPendingRatifications: (): Promise<PendingRatification[]> =>
+    listRatificationRequests('pending'),
+
+  // `resultingEntryId` links the library entry the admin created from the request.
+  ratify: async (id: string, resultingEntryId?: string): Promise<PendingRatification> => {
+    const { data } = await apiClient.post<ApiCareerRequest>(
+      `/career-library/requests/${id}/approve`,
+      resultingEntryId ? { resultingEntryId } : {}
+    );
+    return mapCareerRequest(data, await getCounsellorNames());
   },
 
   rejectRatification: async (id: string): Promise<PendingRatification> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const idx = ratificationsDb.findIndex(r => r.id === id);
-    if (idx === -1) throw new Error('Pending ratification not found');
-    ratificationsDb[idx] = { ...ratificationsDb[idx], status: 'rejected' };
-    return ratificationsDb[idx];
+    const { data } = await apiClient.post<ApiCareerRequest>(
+      `/career-library/requests/${id}/reject`
+    );
+    return mapCareerRequest(data, await getCounsellorNames());
   },
 };

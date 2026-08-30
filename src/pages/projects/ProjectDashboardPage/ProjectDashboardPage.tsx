@@ -20,12 +20,12 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Table, Column } from '@/components/Table';
 import { AlertModal, Tooltip } from '@/components';
+import { Loader } from '@/components/Loader';
 import { projectService } from '@/services/project.service';
 import { ProjectStudentDetail } from '@/types/project.types';
-import { mockProjects } from '@/mocks/projects.mock';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
-import { formatDateDDMMYYYY } from '@/utils';
+import { formatDateDDMMYYYY, getApiErrorMessage } from '@/utils';
 import { EditProjectModal } from '../components/EditProjectModal';
 import { EditStudentModal } from '../ProjectStudentsPage/EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
@@ -75,17 +75,66 @@ export const PROJECT_STAGES_OPTIONS = [
   { value: 'Report Downloaded', label: 'Report Downloaded' },
 ];
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2026-08-01" -> "01 Aug, 2026". Parsed by parts rather than through `new Date` so a
+// date-only string doesn't shift a day in timezones behind UTC.
+const formatBannerDate = (ymd?: string): string => {
+  if (!ymd) return '—';
+  const [y, m, d] = ymd.split('-');
+  if (!y || !m || !d) return ymd;
+  return `${d} ${MONTHS[Number(m) - 1] ?? m}, ${y}`;
+};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Date-only strings are pinned to UTC midnight on both sides of every subtraction below,
+// so a day is never gained or lost to the local timezone.
+const parseYmd = (ymd?: string): number | null => {
+  if (!ymd) return null;
+  const [y, m, d] = ymd.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return Date.UTC(y, m - 1, d);
+};
+
+const todayUtc = (): number => {
+  const now = new Date();
+  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+// The project window, counting both the first and last day.
+const totalDays = (from?: string, to?: string): number | null => {
+  const start = parseYmd(from);
+  const end = parseYmd(to);
+  if (start === null || end === null || end < start) return null;
+  return Math.round((end - start) / MS_PER_DAY) + 1;
+};
+
+// Whole days left after today; 0 once the window has closed.
+const remainingDays = (to?: string): number | null => {
+  const end = parseYmd(to);
+  if (end === null) return null;
+  return Math.max(0, Math.round((end - todayUtc()) / MS_PER_DAY));
+};
+
 export const ProjectDashboardPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const project = mockProjects.find(p => p.id === projectId) || mockProjects[0];
+  const { data: project, isLoading: isProjectLoading } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => projectService.getById(projectId as string),
+    enabled: Boolean(projectId),
+  });
+
+  const isProjectClosed = project?.status === 'closed';
+  const projectTotalDays = totalDays(project?.validFrom, project?.validTo);
+  const projectRemainingDays = remainingDays(project?.validTo);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
-  const [isProjectClosed, setIsProjectClosed] = useState(project.status === 'closed');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Table Filters State
@@ -100,20 +149,31 @@ export const ProjectDashboardPage: React.FC = () => {
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['projectStudents', projectId],
-    queryFn: () => projectService.getProjectStudents(projectId || 'proj-001'),
+    queryFn: () => projectService.getProjectStudents(projectId as string),
+    enabled: Boolean(projectId),
   });
 
   const updateMutation = useMutation({
     mutationFn: (updatedStudent: ProjectStudentDetail) =>
-      projectService.updateProjectStudent(projectId || 'proj-001', updatedStudent),
-    onSuccess: () => {
+      projectService.saveProjectStudent(projectId as string, updatedStudent),
+    onSuccess: result => {
       queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      // The Total Students card reads the project's `_count`, not the student list.
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       toast.success('Student Saved', 'Student information updated successfully.');
+      // PATCH /students/{id} has no email field, so an edited address never reached the
+      // backend — say so rather than letting the success toast imply it saved.
+      if (result.emailChangeIgnored) {
+        toast.warning(
+          'Email Not Changed',
+          "A student's login email can't be edited here — every other change was saved."
+        );
+      }
       setEditingStudent(null);
       setIsAddStudentModalOpen(false);
     },
-    onError: () => {
-      toast.error('Save Failed', 'Could not update student details.');
+    onError: err => {
+      toast.error('Save Failed', getApiErrorMessage(err, 'Could not update student details.'));
     },
   });
 
@@ -121,21 +181,45 @@ export const ProjectDashboardPage: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleConfirmClose = () => {
-    setIsProjectClosed(true);
-    setIsCloseModalOpen(false);
-    toast.success('Project Closed', `"${project.name}" has been marked as completed.`);
-  };
+  // PATCH /projects/{id} with status CLOSED — the soft close that also gates
+  // student/parent submissions on the backend.
+  const closeMutation = useMutation({
+    mutationFn: () => projectService.update(projectId as string, { status: 'closed' }),
+    onSuccess: updated => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
+      setIsCloseModalOpen(false);
+      toast.success('Project Closed', `"${updated.name}" has been marked as completed.`);
+    },
+    onError: () => {
+      toast.error('Close Failed', 'Could not close this project. Please try again.');
+    },
+  });
 
-  const handleConfirmDelete = () => {
-    setIsDeleteModalOpen(false);
-    toast.warning('Project Deleted', `${project.name} has been removed.`);
-    navigate(ROUTES.PROJECTS);
-  };
+  // DELETE /projects/{id} is a soft-delete (status → DELETED); the record is preserved
+  // and can be restored from the projects list.
+  const deleteMutation = useMutation({
+    mutationFn: () => projectService.delete(projectId as string),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
+      setIsDeleteModalOpen(false);
+      toast.warning('Project Deleted', `${project?.name ?? 'Project'} has been removed.`);
+      navigate(ROUTES.PROJECTS);
+    },
+    onError: () => {
+      toast.error('Delete Failed', 'Could not delete this project. Please try again.');
+    },
+  });
+
+  const handleConfirmClose = () => closeMutation.mutate();
+
+  const handleConfirmDelete = () => deleteMutation.mutate();
 
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
-      id: `std-new-${Date.now()}`,
+      id: '',
       studentId: `ST${100 + students.length + 1}`,
       name: '',
       email: '',
@@ -167,8 +251,8 @@ export const ProjectDashboardPage: React.FC = () => {
     const flaggedCount = students.filter(s => s.isFlagged).length;
 
     let csvContent = `PROJECT STUDENTS STAGE REPORT\n`;
-    csvContent += `Project Name,${project.name}\n`;
-    csvContent += `Institution,${project.instituteName}\n`;
+    csvContent += `Project Name,${project?.name ?? ''}\n`;
+    csvContent += `Institution,${project?.instituteName ?? ''}\n`;
     csvContent += `Total Enrolled Students,${students.length}\n`;
     csvContent += `Total Overdue Flagged (>2 Days Inactive),${flaggedCount}\n\n`;
 
@@ -189,7 +273,10 @@ export const ProjectDashboardPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Stage_Report.csv`);
+    link.setAttribute(
+      'download',
+      `${(project?.name ?? 'Project').replace(/\s+/g, '_')}_Stage_Report.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -313,6 +400,8 @@ export const ProjectDashboardPage: React.FC = () => {
     },
   ];
 
+  if (isProjectLoading) return <Loader />;
+
   return (
     <DashboardContainer>
       {/* Top Project Identity Banner */}
@@ -328,16 +417,19 @@ export const ProjectDashboardPage: React.FC = () => {
 
           <ProjectIdentity>
             <ProjectTitleRow>
-              <ProjectInstituteTitle>{project.instituteName}</ProjectInstituteTitle>
+              <ProjectInstituteTitle>{project?.instituteName}</ProjectInstituteTitle>
               <InstCodeBadge>INS001</InstCodeBadge>
               <StatusPill $isClosed={isProjectClosed}>
                 {isProjectClosed ? 'Completed' : 'Ongoing'}
               </StatusPill>
             </ProjectTitleRow>
             <LocationAndPeriod>
-              <span>{project.location || 'Mumbai, Maharashtra'}</span>
+              <span>{project?.location || 'Mumbai, Maharashtra'}</span>
               <span>•</span>
-              <PeriodText>Period : 01 Aug, 2026 – 31 Oct, 2026</PeriodText>
+              <PeriodText>
+                Period : {formatBannerDate(project?.validFrom)} –{' '}
+                {formatBannerDate(project?.validTo)}
+              </PeriodText>
             </LocationAndPeriod>
           </ProjectIdentity>
         </TopHeaderLeft>
@@ -383,27 +475,27 @@ export const ProjectDashboardPage: React.FC = () => {
         <OverviewCard
           $clickable
           onClick={() =>
-            navigate(ROUTES.PROJECT_SESSIONS.replace(':projectId', projectId || 'proj-001'))
+            navigate(ROUTES.PROJECT_SESSIONS.replace(':projectId', projectId as string))
           }
           title="Click to view Project Sessions"
         >
           <OverviewCardLabel>Counsellors</OverviewCardLabel>
-          <OverviewCardValue>44</OverviewCardValue>
+          <OverviewCardValue>{project?.counselorCount ?? 0}</OverviewCardValue>
         </OverviewCard>
 
         <OverviewCard>
           <OverviewCardLabel>Total Students</OverviewCardLabel>
-          <OverviewCardValue>{students.length || 350}</OverviewCardValue>
+          <OverviewCardValue>{project?.studentCount ?? students.length}</OverviewCardValue>
         </OverviewCard>
 
         <OverviewCard>
           <OverviewCardLabel>Total Days</OverviewCardLabel>
-          <OverviewCardValue>95</OverviewCardValue>
+          <OverviewCardValue>{projectTotalDays ?? '—'}</OverviewCardValue>
         </OverviewCard>
 
         <OverviewCard>
           <OverviewCardLabel>Remaining Days</OverviewCardLabel>
-          <OverviewCardValue>15</OverviewCardValue>
+          <OverviewCardValue>{projectRemainingDays ?? '—'}</OverviewCardValue>
         </OverviewCard>
       </OverviewStatsGrid>
 
@@ -505,11 +597,13 @@ export const ProjectDashboardPage: React.FC = () => {
       />
 
       {/* Edit / Extend Project Modal */}
-      <EditProjectModal
-        isOpen={isEditModalOpen}
-        project={project}
-        onClose={() => setIsEditModalOpen(false)}
-      />
+      {project && (
+        <EditProjectModal
+          isOpen={isEditModalOpen}
+          project={project}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
 
       {/* Delete Project Confirmation Modal */}
       <AlertModal
@@ -517,7 +611,7 @@ export const ProjectDashboardPage: React.FC = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
         title="Delete Project"
-        description={`Are you sure you want to delete "${project.name}"? This action cannot be undone.`}
+        description={`Are you sure you want to delete "${project?.name ?? ''}"? This action cannot be undone.`}
         variant="danger"
         confirmText="Delete Project"
         cancelText="Cancel"
@@ -529,7 +623,7 @@ export const ProjectDashboardPage: React.FC = () => {
         onClose={() => setIsCloseModalOpen(false)}
         onConfirm={handleConfirmClose}
         title="Close Project"
-        description={`Are you sure you want to close "${project.name}"? This will mark the project status as completed.`}
+        description={`Are you sure you want to close "${project?.name ?? ''}"? This will mark the project status as completed.`}
         variant="warning"
         confirmText="Close Project"
         cancelText="Cancel"

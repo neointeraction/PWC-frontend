@@ -86,6 +86,18 @@ export const getApiErrorMessage = (error: unknown, fallback = 'Something went wr
 };
 
 /**
+ * The HTTP status behind an API error, when there is one. Lets a caller tell an expected
+ * rejection (a 409 from a one-shot endpoint) apart from a real failure, which
+ * `getApiErrorMessage` alone cannot do.
+ */
+export const getApiErrorStatus = (error: unknown): number | undefined => {
+  if (error && typeof error === 'object' && ('isAxiosError' in error || 'response' in error)) {
+    return (error as { response?: { status?: number } }).response?.status;
+  }
+  return undefined;
+};
+
+/**
  * The backend accepts phone numbers as E.164 only — `/^\+?[1-9]\d{1,14}$/`, i.e. an
  * optional `+` then digits, with no spaces, hyphens, brackets or leading zero (see
  * `phoneSchema` in the backend's shared validators). Sheets and hand-typed input routinely

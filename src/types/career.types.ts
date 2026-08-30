@@ -5,6 +5,7 @@ export interface Career {
   careerCluster: string; // Text / Categorical
   industry: string; // Text / Categorical
   domain: string; // Text
+  domainId?: string; // Leaf taxonomy id — needed to load the domain's education path
   aiResilienceGrading: 'Low' | 'Medium' | 'High' | 'Very High'; // Categorical
   aiResilienceComment: string; // Long Text
   oneLineDescription: string; // Text
@@ -69,6 +70,12 @@ export interface PendingRatification {
   description: string;
   submittedAt: string;
   status: 'pending' | 'ratified' | 'rejected';
+  // Carried through from GET /career-library/requests for the review screens.
+  suggestedIndustry?: string;
+  suggestedDomain?: string;
+  justification?: string;
+  referenceLinks?: string[];
+  resultingEntryId?: string | null;
 }
 
 export interface CareerFilters {

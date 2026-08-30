@@ -3,6 +3,7 @@ export type ProjectStatus = 'active' | 'closed' | 'deleted';
 export interface Project {
   id: string;
   name: string;
+  instituteId?: string;
   instituteName: string;
   counselorCount: number;
   studentCount: number;
@@ -76,11 +77,39 @@ export interface TimeSlot {
 export interface CounselorSession {
   id: string;
   counselorId: string;
+  counselorCode: string;
   counselorName: string;
   counselorEmail: string;
   counselorPhone: string;
   timeSlots: TimeSlot[];
+  slots: ProjectSlot[];
   assignedStudents: ProjectStudent[];
+}
+
+// One row of a counsellor's schedule table: an availability slot, plus the booking
+// sitting in it when there is one. A session booked by an admin outside the slot
+// inventory (POST /sessions) has no slot behind it and still gets a row.
+export interface ProjectSlot {
+  id: string;
+  sessionId?: string;
+  // Display strings the table renders directly ("18 Feb 2026", "09:30 - 10:30").
+  date: string;
+  time: string;
+  // Raw values the session endpoints need back.
+  slotDate: string;
+  startTime: string;
+  endTime: string;
+  isBooked: boolean;
+  isMissed?: boolean;
+  studentId?: string;
+  studentName?: string;
+  studentCode?: string;
+  studentEmail?: string;
+  mobile?: string;
+  grade?: string;
+  sessionType?: 'S1' | 'S2';
+  notes?: string;
+  meetingLink?: string;
 }
 
 export interface StudentSessionDetail {
@@ -88,6 +117,7 @@ export interface StudentSessionDetail {
   status: 'completed' | 'scheduled' | 'pending';
   date: string;
   timeSlot: string;
+  counselorId?: string;
   counselorName: string;
   counselorEmail: string;
 }

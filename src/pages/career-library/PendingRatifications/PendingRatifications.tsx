@@ -72,7 +72,7 @@ export const PendingRatificationsPage: React.FC = () => {
   });
 
   const ratifyMutation = useMutation({
-    mutationFn: careerService.ratify,
+    mutationFn: (id: string) => careerService.ratify(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-ratifications'] });
       queryClient.invalidateQueries({ queryKey: ['careers'] });

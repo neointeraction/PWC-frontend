@@ -49,28 +49,39 @@ export const AddProjectWizard: React.FC = () => {
 
   const createMutation = useMutation({
     mutationFn: projectService.create,
-    onSuccess: ({ studentImport }) => {
+    onSuccess: ({ studentImport, slotImport }) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       // Student rows are imported one by one and a bad row is skipped rather than
       // aborting the batch, so say what actually landed instead of a blanket success.
-      if (studentImport.failed > 0) {
-        const examples = studentImport.failures
-          .slice(0, 3)
-          .map(f => `${f.name}: ${f.reason}`)
-          .join(' · ');
-        toast.warning(
-          'Project Created — Some Students Skipped',
-          `${studentImport.imported} of ${studentImport.total} students imported. ` +
-            `${studentImport.failed} skipped — ${examples}` +
+      const studentNote =
+        studentImport.failed > 0
+          ? `${studentImport.imported} of ${studentImport.total} students imported. ` +
+            `${studentImport.failed} skipped — ` +
+            studentImport.failures
+              .slice(0, 3)
+              .map(f => `${f.name}: ${f.reason}`)
+              .join(' · ') +
             (studentImport.failed > 3 ? ` (and ${studentImport.failed - 3} more)` : '')
-        );
+          : studentImport.total > 0
+            ? `All ${studentImport.total} students were imported.`
+            : '';
+      // The slot sheet imports as one call: if it is rejected, every counsellor is left
+      // with no availability at all, which a plain success toast would hide.
+      const slotNote = slotImport.error
+        ? `Counsellor availability was not imported (${slotImport.attempted} slot(s)) — ${slotImport.error}`
+        : '';
+
+      if (studentNote && slotNote) {
+        toast.warning('Project Created — Check the Imports', `${studentNote} ${slotNote}`);
+      } else if (slotNote) {
+        toast.warning('Project Created — Availability Not Imported', slotNote);
+      } else if (studentImport.failed > 0) {
+        toast.warning('Project Created — Some Students Skipped', studentNote);
       } else {
         toast.success(
           'Project Created',
-          studentImport.total > 0
-            ? `The project was created and all ${studentImport.total} students were imported.`
-            : 'The project has been created successfully.'
+          studentNote || 'The project has been created successfully.'
         );
       }
       closeWizard();

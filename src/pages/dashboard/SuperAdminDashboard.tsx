@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { Loader } from '@/components/Loader';
-import { dashboardService } from '@/services/dashboard.service';
+import { careerService } from '@/services/career.service';
 import { useNotificationStore } from '@/store';
+import { getApiErrorMessage } from '@/utils';
+import { PendingRatification } from '@/types';
 import { JobRoleApprovalModal } from './components';
 import {
   DashboardWrapper,
@@ -16,101 +18,93 @@ import {
   ApproveButton,
 } from './SuperAdminDashboard.styles';
 
-// Ratification requests raised by counsellors. No data is shown until this is wired
-// to the backend (`/career-library/requests`) — the table renders its empty state.
-interface CareerRequest {
-  id: string;
-  itemRequested: string;
-  type: string;
-  source: string;
-  date: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
-}
-
 export const SuperAdminDashboard: React.FC = () => {
   const addNotification = useNotificationStore(state => state.addNotification);
+  const queryClient = useQueryClient();
 
-  const [requestsList, setRequestsList] = useState<CareerRequest[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<CareerRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<PendingRatification | null>(null);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
-  const { isLoading } = useQuery({
-    queryKey: ['dashboard-summary'],
-    queryFn: dashboardService.getSummary,
+  // Ratification requests raised by counsellors — pending first-class, plus the
+  // already-reviewed ones the card title calls "recent".
+  const { data: requestsList = [], isLoading } = useQuery({
+    queryKey: ['career-ratification-requests'],
+    queryFn: () => careerService.getRatificationRequests(),
   });
 
-  const handleOpenApprovalModal = (req: CareerRequest) => {
+  const closeApprovalModal = () => {
+    setIsApprovalModalOpen(false);
+    setSelectedRequest(null);
+  };
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: 'approve' | 'reject' }) =>
+      decision === 'approve' ? careerService.ratify(id) : careerService.rejectRatification(id),
+    onSuccess: (_data, { decision }) => {
+      queryClient.invalidateQueries({ queryKey: ['career-ratification-requests'] });
+      addNotification({
+        type: 'success',
+        title: decision === 'approve' ? 'Request Approved' : 'Request Rejected',
+        message:
+          decision === 'approve'
+            ? `"${selectedRequest?.careerName}" has been ratified and added to the career library.`
+            : `"${selectedRequest?.careerName}" has been rejected.`,
+      });
+      closeApprovalModal();
+    },
+    onError: err => {
+      addNotification({
+        type: 'error',
+        title: 'Review Failed',
+        message: getApiErrorMessage(err, 'Could not update the request. Please try again.'),
+      });
+    },
+  });
+
+  const handleOpenApprovalModal = (req: PendingRatification) => {
     setSelectedRequest(req);
     setIsApprovalModalOpen(true);
   };
 
   const handleConfirmApproval = () => {
     if (!selectedRequest) return;
-
-    setRequestsList(prev =>
-      prev.map(item =>
-        item.id === selectedRequest.id ? { ...item, status: 'Approved' as const } : item
-      )
-    );
-
-    addNotification({
-      type: 'success',
-      title: 'Request Approved',
-      message: `"${selectedRequest.itemRequested}" has been ratified and added to the career library.`,
-    });
-
-    setIsApprovalModalOpen(false);
-    setSelectedRequest(null);
+    reviewMutation.mutate({ id: selectedRequest.id, decision: 'approve' });
   };
 
   const handleReject = () => {
     if (!selectedRequest) return;
-
-    setRequestsList(prev =>
-      prev.map(item =>
-        item.id === selectedRequest.id ? { ...item, status: 'Rejected' as const } : item
-      )
-    );
-
-    addNotification({
-      type: 'success',
-      title: 'Request Rejected',
-      message: `"${selectedRequest.itemRequested}" has been rejected.`,
-    });
-
-    setIsApprovalModalOpen(false);
-    setSelectedRequest(null);
+    reviewMutation.mutate({ id: selectedRequest.id, decision: 'reject' });
   };
 
-  const columns: Column<CareerRequest>[] = [
+  const columns: Column<PendingRatification>[] = [
     {
       key: 'itemRequested',
       header: 'Item Requested',
-      render: row => <ItemTitle>{row.itemRequested}</ItemTitle>,
+      render: row => <ItemTitle>{row.careerName}</ItemTitle>,
     },
     {
       key: 'type',
       header: 'Type',
-      render: row => row.type,
+      render: row => row.suggestedCategory,
     },
     {
       key: 'source',
       header: 'Counsellors',
-      render: row => row.source,
+      render: row => row.sourceTenant,
     },
     {
       key: 'date',
       header: 'Date',
-      render: row => row.date,
+      render: row => row.submittedAt,
     },
     {
       key: 'status',
       header: 'Status',
       render: row => (
         <ActionButtonCell style={{ justifyContent: 'flex-end' }}>
-          {row.status === 'Approved' && <Badge variant="success">Approved</Badge>}
-          {row.status === 'Rejected' && <Badge variant="danger">Rejected</Badge>}
-          {row.status === 'Pending' && (
+          {row.status === 'ratified' && <Badge variant="success">Approved</Badge>}
+          {row.status === 'rejected' && <Badge variant="danger">Rejected</Badge>}
+          {row.status === 'pending' && (
             <>
               <Badge variant="warning">Pending</Badge>
               <Tooltip content="Approve request and publish to global library">
@@ -150,11 +144,11 @@ export const SuperAdminDashboard: React.FC = () => {
       {/* Approval Confirmation Modal */}
       <JobRoleApprovalModal
         isOpen={isApprovalModalOpen}
-        onClose={() => setIsApprovalModalOpen(false)}
+        onClose={closeApprovalModal}
         onApprove={handleConfirmApproval}
         onReject={handleReject}
-        initialItemName={selectedRequest?.itemRequested || 'UI/UX Designer'}
-        initialCategory={selectedRequest?.type}
+        initialItemName={selectedRequest?.careerName || 'UI/UX Designer'}
+        initialCategory={selectedRequest?.suggestedCategory}
       />
     </DashboardWrapper>
   );
