@@ -50,17 +50,17 @@ const statusOptions = [
 ];
 
 const mockInitialStudents: ProjectStudent[] = [
-  { name: 'Aarav Sharma', email: 'aarav.sharma@gmail.com', mobile: '+91 98765 43210', grade: 'Grade 11' },
-  { name: 'Ananya Patel', email: 'ananya.patel@gmail.com', mobile: '+91 98765 43211', grade: 'Grade 11' },
-  { name: 'Rohan Gupta', email: 'rohan.gupta@gmail.com', mobile: '+91 98765 43212', grade: 'Grade 12' },
-  { name: 'Diya Nair', email: 'diya.nair@gmail.com', mobile: '+91 98765 43213', grade: 'Grade 11' },
-  { name: 'Vihaan Iyer', email: 'vihaan.iyer@gmail.com', mobile: '+91 98765 43214', grade: 'Grade 12' },
+  { name: 'Aarav Sharma', email: 'aarav.sharma@gmail.com', mobile: '98765 43210', grade: 'Grade 11' },
+  { name: 'Ananya Patel', email: 'ananya.patel@gmail.com', mobile: '98765 43211', grade: 'Grade 11' },
+  { name: 'Rohan Gupta', email: 'rohan.gupta@gmail.com', mobile: '98765 43212', grade: 'Grade 12' },
+  { name: 'Diya Nair', email: 'diya.nair@gmail.com', mobile: '98765 43213', grade: 'Grade 11' },
+  { name: 'Vihaan Iyer', email: 'vihaan.iyer@gmail.com', mobile: '98765 43214', grade: 'Grade 12' },
 ];
 
 const mockInitialCounselors: ProjectCounselor[] = [
-  { name: 'Priya Sundaram', email: 'priya.sundaram@pwc.org', mobile: '+91 98111 22334', matchStatus: 'matched' },
-  { name: 'Rahul Verma', email: 'rahul.verma@pwc.org', mobile: '+91 98222 33445', matchStatus: 'matched' },
-  { name: 'Sarah Jenkins', email: 'sarah.jenkins@pwc.org', mobile: '+91 98333 44556', matchStatus: 'matched' },
+  { name: 'Priya Sundaram', email: 'priya.sundaram@pwc.org', mobile: '98111 22334', matchStatus: 'matched' },
+  { name: 'Rahul Verma', email: 'rahul.verma@pwc.org', mobile: '98222 33445', matchStatus: 'matched' },
+  { name: 'Sarah Jenkins', email: 'sarah.jenkins@pwc.org', mobile: '98333 44556', matchStatus: 'matched' },
 ];
 
 export const EditProjectModal: React.FC<EditProjectModalProps> = ({
@@ -90,7 +90,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
       setInstituteDetails({
         name: project.name || '',
         email: `contact@${(project.instituteName || 'institute').toLowerCase().replace(/[^a-z0-9]/g, '')}.edu`,
-        phone: '+91 98765 43210',
+        phone: '98765 43210',
         validFrom: project.validFrom || '',
         validTo: project.validTo || '',
       });
@@ -166,7 +166,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
                 <Input
                   label="Contact Phone"
                   type="tel"
-                  placeholder="+91 98765 43210"
+                  placeholder="98765 43210"
                   value={instituteDetails.phone}
                   onChange={e => setInstituteDetails({ phone: e.target.value })}
                 />

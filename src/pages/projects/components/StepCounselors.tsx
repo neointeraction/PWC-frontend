@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { RiAddLine, RiDeleteBinLine } from 'react-icons/ri';
+import { RiDeleteBinLine } from 'react-icons/ri';
 import { Badge } from '@/components/Badge';
 import { FileUpload } from '@/components/FileUpload';
 import { Table, Column } from '@/components/Table';
@@ -250,7 +250,7 @@ export const StepCounselors: React.FC = () => {
             <SummaryCount>{counselors.length}</SummaryCount> total
           </SummaryText>
         </SummaryRow>
-        <Button
+        {/* <Button
           type="button"
           size="sm"
           variant="secondary"
@@ -258,7 +258,7 @@ export const StepCounselors: React.FC = () => {
           onClick={() => setShowAddForm(prev => !prev)}
         >
           {showAddForm ? 'Cancel Manual Add' : 'Add Counselor Manually'}
-        </Button>
+        </Button> */}
       </div>
 
       {showAddForm && (
@@ -289,7 +289,7 @@ export const StepCounselors: React.FC = () => {
           />
           <Input
             label="Mobile"
-            placeholder="+91 98111 22334"
+            placeholder="98111 22334"
             value={newCounselor.mobile}
             onChange={e => setNewCounselor({ ...newCounselor, mobile: e.target.value })}
           />

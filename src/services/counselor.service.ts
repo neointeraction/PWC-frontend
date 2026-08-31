@@ -7,7 +7,7 @@ import {
   UpdateCounselorInput,
   ProjectDeploymentDetail,
 } from '@/types/counselor.types';
-import { getApiErrorMessage, normalizePhone } from '@/utils';
+import { formatFullName, getApiErrorMessage, normalizePhone } from '@/utils';
 
 // One import row that never made it in, with the reason to show the user.
 export interface BulkCreateFailure {
@@ -47,7 +47,7 @@ const mapCounsellor = (c: ApiCounsellor): Counselor => {
   return {
     id: c.id,
     counselorId: c.counsellorCode,
-    name: `${c.user.firstName} ${c.user.lastName}`.trim(),
+    name: formatFullName(c.user.firstName, c.user.lastName),
     email: c.user.email,
     mobile: c.mobile,
     status: active ? 'active' : 'inactive',

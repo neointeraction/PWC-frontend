@@ -9,7 +9,6 @@ import {
   CourseDetail,
   InstitutionDetail,
 } from '@/types';
-import { formatDateDDMMYYYY } from '@/utils';
 
 // ---- Backend response shapes (docs/api-list.md -> Career Library) ----
 
@@ -510,7 +509,7 @@ const mapCareerRequest = (
   sourceTenant: names.get(r.requestedById) || '\u2014',
   suggestedCategory: r.suggestedCluster,
   description: r.oneLineDescription,
-  submittedAt: formatDateDDMMYYYY(r.createdAt),
+  submittedAt: r.createdAt,
   status: REQUEST_STATUS[r.status] ?? 'pending',
   suggestedIndustry: r.suggestedIndustry,
   suggestedDomain: r.suggestedDomain ?? undefined,

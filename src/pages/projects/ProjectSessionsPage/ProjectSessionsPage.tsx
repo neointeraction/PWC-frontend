@@ -25,7 +25,7 @@ import { Select } from '@/components/Select';
 import { projectService } from '@/services/project.service';
 import { CounselorSession, ProjectStudent, ProjectCounselor, ProjectSlot } from '@/types/project.types';
 import { useToast } from '@/hooks';
-import { getApiErrorMessage } from '@/utils';
+import { formatDate, getApiErrorMessage } from '@/utils';
 import { ROUTES } from '@/constants';
 import { ViewStudentModal } from './ViewStudentModal';
 import { AssignStudentModal } from './AssignStudentModal';
@@ -113,34 +113,39 @@ export const ProjectSessionsPage: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['project', projectId] });
   };
 
-  // Assigns each counsellor to the project (POST /counsellors/{id}/projects). Only rows
-  // matched against the real directory carry the id that endpoint needs; anything else
-  // has to be created under Counselors List first.
+  // Assigns each counsellor to the project (POST /counsellors/{id}/projects) and imports
+  // their availability slots. Only rows matched against the real directory carry the id
+  // that endpoint needs; anything else has to be created under Counselors List first.
   const assignCounselorsMutation = useMutation({
-    mutationFn: async (newCounselors: ProjectCounselor[]) => {
-      const assignable = newCounselors.filter(c => c.directoryId);
-      const unmatched = newCounselors.filter(c => !c.directoryId).map(c => c.name || c.email);
-      for (const counselor of assignable) {
-        await projectService.assignCounsellorToProject(
-          counselor.directoryId as string,
-          projectId as string
-        );
-      }
-      return { assigned: assignable.length, unmatched };
+    mutationFn: (newCounselors: ProjectCounselor[]) => {
+      const unmatched = newCounselors.filter(c => !c.directoryId).map(c => c.counsellorCode || c.name);
+      return projectService
+        .assignCounselorsToProject(projectId as string, newCounselors)
+        .then(result => ({ ...result, unmatched }));
     },
-    onSuccess: ({ assigned, unmatched }) => {
+    onSuccess: ({ assigned, failures, slotImport, unmatched }) => {
       refreshSchedule();
       setIsAddCounselorModalOpen(false);
       if (assigned > 0) {
         toast.success(
           'Counselors Assigned',
-          `Assigned ${assigned} counselor(s) to this project.`
+          `Assigned ${assigned} counselor(s) to this project` +
+            (slotImport.imported > 0 ? ` with ${slotImport.imported} availability slot(s).` : '.')
         );
+      }
+      if (failures.length > 0) {
+        toast.warning(
+          'Some Counselors Skipped',
+          failures.map(f => `${f.name}: ${f.reason}`).join(' · ')
+        );
+      }
+      if (slotImport.error) {
+        toast.warning('Availability Not Imported', slotImport.error);
       }
       if (unmatched.length > 0) {
         toast.warning(
           'Not In Directory',
-          `${unmatched.join(', ')} — create them under Counselors List before assigning.`
+          `${unmatched.join(', ')} — add them under Counselors List before assigning.`
         );
       }
     },
@@ -232,7 +237,7 @@ export const ProjectSessionsPage: React.FC = () => {
       refreshSchedule();
       toast.success(
         'Schedule Saved',
-        `Assigned a student to ${label?.session.counselorName}'s session on ${label?.slot.date}.`
+        `Assigned a student to ${label?.session.counselorName}'s session on ${label?.slot.date ? formatDate(label.slot.date) : ''}.`
       );
       setSelectedSlotForAssign(null);
     },
@@ -328,7 +333,7 @@ export const ProjectSessionsPage: React.FC = () => {
       header: 'Date',
       render: row => (
         <span style={{ color: row.isBooked ? undefined : '#94A3B8', fontWeight: 500 }}>
-          {row.date}
+          {row.date ? formatDate(row.date) : ''}
         </span>
       ),
     },
@@ -401,7 +406,7 @@ export const ProjectSessionsPage: React.FC = () => {
       header: 'Phone',
       render: row =>
         row.isBooked ? (
-          row.mobile || '+91 9810012345'
+          row.mobile || '—'
         ) : (
           <span style={{ color: '#CBD5E1' }}>—</span>
         ),

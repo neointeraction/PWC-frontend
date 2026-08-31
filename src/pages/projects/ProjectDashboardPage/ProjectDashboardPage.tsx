@@ -25,7 +25,7 @@ import { projectService } from '@/services/project.service';
 import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
-import { formatDateDDMMYYYY, getApiErrorMessage } from '@/utils';
+import { formatDate, getApiErrorMessage } from '@/utils';
 import { EditProjectModal } from '../components/EditProjectModal';
 import { EditStudentModal } from '../ProjectStudentsPage/EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
@@ -223,7 +223,7 @@ export const ProjectDashboardPage: React.FC = () => {
       studentId: `ST${100 + students.length + 1}`,
       name: '',
       email: '',
-      mobile: '+91 ',
+      mobile: '',
       grade: 'Grade 11',
       counselorId: 'COU-01',
       counselorName: 'Dr. Rajeshwari Menon',
@@ -384,7 +384,7 @@ export const ProjectDashboardPage: React.FC = () => {
         return (
           <DateCellWrapper>
             <RiCalendarLine size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
-            <span>{rawDate ? formatDateDDMMYYYY(rawDate) : '—'}</span>
+            <span>{rawDate ? formatDate(rawDate) : '—'}</span>
             {row.isFlagged && (
               <Tooltip
                 content={`Stage inactive for ${row.daysInStage || 3} days (> 2 days threshold) — follow up required`}

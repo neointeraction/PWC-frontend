@@ -49,7 +49,7 @@ export const AddProjectWizard: React.FC = () => {
 
   const createMutation = useMutation({
     mutationFn: projectService.create,
-    onSuccess: ({ studentImport, slotImport }) => {
+    onSuccess: ({ studentImport, counselorAssign }) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       // Student rows are imported one by one and a bad row is skipped rather than
@@ -66,16 +66,32 @@ export const AddProjectWizard: React.FC = () => {
           : studentImport.total > 0
             ? `All ${studentImport.total} students were imported.`
             : '';
+      // A counsellor assignment can fail (e.g. already tied to a different institute) —
+      // say who was skipped and why instead of a blanket success.
+      const counselorNote =
+        counselorAssign.failures.length > 0
+          ? `${counselorAssign.assigned} counselor(s) assigned. ` +
+            `${counselorAssign.failures.length} skipped — ` +
+            counselorAssign.failures
+              .slice(0, 3)
+              .map(f => `${f.name}: ${f.reason}`)
+              .join(' · ') +
+            (counselorAssign.failures.length > 3
+              ? ` (and ${counselorAssign.failures.length - 3} more)`
+              : '')
+          : '';
       // The slot sheet imports as one call: if it is rejected, every counsellor is left
       // with no availability at all, which a plain success toast would hide.
-      const slotNote = slotImport.error
-        ? `Counsellor availability was not imported (${slotImport.attempted} slot(s)) — ${slotImport.error}`
+      const slotNote = counselorAssign.slotImport.error
+        ? `Counsellor availability was not imported (${counselorAssign.slotImport.attempted} slot(s)) — ${counselorAssign.slotImport.error}`
         : '';
 
-      if (studentNote && slotNote) {
-        toast.warning('Project Created — Check the Imports', `${studentNote} ${slotNote}`);
-      } else if (slotNote) {
-        toast.warning('Project Created — Availability Not Imported', slotNote);
+      const issueNote = [counselorNote, slotNote].filter(Boolean).join(' ');
+
+      if (studentNote && issueNote) {
+        toast.warning('Project Created — Check the Imports', `${studentNote} ${issueNote}`);
+      } else if (issueNote) {
+        toast.warning('Project Created — Check Counselor Assignments', issueNote);
       } else if (studentImport.failed > 0) {
         toast.warning('Project Created — Some Students Skipped', studentNote);
       } else {
@@ -109,11 +125,11 @@ export const AddProjectWizard: React.FC = () => {
       case 1:
         return students.length === 0;
       case 2:
-        return false;
+        return counselors.length === 0;
       default:
         return false;
     }
-  }, [wizardStep, instituteDetails, students]);
+  }, [wizardStep, instituteDetails, students, counselors]);
 
   const handleFinish = () => {
     createMutation.mutate({

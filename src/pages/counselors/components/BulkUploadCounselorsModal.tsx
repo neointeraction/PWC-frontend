@@ -200,7 +200,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
       const problems = [
         !hasName && 'name',
         !hasEmail && 'valid email',
-        !hasMobile && (mobile ? 'valid mobile (E.164, e.g. +919876543210)' : 'mobile'),
+        !hasMobile && (mobile ? 'valid mobile (E.164, e.g. 919876543210)' : 'mobile'),
       ].filter(Boolean);
       return {
         counselorId,

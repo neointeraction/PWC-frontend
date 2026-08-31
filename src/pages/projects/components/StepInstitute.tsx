@@ -25,7 +25,7 @@ const instituteSchema = z
     phone: z
       .string()
       .min(1, 'Phone number is required')
-      .refine(isValidPhone, 'Enter a valid number, e.g. +919876543210 (no leading zero)'),
+      .refine(isValidPhone, 'Enter a valid number, e.g. 9876543210 (no leading zero)'),
     validFrom: z.string().min(1, 'Start date is required'),
     validTo: z.string().min(1, 'End date is required'),
   })
@@ -91,7 +91,7 @@ export const StepInstitute: React.FC = () => {
           <Input
             label="Phone Number"
             type="tel"
-            placeholder="+91 XXXXX XXXXX"
+            placeholder="XXXXX XXXXX"
             error={errors.phone?.message}
             {...register('phone', {
               onChange: e => handleChange('phone', e.target.value),

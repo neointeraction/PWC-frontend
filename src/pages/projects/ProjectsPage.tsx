@@ -190,7 +190,7 @@ export const ProjectsPage: React.FC = () => {
           >
             {row.name}
           </ProjectNameLink>
-          <ProjectInstituteSubtext>{row.instituteName}</ProjectInstituteSubtext>
+          {row.code && <ProjectInstituteSubtext>{row.code}</ProjectInstituteSubtext>}
         </ProjectNameCell>
       ),
     },
@@ -202,14 +202,14 @@ export const ProjectsPage: React.FC = () => {
     {
       key: 'validFrom',
       header: 'Valid From',
-      render: row => (row.validFrom ? dayjs(row.validFrom).format('DD MMM YYYY') : '—'),
+      render: row => row.validFrom || '—',
     },
     {
       key: 'validTo',
       header: 'Valid To',
       render: row => {
         if (!row.validTo) return '—';
-        const formattedDate = dayjs(row.validTo).format('DD MMM YYYY');
+        const formattedDate = row.validTo;
         if (row.status === 'active') {
           const daysLeft = Math.ceil(dayjs(row.validTo).diff(dayjs(), 'day', true));
           if (daysLeft >= 0 && daysLeft <= 15) {

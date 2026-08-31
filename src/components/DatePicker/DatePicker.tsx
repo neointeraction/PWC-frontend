@@ -33,6 +33,9 @@ export const DatePicker = forwardRef<ReactDatePicker, CustomDatePickerProps>(
             dateFormat="MMM dd, yyyy"
             placeholderText={placeholderText || 'Select a date'}
             portalId="root"
+            // Typing a date freehand (e.g. a mistyped/truncated year like "202") produces a
+            // silently-valid but wrong Date; forcing calendar-only selection prevents that.
+            onChangeRaw={e => e?.preventDefault()}
             {...props}
           />
           <IconWrapper>

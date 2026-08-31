@@ -20,7 +20,7 @@ import { projectService } from '@/services/project.service';
 import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
-import { formatDateDDMMYYYY, getApiErrorMessage } from '@/utils';
+import { formatDate, getApiErrorMessage } from '@/utils';
 import { EditStudentModal } from './EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
 import {
@@ -111,10 +111,9 @@ export const ProjectStudentsPage: React.FC = () => {
       studentId: `ST${100 + students.length + 1}`,
       name: '',
       email: '',
-      mobile: '+91 ',
-      grade: 'Grade 11',
+      mobile: '',
+      grade: '',
       stage: 'Login Activated',
-      stageCompletedDate: new Date().toISOString().slice(0, 10),
       daysInStage: 0,
       isFlagged: false,
     };
@@ -269,7 +268,7 @@ export const ProjectStudentsPage: React.FC = () => {
         return (
           <DateCellWrapper>
             <RiCalendarLine size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
-            <span>{rawDate ? formatDateDDMMYYYY(rawDate) : ''}</span>
+            <span>{rawDate ? formatDate(rawDate) : ''}</span>
             {row.isFlagged && (
               <Tooltip
                 content={

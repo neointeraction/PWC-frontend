@@ -7,6 +7,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { projectService } from '@/services/project.service';
 import { CounselorSession, ProjectSlot } from '@/types/project.types';
+import { formatDate } from '@/utils';
 
 const FormContainer = styled.div`
   display: flex;
@@ -133,7 +134,7 @@ export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
         <InfoBox>
           <span>Counselor &amp; Available Session Slot</span>
           <span>
-            {session.counselorName} • {slot.date} @ {slot.time}
+            {session.counselorName} • {formatDate(slot.date)} @ {slot.time}
           </span>
         </InfoBox>
 
@@ -163,7 +164,7 @@ export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
           <Input
             value={mobile}
             onChange={e => setMobile(e.target.value)}
-            placeholder="+91 Mobile number"
+            placeholder="Mobile number"
           />
         </FieldGroup>
 

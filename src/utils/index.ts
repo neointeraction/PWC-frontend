@@ -4,29 +4,25 @@
  */
 
 /**
- * Formats a date string into DD-MM-YYYY format.
+ * Joins a first/last name pair for display. The backend requires a non-empty lastName,
+ * so a single-word name is stored with lastName === firstName — collapse that back down
+ * so it doesn't render twice (e.g. "Jishnu Jishnu").
  */
-export const formatDateDDMMYYYY = (dateStr: string): string => {
-  if (!dateStr) return '';
-  const dateOnly = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-  const parts = dateOnly.split('-');
-  if (parts.length === 3 && parts[0].length === 4) {
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-  }
-  return dateStr;
-};
+export const formatFullName = (firstName: string, lastName?: string): string =>
+  lastName && lastName !== firstName ? `${firstName} ${lastName}`.trim() : firstName;
 
 /**
- * Formats a date string into a human-readable format.
+ * Formats a date string into "10 Aug 2026" style — the app-wide display format.
  */
 export const formatDate = (dateStr: string): string => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return dateStr;
   return date.toLocaleDateString('en-GB', {
-    year: 'numeric',
-    month: 'numeric',
     day: 'numeric',
-  }).replace(/\//g, '-');
+    month: 'short',
+    year: 'numeric',
+  });
 };
 
 /**
@@ -110,3 +106,7 @@ export const normalizePhone = (value?: string | null): string =>
 /** Whether a phone number will pass the backend's E.164 check once normalized. */
 export const isValidPhone = (value?: string | null): boolean =>
   /^\+?[1-9]\d{1,14}$/.test(normalizePhone(value));
+
+/** Whether a value will pass the backend's @IsEmail() check. */
+export const isValidEmail = (value?: string | null): boolean =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value ?? '').trim());

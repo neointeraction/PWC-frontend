@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useMutation } from '@tanstack/react-query';
 import { RiLockLine, RiShieldKeyholeLine, RiCheckLine } from 'react-icons/ri';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { useToast } from '@/hooks';
 import { useAuthStore } from '@/store';
+import { authService } from '@/services/auth.service';
 import { ROUTES } from '@/constants';
+import { getApiErrorMessage } from '@/utils';
 import logoImg from '@/assets/logo.jpg';
 import {
   ResetPasswordWrapper,
@@ -27,7 +30,7 @@ import {
 const resetPasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: z.string().min(1, 'New password is required'),
+    newPassword: z.string().min(8, 'New password must be at least 8 characters'),
     confirmPassword: z.string().min(1, 'Please confirm your new password'),
   })
   .refine(data => data.newPassword === data.confirmPassword, {
@@ -40,31 +43,36 @@ type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  const { role, setMustResetPassword } = useAuthStore();
+  const logout = useAuthStore(state => state.logout);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
   });
 
-  const onSubmit = async (_data: ResetPasswordFormData) => {
-    // Simulate API call for password update
-    await new Promise(resolve => setTimeout(resolve, 600));
-    setMustResetPassword(false);
-    toast.success(
-      'Password Changed Successfully',
-      'Your account security details have been updated. Welcome to your portal.'
-    );
-    if (role === 'counselor') {
-      navigate(ROUTES.UPCOMING_SESSIONS);
-    } else if (role === 'student') {
-      navigate(ROUTES.STUDENT_PORTAL);
-    } else {
-      navigate(ROUTES.DASHBOARD);
-    }
+  const changePasswordMutation = useMutation({
+    mutationFn: authService.changePassword,
+    onSuccess: () => {
+      // The backend revokes every refresh session on a successful change, so the
+      // current session is already dead server-side — sign out and send the user
+      // back to login rather than letting the next token refresh fail mid-task.
+      toast.success('Password Changed Successfully', 'Please sign in again with your new password.');
+      logout();
+      navigate(ROUTES.LOGIN, { replace: true });
+    },
+    onError: err => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to change password.'));
+    },
+  });
+
+  const onSubmit = (data: ResetPasswordFormData) => {
+    changePasswordMutation.mutate({
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    });
   };
 
   return (
@@ -123,7 +131,7 @@ export const ResetPasswordPage: React.FC = () => {
             fullWidth
             size="lg"
             leftIcon={<RiCheckLine size={18} />}
-            isLoading={isSubmitting}
+            isLoading={changePasswordMutation.isPending}
           >
             UPDATE PASSWORD & CONTINUE
           </Button>

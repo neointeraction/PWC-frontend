@@ -1,16 +1,15 @@
 import React, { useState, useCallback } from 'react';
-import { RiAddLine, RiDeleteBinLine, RiUserAddLine } from 'react-icons/ri';
+import { RiDeleteBinLine, RiUserAddLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
 import { Badge } from '@/components/Badge';
 import { FileUpload } from '@/components/FileUpload';
 import { Table, Column } from '@/components/Table';
 import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
 import { Tooltip } from '@/components/Tooltip';
 import { projectService } from '@/services/project.service';
 import { parseExcelFile } from '@/utils/excelParser';
-import { ProjectCounselor } from '@/types/project.types';
+import { ProjectCounselor, CounsellorSlotRow } from '@/types/project.types';
 import { useToast } from '@/hooks';
 
 const ModalBodyWrapper = styled.div`
@@ -19,34 +18,12 @@ const ModalBodyWrapper = styled.div`
   gap: ${({ theme }) => theme.spacing.md};
 `;
 
-const SubtitleText = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  margin: 0 0 ${({ theme }) => theme.spacing.xs} 0;
-`;
-
 const SummaryRow = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
   font-size: ${({ theme }) => theme.fontSize.sm};
   color: ${({ theme }) => theme.colors.textSecondary};
-`;
-
-const SummaryCount = styled.span`
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.primary};
-`;
-
-const ManualFormCard = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  gap: 12px;
-  align-items: end;
-  padding: 16px;
-  background-color: ${({ theme }) => theme.colors.surfaceHover};
-  border-radius: 4px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const ActionIconButton = styled.button`
@@ -68,6 +45,33 @@ const ActionIconButton = styled.button`
   }
 `;
 
+// Excel serial (1900 system) or a date string → YYYY-MM-DD.
+const toISODate = (v: string): string => {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    const serial = Math.floor(parseFloat(s));
+    return new Date((serial - 25569) * 86400000).toISOString().slice(0, 10);
+  }
+  return s;
+};
+
+// "9:00" / "09:00" / Excel time fraction → HH:mm (24h, zero-padded).
+const toHHMM = (v: string): string => {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  if (s.includes(':')) {
+    const [h, m] = s.split(':');
+    return `${h.padStart(2, '0')}:${(m || '0').slice(0, 2).padStart(2, '0')}`;
+  }
+  const num = parseFloat(s);
+  if (!isNaN(num) && num >= 0 && num < 1) {
+    const total = Math.round(num * 24 * 60);
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+  return s;
+};
+
 interface AddCounselorModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -82,12 +86,6 @@ export const AddCounselorModal: React.FC<AddCounselorModalProps> = ({
   const [counselorList, setCounselorList] = useState<ProjectCounselor[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showManualForm, setShowManualForm] = useState(false);
-  const [newCounselor, setNewCounselor] = useState<Omit<ProjectCounselor, 'matchStatus'>>({
-    name: '',
-    email: '',
-    mobile: '',
-  });
   const toast = useToast();
 
   const handleFileSelect = useCallback(
@@ -104,29 +102,62 @@ export const AddCounselorModal: React.FC<AddCounselorModalProps> = ({
           return;
         }
 
-        const rawCounselors = rows.map(row => ({
-          name: row['Name'] || row['name'] || '',
-          email: row['Email'] || row['email'] || '',
-          mobile: row['Mobile'] || row['mobile'] || row['Phone'] || row['phone'] || '',
-        }));
+        // Availability sheet: group rows by Counsellor ID, collecting their slots.
+        const byCode = new Map<string, { code: string; slots: CounsellorSlotRow[] }>();
+        for (const row of rows) {
+          const code = (
+            row['Counsellor ID'] || row['Counselor ID'] || row['counsellorCode'] || row['Code'] || ''
+          ).trim();
+          if (!code) continue;
+          if (!byCode.has(code)) byCode.set(code, { code, slots: [] });
+          const date = toISODate(row['Date'] || row['date'] || '');
+          const startTime = toHHMM(row['Start Time'] || row['startTime'] || row['Start'] || '');
+          const endTime = toHHMM(row['End Time'] || row['endTime'] || row['End'] || '');
+          if (date && startTime && endTime) {
+            byCode.get(code)!.slots.push({ date, startTime, endTime });
+          }
+        }
 
-        const validCounselors = rawCounselors.filter(c => c.name && c.email);
-
-        if (validCounselors.length === 0) {
+        if (byCode.size === 0) {
           toast.error(
             'Invalid Format',
-            'No valid counselor records found. Ensure columns: Name, Email, Mobile.'
+            'No valid rows. Ensure columns: Counsellor ID, Date, Start Time, End Time.'
           );
           setIsProcessing(false);
           return;
         }
 
-        const validated = await projectService.validateCounselors(validCounselors);
-        setCounselorList(prev => [...prev, ...validated]);
-        toast.success(
-          'Counselors Loaded',
-          `${validated.length} counselor(s) added successfully.`
-        );
+        // Match each Counsellor ID against the real directory (only directory
+        // counsellors can be assigned to a project).
+        const directory = await projectService.getCounsellorDirectory();
+        const dirByCode = new Map(directory.map(d => [d.counsellorCode, d]));
+        const parsed: ProjectCounselor[] = Array.from(byCode.values()).map(g => {
+          const dir = dirByCode.get(g.code);
+          return dir
+            ? {
+                name: dir.name,
+                email: dir.email,
+                mobile: dir.mobile,
+                matchStatus: 'matched' as const,
+                counsellorCode: g.code,
+                directoryId: dir.id,
+                slots: g.slots,
+              }
+            : { name: '', email: '', mobile: '', matchStatus: 'new' as const, counsellorCode: g.code, slots: g.slots };
+        });
+
+        setCounselorList(prev => [...prev, ...parsed]);
+        const matchedN = parsed.filter(p => p.matchStatus === 'matched').length;
+        const newN = parsed.length - matchedN;
+        const totalSlots = parsed.reduce((n, p) => n + (p.slots?.length || 0), 0);
+        if (newN > 0) {
+          toast.error(
+            'Some Not In Directory',
+            `${matchedN} matched, ${newN} not in the counsellor directory (add them there first).`
+          );
+        } else {
+          toast.success('Counselors Loaded', `${matchedN} counsellor(s) with ${totalSlots} slots.`);
+        }
       } catch {
         toast.error('Parse Error', 'Failed to parse the uploaded file.');
       } finally {
@@ -141,32 +172,16 @@ export const AddCounselorModal: React.FC<AddCounselorModalProps> = ({
   }, []);
 
   const handleRemoveCounselor = (row: ProjectCounselor) => {
-    setCounselorList(prev => prev.filter(c => c.email !== row.email));
+    setCounselorList(prev => prev.filter(c => c.counsellorCode !== row.counsellorCode));
     toast.info('Counselor Removed', 'Removed from assignment list.');
-  };
-
-  const handleAddManualCounselor = async () => {
-    if (!newCounselor.name.trim() || !newCounselor.email.trim()) {
-      toast.error('Validation Error', 'Counselor Name and Email are required.');
-      return;
-    }
-    const validated = await projectService.validateCounselors([newCounselor]);
-    setCounselorList(prev => [...prev, ...validated]);
-    setNewCounselor({ name: '', email: '', mobile: '' });
-    setShowManualForm(false);
-    toast.success('Counselor Added', `${newCounselor.name} added to assignment list.`);
   };
 
   const handleAssignToProject = () => {
     if (counselorList.length === 0) {
-      toast.error('No Counselors', 'Please upload or add at least one counselor.');
+      toast.error('No Counselors', 'Please upload at least one counselor.');
       return;
     }
     onCounselorsAssigned(counselorList);
-    toast.success(
-      'Counselors Assigned',
-      `Successfully assigned ${counselorList.length} counselor(s) to this project.`
-    );
     setCounselorList([]);
     setSelectedFile(null);
     onClose();
@@ -177,16 +192,18 @@ export const AddCounselorModal: React.FC<AddCounselorModalProps> = ({
 
   const columns: Column<ProjectCounselor>[] = [
     {
+      key: 'counsellorCode',
+      header: 'Counsellor ID',
+    },
+    {
       key: 'name',
       header: 'Name',
+      render: row => row.name || '—',
     },
     {
-      key: 'email',
-      header: 'Email',
-    },
-    {
-      key: 'mobile',
-      header: 'Mobile',
+      key: 'slots',
+      header: 'Slots',
+      render: row => row.slots?.length ?? 0,
     },
     {
       key: 'matchStatus',
@@ -220,7 +237,7 @@ export const AddCounselorModal: React.FC<AddCounselorModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Add Counselors to Project"
-      subtitle="Upload or manually assign counselors for project session scheduling"
+      subtitle="Upload counselor availability to assign them to this project"
       size="lg"
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
@@ -238,69 +255,27 @@ export const AddCounselorModal: React.FC<AddCounselorModalProps> = ({
       }
     >
       <ModalBodyWrapper>
-        <SubtitleText>
-          Upload a CSV/Excel file or add counselors individually to assign them to this project.
-        </SubtitleText>
-
         <FileUpload
           label="Counselor List"
-          hint="CSV with columns: Name, Email, Mobile"
+          hint="Availability sheet — columns: Counsellor ID, Date, Start Time, End Time"
           onFileSelect={handleFileSelect}
           onFileRemove={handleFileRemove}
           selectedFile={selectedFile}
         />
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
-          <SummaryRow>
-            <SummaryText>
-              <SummaryCount>{matchedCount}</SummaryCount> matched
-            </SummaryText>
-            <SummaryText>•</SummaryText>
-            <SummaryText>
-              <SummaryCount>{newCount}</SummaryCount> new counselors
-            </SummaryText>
-            <SummaryText>•</SummaryText>
-            <SummaryText>
-              <SummaryCount>{counselorList.length}</SummaryCount> total
-            </SummaryText>
-          </SummaryRow>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            leftIcon={<RiAddLine size={16} />}
-            onClick={() => setShowManualForm(prev => !prev)}
-          >
-            {showManualForm ? 'Cancel Manual Add' : 'Add Counselor Manually'}
-          </Button>
-        </div>
-
-        {showManualForm && (
-          <ManualFormCard>
-            <Input
-              label="Name"
-              placeholder="e.g. Priya Sundaram"
-              value={newCounselor.name}
-              onChange={e => setNewCounselor({ ...newCounselor, name: e.target.value })}
-            />
-            <Input
-              label="Email"
-              placeholder="priya.sundaram@pwc.org"
-              value={newCounselor.email}
-              onChange={e => setNewCounselor({ ...newCounselor, email: e.target.value })}
-            />
-            <Input
-              label="Mobile"
-              placeholder="+91 98111 22334"
-              value={newCounselor.mobile}
-              onChange={e => setNewCounselor({ ...newCounselor, mobile: e.target.value })}
-            />
-            <Button type="button" size="sm" onClick={handleAddManualCounselor}>
-              Add
-            </Button>
-          </ManualFormCard>
-        )}
+        <SummaryRow>
+          <span>
+            <strong>{matchedCount}</strong> matched
+          </span>
+          <span>•</span>
+          <span>
+            <strong>{newCount}</strong> new counselors
+          </span>
+          <span>•</span>
+          <span>
+            <strong>{counselorList.length}</strong> total
+          </span>
+        </SummaryRow>
 
         {counselorList.length > 0 && (
           <div style={{ marginTop: '12px' }}>
@@ -308,7 +283,7 @@ export const AddCounselorModal: React.FC<AddCounselorModalProps> = ({
               columns={columns}
               data={counselorList}
               isLoading={isProcessing}
-              keyExtractor={row => row.email || row.name}
+              keyExtractor={row => row.counsellorCode || row.name}
               emptyMessage="No counselors added yet."
             />
           </div>
@@ -317,10 +292,5 @@ export const AddCounselorModal: React.FC<AddCounselorModalProps> = ({
     </Modal>
   );
 };
-
-const SummaryText = styled.span`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-`;
 
 export default AddCounselorModal;

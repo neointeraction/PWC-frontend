@@ -140,6 +140,10 @@ export const StudentProfileFormPage: React.FC = () => {
   });
 
   // Map the form fields to the student-editable payload. Field names mirror POST /students.
+  // Note: the backend's Student model has no fatherEmail/fatherWhatsapp columns (only a
+  // single parentMobile/parentEmail pair) — see docs/db-design.md — so those two inputs
+  // and the student's own email (not self-editable per docs/api-list.md) have nowhere to
+  // be saved and are intentionally left out of this payload.
   const buildProfilePayload = (data: StudentProfileFormData): StudentProfileUpdate => {
     const fullName = (data.studentFullName || '').trim();
     const [firstName, ...rest] = fullName.split(/\s+/);
@@ -148,6 +152,8 @@ export const StudentProfileFormPage: React.FC = () => {
       lastName: rest.length ? rest.join(' ') : undefined,
       mobile: data.studentMobile?.trim() || undefined,
       whatsappNumber: data.studentWhatsapp?.trim() || undefined,
+      parentMobile: data.alternateMobile?.trim() || undefined,
+      parentEmail: data.alternateEmail?.trim() || undefined,
       fatherName: data.fatherFullName?.trim() || undefined,
       fatherOccupation: data.fatherOccupation?.trim() || undefined,
       fatherEmployer: data.fatherEmployer?.trim() || undefined,

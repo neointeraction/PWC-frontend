@@ -13,17 +13,18 @@ import {
   TimeSlot,
 } from '@/types/project.types';
 import { PaginatedResponse } from '@/types/api.types';
-import { getApiErrorMessage, getApiErrorStatus, normalizePhone } from '@/utils';
+import { formatFullName, getApiErrorMessage, getApiErrorStatus, normalizePhone } from '@/utils';
 
 // ---- Backend project shape (GET /projects — institute + _count) ----
 interface ApiProject {
   id: string;
+  code?: string;
   name: string;
   instituteId: string;
   fromDate: string;
   toDate: string;
   status: 'ACTIVE' | 'CLOSED' | 'DELETED';
-  institute?: { id: string; name: string };
+  institute?: { id: string; name: string; address?: string };
   _count?: { students: number; counsellors: number; counsellorSlots: number };
   createdAt?: string;
 }
@@ -175,9 +176,11 @@ export interface SaveStudentResult {
 
 const mapProject = (p: ApiProject): Project => ({
   id: p.id,
+  code: p.code,
   name: p.name,
   instituteId: p.instituteId,
   instituteName: p.institute?.name ?? '',
+  location: p.institute?.address || undefined,
   counselorCount: p._count?.counsellors ?? 0,
   studentCount: p._count?.students ?? 0,
   status: API_TO_STATUS[p.status] ?? 'active',
@@ -210,12 +213,89 @@ export interface SlotImportSummary {
   error?: string;
 }
 
-export interface CreateProjectResult {
-  project: Project;
-  studentImport: StudentImportSummary;
+export interface CounselorAssignFailure {
+  name: string;
+  reason: string;
+}
+
+export interface CounselorAssignResult {
+  assigned: number;
+  failures: CounselorAssignFailure[];
   slotImport: SlotImportSummary;
 }
 
+export interface CreateProjectResult {
+  project: Project;
+  studentImport: StudentImportSummary;
+  counselorAssign: CounselorAssignResult;
+}
+
+
+// Assigns each matched (real-directory) counsellor to the project, then imports their
+// availability slots in one shot. A counsellor already tied to a *different* institute is
+// rejected by the backend (400) — that's a real failure, not a race, so (unlike the old
+// silent catch-and-ignore) it's surfaced instead of masquerading as a clean assignment; only
+// a 409 (already assigned to this project) is safely ignored. Slots for a counsellor whose
+// assignment failed are skipped — the import endpoint 400s the *entire* batch if any
+// counsellor in it isn't assigned to the project yet.
+const assignCounselorsWithSlots = async (
+  projectId: string,
+  counselors: ProjectCounselor[]
+): Promise<CounselorAssignResult> => {
+  const matched = counselors.filter(c => c.matchStatus === 'matched' && c.directoryId);
+  const failures: CounselorAssignFailure[] = [];
+  const assignedIds = new Set<string>();
+
+  for (const c of matched) {
+    try {
+      await apiClient.post(`/counsellors/${c.directoryId}/projects`, { projectId });
+      assignedIds.add(c.directoryId!);
+    } catch (err) {
+      if (getApiErrorStatus(err) === 409) {
+        // Already assigned to this project — treat as success.
+        assignedIds.add(c.directoryId!);
+      } else {
+        failures.push({
+          name: c.name || c.counsellorCode || c.email || 'Unknown counsellor',
+          reason: getApiErrorMessage(err, 'Rejected by the server'),
+        });
+      }
+    }
+  }
+
+  const slotPayload: { counsellorId: string; date: string; startTime: string; endTime: string }[] = [];
+  for (const c of matched) {
+    if (!c.directoryId || !assignedIds.has(c.directoryId)) continue;
+    for (const slot of c.slots ?? []) {
+      slotPayload.push({
+        counsellorId: c.directoryId,
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+    }
+  }
+
+  const slotImport: SlotImportSummary = {
+    attempted: slotPayload.length,
+    imported: 0,
+    alreadyImported: false,
+  };
+  if (slotPayload.length > 0) {
+    try {
+      await apiClient.post('/sessions/slots/import', { projectId, slots: slotPayload });
+      slotImport.imported = slotPayload.length;
+    } catch (err) {
+      if (getApiErrorStatus(err) === 409) {
+        slotImport.alreadyImported = true;
+      } else {
+        slotImport.error = getApiErrorMessage(err, 'Rejected by the server');
+      }
+    }
+  }
+
+  return { assigned: assignedIds.size, failures, slotImport };
+};
 
 export const projectService = {
   // GET /api/v1/projects — no server-side search/pagination, so both are client-side.
@@ -290,7 +370,7 @@ export const projectService = {
     // 2. Project (window = the institute-step dates).
     const { data: project } = await apiClient.post<ApiProject>('/projects', {
       instituteId: institute.id,
-      name: `${institute.name} Project`,
+      name: institute.name,
       fromDate: instituteDetails.validFrom,
       toDate: instituteDetails.validTo,
     });
@@ -366,44 +446,8 @@ export const projectService = {
     }
 
     // 5. Counsellors: assign each matched (directory) counsellor to the project, and
-    //    collect their availability slots for a single one-time slot import.
-    const matched = counselors.filter(c => c.matchStatus === 'matched' && c.directoryId);
-    const slotPayload: { counsellorId: string; date: string; startTime: string; endTime: string }[] = [];
-    for (const c of matched) {
-      try {
-        await apiClient.post(`/counsellors/${c.directoryId}/projects`, { projectId: project.id });
-      } catch {
-        // already assigned / race — ignore; still import their slots below.
-      }
-      for (const slot of c.slots ?? []) {
-        slotPayload.push({
-          counsellorId: c.directoryId!,
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        });
-      }
-    }
-    const slotImport: SlotImportSummary = {
-      attempted: slotPayload.length,
-      imported: 0,
-      alreadyImported: false,
-    };
-    if (slotPayload.length > 0) {
-      try {
-        await apiClient.post('/sessions/slots/import', { projectId: project.id, slots: slotPayload });
-        slotImport.imported = slotPayload.length;
-      } catch (err) {
-        // 409 = this project's slots were already imported (the endpoint is one-shot), which
-        // is expected on a retry. Anything else means no availability landed at all, and the
-        // wizard must say so rather than reporting a clean success.
-        if (getApiErrorStatus(err) === 409) {
-          slotImport.alreadyImported = true;
-        } else {
-          slotImport.error = getApiErrorMessage(err, 'Rejected by the server');
-        }
-      }
-    }
+    //    import their availability slots.
+    const counselorAssign = await assignCounselorsWithSlots(project.id, counselors);
 
     return {
       project: mapProject(project),
@@ -413,7 +457,7 @@ export const projectService = {
         failed: failures.length,
         failures,
       },
-      slotImport,
+      counselorAssign,
     };
   },
 
@@ -469,7 +513,7 @@ export const projectService = {
             studentId: sess.student?.id,
             studentCode: sess.student?.studentCode,
             studentName: sess.student
-              ? `${sess.student.user.firstName} ${sess.student.user.lastName}`.trim()
+              ? formatFullName(sess.student.user.firstName, sess.student.user.lastName)
               : '',
             studentEmail: sess.student?.user.email,
             mobile: sess.student?.mobile,
@@ -486,7 +530,7 @@ export const projectService = {
       ensure(
         c.id,
         c.counsellorCode,
-        `${c.user?.firstName ?? ''} ${c.user?.lastName ?? ''}`.trim(),
+        formatFullName(c.user?.firstName ?? '', c.user?.lastName),
         c.user?.email ?? ''
       );
     }
@@ -497,7 +541,7 @@ export const projectService = {
       const entry = ensure(
         c.id,
         c.counsellorCode,
-        `${c.user.firstName} ${c.user.lastName}`.trim(),
+        formatFullName(c.user.firstName, c.user.lastName),
         ''
       );
       const slotDate = slot.slotDate.slice(0, 10);
@@ -530,13 +574,13 @@ export const projectService = {
       const entry = ensure(
         c.id,
         c.counsellorCode,
-        `${c.user.firstName} ${c.user.lastName}`.trim(),
+        formatFullName(c.user.firstName, c.user.lastName),
         c.user.email
       );
       if (sess.student) {
         entry.assignedStudents.push({
           studentId: sess.student.id,
-          name: `${sess.student.user.firstName} ${sess.student.user.lastName}`.trim(),
+          name: formatFullName(sess.student.user.firstName, sess.student.user.lastName),
           email: sess.student.user.email,
           mobile: sess.student.mobile,
           grade: sess.student.division?.class?.name || sess.student.division?.name || '',
@@ -600,7 +644,7 @@ export const projectService = {
             timeSlot: sess.startTime ? `${sess.startTime} - ${sess.endTime}` : '',
             counselorId: sess.counsellor?.counsellorCode,
             counselorName: sess.counsellor
-              ? `${sess.counsellor.user.firstName} ${sess.counsellor.user.lastName}`.trim()
+              ? formatFullName(sess.counsellor.user.firstName, sess.counsellor.user.lastName)
               : '',
             counselorEmail: sess.counsellor?.user.email ?? '',
           }
@@ -610,20 +654,28 @@ export const projectService = {
       const session1 = mapSess(byStudent.get(st.id)?.s1, 1);
       const session2 = mapSess(byStudent.get(st.id)?.s2, 2);
       const assignedSession = session1.counselorName ? session1 : session2;
+      const className = st.division?.class?.name ?? '';
+      const divisionName = st.division?.name ?? '';
       return {
         id: st.id,
         studentId: st.studentCode,
-        name: `${st.user.firstName} ${st.user.lastName}`.trim(),
+        name: formatFullName(st.user.firstName, st.user.lastName),
         email: st.user.email,
         mobile: st.mobile,
         parentMobile: st.parentMobile,
-        grade: st.division?.class?.name || st.division?.name || '',
-        className: st.division?.class?.name ?? '',
-        division: st.division?.name ?? '',
+        grade:
+          className && divisionName && divisionName !== className
+            ? `${className} - ${divisionName}`
+            : className || divisionName,
+        className,
+        division: divisionName,
         parentEmail: st.parentEmail ?? '',
         // Prefer the backend's derived stage label + live 🚩 flag; fall back to the coarse
         // workflowStatus map if stageInfo isn't present (older backend).
         stage: st.stageInfo?.stageLabel ?? WORKFLOW_STAGE[st.workflowStatus] ?? st.workflowStatus,
+        stageCompletedDate: st.stageInfo?.stageEnteredAt
+          ? st.stageInfo.stageEnteredAt.slice(0, 10)
+          : undefined,
         isFlagged: st.stageInfo?.flagged ?? false,
         flagReason: st.stageInfo?.flagReason ?? null,
         counselorId: assignedSession.counselorId,
@@ -753,6 +805,13 @@ export const projectService = {
   ): Promise<void> => {
     await apiClient.post(`/counsellors/${counsellorId}/projects`, { projectId });
   },
+
+  // Assigns a batch of matched (directory) counsellors to an existing project and imports
+  // their availability slots in one shot — the same flow the create wizard uses.
+  assignCounselorsToProject: (
+    projectId: string,
+    counselors: ProjectCounselor[]
+  ): Promise<CounselorAssignResult> => assignCounselorsWithSlots(projectId, counselors),
 
   // Real counsellor directory (GET /counsellors) — for matching availability-sheet
   // uploads (by Counsellor ID) and manual adds (by email) in the project wizard.

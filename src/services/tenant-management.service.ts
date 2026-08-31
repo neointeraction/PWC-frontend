@@ -6,6 +6,7 @@ import {
   UserFilters,
 } from '@/types/tenant-management.types';
 import { PaginatedResponse } from '@/types/api.types';
+import { formatFullName } from '@/utils';
 
 // Backend App Admin shape (`/api/v1/admins`). SUPER_ADMIN may appear on reads but
 // isn't creatable/updatable here.
@@ -28,7 +29,7 @@ const mapAdmin = (a: ApiAdmin, tempPassword?: string): UserRecord => {
     id: a.id,
     firstName: a.firstName,
     lastName: a.lastName,
-    name: `${a.firstName} ${a.lastName}`.trim(),
+    name: formatFullName(a.firstName, a.lastName),
     email: a.email,
     username: a.email,
     userCategory: 'pwc',

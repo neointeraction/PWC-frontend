@@ -5,7 +5,7 @@ import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components';
 import { ProjectStudent, ProjectStudentDetail } from '@/types/project.types';
-import { formatDateDDMMYYYY } from '@/utils';
+import { formatDate } from '@/utils';
 
 const DetailGrid = styled.div`
   display: grid;
@@ -114,7 +114,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
   onClose,
   student,
   instituteName = "St. Xavier's College, Mumbai",
-  counselorPhone = '+91 98190 93786',
+  counselorPhone = '',
 }) => {
   if (!student) return null;
 
@@ -125,8 +125,8 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
 
   const sessionSlotDisplay =
     'session1' in student && student.session1?.date
-      ? `${formatDateDDMMYYYY(student.session1.date)} • ${student.session1.timeSlot || '09:30 - 10:30'}`
-      : `${('sessionDate' in student && student.sessionDate) || '18-02-2026'} • ${('timeSlot' in student && student.timeSlot) || '09:30 - 10:30'}`;
+      ? `${formatDate(student.session1.date)} • ${student.session1.timeSlot || '09:30 - 10:30'}`
+      : `${formatDate(('sessionDate' in student && student.sessionDate) || '2026-02-18')} • ${('timeSlot' in student && student.timeSlot) || '09:30 - 10:30'}`;
 
   const studentIdDisplay =
     ('studentId' in student && student.studentId) ||
@@ -134,7 +134,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
       ? student.id
       : 'ST101');
 
-  const studentPhone = student.mobile || '+91 9810012345';
+  const studentPhone = student.mobile || '';
   const cleanStudentPhone = studentPhone.replace(/\D/g, '');
   const cleanCounselorPhone = counselorPhone.replace(/\D/g, '');
 

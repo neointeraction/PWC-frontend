@@ -110,8 +110,6 @@ interface IncludedItem {
   checked: boolean;
 }
 
-type LinkKind = 'exam' | 'course' | 'institution';
-
 // Trims to undefined so a blank subform input is omitted rather than sent as '' (which
 // the API rejects).
 const opt = (v: string): string | undefined => v.trim() || undefined;
@@ -144,12 +142,9 @@ function useDebounced<T>(value: T, ms = 300): T {
 // ============================================================================
 interface LinkedSectionProps {
   title: string;
-  kind: LinkKind;
   items: IncludedItem[];
   onToggle: (key: string) => void;
-  onAddExisting: (opt: CareerLinkOption) => void;
   onAddNew: (item: IncludedItem) => void;
-  searchFn: (q: string) => Promise<CareerLinkOption[]>;
   addButtonLabel: string;
   emptyHint: string;
   renderSubform: (helpers: {
@@ -160,31 +155,14 @@ interface LinkedSectionProps {
 
 const LinkedSection: React.FC<LinkedSectionProps> = ({
   title,
-  kind,
   items,
   onToggle,
-  onAddExisting,
   onAddNew,
-  searchFn,
   addButtonLabel,
   emptyHint,
   renderSubform,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [query, setQuery] = useState('');
-  const debouncedQuery = useDebounced(query, 300);
-
-  const includedIds = useMemo(
-    () => new Set(items.filter(i => i.id).map(i => i.id as string)),
-    [items]
-  );
-
-  const { data: results = [], isFetching } = useQuery({
-    queryKey: ['career-link-search', kind, debouncedQuery],
-    queryFn: () => searchFn(debouncedQuery.trim()),
-    enabled: debouncedQuery.trim().length >= 2,
-    staleTime: 60_000,
-  });
 
   return (
     <S.SectionBox>
@@ -210,45 +188,6 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
           ))}
         </S.ExistingEntriesList>
       )}
-
-      {/* Search existing canonical records */}
-      <S.SearchWrapper>
-        <Input
-          placeholder="Search the library to add an existing record…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-        />
-        {debouncedQuery.trim().length >= 2 && (
-          <>
-            {isFetching && <S.SearchStatus>Searching…</S.SearchStatus>}
-            {!isFetching && results.length === 0 && (
-              <S.SearchStatus>No matches — use “{addButtonLabel}” to create one.</S.SearchStatus>
-            )}
-            {!isFetching && results.length > 0 && (
-              <S.SearchResults>
-                {results.map(opt => {
-                  const already = includedIds.has(opt.id);
-                  return (
-                    <S.SearchResultRow
-                      key={opt.id}
-                      type="button"
-                      disabled={already}
-                      onClick={() => {
-                        onAddExisting(opt);
-                        setQuery('');
-                      }}
-                    >
-                      {opt.label}
-                      {opt.level ? ` · ${opt.level}` : ''}
-                      {already ? ' — added' : ''}
-                    </S.SearchResultRow>
-                  );
-                })}
-              </S.SearchResults>
-            )}
-          </>
-        )}
-      </S.SearchWrapper>
 
       {!isAdding ? (
         <S.AddRowWrapper>
@@ -938,13 +877,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
   const toggle = (setter: React.Dispatch<React.SetStateAction<IncludedItem[]>>) => (key: string) =>
     setter(prev => prev.map(i => (i.key === key ? { ...i, checked: !i.checked } : i)));
 
-  const addExisting = (setter: React.Dispatch<React.SetStateAction<IncludedItem[]>>) => (opt: CareerLinkOption) =>
-    setter(prev =>
-      prev.some(i => i.id === opt.id)
-        ? prev
-        : [...prev, { key: `existing-${opt.id}`, id: opt.id, label: opt.label, level: opt.level, checked: true }]
-    );
-
   const addNew = (setter: React.Dispatch<React.SetStateAction<IncludedItem[]>>) => (item: IncludedItem) =>
     setter(prev => [...prev, item]);
 
@@ -1254,40 +1186,31 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
           {/* Linked references */}
           <LinkedSection
             title="Entrance Exams"
-            kind="exam"
             items={exams}
             onToggle={toggle(setExams)}
-            onAddExisting={addExisting(setExams)}
             onAddNew={addNew(setExams)}
-            searchFn={q => careerService.searchEntranceExams(q)}
             addButtonLabel="Add New Exam"
-            emptyHint="No entrance exams linked yet. Search to add existing ones, or add a new exam."
+            emptyHint="No entrance exams linked yet. Add a new exam."
             renderSubform={({ addNew: a, close }) => <ExamSubform addNew={a} close={close} />}
           />
 
           <LinkedSection
             title="Courses"
-            kind="course"
             items={courses}
             onToggle={toggle(setCourses)}
-            onAddExisting={addExisting(setCourses)}
             onAddNew={addNew(setCourses)}
-            searchFn={q => careerService.searchCourses(q)}
             addButtonLabel="Add New Course"
-            emptyHint="No courses linked yet. Search to add existing ones, or add a new course."
+            emptyHint="No courses linked yet. Add a new course."
             renderSubform={({ addNew: a, close }) => <CourseSubform addNew={a} close={close} />}
           />
 
           <LinkedSection
             title="Institutions"
-            kind="institution"
             items={institutions}
             onToggle={toggle(setInstitutions)}
-            onAddExisting={addExisting(setInstitutions)}
             onAddNew={addNew(setInstitutions)}
-            searchFn={q => careerService.searchInstitutions(q)}
             addButtonLabel="Add New Institution"
-            emptyHint="No institutions linked yet. Search to add existing ones, or add a new institution."
+            emptyHint="No institutions linked yet. Add a new institution."
             renderSubform={({ addNew: a, close }) => <InstitutionSubform addNew={a} close={close} />}
           />
         </S.ModalScrollContainer>

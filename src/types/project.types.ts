@@ -2,6 +2,7 @@ export type ProjectStatus = 'active' | 'closed' | 'deleted';
 
 export interface Project {
   id: string;
+  code?: string;
   name: string;
   instituteId?: string;
   instituteName: string;

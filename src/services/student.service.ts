@@ -6,6 +6,7 @@ import {
   CurrentStudent,
   StudentWorkflowStatus,
 } from '@/types';
+import { formatFullName } from '@/utils';
 
 // ---- Backend shape: GET /api/v1/students/me ----
 interface ApiCurrentStudent {
@@ -86,7 +87,7 @@ const mapCurrentStudent = (s: ApiCurrentStudent): CurrentStudent => ({
   id: s.id,
   userId: s.userId,
   studentCode: s.studentCode,
-  name: `${s.user.firstName} ${s.user.lastName}`.trim(),
+  name: formatFullName(s.user.firstName, s.user.lastName),
   email: s.user.email,
   mobile: s.mobile,
   whatsappNumber: s.whatsappNumber || undefined,

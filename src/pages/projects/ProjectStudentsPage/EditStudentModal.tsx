@@ -7,6 +7,7 @@ import { Input } from '@/components/Input';
 import { Checkbox } from '@/components/Checkbox';
 import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
+import { isValidEmail, isValidPhone } from '@/utils';
 
 const FormContainer = styled.div`
   display: flex;
@@ -75,23 +76,15 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   const [formData, setFormData] = useState<ProjectStudentDetail | null>(null);
   const [originalEmail, setOriginalEmail] = useState<string>('');
   const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (student) {
       const copy = JSON.parse(JSON.stringify(student)) as ProjectStudentDetail;
-      if (!copy.parentMobile) {
-        copy.parentMobile = '+91 9820011223';
-      }
-      if (!copy.className) {
-        const gradeDigits = copy.grade?.replace(/\D/g, '') || '9';
-        copy.className = gradeDigits;
-      }
-      if (!copy.division) {
-        copy.division = `${copy.className || '9'}A`;
-      }
       setFormData(copy);
       setOriginalEmail(copy.email || '');
       setSendWelcomeEmail(true);
+      setErrors({});
     }
   }, [student]);
 
@@ -100,7 +93,27 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   const isEmailChanged =
     originalEmail.trim() !== '' && formData.email.trim() !== originalEmail.trim();
 
+  const validate = (): boolean => {
+    const nextErrors: Record<string, string> = {};
+    if (!formData.name.trim()) nextErrors.name = 'Student name is required.';
+    if (!formData.email.trim()) nextErrors.email = 'Email address is required.';
+    else if (!isValidEmail(formData.email)) nextErrors.email = 'Enter a valid email address.';
+    if (!isValidPhone(formData.mobile)) nextErrors.mobile = 'Enter a valid mobile number.';
+    if (formData.parentMobile && !isValidPhone(formData.parentMobile)) {
+      nextErrors.parentMobile = 'Enter a valid parent phone number.';
+    }
+    if (!formData.className?.trim()) nextErrors.className = 'Class is required.';
+    if (!formData.division?.trim()) nextErrors.division = 'Division is required.';
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   const handleSave = () => {
+    if (!validate()) {
+      toast.error('Missing Information', 'Please fix the highlighted fields and try again.');
+      return;
+    }
+
     // Keep grade in sync with className & division
     const updated: ProjectStudentDetail = {
       ...formData,
@@ -145,6 +158,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               label="Student Full Name"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
+              error={errors.name}
             />
             <div>
               <Input
@@ -152,6 +166,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 type="email"
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
+                error={errors.email}
               />
               {isEmailChanged && (
                 <div style={{ marginTop: '6px' }}>
@@ -169,26 +184,27 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               label="Mobile Number"
               value={formData.mobile}
               onChange={e => setFormData({ ...formData, mobile: e.target.value })}
+              error={errors.mobile}
             />
             <Input
               label="Parent Phone Number"
-              placeholder="+91 9820011223"
               value={formData.parentMobile || ''}
               onChange={e => setFormData({ ...formData, parentMobile: e.target.value })}
+              error={errors.parentMobile}
             />
 
             <Input
               label="Class"
-              placeholder="e.g. 11"
               value={formData.className || ''}
               onChange={e => setFormData({ ...formData, className: e.target.value })}
+              error={errors.className}
             />
 
             <Input
               label="Division"
-              placeholder="e.g. 11A"
               value={formData.division || ''}
               onChange={e => setFormData({ ...formData, division: e.target.value })}
+              error={errors.division}
             />
           </FormGrid>
 

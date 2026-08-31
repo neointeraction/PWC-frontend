@@ -87,7 +87,7 @@ export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = (
       schoolName: "St. Xavier's Senior Secondary School",
       grade: '11th Grade (Science)',
       guardianName: 'Robert Johnson',
-      guardianPhone: '+91 98765 43210',
+      guardianPhone: '',
       targetStream: 'Engineering & Technology',
     },
   });
@@ -101,7 +101,7 @@ export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = (
       schoolName: "St. Xavier's Senior Secondary School",
       grade: '11th Grade (Science)',
       guardianName: student.father?.name || 'Robert Johnson',
-      guardianPhone: student.parentMobile || '+91 98765 43210',
+      guardianPhone: student.parentMobile || '',
       targetStream: 'Engineering & Technology',
     });
   }, [isOpen, student, reset, initialName, initialEmail]);

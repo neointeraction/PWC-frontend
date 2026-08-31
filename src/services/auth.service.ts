@@ -1,5 +1,6 @@
 import { apiClient } from './api';
 import { LoginPayload, LoginResponse, User, Role } from '@/types';
+import { formatFullName } from '@/utils';
 
 interface ApiUser {
   id: string;
@@ -26,7 +27,7 @@ const ROLE_MAP: Record<ApiUser['role'], Role> = {
 
 const mapUser = (u: ApiUser): User => ({
   id: u.id,
-  name: `${u.firstName} ${u.lastName}`.trim(),
+  name: formatFullName(u.firstName, u.lastName),
   email: u.email,
   role: ROLE_MAP[u.role],
   mustChangePassword: u.mustChangePassword,
