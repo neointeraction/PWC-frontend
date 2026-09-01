@@ -543,9 +543,9 @@ export const WizardStepBody = styled.div`
   }
 `;
 
-export const QuestionBox = styled.div`
+export const QuestionBox = styled.div<{ $hasError?: boolean }>`
   background-color: ${({ theme }) => theme.colors.background};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  border: 1px solid ${({ theme, $hasError }) => ($hasError ? '#DC2626' : theme.colors.border)};
   border-radius: 4px;
   padding: 24px;
   display: flex;
@@ -564,6 +564,17 @@ export const QuestionTitle = styled.h3`
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
   line-height: 1.45;
+`;
+
+export const RequiredMarker = styled.span`
+  color: #dc2626;
+  margin-left: 4px;
+`;
+
+export const QuestionErrorText = styled.p`
+  font-size: 13px;
+  color: #dc2626;
+  margin: -8px 0 0;
 `;
 
 export const QuestionSubtext = styled.p`

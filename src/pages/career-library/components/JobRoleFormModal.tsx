@@ -125,16 +125,6 @@ const buildLinks = <T extends NewRecord>(items: IncludedItem[]): (CareerEntryLin
     .filter(i => i.checked && (i.id || i.newRecord))
     .map(i => (i.id ? { id: i.id } : (i.newRecord as T)));
 
-// ---- small debounce for typeahead ----
-function useDebounced<T>(value: T, ms = 300): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return debounced;
-}
-
 // ============================================================================
 // Generic linked-reference section: tick-list + typeahead select-existing +
 // expandable add-new subform (subform passed as a render prop, since the fields
@@ -259,8 +249,6 @@ const EducationPathSection: React.FC<{
 }> = ({ domainId, pullDomainEntries, entries, checkedIds, onToggle, onAdd, onEntriesLoaded }) => {
   const toast = useToast();
   const [isAdding, setIsAdding] = useState(false);
-  const [query, setQuery] = useState('');
-  const debouncedQuery = useDebounced(query, 300);
   const [level, setLevel] = useState<EducationLevel>('GRADUATE');
   const [programme, setProgramme] = useState('');
   const [description, setDescription] = useState('');
@@ -279,15 +267,6 @@ const EducationPathSection: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domainEntries]);
 
-  // The rows are global, so search is not limited to this domain — the same
-  // select-or-add contract the exam / course / institution pickers use.
-  const { data: results = [], isFetching } = useQuery({
-    queryKey: ['education-entries', 'search', debouncedQuery],
-    queryFn: () => careerService.listEducationEntries({ search: debouncedQuery.trim() }),
-    enabled: debouncedQuery.trim().length >= 2,
-    staleTime: 60_000,
-  });
-
   const ordered = useMemo(
     () =>
       [...entries].sort((a, b) => {
@@ -297,7 +276,6 @@ const EducationPathSection: React.FC<{
     [entries]
   );
 
-  const listedIds = useMemo(() => new Set(entries.map(e => e.id)), [entries]);
   // Only rows that actually came back from the domain-scoped fetch are "pulled from this
   // Domain"; anything added via search or created here is a plain addition.
   const pulledIds = useMemo(
@@ -360,7 +338,7 @@ const EducationPathSection: React.FC<{
           ) : ordered.length === 0 ? (
             pullDomainEntries ? (
               <S.EmptyListHint>
-                No education entries linked yet. Search to add existing ones, or add a new entry.
+                No education entries linked yet. Add a new entry below.
               </S.EmptyListHint>
             ) : null
           ) : (
@@ -383,45 +361,6 @@ const EducationPathSection: React.FC<{
               ))}
             </S.ExistingEntriesList>
           )}
-
-          <S.SearchWrapper>
-            <Input
-              placeholder="Search the library to add an existing record…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-            />
-            {debouncedQuery.trim().length >= 2 && (
-              <>
-                {isFetching && <S.SearchStatus>Searching…</S.SearchStatus>}
-                {!isFetching && results.length === 0 && (
-                  <S.SearchStatus>
-                    No matches — use “Add New Education Entry” to create one.
-                  </S.SearchStatus>
-                )}
-                {!isFetching && results.length > 0 && (
-                  <S.SearchResults>
-                    {results.map(opt => {
-                      const already = listedIds.has(opt.id);
-                      return (
-                        <S.SearchResultRow
-                          key={opt.id}
-                          type="button"
-                          disabled={already}
-                          onClick={() => {
-                            onAdd(opt);
-                            setQuery('');
-                          }}
-                        >
-                          {EDUCATION_LEVEL_LABEL[opt.level]}: {opt.programme}
-                          {already ? ' — added' : ''}
-                        </S.SearchResultRow>
-                      );
-                    })}
-                  </S.SearchResults>
-                )}
-              </>
-            )}
-          </S.SearchWrapper>
 
           {!isAdding ? (
             <S.AddRowWrapper>

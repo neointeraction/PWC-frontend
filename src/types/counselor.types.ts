@@ -33,7 +33,7 @@ export interface CounselorFilterParams {
 }
 
 export interface CreateCounselorInput {
-  counselorId: string;
+  counselorId?: string;
   name: string;
   mobile: string;
   email: string;

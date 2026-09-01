@@ -101,7 +101,7 @@ export const counselorService = {
       lastName,
       email: input.email,
       mobile: normalizePhone(input.mobile),
-      counsellorCode: input.counselorId,
+      ...(input.counselorId ? { counsellorCode: input.counselorId } : {}),
       ...(input.pwd ? { password: input.pwd } : {}),
     });
     return mapCounsellor(data.counsellor);
@@ -118,7 +118,7 @@ export const counselorService = {
         created.push(await counselorService.create(input));
       } catch (err) {
         failures.push({
-          name: input.name || input.email || input.counselorId,
+          name: input.name || input.email || input.counselorId || 'Unknown',
           reason: getApiErrorMessage(err, 'Rejected by the server'),
         });
       }

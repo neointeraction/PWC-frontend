@@ -10,16 +10,59 @@ export type FormType =
   | 'FEEDBACK_PARENT';
 
 // ---- Backend shapes: GET /forms/{formType} and /forms/{formType}/students/{id} ----
+// Field names mirror the Prisma FormQuestion model exactly (see docs/db-design.md).
+export type QuestionType =
+  | 'MCQ_SINGLE'
+  | 'MCQ_MULTI'
+  | 'SHORT_TEXT'
+  | 'OPEN_TEXT'
+  | 'NUMBER'
+  | 'SCALE'
+  | 'MATRIX';
+
+export interface McqOption {
+  value: string;
+  label: string;
+}
+
+// MATRIX options: a table/grid question kept as one row rather than exploded per cell.
+// `rows` is omitted for a "virtual single row" (e.g. a block of a few standalone fields).
+export interface MatrixField {
+  key: string;
+  label: string;
+  type: 'SHORT_TEXT' | 'NUMBER' | 'MCQ_SINGLE' | 'MCQ_MULTI';
+  // MCQ sub-field options may be plain strings (["Y","N"]) or {value,label} pairs.
+  options?: Array<string | McqOption>;
+  allowOtherText?: boolean;
+  otherTextFieldKey?: string;
+}
+
+export interface MatrixRow {
+  key: string;
+  label: string;
+  labelEditable?: boolean;
+}
+
+export interface MatrixOptions {
+  rows?: MatrixRow[];
+  fields: MatrixField[];
+}
+
 export interface FormQuestion {
   id: string;
-  fieldKey: string;
   order: number;
-  type: string;
-  label: string;
+  questionCode: string;
+  fieldKey: string;
+  sectionLabel: string | null;
+  questionText: string;
+  helpText?: string | null;
+  questionType: QuestionType;
+  // MCQ_SINGLE/MCQ_MULTI: McqOption[] (or string[] for a bare-value list).
+  // MATRIX: MatrixOptions. Everything else: usually absent.
+  options?: McqOption[] | string[] | MatrixOptions | null;
+  allowOtherText?: boolean;
+  otherTextFieldKey?: string | null;
   isRequired: boolean;
-  // Structured option metadata (tables, MCQ choices, rating scales) — shape varies per
-  // question type; the page reads what it needs.
-  options?: unknown;
 }
 
 export interface FormTemplate {
