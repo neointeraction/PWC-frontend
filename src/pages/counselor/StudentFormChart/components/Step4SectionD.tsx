@@ -19,10 +19,12 @@ interface Step4SectionDProps {
   onChangeNotes: (code: string, value: string) => void;
 }
 
+// F1-F3 (not G1-G3 — those codes belong to the SCRI step's synthesis notes on the
+// backend; reusing them here would silently collide with Step6SCRI's saved notes).
 const synthesisRowsGDef = [
-  { code: 'G1', placeholder: "EIM follow-up : If below 75%, plan to gently re-probe Mirror Pair items conversationally, rather than presenting the personality profile as fixed." },
-  { code: 'G2', placeholder: "AAI / 'Don't Know' pattern : A high proportion of 'Don't Know' responses signals genuine uncertainty, low confidence, or disengagement, not necessarily low ability. Note which specific aptitude areas had the most 'Don't Know' responses and frame these as development opportunities if required in career planning or academics. Read this with ACI parameter also." },
-  { code: 'G3', placeholder: "Re-assessment Call : Based on the reliability picture, note whether a full re-assessment is warranted, or whether a supplementary conversation in-session is sufficient to firm up the profile." },
+  { code: 'F1', placeholder: "EIM follow-up : If below 75%, plan to gently re-probe Mirror Pair items conversationally, rather than presenting the personality profile as fixed." },
+  { code: 'F2', placeholder: "AAI / 'Don't Know' pattern : A high proportion of 'Don't Know' responses signals genuine uncertainty, low confidence, or disengagement, not necessarily low ability. Note which specific aptitude areas had the most 'Don't Know' responses and frame these as development opportunities if required in career planning or academics. Read this with ACI parameter also." },
+  { code: 'F3', placeholder: "Re-assessment Call : Based on the reliability picture, note whether a full re-assessment is warranted, or whether a supplementary conversation in-session is sufficient to firm up the profile." },
 ];
 
 export const Step4SectionD: React.FC<Step4SectionDProps> = ({

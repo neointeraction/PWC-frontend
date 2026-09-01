@@ -33,7 +33,7 @@ const TitleTextGroup = styled.div`
   gap: 4px;
 `;
 
-const BackButton = styled.button`
+const BackButton = styled.button<{ $disabled?: boolean }>`
   width: 36px;
   height: 36px;
   border-radius: 4px;
@@ -43,14 +43,15 @@ const BackButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
+  opacity: ${({ $disabled }) => ($disabled ? 0.5 : 1)};
   transition: all ${({ theme }) => theme.transition.fast};
   flex-shrink: 0;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-    color: ${({ theme }) => theme.colors.primary};
-    background-color: ${({ theme }) => theme.colors.primaryLight};
+    border-color: ${({ $disabled, theme }) => ($disabled ? theme.colors.border : theme.colors.primary)};
+    color: ${({ $disabled, theme }) => ($disabled ? theme.colors.text : theme.colors.primary)};
+    background-color: ${({ $disabled, theme }) => ($disabled ? theme.colors.surface : theme.colors.primaryLight)};
   }
 `;
 
@@ -81,6 +82,7 @@ interface PageHeaderProps {
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
   onBack?: () => void;
+  backDisabled?: boolean;
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
@@ -89,6 +91,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   breadcrumbs,
   actions,
   onBack,
+  backDisabled,
 }) => (
   <PageHeaderWrapper>
     {breadcrumbs && breadcrumbs.length > 0 && (
@@ -99,8 +102,14 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     <TopRow>
       <HeaderLeft>
         {onBack && (
-          <Tooltip content="Go back">
-            <BackButton onClick={onBack} aria-label="Go back">
+          <Tooltip content={backDisabled ? "Can't go back once you've started answering" : 'Go back'}>
+            <BackButton
+              type="button"
+              onClick={backDisabled ? undefined : onBack}
+              aria-label="Go back"
+              aria-disabled={backDisabled}
+              $disabled={backDisabled}
+            >
               <RiArrowLeftLine size={20} />
             </BackButton>
           </Tooltip>

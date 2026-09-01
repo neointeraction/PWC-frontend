@@ -25,10 +25,27 @@ interface ApiCounsellor {
   id: string;
   counsellorCode: string;
   mobile: string;
+  meetingLink?: string;
   createdAt?: string;
   user: { id: string; email: string; firstName: string; lastName: string; isActive: boolean };
   institute?: { id: string; name: string };
   projects?: { projectId: string; project?: { id: string; name: string } }[];
+}
+
+// The logged-in counsellor's own record (`GET /counsellors/me`) — resolves the User id
+// from the JWT to the Counsellor id + assigned projects that the session-scheduling
+// screens are keyed on.
+export interface CurrentCounselorProject {
+  projectId: string;
+  name: string;
+}
+
+export interface CurrentCounselor {
+  id: string;
+  counsellorCode: string;
+  mobile: string;
+  user: { id: string; email: string; firstName: string; lastName: string };
+  projects: CurrentCounselorProject[];
 }
 
 const splitName = (full: string): { firstName: string; lastName: string } => {
@@ -50,6 +67,7 @@ const mapCounsellor = (c: ApiCounsellor): Counselor => {
     name: formatFullName(c.user.firstName, c.user.lastName),
     email: c.user.email,
     mobile: c.mobile,
+    meetingLink: c.meetingLink,
     status: active ? 'active' : 'inactive',
     deploymentStatus: !active ? 'inactive' : projectsList.length > 0 ? 'deployed' : 'bench',
     projectDeployedName: projectsList[0]?.schoolName,
@@ -59,6 +77,19 @@ const mapCounsellor = (c: ApiCounsellor): Counselor => {
 };
 
 export const counselorService = {
+  // GET /api/v1/counsellors/me — self-service, the entry point every counsellor-facing
+  // screen needs for its Counsellor id + assigned projects.
+  getMe: async (): Promise<CurrentCounselor> => {
+    const { data } = await apiClient.get<ApiCounsellor>('/counsellors/me');
+    return {
+      id: data.id,
+      counsellorCode: data.counsellorCode,
+      mobile: data.mobile,
+      user: data.user,
+      projects: (data.projects ?? []).map(p => ({ projectId: p.projectId, name: p.project?.name ?? '' })),
+    };
+  },
+
   // GET /api/v1/counsellors — flat array; search/status/pagination are client-side to
   // keep the existing table contract.
   async getAll(params: CounselorFilterParams = {}): Promise<CounselorListResponse> {
@@ -103,6 +134,7 @@ export const counselorService = {
       mobile: normalizePhone(input.mobile),
       ...(input.counselorId ? { counsellorCode: input.counselorId } : {}),
       ...(input.pwd ? { password: input.pwd } : {}),
+      ...(input.meetingLink ? { meetingLink: input.meetingLink } : {}),
     });
     return mapCounsellor(data.counsellor);
   },
@@ -134,6 +166,7 @@ export const counselorService = {
       body.lastName = lastName;
     }
     if (input.mobile !== undefined) body.mobile = input.mobile;
+    if (input.meetingLink !== undefined) body.meetingLink = input.meetingLink;
     if (input.status !== undefined) body.isActive = input.status === 'active';
     const { data } = await apiClient.patch<ApiCounsellor>(`/counsellors/${id}`, body);
     return mapCounsellor(data);

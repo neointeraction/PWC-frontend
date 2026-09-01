@@ -53,14 +53,20 @@ const PurplePill = styled.span`
   font-weight: 600;
 `;
 
+const STATUS_BADGE_COLORS: Record<'active' | 'pending' | 'completed', { bg: string; fg: string }> = {
+  active: { bg: '#DCFCE7', fg: '#16A34A' },
+  pending: { bg: '#FEE2E2', fg: '#DC2626' },
+  completed: { bg: '#DBEAFE', fg: '#1D4ED8' },
+};
+
 const StatusBadge = styled.span<{ $variant?: 'active' | 'pending' | 'completed' }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
   width: fit-content;
   padding: 4px 10px;
-  background-color: #DCFCE7;
-  color: #16A34A;
+  background-color: ${({ $variant = 'active' }) => STATUS_BADGE_COLORS[$variant].bg};
+  color: ${({ $variant = 'active' }) => STATUS_BADGE_COLORS[$variant].fg};
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
@@ -71,7 +77,7 @@ const StatusBadge = styled.span<{ $variant?: 'active' | 'pending' | 'completed' 
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background-color: #16A34A;
+    background-color: ${({ $variant = 'active' }) => STATUS_BADGE_COLORS[$variant].fg};
   }
 `;
 
@@ -113,26 +119,31 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
   isOpen,
   onClose,
   student,
-  instituteName = "St. Xavier's College, Mumbai",
+  instituteName,
   counselorPhone = '',
 }) => {
   if (!student) return null;
 
+  const isMissed = 'isMissed' in student && student.isMissed;
   const stageDisplay =
     ('stage' in student && student.stage) ||
     ('sessionType' in student && student.sessionType) ||
-    'Session 1 (S1)';
+    '—';
 
-  const sessionSlotDisplay =
+  const sessionDateRaw =
     'session1' in student && student.session1?.date
-      ? `${formatDate(student.session1.date)} • ${student.session1.timeSlot || '09:30 - 10:30'}`
-      : `${formatDate(('sessionDate' in student && student.sessionDate) || '2026-02-18')} • ${('timeSlot' in student && student.timeSlot) || '09:30 - 10:30'}`;
+      ? student.session1.date
+      : ('sessionDate' in student && student.sessionDate) || '';
+  const sessionTimeRaw =
+    'session1' in student && student.session1?.date
+      ? student.session1.timeSlot
+      : ('timeSlot' in student && student.timeSlot) || '';
+  const sessionSlotDisplay = sessionDateRaw
+    ? `${formatDate(sessionDateRaw)}${sessionTimeRaw ? ` • ${sessionTimeRaw}` : ''}`
+    : '—';
 
   const studentIdDisplay =
-    ('studentId' in student && student.studentId) ||
-    ('id' in student && student.id && student.id.startsWith('ST')
-      ? student.id
-      : 'ST101');
+    ('studentId' in student && student.studentId) || ('id' in student && student.id) || '—';
 
   const studentPhone = student.mobile || '';
   const cleanStudentPhone = studentPhone.replace(/\D/g, '');
@@ -167,7 +178,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
         <FieldItem>
           <FieldLabel>Grade / Class</FieldLabel>
           <FieldValue>
-            <PurplePill>{student.grade || '11th'}</PurplePill>
+            <PurplePill>{student.grade || '—'}</PurplePill>
           </FieldValue>
         </FieldItem>
 
@@ -217,13 +228,15 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
 
         <FieldItem>
           <FieldLabel>Institute</FieldLabel>
-          <FieldValue>{instituteName}</FieldValue>
+          <FieldValue>{instituteName || '—'}</FieldValue>
         </FieldItem>
 
         <FieldItem>
           <FieldLabel>Status</FieldLabel>
           <FieldValue>
-            <StatusBadge>ACTIVE</StatusBadge>
+            <StatusBadge $variant={isMissed ? 'pending' : 'active'}>
+              {isMissed ? 'Missed' : 'Booked'}
+            </StatusBadge>
           </FieldValue>
         </FieldItem>
 

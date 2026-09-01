@@ -1,6 +1,6 @@
 import React from 'react';
 import { RiShieldCheckLine } from 'react-icons/ri';
-import { ReliabilityMetric } from '@/mocks/studentIkigaiReport.mock';
+import { ReliabilityMetric } from '@/types/studentIkigaiReport.types';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,

@@ -290,7 +290,6 @@ export const AssessmentFormPage: React.FC = () => {
       return assessmentService.submitAttempt(attemptId!);
     },
     onSuccess: () => {
-      localStorage.setItem('pwc_assessment_form_submitted', 'true');
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
       setIsCompletionModalOpen(true);
     },
@@ -324,6 +323,8 @@ export const AssessmentFormPage: React.FC = () => {
     ? Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)
     : 0;
 
+  const hasAnsweredFirstQuestion = questions.length > 0 && answers[questions[0].id] !== undefined;
+
   return (
     <FormPageContainer ref={topRef}>
       {isFormStarted && (
@@ -334,6 +335,7 @@ export const AssessmentFormPage: React.FC = () => {
             { label: 'Career Assessment' },
           ]}
           onBack={() => navigate(ROUTES.STUDENT_PORTAL)}
+          backDisabled={hasAnsweredFirstQuestion}
           actions={
             <HeaderProgressCard>
               <HeaderProgressRow style={{ justifyContent: 'flex-end' }}>

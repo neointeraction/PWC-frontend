@@ -102,6 +102,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
     if (formData.parentMobile && !isValidPhone(formData.parentMobile)) {
       nextErrors.parentMobile = 'Enter a valid parent phone number.';
     }
+    if (formData.parentEmail && !isValidEmail(formData.parentEmail)) {
+      nextErrors.parentEmail = 'Enter a valid parent email address.';
+    }
     if (!formData.className?.trim()) nextErrors.className = 'Class is required.';
     if (!formData.division?.trim()) nextErrors.division = 'Division is required.';
     setErrors(nextErrors);
@@ -205,6 +208,21 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               value={formData.division || ''}
               onChange={e => setFormData({ ...formData, division: e.target.value })}
               error={errors.division}
+            />
+
+            <Input
+              label="Parent Name"
+              value={formData.parentName || ''}
+              onChange={e => setFormData({ ...formData, parentName: e.target.value })}
+              error={errors.parentName}
+            />
+
+            <Input
+              label="Parent Email Address"
+              type="email"
+              value={formData.parentEmail || ''}
+              onChange={e => setFormData({ ...formData, parentEmail: e.target.value })}
+              error={errors.parentEmail}
             />
           </FormGrid>
 

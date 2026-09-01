@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
   RiVideoChatLine,
@@ -14,7 +15,8 @@ import { Card } from '@/components/Card';
 import { PageHeader } from '@/components/PageHeader';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
-import { getMockUpcomingSessions, UpcomingSession } from '@/mocks/upcomingSessions.mock';
+import { useCurrentCounselor } from '@/hooks';
+import { counselorSessionsService, CounselorSessionRow } from '@/services/counselorSessions.service';
 import { ROUTES } from '@/constants';
 import {
   Container,
@@ -30,16 +32,30 @@ import {
 
 export const UpcomingSessionsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [sessions] = useState<UpcomingSession[]>(() => getMockUpcomingSessions());
+  const { data: me, isLoading: isMeLoading } = useCurrentCounselor();
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  const { data: board, isLoading: isBoardLoading } = useQuery({
+    queryKey: ['counselor-sessions-board', me?.id],
+    queryFn: () => counselorSessionsService.getBoard(me!.id, me!.projects),
+    enabled: !!me?.id,
+    staleTime: 30_000,
+  });
+
+  // "Upcoming" — not yet completed, and not further in the past than the join window
+  // still covers (checkCanJoin's 6-hour tail below).
+  const upcomingSessions = useMemo(() => {
+    const cutoff = dayjs().subtract(6, 'hour');
+    return (board?.rows ?? []).filter(row => !row.isCompleted && dayjs(row.dateTime).isAfter(cutoff));
+  }, [board]);
+
   const sortedSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => {
+    return [...upcomingSessions].sort((a, b) => {
       const timeA = new Date(a.dateTime).getTime();
       const timeB = new Date(b.dateTime).getTime();
       return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
     });
-  }, [sessions, sortOrder]);
+  }, [upcomingSessions, sortOrder]);
 
   const handleToggleDateSort = () => {
     setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
@@ -53,17 +69,17 @@ export const UpcomingSessionsPage: React.FC = () => {
     return diffMinutes <= 30 && diffMinutes >= -360;
   };
 
-  const handleOpenStudentChart = (session: UpcomingSession) => {
+  const handleOpenStudentChart = (session: CounselorSessionRow) => {
     navigate(ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', session.id));
   };
 
-  const columns: Column<UpcomingSession>[] = useMemo(
+  const columns: Column<CounselorSessionRow>[] = useMemo(
     () => [
       {
         key: 'studentName',
         header: 'Student Name',
         accessor: 'studentName',
-        cell: (row: UpcomingSession) => (
+        cell: (row: CounselorSessionRow) => (
           <StudentCellWrapper>
             {row.isBooked && row.studentName ? (
               <Tooltip content="Click to open Counsellor Form Chart & add session notes">
@@ -106,14 +122,14 @@ export const UpcomingSessionsPage: React.FC = () => {
         ),
         accessor: 'dateTime',
         sortable: true,
-        cell: (row: UpcomingSession) => (
+        cell: (row: CounselorSessionRow) => (
           <DateText>{dayjs(row.dateTime).format('DD MMM YYYY')}</DateText>
         ),
       },
       {
         key: 'time',
         header: 'Time',
-        cell: (row: UpcomingSession) => {
+        cell: (row: CounselorSessionRow) => {
           const canJoin = row.isBooked ? checkCanJoin(row.dateTime) : false;
           return (
             <TimeContainer>
@@ -142,7 +158,7 @@ export const UpcomingSessionsPage: React.FC = () => {
       {
         key: 'sessionNumber',
         header: 'Session',
-        cell: (row: UpcomingSession) =>
+        cell: (row: CounselorSessionRow) =>
           row.sessionNumber ? (
             <SessionBadge $session={row.sessionNumber}>{row.sessionNumber}</SessionBadge>
           ) : (
@@ -152,7 +168,7 @@ export const UpcomingSessionsPage: React.FC = () => {
       {
         key: 'actions',
         header: 'Action',
-        cell: (row: UpcomingSession) => {
+        cell: (row: CounselorSessionRow) => {
           if (!row.isBooked) {
             return (
               <span
@@ -209,7 +225,12 @@ export const UpcomingSessionsPage: React.FC = () => {
       <PageHeader title="Upcoming Counseling Sessions" />
 
       <Card>
-        <Table data={sortedSessions} columns={columns} keyExtractor={row => row.id} />
+        <Table
+          data={sortedSessions}
+          columns={columns}
+          keyExtractor={row => row.id}
+          emptyMessage={isMeLoading || isBoardLoading ? 'Loading your sessions…' : 'No upcoming sessions.'}
+        />
       </Card>
     </Container>
   );

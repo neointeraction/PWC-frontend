@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
   RiVideoChatLine,
@@ -16,7 +17,12 @@ import { PageHeader } from '@/components/PageHeader';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { DatePicker } from '@/components/DatePicker';
-import { getMockUpcomingSessions, UpcomingSession } from '@/mocks/upcomingSessions.mock';
+import { useCurrentCounselor } from '@/hooks';
+import {
+  counselorSessionsService,
+  CounselorSessionRow,
+  CounselorProjectSummary,
+} from '@/services/counselorSessions.service';
 import { ROUTES } from '@/constants';
 import {
   Container,
@@ -47,58 +53,34 @@ import {
   SortHeaderButton,
 } from './AllSessionsPage.styles';
 
-interface InstitutionOption {
-  id: string;
-  name: string;
-  code: string;
-  location: string;
-  status: string;
-  totalAllotted: number;
-  session1Balance: number;
-  session2Balance: number;
-}
-
-const INSTITUTIONS_LIST: InstitutionOption[] = [
-  {
-    id: 'inst-001',
-    name: "St. Xavier's College, Mumbai",
-    code: 'INS001',
-    location: 'Mumbai, Maharashtra',
-    status: 'Ongoing',
-    totalAllotted: 62,
-    session1Balance: 18,
-    session2Balance: 26,
-  },
-  {
-    id: 'inst-002',
-    name: 'Delhi Public School, Kochi',
-    code: 'INS002',
-    location: 'Kochi, Kerala',
-    status: 'Ongoing',
-    totalAllotted: 45,
-    session1Balance: 12,
-    session2Balance: 19,
-  },
-  {
-    id: 'inst-003',
-    name: 'Loyola College, Chennai',
-    code: 'INS003',
-    location: 'Chennai, Tamil Nadu',
-    status: 'Ongoing',
-    totalAllotted: 30,
-    session1Balance: 8,
-    session2Balance: 14,
-  },
-];
-
 export const AllSessionsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedInst, setSelectedInst] = useState<InstitutionOption>(INSTITUTIONS_LIST[0]);
+  const { data: me, isLoading: isMeLoading } = useCurrentCounselor();
+
+  const { data: board, isLoading: isBoardLoading } = useQuery({
+    queryKey: ['counselor-sessions-board', me?.id],
+    queryFn: () => counselorSessionsService.getBoard(me!.id, me!.projects),
+    enabled: !!me?.id,
+    staleTime: 30_000,
+  });
+  const sessions = board?.rows ?? [];
+  const projectSummaries = board?.projectSummaries ?? [];
+
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [sessions] = useState<UpcomingSession[]>(() => getMockUpcomingSessions());
   const [dateFilter, setDateFilter] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (projectSummaries.length > 0 && !projectSummaries.some(p => p.projectId === selectedProjectId)) {
+      setSelectedProjectId(projectSummaries[0].projectId);
+    }
+  }, [projectSummaries, selectedProjectId]);
+
+  const selectedProject: CounselorProjectSummary | undefined = projectSummaries.find(
+    p => p.projectId === selectedProjectId
+  );
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -112,7 +94,7 @@ export const AllSessionsPage: React.FC = () => {
   }, []);
 
   const sortedAndFilteredSessions = useMemo(() => {
-    return sessions
+    return [...sessions]
       .filter(s => {
         if (!dateFilter) return true;
         const sessionDate = dayjs(s.dateTime).format('YYYY-MM-DD');
@@ -137,17 +119,17 @@ export const AllSessionsPage: React.FC = () => {
     return diffMinutes <= 30 && diffMinutes >= -360;
   };
 
-  const handleOpenStudentChart = (session: UpcomingSession) => {
+  const handleOpenStudentChart = (session: CounselorSessionRow) => {
     navigate(ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', session.id));
   };
 
-  const columns: Column<UpcomingSession>[] = useMemo(
+  const columns: Column<CounselorSessionRow>[] = useMemo(
     () => [
       {
         key: 'studentName',
         header: 'Student Name',
         accessor: 'studentName',
-        cell: (row: UpcomingSession) => (
+        cell: (row: CounselorSessionRow) => (
           <StudentCellWrapper>
             {row.isBooked && row.studentName ? (
               <Tooltip content="Click to open Counsellor Form Chart & add session notes">
@@ -190,14 +172,14 @@ export const AllSessionsPage: React.FC = () => {
         ),
         accessor: 'dateTime',
         sortable: true,
-        cell: (row: UpcomingSession) => (
+        cell: (row: CounselorSessionRow) => (
           <DateText>{dayjs(row.dateTime).format('DD MMM YYYY')}</DateText>
         ),
       },
       {
         key: 'time',
         header: 'Time',
-        cell: (row: UpcomingSession) => {
+        cell: (row: CounselorSessionRow) => {
           const canJoin = row.isBooked ? checkCanJoin(row.dateTime) : false;
           return (
             <TimeContainer>
@@ -226,7 +208,7 @@ export const AllSessionsPage: React.FC = () => {
       {
         key: 'sessionNumber',
         header: 'Session',
-        cell: (row: UpcomingSession) =>
+        cell: (row: CounselorSessionRow) =>
           row.sessionNumber ? (
             <SessionBadge $session={row.sessionNumber}>{row.sessionNumber}</SessionBadge>
           ) : (
@@ -236,7 +218,7 @@ export const AllSessionsPage: React.FC = () => {
       {
         key: 'actions',
         header: 'Action',
-        cell: (row: UpcomingSession) => {
+        cell: (row: CounselorSessionRow) => {
           if (!row.isBooked) {
             return (
               <span
@@ -295,63 +277,67 @@ export const AllSessionsPage: React.FC = () => {
       />
 
       {/* Top Institution Selector */}
-      <InstitutionSelectorCard ref={dropdownRef}>
-        <InstitutionTriggerButton
-          type="button"
-          onClick={() => setIsDropdownOpen(prev => !prev)}
-          aria-expanded={isDropdownOpen}
-        >
-          <InstitutionInfoBox>
-            <InstitutionTitleRow>
-              <InstitutionName>{selectedInst.name}</InstitutionName>
-              <CodeBadge>{selectedInst.code}</CodeBadge>
-              <StatusPill>{selectedInst.status}</StatusPill>
-            </InstitutionTitleRow>
-            <LocationText>{selectedInst.location}</LocationText>
-          </InstitutionInfoBox>
-          <RiArrowDownSLine size={20} style={{ color: '#64748B' }} />
-        </InstitutionTriggerButton>
+      {selectedProject && (
+        <InstitutionSelectorCard ref={dropdownRef}>
+          <InstitutionTriggerButton
+            type="button"
+            onClick={() => setIsDropdownOpen(prev => !prev)}
+            aria-expanded={isDropdownOpen}
+          >
+            <InstitutionInfoBox>
+              <InstitutionTitleRow>
+                <InstitutionName>{selectedProject.instituteName || selectedProject.name}</InstitutionName>
+                {selectedProject.code && <CodeBadge>{selectedProject.code}</CodeBadge>}
+                <StatusPill>{selectedProject.status === 'ACTIVE' ? 'Ongoing' : 'Closed'}</StatusPill>
+              </InstitutionTitleRow>
+              <LocationText>{selectedProject.instituteAddress || selectedProject.name}</LocationText>
+            </InstitutionInfoBox>
+            <RiArrowDownSLine size={20} style={{ color: '#64748B' }} />
+          </InstitutionTriggerButton>
 
-        {isDropdownOpen && (
-          <InstitutionDropdownMenu>
-            {INSTITUTIONS_LIST.map(inst => (
-              <DropdownItem
-                key={inst.id}
-                type="button"
-                $isSelected={inst.id === selectedInst.id}
-                onClick={() => {
-                  setSelectedInst(inst);
-                  setIsDropdownOpen(false);
-                }}
-              >
-                <InstitutionTitleRow>
-                  <InstitutionName>{inst.name}</InstitutionName>
-                  <CodeBadge>{inst.code}</CodeBadge>
-                </InstitutionTitleRow>
-                <LocationText>{inst.location}</LocationText>
-              </DropdownItem>
-            ))}
-          </InstitutionDropdownMenu>
-        )}
-      </InstitutionSelectorCard>
+          {isDropdownOpen && (
+            <InstitutionDropdownMenu>
+              {projectSummaries.map(project => (
+                <DropdownItem
+                  key={project.projectId}
+                  type="button"
+                  $isSelected={project.projectId === selectedProjectId}
+                  onClick={() => {
+                    setSelectedProjectId(project.projectId);
+                    setIsDropdownOpen(false);
+                  }}
+                >
+                  <InstitutionTitleRow>
+                    <InstitutionName>{project.instituteName || project.name}</InstitutionName>
+                    {project.code && <CodeBadge>{project.code}</CodeBadge>}
+                  </InstitutionTitleRow>
+                  <LocationText>{project.instituteAddress || project.name}</LocationText>
+                </DropdownItem>
+              ))}
+            </InstitutionDropdownMenu>
+          )}
+        </InstitutionSelectorCard>
+      )}
 
       {/* 3 Summary Metric Cards */}
-      <SummaryCardsGrid>
-        <MetricCard>
-          <MetricCardHeader>Total Allotted</MetricCardHeader>
-          <MetricCardBody>{selectedInst.totalAllotted}</MetricCardBody>
-        </MetricCard>
+      {selectedProject && (
+        <SummaryCardsGrid>
+          <MetricCard>
+            <MetricCardHeader>Total Allotted</MetricCardHeader>
+            <MetricCardBody>{selectedProject.totalAllotted}</MetricCardBody>
+          </MetricCard>
 
-        <MetricCard>
-          <MetricCardHeader>Session 1 Balance</MetricCardHeader>
-          <MetricCardBody>{selectedInst.session1Balance}</MetricCardBody>
-        </MetricCard>
+          <MetricCard>
+            <MetricCardHeader>Open Slots</MetricCardHeader>
+            <MetricCardBody>{selectedProject.openSlots}</MetricCardBody>
+          </MetricCard>
 
-        <MetricCard>
-          <MetricCardHeader>Session 2 Balance</MetricCardHeader>
-          <MetricCardBody>{selectedInst.session2Balance}</MetricCardBody>
-        </MetricCard>
-      </SummaryCardsGrid>
+          <MetricCard>
+            <MetricCardHeader>Booked Slots</MetricCardHeader>
+            <MetricCardBody>{selectedProject.bookedSlots}</MetricCardBody>
+          </MetricCard>
+        </SummaryCardsGrid>
+      )}
 
       {/* Table Card */}
       <Card>
@@ -379,7 +365,9 @@ export const AllSessionsPage: React.FC = () => {
           data={sortedAndFilteredSessions}
           columns={columns}
           keyExtractor={row => row.id}
-          emptyMessage="No sessions found for the selected date."
+          emptyMessage={
+            isMeLoading || isBoardLoading ? 'Loading sessions…' : 'No sessions found for the selected date.'
+          }
         />
       </Card>
     </Container>

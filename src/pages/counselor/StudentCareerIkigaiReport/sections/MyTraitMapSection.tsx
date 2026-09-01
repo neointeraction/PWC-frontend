@@ -1,6 +1,6 @@
 import React from 'react';
 import { RiTableLine } from 'react-icons/ri';
-import { TraitMapItem } from '@/mocks/studentIkigaiReport.mock';
+import { TraitMapItem } from '@/types/studentIkigaiReport.types';
 import { Badge } from '@/components/Badge';
 import {
   ReportSectionBlock,

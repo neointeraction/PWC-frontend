@@ -58,6 +58,7 @@ export interface ProjectStudent {
   sessionDate?: string;
   timeSlot?: string;
   sessionType?: 'S1' | 'S2';
+  isMissed?: boolean;
 }
 
 export interface InstituteDetails {

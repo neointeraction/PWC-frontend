@@ -44,6 +44,7 @@ interface ApiStudent {
   mobile: string;
   parentMobile: string;
   parentEmail?: string;
+  fatherName?: string;
   workflowStatus: string;
   user: { firstName: string; lastName: string; email: string };
   project?: { id: string; instituteId: string };
@@ -670,6 +671,7 @@ export const projectService = {
         className,
         division: divisionName,
         parentEmail: st.parentEmail ?? '',
+        parentName: st.fatherName ?? '',
         // Prefer the backend's derived stage label + live 🚩 flag; fall back to the coarse
         // workflowStatus map if stageInfo isn't present (older backend).
         stage: st.stageInfo?.stageLabel ?? WORKFLOW_STAGE[st.workflowStatus] ?? st.workflowStatus,
@@ -718,6 +720,7 @@ export const projectService = {
         // so the student's own details stand in — same fallback the import wizard uses.
         parentMobile: normalizePhone(student.parentMobile || student.mobile),
         parentEmail: student.parentEmail || student.email,
+        ...(student.parentName ? { fatherName: student.parentName } : {}),
       });
       return { emailChangeIgnored: false };
     }
@@ -730,6 +733,7 @@ export const projectService = {
     };
     if (student.parentMobile) body.parentMobile = normalizePhone(student.parentMobile);
     if (student.parentEmail) body.parentEmail = student.parentEmail;
+    if (student.parentName) body.fatherName = student.parentName;
 
     // Only re-file the student when the class/division actually changed — resolving is a
     // find-or-create, so sending it unconditionally could mint divisions from the

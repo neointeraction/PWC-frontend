@@ -1,32 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   RiPrinterLine,
-  RiCompass3Line,
   RiUser3Line,
   RiTableLine,
   RiShieldCheckLine,
   RiGitBranchLine,
   RiGraduationCapLine,
   RiCompassLine,
-  RiRoadMapLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
+import { Loader } from '@/components/Loader';
+import { EmptyState } from '@/components/EmptyState';
 import { ROUTES } from '@/constants';
-import {
-  getMockStudentIkigaiReportData,
-  StudentCareerIkigaiReportData,
-} from '@/mocks/studentIkigaiReport.mock';
+import { sessionsService } from '@/services/sessions.service';
+import { reportsService } from '@/services/reports.service';
+import { getApiErrorMessage, formatFullName } from '@/utils';
 
-import { IntroductionSection } from './sections/IntroductionSection';
 import { StudentProfileSection } from './sections/StudentProfileSection';
 import { MyTraitMapSection } from './sections/MyTraitMapSection';
 import { ReliabilityDashboardSection } from './sections/ReliabilityDashboardSection';
 import { MyStreamFitSection } from './sections/MyStreamFitSection';
 import { GraduationPathwaysSection } from './sections/GraduationPathwaysSection';
 import { CareerCompassSection } from './sections/CareerCompassSection';
-import { RoadmapSection } from './sections/RoadmapSection';
 
 import { Badge } from '@/components/Badge';
 import { Tooltip } from '@/components/Tooltip';
@@ -45,26 +43,51 @@ import {
 } from './StudentCareerIkigaiReportPage.styles';
 
 const TOC_SECTIONS = [
-  { id: 'introduction', label: 'Introduction', icon: <RiCompass3Line size={16} /> },
   { id: 'student-profile', label: "Champion's Profile", icon: <RiUser3Line size={16} /> },
   { id: 'trait-map', label: 'My Trait Map', icon: <RiTableLine size={16} /> },
   { id: 'reliability-dashboard', label: 'Reliability Dashboard', icon: <RiShieldCheckLine size={16} /> },
   { id: 'stream-fit', label: 'My Stream Fit Class 11 & 12', icon: <RiGitBranchLine size={16} /> },
   { id: 'graduation-pathways', label: 'Graduation Pathways', icon: <RiGraduationCapLine size={16} /> },
   { id: 'career-compass', label: 'My Career Compass', icon: <RiCompassLine size={16} /> },
-  { id: 'roadmap', label: 'My Roadmap - Next Steps', icon: <RiRoadMapLine size={16} /> },
 ];
 
 export const StudentCareerIkigaiReportPage: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
 
-  const [activeSectionId, setActiveSectionId] = useState('introduction');
+  const [activeSectionId, setActiveSectionId] = useState('student-profile');
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
 
-  const [reportData] = useState<StudentCareerIkigaiReportData>(() =>
-    getMockStudentIkigaiReportData(sessionId || 'sess-counselor-1')
-  );
+  // The report is keyed on studentId server-side; the route only carries sessionId, so
+  // resolve the session first (also gives us the counsellor's name for the header).
+  const {
+    data: session,
+    isLoading: isSessionLoading,
+    isError: isSessionError,
+  } = useQuery({
+    queryKey: ['session', sessionId],
+    queryFn: () => sessionsService.getById(sessionId!),
+    enabled: !!sessionId,
+  });
+
+  const studentId = session?.studentId;
+  const counselorName = session
+    ? formatFullName(session.counsellor.user.firstName, session.counsellor.user.lastName)
+    : '';
+
+  const {
+    data: reportData,
+    isLoading: isReportLoading,
+    isError: isReportError,
+    error: reportError,
+  } = useQuery({
+    queryKey: ['student-assessment-report', studentId],
+    queryFn: () => reportsService.getStudentAssessmentReport(studentId!, counselorName),
+    enabled: !!studentId,
+  });
+
+  const isLoading = isSessionLoading || isReportLoading;
+  const isError = isSessionError || isReportError;
 
   const handleScrollToSection = (sectionId: string) => {
     setActiveSectionId(sectionId);
@@ -81,6 +104,8 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
 
   // IntersectionObserver to accurately track active section on window/page scroll
   useEffect(() => {
+    if (!reportData) return undefined;
+
     const observerCallback: IntersectionObserverCallback = entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -105,13 +130,39 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [reportData]);
 
   const getInitials = (name: string) => {
     const parts = name.split(' ');
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return name.slice(0, 2).toUpperCase();
   };
+
+  if (isLoading) {
+    return <Loader fullPage />;
+  }
+
+  if (isError || !reportData) {
+    return (
+      <ReportContainer>
+        <PageHeader
+          title="kREATE Compass Report"
+          breadcrumbs={[
+            { label: 'Dashboard', href: ROUTES.DASHBOARD },
+            { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
+          ]}
+          onBack={() => navigate(-1)}
+        />
+        <EmptyState
+          title="Report not available yet"
+          description={getApiErrorMessage(
+            reportError,
+            "This student hasn't completed the assessment yet, so the report can't be generated."
+          )}
+        />
+      </ReportContainer>
+    );
+  }
 
   return (
     <ReportContainer>
@@ -187,14 +238,12 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
 
         {/* Scrollable Right Main Content Area */}
         <ReportMainContent id="report-main-content">
-          <IntroductionSection data={reportData.introduction} />
           <StudentProfileSection data={reportData.studentProfile} />
           <MyTraitMapSection traits={reportData.traitMap} />
           <ReliabilityDashboardSection metrics={reportData.reliability} />
           <MyStreamFitSection data={reportData.streamFit} />
           <GraduationPathwaysSection data={reportData.graduation} />
           <CareerCompassSection cards={reportData.careerCompass} />
-          <RoadmapSection roadmapData={reportData.roadmap} />
         </ReportMainContent>
       </ReportBodyLayout>
     </ReportContainer>

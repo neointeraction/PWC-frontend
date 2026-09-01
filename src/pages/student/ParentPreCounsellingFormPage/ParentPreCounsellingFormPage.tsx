@@ -354,7 +354,6 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
         answers: buildAnswers(),
       }),
     onSuccess: () => {
-      localStorage.setItem('pwc_parent_pre_counselling_submitted', 'true');
       toast.success(
         'Pre-Counselling Form Submitted!',
         'Thank you for completing the form. Your responses will only be seen by the career counsellor.'

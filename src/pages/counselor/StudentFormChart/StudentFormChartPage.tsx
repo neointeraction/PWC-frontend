@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiArrowLeftLine,
   RiArrowRightLine,
@@ -7,11 +8,19 @@ import {
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
+import { Loader } from '@/components/Loader';
+import { EmptyState } from '@/components/EmptyState';
 import { ROUTES } from '@/constants';
+import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
+import { sessionsService } from '@/services/sessions.service';
 import {
-  getMockStudentFormChartData,
-  CounsellorFormChartData,
-} from '@/mocks/studentFormChart.mock';
+  counsellorChartService,
+  mapChartToFormData,
+  buildSaveBody,
+  emptyFormData,
+} from '@/services/counsellorChart.service';
+import { useToast, useCurrentCounselor } from '@/hooks';
+import { getApiErrorMessage, formatFullName } from '@/utils';
 
 import { SidebarTracker, StepDefinition } from './components/SidebarTracker';
 import { Step0StudentInfo } from './components/Step0StudentInfo';
@@ -57,14 +66,72 @@ const STEP_LABELS = [
 export const StudentFormChartPage: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const { data: counselor } = useCurrentCounselor();
 
   const [activeStep, setActiveStep] = useState(0);
   const [activeSublinkId, setActiveSublinkId] = useState<string | undefined>();
   const [visitedSteps, setVisitedSteps] = useState<number[]>([0]);
 
+  // The chart is keyed on studentId server-side; the route only carries sessionId, so
+  // resolve the session first.
+  const {
+    data: session,
+    isLoading: isSessionLoading,
+    isError: isSessionError,
+  } = useQuery({
+    queryKey: ['session', sessionId],
+    queryFn: () => sessionsService.getById(sessionId!),
+    enabled: !!sessionId,
+  });
+
+  const studentId = session?.studentId;
+
+  const {
+    data: chart,
+    isLoading: isChartLoading,
+    isError: isChartError,
+    error: chartError,
+  } = useQuery({
+    queryKey: ['counsellor-chart', studentId],
+    queryFn: () => counsellorChartService.getChart(studentId!),
+    enabled: !!studentId,
+  });
+
   const [formData, setFormData] = useState<CounsellorFormChartData>(() =>
-    getMockStudentFormChartData(sessionId || 'sess-counselor-1')
+    emptyFormData(sessionId || '', '')
   );
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  // Re-seed local editable state whenever a fresh chart is fetched (initial load, or
+  // after a save round-trips the server's merged copy back).
+  useEffect(() => {
+    if (chart && studentId) {
+      setFormData(mapChartToFormData(chart, sessionId || studentId));
+      setHasLoadedOnce(true);
+    }
+  }, [chart, studentId, sessionId]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const lastEditedBy = counselor
+        ? formatFullName(counselor.user.firstName, counselor.user.lastName)
+        : undefined;
+      return counsellorChartService.saveChart(studentId!, buildSaveBody(formData, lastEditedBy));
+    },
+    onSuccess: updated => {
+      queryClient.setQueryData(['counsellor-chart', studentId], updated);
+      setIsSuccessModalOpen(true);
+    },
+    onError: err => {
+      toast.error('Save Failed', getApiErrorMessage(err, 'Could not save the counsellor chart.'));
+    },
+  });
+
+  const isLoading = isSessionLoading || isChartLoading;
+  const isError = isSessionError || isChartError;
 
   const handleStepChange = (stepIndex: number, sublinkId?: string) => {
     setActiveStep(stepIndex);
@@ -96,10 +163,8 @@ export const StudentFormChartPage: React.FC = () => {
     }
   };
 
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-
   const handleSaveFormChart = () => {
-    setIsSuccessModalOpen(true);
+    saveMutation.mutate();
   };
 
   // Construct step definitions for sidebar
@@ -111,6 +176,26 @@ export const StudentFormChartPage: React.FC = () => {
     inProgress: visitedSteps.includes(s.index),
     sublinks: s.sublinks,
   }));
+
+  if (isLoading || !hasLoadedOnce) {
+    return <Loader fullPage />;
+  }
+
+  if (isError || !studentId) {
+    return (
+      <Container>
+        <PageHeader
+          title="Counsellor Form Chart"
+          breadcrumbs={[{ label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS }]}
+          onBack={() => navigate(ROUTES.UPCOMING_SESSIONS)}
+        />
+        <EmptyState
+          title="Couldn't load this chart"
+          description={getApiErrorMessage(chartError, 'This student or session could not be found.')}
+        />
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -413,6 +498,7 @@ export const StudentFormChartPage: React.FC = () => {
                 variant="primary"
                 leftIcon={<RiCheckDoubleLine size={16} />}
                 onClick={handleSaveFormChart}
+                isLoading={saveMutation.isPending}
               >
                 Finalize Chart
               </Button>

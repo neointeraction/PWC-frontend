@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import {
   RiCalendarEventLine,
   RiCompass3Line,
@@ -10,7 +11,6 @@ import {
   RiPlayCircleLine,
   RiCheckLine,
   RiRouteLine,
-  RiUserHeartLine,
   RiFileTextLine,
   RiPrinterLine,
   RiNotification3Line,
@@ -20,7 +20,7 @@ import {
   RiFileCopyLine,
   RiEyeLine,
 } from 'react-icons/ri';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { AlertModal } from '@/components/AlertModal';
@@ -29,6 +29,8 @@ import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { useToast, useCurrentStudent } from '@/hooks';
 import { studentService, deriveStudentProgress } from '@/services/student.service';
+import { sessionsService, Session, isWithinJoinWindow } from '@/services/sessions.service';
+import { getApiErrorMessage } from '@/utils';
 import { StudentProfileFormModal } from './components/StudentProfileFormModal';
 import {
   PortalContainer,
@@ -68,10 +70,15 @@ import {
   SessionLinkDivider,
 } from './StudentPortalPage.styles';
 
+const formatTime = (t: string): string => dayjs(`2000-01-01T${t}`).format('hh:mm A');
+const formatSlotRange = (s?: Session): string =>
+  s ? `${dayjs(s.scheduledDate).format('MMM D, YYYY')} • ${formatTime(s.startTime)} - ${formatTime(s.endTime)}` : '';
+
 export const StudentPortalPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const user = useAuthStore(state => state.user);
+  const queryClient = useQueryClient();
 
   // Real student record (Student id, cohort, workflow stage) + per-form submission flags.
   const { data: me } = useCurrentStudent();
@@ -81,91 +88,99 @@ export const StudentPortalPage: React.FC = () => {
     enabled: !!me?.id,
     staleTime: 60_000,
   });
+  const { data: sessions } = useQuery({
+    queryKey: ['student-sessions', me?.id],
+    queryFn: () => sessionsService.getStudentSessions(me!.id),
+    enabled: !!me?.id,
+    staleTime: 30_000,
+  });
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isProfileCompleted, setIsProfileCompleted] = useState<boolean>(false);
-  const [isPreCounsellingSubmitted, setIsPreCounsellingSubmitted] = useState<boolean>(false);
-  const [isParentFormSubmitted, setIsParentFormSubmitted] = useState<boolean>(false);
-  const [isAssessmentSubmitted, setIsAssessmentSubmitted] = useState<boolean>(false);
-  const [isBooked, setIsBooked] = useState<boolean>(false);
-  const [isSession1Completed, setIsSession1Completed] = useState<boolean>(false);
-  const [isSession2Completed, setIsSession2Completed] = useState<boolean>(false);
-  const [isSimulate10MinsBefore] = useState<boolean>(false);
-  const [s1SlotStr, setS1SlotStr] = useState<string>('');
-  const [s2SlotStr, setS2SlotStr] = useState<string>('');
-  const [isStudentFeedbackSubmitted, setIsStudentFeedbackSubmitted] = useState<boolean>(false);
-  const [isParentFeedbackSubmitted, setIsParentFeedbackSubmitted] = useState<boolean>(false);
 
   // Cancel Session AlertModal State
   const [cancelModalSessionNum, setCancelModalSessionNum] = useState<number | null>(null);
 
-  // Seed the step tracker from the real backend state (workflowStatus + per-form flags),
-  // OR'd with the local demo flags so the not-yet-integrated screens (assessment, booking,
-  // sessions) keep working within a session until they're wired to their own endpoints.
-  useEffect(() => {
-    const localProfile = localStorage.getItem('pwc_student_profile_completed') === 'true';
-    const localPreCounselling =
-      localStorage.getItem('pwc_precounselling_submitted') === 'true' ||
-      localStorage.getItem('pwc_student_precounseling_form_submitted') === 'true';
-    const localParent = localStorage.getItem('pwc_parent_form_submitted') === 'true';
-    const localAssessment = localStorage.getItem('pwc_assessment_form_submitted') === 'true';
-    const localBooked = localStorage.getItem('pwc_sessions_booked') === 'true';
-    const localS1 = localStorage.getItem('pwc_session_1_completed') === 'true';
-    const localS2 = localStorage.getItem('pwc_session_2_completed') === 'true';
-    const localStudentFeedback = localStorage.getItem('pwc_student_feedback_submitted') === 'true';
-    const localParentFeedback = localStorage.getItem('pwc_parent_feedback_submitted') === 'true';
+  // The step tracker is driven entirely by real backend state now — workflowStatus (via
+  // deriveStudentProgress), per-form submission flags, and the student's actual sessions.
+  const wf = me ? deriveStudentProgress(me.workflowStatus) : null;
+  const session1 = sessions?.find(s => s.sessionNumber === 'SESSION_1' && s.status !== 'CANCELLED');
+  const session2 = sessions?.find(s => s.sessionNumber === 'SESSION_2' && s.status !== 'CANCELLED');
 
-    const wf = me ? deriveStudentProgress(me.workflowStatus) : null;
+  const isProfileCompleted = wf?.profileCompleted ?? false;
+  const isPreCounsellingSubmitted = formsStatus?.preCounsellingStudent ?? wf?.preCounsellingSubmitted ?? false;
+  const isParentFormSubmitted = formsStatus?.preCounsellingParent ?? false;
+  const isAssessmentSubmitted = wf?.assessmentSubmitted ?? false;
+  const isBooked = wf?.booked ?? false;
+  const isSession1Completed = wf?.session1Completed ?? false;
+  const isSession2Completed = wf?.session2Completed ?? false;
+  const isStudentFeedbackSubmitted = formsStatus?.feedbackStudent ?? false;
+  const isParentFeedbackSubmitted = formsStatus?.feedbackParent ?? false;
 
-    setIsProfileCompleted((wf?.profileCompleted ?? false) || localProfile);
-    setIsPreCounsellingSubmitted(
-      (formsStatus?.preCounsellingStudent ?? wf?.preCounsellingSubmitted ?? false) || localPreCounselling
-    );
-    setIsParentFormSubmitted((formsStatus?.preCounsellingParent ?? false) || localParent);
-    setIsAssessmentSubmitted((wf?.assessmentSubmitted ?? false) || localAssessment);
-    setIsBooked((wf?.booked ?? false) || localBooked);
-    setIsSession1Completed((wf?.session1Completed ?? false) || localS1);
-    setIsSession2Completed((wf?.session2Completed ?? false) || localS2);
-    setIsStudentFeedbackSubmitted((formsStatus?.feedbackStudent ?? false) || localStudentFeedback);
-    setIsParentFeedbackSubmitted((formsStatus?.feedbackParent ?? false) || localParentFeedback);
+  const s1SlotStr = formatSlotRange(session1);
+  const s2SlotStr = formatSlotRange(session2);
 
-    setS1SlotStr(localStorage.getItem('pwc_session_1_slot') || 'May 12, 2026 • 05:00 PM - 06:00 PM');
-    setS2SlotStr(localStorage.getItem('pwc_session_2_slot') || 'May 15, 2026 • 05:00 PM - 06:00 PM');
-  }, [me, formsStatus]);
+  const refreshSessions = () => {
+    queryClient.invalidateQueries({ queryKey: ['student-sessions', me?.id] });
+    queryClient.invalidateQueries({ queryKey: ['student-me'] });
+  };
+
+  // POST /sessions/{id}/join — "Join Now". Records the join and hands back the
+  // counsellor's meeting link; marking a session complete is a counsellor/staff action.
+  const joinMutation = useMutation({
+    mutationFn: (session: Session) => sessionsService.join(session.id, 'STUDENT'),
+    onSuccess: ({ meetingLink }, session) => {
+      refreshSessions();
+      if (meetingLink) {
+        window.open(meetingLink, '_blank');
+        toast.success(
+          `Joining Video Session ${session.sessionNumber === 'SESSION_1' ? '1' : '2'}`,
+          `Connecting to your video counselling room with ${session.counsellor.user.firstName} ${session.counsellor.user.lastName}...`
+        );
+      } else {
+        toast.warning(
+          'No Meeting Link Yet',
+          'Your counsellor hasn’t set up their meeting link yet — please contact them directly.'
+        );
+      }
+    },
+    onError: (err: unknown) => {
+      toast.error('Cannot Join Yet', getApiErrorMessage(err, 'Unable to join this session right now.'));
+    },
+  });
 
   const handleStartSession = (sessionNum: number) => {
-    const meetUrl =
-      sessionNum === 1
-        ? 'https://meet.google.com/abc-defg-hij'
-        : 'https://meet.google.com/xyz-uvwx-rst';
-    window.open(meetUrl, '_blank');
-    toast.info(
-      `Launching Video Session ${sessionNum}`,
-      `Connecting to video counseling room with Sarah Jenkins (M.Sc Psych)...`
-    );
+    const session = sessionNum === 1 ? session1 : session2;
+    if (!session) return;
+    joinMutation.mutate(session);
   };
 
   const handleBookWorkflow = () => {
     navigate(ROUTES.BOOK_SESSIONS);
   };
 
-  const handleCompleteSession1 = () => {
-    localStorage.setItem('pwc_session_1_completed', 'true');
-    setIsSession1Completed(true);
-    toast.success(
-      'Session 1 Completed!',
-      'Session 1 has been marked as completed. Session 2 card is now active on your dashboard.'
-    );
-  };
+  // POST /sessions/{id}/reschedule-request/accept|decline — respond to a counsellor's
+  // proposed alternative time.
+  const acceptProposalMutation = useMutation({
+    mutationFn: (session: Session) => sessionsService.acceptCounsellorReschedule(session.id),
+    onSuccess: () => {
+      refreshSessions();
+      toast.success('Reschedule Accepted', 'Your session has been moved to the proposed time.');
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Could not accept the proposed time.'));
+    },
+  });
 
-  const handleCompleteSession2 = () => {
-    localStorage.setItem('pwc_session_2_completed', 'true');
-    setIsSession2Completed(true);
-    toast.success(
-      'Session 2 Completed!',
-      'Session 2 completed. Feedback & kREATE Compass Report unlocked!'
-    );
-  };
+  const declineProposalMutation = useMutation({
+    mutationFn: (session: Session) => sessionsService.declineCounsellorReschedule(session.id),
+    onSuccess: () => {
+      refreshSessions();
+      toast.info('Reschedule Declined', 'The proposed time was declined.');
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Could not decline the proposed time.'));
+    },
+  });
 
   const handleCopyParentLink = () => {
     const parentLink = `${window.location.origin}${ROUTES.PARENT_PRE_COUNSELLING_FORM}/${me?.id ?? ''}`;
@@ -177,24 +192,9 @@ export const StudentPortalPage: React.FC = () => {
   };
 
   const handleCopyParentFeedbackLink = () => {
-    const parentFeedbackLink = `${window.location.origin}${ROUTES.PARENT_FEEDBACK_FORM}`;
+    const parentFeedbackLink = `${window.location.origin}${ROUTES.PARENT_FEEDBACK_FORM}/${me?.id ?? ''}`;
     navigator.clipboard.writeText(parentFeedbackLink);
     toast.success('Parent Feedback Link Copied!', 'Parent Feedback Form link copied to clipboard.');
-  };
-
-  const handleParentFormSubmit = () => {
-    setIsParentFormSubmitted(true);
-    localStorage.setItem('pwc_parent_form_submitted', 'true');
-    toast.success(
-      'Pre-Counselling Form Parent Completed!',
-      'Parent form marked as completed (Form link sent via email to parent).'
-    );
-  };
-
-  const handleParentFeedbackSubmit = () => {
-    setIsParentFeedbackSubmitted(true);
-    localStorage.setItem('pwc_parent_feedback_submitted', 'true');
-    toast.success('Parent Feedback Completed!', 'Parent feedback form marked as completed.');
   };
 
   // Build the 8 primary student timeline steps
@@ -306,16 +306,6 @@ export const StudentPortalPage: React.FC = () => {
                 Copy Pre-Counselling Form Parent Link
               </Button>
             )}
-            {isPreCounsellingSubmitted && !isParentFormSubmitted && (
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<RiUserHeartLine size={16} />}
-                onClick={handleParentFormSubmit}
-              >
-                Complete Parent Form
-              </Button>
-            )}
           </div>
         ),
       },
@@ -364,68 +354,22 @@ export const StudentPortalPage: React.FC = () => {
           ) : null,
       },
       {
+        // Rendered via the SessionCardWrapper layout below, not this generic timeline
+        // row — subtext/action here are unused, kept only for the NodeDot/status column.
         id: 5,
         title: 'Video session 1',
-        subtext: isSession1Completed
-          ? `Completed (${s1SlotStr || '12-05-2026, 17:00 - 18:00'}) • Counsellor Notes Added by Hema Kurup`
-          : isBooked
-            ? `Scheduled (${s1SlotStr || '12-05-2026, 17:00 - 18:00'}) • Email & WA Reminders Dispatched`
-            : 'Initial Career Exploration Call',
+        subtext: isSession1Completed ? 'Completed' : isBooked ? `Scheduled (${s1SlotStr})` : 'Initial Career Exploration Call',
         status: s5Status,
         attachedStatus: null,
-        action:
-          isBooked && !isSession1Completed ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<RiVideoChatLine size={16} />}
-                onClick={() => handleStartSession(1)}
-              >
-                {isSimulate10MinsBefore ? 'Join Video Call (Active)' : 'Join Video Call'}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={<RiCheckLine size={16} />}
-                onClick={handleCompleteSession1}
-              >
-                Mark Session 1 Completed
-              </Button>
-            </div>
-          ) : null,
+        action: null,
       },
       {
         id: 6,
         title: 'Video session 2',
-        subtext: isSession2Completed
-          ? `Completed (${s2SlotStr || '15-05-2026, 17:00 - 18:00'}) • Final Stream & Roadmap Notes Added`
-          : isSession1Completed
-            ? `Active Session 2 (${s2SlotStr || '15-05-2026, 17:00 - 18:00'}) • Email & WA Reminders Dispatched`
-            : 'kREATE & Stream Review Call',
+        subtext: isSession2Completed ? 'Completed' : isSession1Completed ? `Scheduled (${s2SlotStr})` : 'kREATE & Stream Review Call',
         status: s6Status,
         attachedStatus: null,
-        action:
-          isSession1Completed && !isSession2Completed ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<RiVideoChatLine size={16} />}
-                onClick={() => handleStartSession(2)}
-              >
-                {isSimulate10MinsBefore ? 'Join Video Call (Active)' : 'Join Video Call'}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={<RiCheckLine size={16} />}
-                onClick={handleCompleteSession2}
-              >
-                Mark Session 2 Completed
-              </Button>
-            </div>
-          ) : null,
+        action: null,
       },
       {
         id: 7,
@@ -469,16 +413,6 @@ export const StudentPortalPage: React.FC = () => {
                 Copy Parent Feedback Form Link
               </Button>
             )}
-            {isStudentFeedbackSubmitted && !isParentFeedbackSubmitted && (
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<RiFileTextLine size={16} />}
-                onClick={handleParentFeedbackSubmit}
-              >
-                Complete Parent Feedback
-              </Button>
-            )}
           </div>
         ),
       },
@@ -497,21 +431,26 @@ export const StudentPortalPage: React.FC = () => {
     );
   };
 
+  // POST /sessions/students/{id}/restart — cancels both sessions together and clears
+  // the way to rebook from scratch. Only available before Session 1 has started.
+  const restartMutation = useMutation({
+    mutationFn: () => sessionsService.restart(me!.id),
+    onSuccess: () => {
+      refreshSessions();
+      toast.warning(
+        'Sessions Cancelled',
+        'Your booked sessions have been cancelled. You can book new slots anytime.'
+      );
+      setCancelModalSessionNum(null);
+    },
+    onError: (err: unknown) => {
+      toast.error('Could Not Cancel', getApiErrorMessage(err, 'Unable to cancel your sessions right now.'));
+      setCancelModalSessionNum(null);
+    },
+  });
+
   const handleConfirmCancelSession = () => {
-    if (cancelModalSessionNum === 1) {
-      setIsBooked(false);
-      localStorage.removeItem('pwc_sessions_booked');
-      toast.warning(
-        'Session 1 Cancelled',
-        'Your Video Session 1 has been cancelled. You can book a new slot anytime.'
-      );
-    } else if (cancelModalSessionNum === 2) {
-      toast.warning(
-        'Session 2 Cancelled',
-        'Your Video Session 2 has been cancelled. You can reschedule a new slot anytime.'
-      );
-    }
-    setCancelModalSessionNum(null);
+    restartMutation.mutate();
   };
 
   return (
@@ -560,6 +499,8 @@ export const StudentPortalPage: React.FC = () => {
           {steps.map((step, idx) => {
             const isSessionCard = step.id === 5 || step.id === 6;
             const sessionNum = step.id === 5 ? 1 : 2;
+            const sessionForCard = sessionNum === 1 ? session1 : session2;
+            const hasPendingProposal = !!sessionForCard?.counsellorProposedDate;
 
             return (
               <TimelineItem key={step.id}>
@@ -599,13 +540,23 @@ export const StudentPortalPage: React.FC = () => {
                         </SessionCardTitle>
 
                         {step.status === 'current' ? (
-                          <SessionJoinButton
-                            type="button"
-                            onClick={() => handleStartSession(sessionNum)}
-                          >
-                            <RiVideoChatLine size={13} />
-                            Join
-                          </SessionJoinButton>
+                          sessionForCard && isWithinJoinWindow(sessionForCard) ? (
+                            <SessionJoinButton
+                              type="button"
+                              onClick={() => handleStartSession(sessionNum)}
+                            >
+                              <RiVideoChatLine size={13} />
+                              Join
+                            </SessionJoinButton>
+                          ) : (
+                            <SessionJoinButton
+                              type="button"
+                              $disabled
+                              title="Join opens 10 minutes before your session starts"
+                            >
+                              Join
+                            </SessionJoinButton>
+                          )
                         ) : step.status === 'upcoming' ? (
                           <SessionJoinButton
                             type="button"
@@ -620,16 +571,57 @@ export const StudentPortalPage: React.FC = () => {
                       <SessionDateTimeRow>
                         <RiCalendarLine size={13} style={{ color: '#6B7280', flexShrink: 0 }} />
                         <span>
-                          {isBooked || step.status === 'completed'
-                            ? (sessionNum === 1 ? s1SlotStr : s2SlotStr) ||
-                              (sessionNum === 1
-                                ? 'May 12, 2026 • 05:00 PM - 06:00 PM'
-                                : 'May 15, 2026 • 05:00 PM - 06:00 PM')
-                            : sessionNum === 1
+                          {(sessionNum === 1 ? s1SlotStr : s2SlotStr) ||
+                            (sessionNum === 1
                               ? 'Initial Career Exploration Call'
-                              : 'kREATE & Stream Review Call'}
+                              : 'kREATE & Stream Review Call')}
                         </span>
                       </SessionDateTimeRow>
+
+                      {step.status === 'current' && hasPendingProposal && sessionForCard && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 6,
+                            padding: '8px 10px',
+                            marginTop: 4,
+                            background: '#FEF3C7',
+                            border: '1px solid #FDE68A',
+                            borderRadius: 4,
+                            fontSize: 12,
+                          }}
+                        >
+                          <span style={{ color: '#92400E', fontWeight: 600 }}>
+                            Your counsellor proposed a new time:{' '}
+                            {dayjs(sessionForCard.counsellorProposedDate!).format('MMM D, YYYY')} •{' '}
+                            {formatTime(sessionForCard.counsellorProposedStartTime!)} -{' '}
+                            {formatTime(sessionForCard.counsellorProposedEndTime!)}
+                            {sessionForCard.counsellorRescheduleReason
+                              ? ` — ${sessionForCard.counsellorRescheduleReason}`
+                              : ''}
+                          </span>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <SessionActionLink
+                              type="button"
+                              onClick={() => acceptProposalMutation.mutate(sessionForCard)}
+                              style={{ color: '#16A34A' }}
+                            >
+                              <RiCheckLine size={12} />
+                              Accept
+                            </SessionActionLink>
+                            <SessionLinkDivider>|</SessionLinkDivider>
+                            <SessionActionLink
+                              type="button"
+                              $danger
+                              onClick={() => declineProposalMutation.mutate(sessionForCard)}
+                            >
+                              <RiCloseCircleLine size={12} />
+                              Decline
+                            </SessionActionLink>
+                          </div>
+                        </div>
+                      )}
 
                       {step.status === 'current' && (
                         <SessionActionLinksRow>
@@ -652,17 +644,6 @@ export const StudentPortalPage: React.FC = () => {
                           >
                             <RiRefreshLine size={12} />
                             Reschedule
-                          </SessionActionLink>
-                          <SessionLinkDivider>|</SessionLinkDivider>
-                          <SessionActionLink
-                            type="button"
-                            onClick={
-                              sessionNum === 1 ? handleCompleteSession1 : handleCompleteSession2
-                            }
-                            style={{ color: '#16A34A' }}
-                          >
-                            <RiCheckLine size={12} />
-                            Mark Completed
                           </SessionActionLink>
                         </SessionActionLinksRow>
                       )}
@@ -746,7 +727,7 @@ export const StudentPortalPage: React.FC = () => {
                   size="md"
                   leftIcon={<RiEyeLine size={18} />}
                   onClick={() =>
-                    navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'))
+                    navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', session1?.id ?? ''))
                   }
                 >
                   View kREATE Compass Report
@@ -757,7 +738,7 @@ export const StudentPortalPage: React.FC = () => {
                     size="md"
                     leftIcon={<RiPrinterLine size={18} />}
                     onClick={() => {
-                      navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', 'sess-counselor-1'));
+                      navigate(ROUTES.GENERATE_REPORT.replace(':sessionId', session1?.id ?? ''));
                       setTimeout(() => window.print(), 600);
                     }}
                   >
@@ -801,22 +782,21 @@ export const StudentPortalPage: React.FC = () => {
         student={me}
         initialName={me?.name || user?.name || 'Alex Johnson'}
         initialEmail={me?.email || user?.email || 'student@pwc.com'}
-        onSuccess={() => {
-          setIsProfileCompleted(true);
-          localStorage.setItem('pwc_student_profile_completed', 'true');
-        }}
+        onSuccess={() => setIsProfileModalOpen(false)}
       />
 
-      {/* Cancel Session AlertModal */}
+      {/* Cancel Session AlertModal — cancelling before Session 1 starts restarts booking
+          from scratch, so this cancels both sessions together, not just Session 1. */}
       <AlertModal
         isOpen={cancelModalSessionNum !== null}
         onClose={() => setCancelModalSessionNum(null)}
         onConfirm={handleConfirmCancelSession}
-        title={`Cancel Video Session ${cancelModalSessionNum}?`}
-        description={`Are you sure you want to cancel your Video Session ${cancelModalSessionNum}? You can re-book or reschedule a new time slot anytime.`}
+        title="Cancel Your Booked Sessions?"
+        description="Are you sure you want to cancel? Since Session 1 hasn't started yet, this cancels both Session 1 and Session 2 together — you can book new slots anytime."
         variant="danger"
-        confirmText="Cancel Session"
-        cancelText="Keep Session"
+        confirmText="Cancel Sessions"
+        cancelText="Keep Sessions"
+        isLoading={restartMutation.isPending}
       />
     </PortalContainer>
   );

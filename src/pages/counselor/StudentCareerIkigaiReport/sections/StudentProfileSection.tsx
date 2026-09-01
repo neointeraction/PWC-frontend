@@ -1,12 +1,6 @@
 import React from 'react';
-import {
-  RiUser3Line,
-  RiAwardLine,
-  RiBrainLine,
-  RiCheckLine,
-  RiErrorWarningLine,
-} from 'react-icons/ri';
-import { StudentCareerIkigaiReportData } from '@/mocks/studentIkigaiReport.mock';
+import { RiUser3Line, RiAwardLine, RiCheckLine, RiHeartsLine } from 'react-icons/ri';
+import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
 import { Badge } from '@/components/Badge';
 import {
   ReportSectionBlock,
@@ -31,7 +25,7 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
           <RiUser3Line size={24} />
           Champion’s Profile
         </SectionTitle>
-        <SectionSubtitle>Career · Personality · Thinking</SectionSubtitle>
+        <SectionSubtitle>Career · Personality</SectionSubtitle>
       </SectionHeaderGroup>
 
       {/* Career Personality Snapshot */}
@@ -56,68 +50,39 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
         <TextCardBody style={{ marginTop: '8px' }}>{data.snapshotSummary}</TextCardBody>
       </TextCard>
 
-      {/* Academic Performance Observations */}
-      <TextCard style={{ borderLeft: '3px solid #4F46E5' }}>
-        <TextCardTitle>
-          <RiBrainLine size={18} />
-          Academic Performance Observations
-        </TextCardTitle>
-        <TextCardBody>{data.academicObservations}</TextCardBody>
-      </TextCard>
+      {/* Core Strengths — from the counsellor-authored chart, if finalized */}
+      {data.coreStrengths.length > 0 && (
+        <TextCard
+          style={{ borderLeft: '3px solid #10B981', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}
+        >
+          <TextCardTitle style={{ color: '#10B981' }}>
+            <RiCheckLine size={18} />
+            Core Strengths
+          </TextCardTitle>
+          <BulletList>
+            {data.coreStrengths.map((str, idx) => (
+              <li key={idx}>{str}</li>
+            ))}
+          </BulletList>
+        </TextCard>
+      )}
 
-      {/* Non-Academic & Hobby Observations */}
-      <TextCard style={{ borderLeft: '3px solid #6366F1' }}>
-        <TextCardTitle>
-          <RiBrainLine size={18} />
-          Non-Academic &amp; Hobby Observations
-        </TextCardTitle>
-        <TextCardBody>{data.nonAcademicObservations}</TextCardBody>
-      </TextCard>
-
-      {/* Core Strengths */}
-      <TextCard
-        style={{ borderLeft: '3px solid #10B981', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}
-      >
-        <TextCardTitle style={{ color: '#10B981' }}>
-          <RiCheckLine size={18} />
-          Core Strengths
-        </TextCardTitle>
-        <BulletList>
-          {data.coreStrengths.map((str, idx) => (
-            <li key={idx}>{str}</li>
-          ))}
-        </BulletList>
-      </TextCard>
-
-      {/* Personality Traits */}
-      <TextCard
-        style={{ borderLeft: '3px solid #4F46E5', backgroundColor: 'rgba(79, 70, 229, 0.03)' }}
-      >
-        <TextCardTitle style={{ color: '#4F46E5' }}>
-          <RiBrainLine size={18} />
-          Personality Traits
-        </TextCardTitle>
-        <BulletList>
-          {data.personalityTraits.map((trait, idx) => (
-            <li key={idx}>{trait}</li>
-          ))}
-        </BulletList>
-      </TextCard>
-
-      {/* Areas for Growth */}
-      <TextCard
-        style={{ borderLeft: '3px solid #F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.03)' }}
-      >
-        <TextCardTitle style={{ color: '#F59E0B' }}>
-          <RiErrorWarningLine size={18} />
-          Areas for Growth
-        </TextCardTitle>
-        <BulletList>
-          {data.growthAreas.map((area, idx) => (
-            <li key={idx}>{area}</li>
-          ))}
-        </BulletList>
-      </TextCard>
+      {/* Hobbies & Interests — from the counsellor-authored chart, if finalized */}
+      {data.hobbies.length > 0 && (
+        <TextCard
+          style={{ borderLeft: '3px solid #6366F1', backgroundColor: 'rgba(99, 102, 241, 0.03)' }}
+        >
+          <TextCardTitle style={{ color: '#6366F1' }}>
+            <RiHeartsLine size={18} />
+            Hobbies &amp; Interests
+          </TextCardTitle>
+          <BulletList>
+            {data.hobbies.map((hobby, idx) => (
+              <li key={idx}>{hobby}</li>
+            ))}
+          </BulletList>
+        </TextCard>
+      )}
     </ReportSectionBlock>
   );
 };

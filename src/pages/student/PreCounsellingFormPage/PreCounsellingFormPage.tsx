@@ -222,8 +222,6 @@ export const PreCounsellingFormPage: React.FC = () => {
         answers: buildAnswers(),
       }),
     onSuccess: () => {
-      localStorage.setItem('pwc_precounselling_submitted', 'true');
-      localStorage.setItem('pwc_student_precounseling_form_submitted', 'true');
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
       queryClient.invalidateQueries({ queryKey: ['student-forms-status'] });
       toast.success(

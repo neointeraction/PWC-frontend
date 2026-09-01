@@ -1,6 +1,6 @@
 import React from 'react';
 import { RiCompassLine, RiBuildingLine, RiMoneyDollarCircleLine } from 'react-icons/ri';
-import { CareerRecommendationCard as CardType } from '@/mocks/studentIkigaiReport.mock';
+import { CareerRecommendationCard as CardType } from '@/types/studentIkigaiReport.types';
 import { Badge } from '@/components/Badge';
 import {
   ReportSectionBlock,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -23,6 +23,7 @@ import { AlertModal } from '@/components/AlertModal';
 import { DatePicker } from '@/components/DatePicker';
 import { Select } from '@/components/Select';
 import { projectService } from '@/services/project.service';
+import { sessionsService } from '@/services/sessions.service';
 import { CounselorSession, ProjectStudent, ProjectCounselor, ProjectSlot } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { formatDate, getApiErrorMessage } from '@/utils';
@@ -87,13 +88,77 @@ export const ProjectSessionsPage: React.FC = () => {
   } | null>(null);
   const [selectedStudentForView, setSelectedStudentForView] = useState<ProjectStudent | null>(null);
   const [rescheduleSlot, setRescheduleSlot] = useState<{
+    counselorId: string;
     counselorName: string;
     slot: ProjectSlot;
   } | null>(null);
 
-  // Reschedule form state
-  const [rescheduleDate, setRescheduleDate] = useState<Date | null>(new Date('2026-02-28'));
-  const [rescheduleTime, setRescheduleTime] = useState('11:00 - 12:00');
+  // Reschedule form state — populated from the counsellor's real open slots (below),
+  // not a fixed date/time list.
+  const [rescheduleDate, setRescheduleDate] = useState<Date | null>(null);
+  const [rescheduleTime, setRescheduleTime] = useState('');
+
+  // The same counsellor's remaining open availability — reschedule keeps them locked in,
+  // it just moves to a different one of their own open slots.
+  const { data: rescheduleOpenSlots = [] } = useQuery({
+    queryKey: ['reschedule-open-slots', rescheduleSlot?.counselorId, projectId],
+    queryFn: () =>
+      sessionsService.getSlots({
+        counsellorId: rescheduleSlot!.counselorId,
+        projectId: projectId as string,
+        status: 'OPEN',
+      }),
+    enabled: Boolean(rescheduleSlot?.counselorId && projectId),
+  });
+
+  const rescheduleDates = useMemo(
+    () => Array.from(new Set(rescheduleOpenSlots.map(s => s.date))).sort(),
+    [rescheduleOpenSlots]
+  );
+
+  const rescheduleDateObjs = useMemo(
+    () =>
+      rescheduleDates.map(d => {
+        const [y, m, day] = d.split('-').map(Number);
+        return new Date(y, m - 1, day);
+      }),
+    [rescheduleDates]
+  );
+
+  const rescheduleTimeOptions = useMemo(() => {
+    if (!rescheduleDate) return [];
+    const ymd = [
+      rescheduleDate.getFullYear(),
+      String(rescheduleDate.getMonth() + 1).padStart(2, '0'),
+      String(rescheduleDate.getDate()).padStart(2, '0'),
+    ].join('-');
+    return rescheduleOpenSlots
+      .filter(s => s.date === ymd)
+      .map(s => ({ value: `${s.startTime} - ${s.endTime}`, label: `${s.startTime} - ${s.endTime}` }));
+  }, [rescheduleOpenSlots, rescheduleDate]);
+
+  // Default-select the first available date once this counsellor's open slots load.
+  useEffect(() => {
+    if (rescheduleSlot && rescheduleDates.length > 0 && !rescheduleDate) {
+      const [y, m, d] = rescheduleDates[0].split('-').map(Number);
+      setRescheduleDate(new Date(y, m - 1, d));
+    }
+  }, [rescheduleDates, rescheduleSlot, rescheduleDate]);
+
+  // Default-select the first time slot for whichever date is picked.
+  useEffect(() => {
+    if (rescheduleTimeOptions.length === 0) {
+      setRescheduleTime('');
+    } else if (!rescheduleTimeOptions.some(o => o.value === rescheduleTime)) {
+      setRescheduleTime(rescheduleTimeOptions[0].value);
+    }
+  }, [rescheduleTimeOptions, rescheduleTime]);
+
+  const handleCloseRescheduleModal = () => {
+    setRescheduleSlot(null);
+    setRescheduleDate(null);
+    setRescheduleTime('');
+  };
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -261,7 +326,7 @@ export const ProjectSessionsPage: React.FC = () => {
         'Session Rescheduled',
         `Rescheduled session for ${rescheduleSlot?.slot.studentName ?? 'the student'}.`
       );
-      setRescheduleSlot(null);
+      handleCloseRescheduleModal();
     },
     onError: err => {
       toast.error('Reschedule Failed', getApiErrorMessage(err, 'Could not reschedule this session.'));
@@ -275,6 +340,10 @@ export const ProjectSessionsPage: React.FC = () => {
     }
     if (!rescheduleDate) {
       toast.error('Date Required', 'Pick the new session date.');
+      return;
+    }
+    if (!rescheduleTime) {
+      toast.error('Time Required', 'Pick an available time slot for that date.');
       return;
     }
     // The picker holds a local Date; the API takes a plain YYYY-MM-DD.
@@ -363,6 +432,7 @@ export const ProjectSessionsPage: React.FC = () => {
                 sessionDate: row.slotDate,
                 timeSlot: row.time,
                 sessionType: row.sessionType === 'S2' ? 'S2' : 'S1',
+                isMissed: row.isMissed,
               })
             }
           >
@@ -421,6 +491,7 @@ export const ProjectSessionsPage: React.FC = () => {
               type="button"
               onClick={() => {
                 setRescheduleSlot({
+                  counselorId: session.counselorId,
                   counselorName: session.counselorName,
                   slot: row,
                 });
@@ -659,7 +730,7 @@ export const ProjectSessionsPage: React.FC = () => {
       {/* Reschedule Session Modal */}
       <Modal
         isOpen={Boolean(rescheduleSlot)}
-        onClose={() => setRescheduleSlot(null)}
+        onClose={handleCloseRescheduleModal}
         title={`Reschedule Session — ${rescheduleSlot?.slot.studentName}`}
         size="md"
       >
@@ -675,26 +746,32 @@ export const ProjectSessionsPage: React.FC = () => {
             label="New Session Date"
             selected={rescheduleDate}
             onChange={(date: Date | null) => setRescheduleDate(date)}
-            placeholderText="Select new date"
+            placeholderText={rescheduleDates.length > 0 ? 'Select new date' : 'No open slots for this counselor'}
+            includeDates={rescheduleDateObjs}
           />
 
           <Select
             label="Available Time Slot"
             value={rescheduleTime}
             onChange={e => setRescheduleTime(e.target.value)}
-            options={[
-              { value: '09:30 - 10:30', label: '09:30 AM - 10:30 AM' },
-              { value: '11:00 - 12:00', label: '11:00 AM - 12:00 PM' },
-              { value: '14:00 - 15:00', label: '02:00 PM - 03:00 PM' },
-              { value: '16:00 - 17:00', label: '04:00 PM - 05:00 PM' },
-            ]}
+            options={
+              rescheduleTimeOptions.length > 0
+                ? rescheduleTimeOptions
+                : [{ value: '', label: 'No open slots for this date' }]
+            }
           />
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
-            <Button variant="secondary" size="sm" onClick={() => setRescheduleSlot(null)}>
+            <Button variant="secondary" size="sm" onClick={handleCloseRescheduleModal}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" onClick={handleConfirmReschedule}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleConfirmReschedule}
+              isLoading={rescheduleMutation.isPending}
+              disabled={!rescheduleDate || !rescheduleTime}
+            >
               Confirm Reschedule
             </Button>
           </div>

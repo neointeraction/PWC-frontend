@@ -1,32 +1,31 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import {
   RiCheckLine,
-  RiUser3Line,
-  RiUserHeartLine,
-  RiBuilding4Line,
   RiEmotionHappyLine,
+  RiUserHeartLine,
   RiCompass3Line,
   RiAwardLine,
   RiStarLine,
   RiChat3Line,
+  RiTimeLine,
+  RiInformationLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { ROUTES } from '@/constants';
 import { SuccessModal } from '@/components';
+import { useToast } from '@/hooks';
+import { formsService, FormAnswerItem, FormQuestion, McqOption } from '@/services/forms.service';
+import { getApiErrorMessage } from '@/utils';
+import { isAnswerEmpty } from '../PreCounsellingFormPage/QuestionRenderer';
 import {
   FormPageContainer,
   SingleUnifiedCard,
   DocumentHeaderRow,
   DocTitle,
   DocNote,
-  StudentMetaGrid,
-  MetaItem,
-  MetaLabel,
-  MetaValue,
   SectionBlock,
   SectionHeader,
   SectionHeaderIcon,
@@ -40,97 +39,162 @@ import {
   CustomTextArea,
   FormFooterActions,
 } from '../StudentFeedbackFormPage/StudentFeedbackFormPage.styles';
+import {
+  HeroHeaderCard,
+  StatementParagraphCard,
+  StatementList,
+  StatementListItem,
+} from '../PreCounsellingFormPage/PreCounsellingFormPage.styles';
 
-const EFFECTIVENESS_SCALE = [
-  { score: 1, label: 'Very poor, not helpful' },
-  { score: 2, label: 'Below expectations' },
-  { score: 3, label: 'Acceptable but not impressive' },
-  { score: 4, label: 'Good & met expectations' },
-  { score: 5, label: 'Excellent & beyond expectations' },
+// ─────────────────────────────────────────────────────────────
+// Every question, its section grouping, and its rating-scale options come from the real
+// GET /forms/FEEDBACK_PARENT template — nothing here is hardcoded per-question. Section
+// icons/order are a fixed 1:1 mapping onto the template's 6 sections, and the default
+// ratings mirror what this page always pre-selected, keyed by position.
+//
+// Parents have no login — the link they're sent carries the studentId directly
+// (/parent-feedback-form/:studentId), and the form-write endpoints are public but
+// project-window gated (403 once the student's project has closed/expired), same as
+// ../ParentPreCounsellingFormPage.
+// ─────────────────────────────────────────────────────────────
+
+// No public endpoint exists yet to look up a student's cohort from an unauthenticated
+// parent link, and the org currently runs a single cohort — see CLAUDE.md.
+const COHORT = 'CLASS_9_10';
+
+const SECTION_ICONS = [
+  RiEmotionHappyLine,
+  RiUserHeartLine,
+  RiCompass3Line,
+  RiAwardLine,
+  RiStarLine,
+  RiChat3Line,
 ];
 
-const CLARITY_SCALE = [
-  { score: 1, label: 'Very unclear, not decided' },
-  { score: 2, label: 'Somewhat unclear with doubts' },
-  { score: 3, label: 'Partly clear with some understanding' },
-  { score: 4, label: 'Clear & good understanding' },
-  { score: 5, label: 'Very clear & confident' },
+// Defaults this page has always pre-selected, by section position then question position.
+const SECTION_DEFAULTS: Array<Array<number | ''>> = [
+  [5, 5, 5],
+  [5, 5, 5, 5],
+  [4, 5, 5],
+  [5, 5],
+  [5],
+  ['', ''],
 ];
 
-const RECOMMENDATION_OPTIONS = [
-  { score: 1, label: '(1) Definitely will not recommend' },
-  { score: 2, label: '(2) Unlikely to recommend' },
-  { score: 3, label: '(3) May or may not recommend' },
-  { score: 4, label: '(4) Likely to recommend' },
-  { score: 5, label: '(5) Definitely will recommend' },
-];
+const cleanSectionLabel = (label: string): string =>
+  label
+    .replace(/^Section\s*\d+\s*[—-]\s*/i, '')
+    .replace(/\s*[[(].*$/, '')
+    .trim();
 
-const parentFeedbackSchema = z.object({
-  // Section 1: Programme Effectiveness [P-PE]
-  pe_q1: z.number().min(1, 'Please rate question 1'),
-  pe_q2: z.number().min(1, 'Please rate question 2'),
-  pe_q3: z.number().min(1, 'Please rate question 3'),
-
-  // Section 2: Counsellor Effectiveness [P-CE]
-  ce_q1: z.number().min(1, 'Please rate question 1'),
-  ce_q2: z.number().min(1, 'Please rate question 2'),
-  ce_q3: z.number().min(1, 'Please rate question 3'),
-  ce_q4: z.number().min(1, 'Please rate question 4'),
-
-  // Section 3: Outcome & Alignment [P-OA]
-  oa_q1: z.number().min(1, 'Please rate question 1'),
-  oa_q2: z.number().min(1, 'Please rate question 2'),
-  oa_q3: z.number().min(1, 'Please rate question 3'),
-
-  // Section 4: Decision Confidence [P-DC]
-  dc_q1: z.number().min(1, 'Please rate question 1'),
-  dc_q2: z.number().min(1, 'Please rate question 2'),
-
-  // Section 5: Recommendation [P-RC]
-  rc_q1: z.number().min(1, 'Please rate question 1'),
-
-  // Section 6: Open Feedback [Not scored]
-  appreciated_part: z.string().optional(),
-  improvement_part: z.string().optional(),
-});
-
-type ParentFeedbackFormData = z.infer<typeof parentFeedbackSchema>;
+const scaleOptions = (q: FormQuestion): McqOption[] =>
+  Array.isArray(q.options) ? (q.options.filter(o => typeof o !== 'string') as McqOption[]) : [];
 
 export const ParentFeedbackFormPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
+  const { studentId } = useParams<{ studentId: string }>();
 
-  const {
-    control,
-    handleSubmit,
-    register,
-    formState: { isSubmitting },
-  } = useForm<ParentFeedbackFormData>({
-    resolver: zodResolver(parentFeedbackSchema),
-    defaultValues: {
-      pe_q1: 5,
-      pe_q2: 5,
-      pe_q3: 5,
-      ce_q1: 5,
-      ce_q2: 5,
-      ce_q3: 5,
-      ce_q4: 5,
-      oa_q1: 4,
-      oa_q2: 5,
-      oa_q3: 5,
-      dc_q1: 5,
-      dc_q2: 5,
-      rc_q1: 5,
-      appreciated_part: '',
-      improvement_part: '',
+  const { data: template, isLoading: isTemplateLoading } = useQuery({
+    queryKey: ['form-template', 'FEEDBACK_PARENT', COHORT],
+    queryFn: () => formsService.getTemplate('FEEDBACK_PARENT', COHORT),
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: existingSubmission } = useQuery({
+    queryKey: ['form-submission', 'FEEDBACK_PARENT', studentId, COHORT],
+    queryFn: () => formsService.getSubmission('FEEDBACK_PARENT', studentId!, COHORT),
+    enabled: !!studentId,
+    staleTime: 30_000,
+  });
+
+  const sections = useMemo(() => {
+    const questions = [...(template?.questions ?? [])].sort((a, b) => a.order - b.order);
+    const bySection = new Map<string, FormQuestion[]>();
+    const sectionOrder: string[] = [];
+    questions.forEach(q => {
+      const key = q.sectionLabel || 'Questions';
+      if (!bySection.has(key)) {
+        bySection.set(key, []);
+        sectionOrder.push(key);
+      }
+      bySection.get(key)!.push(q);
+    });
+    return sectionOrder.map((label, i) => ({
+      label: cleanSectionLabel(label),
+      icon: SECTION_ICONS[i] ?? SECTION_ICONS[SECTION_ICONS.length - 1],
+      questions: bySection.get(label)!,
+    }));
+  }, [template]);
+
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const defaultsAppliedRef = useRef(false);
+
+  // Pre-select the same defaults this page always opened with (by position), once.
+  useEffect(() => {
+    if (defaultsAppliedRef.current || sections.length === 0) return;
+    defaultsAppliedRef.current = true;
+    const defaults: Record<string, unknown> = {};
+    sections.forEach((section, sIdx) => {
+      section.questions.forEach((q, qIdx) => {
+        const value = SECTION_DEFAULTS[sIdx]?.[qIdx];
+        if (value !== undefined) defaults[q.fieldKey] = value === '' ? '' : value;
+      });
+    });
+    setAnswers(prev => ({ ...defaults, ...prev }));
+  }, [sections]);
+
+  // Prefill from a previously saved submission (overrides the defaults above).
+  useEffect(() => {
+    if (!existingSubmission) return;
+    setAnswers(prev => ({
+      ...prev,
+      ...Object.fromEntries(existingSubmission.answers.map(a => [a.fieldKey, a.answer])),
+    }));
+  }, [existingSubmission]);
+
+  const setAnswer = (fieldKey: string, value: unknown) => {
+    setAnswers(prev => ({ ...prev, [fieldKey]: value }));
+  };
+
+  const buildAnswers = (): FormAnswerItem[] =>
+    (template?.questions ?? []).map(q => ({ fieldKey: q.fieldKey, answer: answers[q.fieldKey] ?? null }));
+
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [linkExpiredMessage, setLinkExpiredMessage] = useState<string | null>(null);
+
+  const submitMutation = useMutation({
+    mutationFn: () =>
+      formsService.submitForm('FEEDBACK_PARENT', studentId!, { cohort: COHORT, answers: buildAnswers() }),
+    onSuccess: () => {
+      setIsCompletionModalOpen(true);
+    },
+    onError: (err: unknown) => {
+      if (err instanceof AxiosError && err.response?.status === 403) {
+        setLinkExpiredMessage(getApiErrorMessage(err, 'This link has expired — submissions are closed.'));
+        return;
+      }
+      if (err instanceof AxiosError && err.response?.status === 400) {
+        toast.error('Some answers are missing', 'Please answer every question before submitting.');
+        return;
+      }
+      toast.error('Error', getApiErrorMessage(err, 'Failed to submit your feedback.'));
     },
   });
 
-  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
-
-  const onSubmit = async (_data: ParentFeedbackFormData) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    localStorage.setItem('pwc_parent_feedback_submitted', 'true');
-    setIsCompletionModalOpen(true);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const missing = (template?.questions ?? []).filter(
+      q => q.isRequired && isAnswerEmpty(answers[q.fieldKey])
+    );
+    if (missing.length > 0) {
+      toast.error(
+        'Some answers are missing',
+        `Please answer all required questions before submitting (${missing.length} remaining).`
+      );
+      return;
+    }
+    submitMutation.mutate();
   };
 
   const handleConfirmCompletion = useCallback(() => {
@@ -138,10 +202,44 @@ export const ParentFeedbackFormPage: React.FC = () => {
     navigate(ROUTES.LOGIN);
   }, [navigate]);
 
+  if (!studentId) {
+    return (
+      <FormPageContainer>
+        <HeroHeaderCard>
+          <StatementParagraphCard style={{ borderLeftColor: '#DC2626' }}>
+            <StatementList>
+              <StatementListItem>
+                <RiInformationLine size={20} style={{ color: '#DC2626' }} />
+                <span>This link is missing student information and can&apos;t be opened. Please ask for a new link.</span>
+              </StatementListItem>
+            </StatementList>
+          </StatementParagraphCard>
+        </HeroHeaderCard>
+      </FormPageContainer>
+    );
+  }
+
+  if (linkExpiredMessage) {
+    return (
+      <FormPageContainer>
+        <HeroHeaderCard>
+          <StatementParagraphCard style={{ borderLeftColor: '#DC2626' }}>
+            <StatementList>
+              <StatementListItem>
+                <RiTimeLine size={20} style={{ color: '#DC2626' }} />
+                <span>{linkExpiredMessage}</span>
+              </StatementListItem>
+            </StatementList>
+          </StatementParagraphCard>
+        </HeroHeaderCard>
+      </FormPageContainer>
+    );
+  }
+
   return (
     <>
       <FormPageContainer>
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form onSubmit={handleSubmit} noValidate>
           <SingleUnifiedCard>
             {/* Header */}
             <DocumentHeaderRow>
@@ -151,295 +249,66 @@ export const ParentFeedbackFormPage: React.FC = () => {
               </DocNote>
             </DocumentHeaderRow>
 
-            {/* Parent Meta Details */}
-            <StudentMetaGrid>
-              <MetaItem>
-                <MetaLabel>Counsellor Name</MetaLabel>
-                <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUser3Line size={16} /> Dr. Rajeshwari Menon
-                </MetaValue>
-              </MetaItem>
-              <MetaItem>
-                <MetaLabel>Student Name</MetaLabel>
-                <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUserHeartLine size={16} /> Aarav Sharma (STU-2026-89)
-                </MetaValue>
-              </MetaItem>
-              <MetaItem>
-                <MetaLabel>School</MetaLabel>
-                <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiBuilding4Line size={16} /> St. Xavier&apos;s High School
-                </MetaValue>
-              </MetaItem>
-            </StudentMetaGrid>
+            {/* Sections — driven entirely by the fetched template */}
+            {sections.map(section => (
+              <SectionBlock key={section.label}>
+                <SectionHeader>
+                  <SectionHeaderIcon>
+                    <section.icon size={20} />
+                  </SectionHeaderIcon>
+                  <SectionTitleText>{section.label}</SectionTitleText>
+                </SectionHeader>
 
-            {/* Section 1: Programme Effectiveness */}
-            <SectionBlock>
-              <SectionHeader>
-                <SectionHeaderIcon>
-                  <RiEmotionHappyLine size={20} />
-                </SectionHeaderIcon>
-                <SectionTitleText>Programme Effectiveness</SectionTitleText>
-              </SectionHeader>
-
-              {[
-                {
-                  name: 'pe_q1' as const,
-                  title: '1. The assessment results were explained to us clearly and in a way we could understand.',
-                },
-                {
-                  name: 'pe_q2' as const,
-                  title: '2. The career recommendations made were realistic and practical given my child\'s stream and strengths.',
-                },
-                {
-                  name: 'pe_q3' as const,
-                  title: '3. The career roadmap (Plan A and Plan B) was actionable and clearly laid out.',
-                },
-              ].map(q => (
-                <QuestionCard key={q.name}>
-                  <QuestionTitle>{q.title}</QuestionTitle>
-                  <Controller
-                    name={q.name}
-                    control={control}
-                    render={({ field }) => (
+                {section.questions.map((q, idx) =>
+                  q.questionType === 'OPEN_TEXT' ? (
+                    <QuestionCard key={q.id}>
+                      <QuestionTitle>
+                        {idx + 1}. {q.questionText}
+                      </QuestionTitle>
+                      <CustomTextArea
+                        placeholder={
+                          q.fieldKey === 'most_appreciated'
+                            ? 'Share what worked best for you and your child...'
+                            : 'Let us know how we can enhance the experience for parents...'
+                        }
+                        value={(answers[q.fieldKey] as string) ?? ''}
+                        onChange={e => setAnswer(q.fieldKey, e.target.value)}
+                      />
+                    </QuestionCard>
+                  ) : (
+                    <QuestionCard key={q.id}>
+                      <QuestionTitle>
+                        {idx + 1}. {q.questionText}
+                      </QuestionTitle>
                       <RatingOptionsGroup>
-                        {EFFECTIVENESS_SCALE.map(option => (
-                          <RatingOptionButton
-                            key={option.score}
-                            type="button"
-                            $isSelected={field.value === option.score}
-                            onClick={() => field.onChange(option.score)}
-                          >
-                            <OptionScoreBadge $isSelected={field.value === option.score}>
-                              {option.score}
-                            </OptionScoreBadge>
-                            <OptionText>{option.label}</OptionText>
-                          </RatingOptionButton>
-                        ))}
+                        {scaleOptions(q).map(option => {
+                          const optionValue = Number(option.value);
+                          const isSelected = answers[q.fieldKey] === optionValue;
+                          return (
+                            <RatingOptionButton
+                              key={option.value}
+                              type="button"
+                              $isSelected={isSelected}
+                              onClick={() => setAnswer(q.fieldKey, optionValue)}
+                            >
+                              <OptionScoreBadge $isSelected={isSelected}>{option.value}</OptionScoreBadge>
+                              <OptionText>{option.label}</OptionText>
+                            </RatingOptionButton>
+                          );
+                        })}
                       </RatingOptionsGroup>
-                    )}
-                  />
-                </QuestionCard>
-              ))}
-            </SectionBlock>
-
-            {/* Section 2: Counsellor Effectiveness */}
-            <SectionBlock>
-              <SectionHeader>
-                <SectionHeaderIcon>
-                  <RiUserHeartLine size={20} />
-                </SectionHeaderIcon>
-                <SectionTitleText>Counsellor Effectiveness</SectionTitleText>
-              </SectionHeader>
-
-              {[
-                {
-                  name: 'ce_q1' as const,
-                  title: '1. The counsellor understood my child\'s individual strengths, personality, and career interests.',
-                },
-                {
-                  name: 'ce_q2' as const,
-                  title: '2. The counsellor balanced my concerns as a parent with my child\'s own aspirations effectively.',
-                },
-                {
-                  name: 'ce_q3' as const,
-                  title: '3. The session was conducted professionally, punctually, and in a supportive atmosphere.',
-                },
-                {
-                  name: 'ce_q4' as const,
-                  title: '4. The counsellor provided unbiased, objective guidance without pushing any specific institution or career.',
-                },
-              ].map(q => (
-                <QuestionCard key={q.name}>
-                  <QuestionTitle>{q.title}</QuestionTitle>
-                  <Controller
-                    name={q.name}
-                    control={control}
-                    render={({ field }) => (
-                      <RatingOptionsGroup>
-                        {EFFECTIVENESS_SCALE.map(option => (
-                          <RatingOptionButton
-                            key={option.score}
-                            type="button"
-                            $isSelected={field.value === option.score}
-                            onClick={() => field.onChange(option.score)}
-                          >
-                            <OptionScoreBadge $isSelected={field.value === option.score}>
-                              {option.score}
-                            </OptionScoreBadge>
-                            <OptionText>{option.label}</OptionText>
-                          </RatingOptionButton>
-                        ))}
-                      </RatingOptionsGroup>
-                    )}
-                  />
-                </QuestionCard>
-              ))}
-            </SectionBlock>
-
-            {/* Section 3: Outcome & Alignment */}
-            <SectionBlock>
-              <SectionHeader>
-                <SectionHeaderIcon>
-                  <RiCompass3Line size={20} />
-                </SectionHeaderIcon>
-                <SectionTitleText>Outcome & Alignment</SectionTitleText>
-              </SectionHeader>
-
-              {[
-                {
-                  name: 'oa_q1' as const,
-                  title: '1. My child now has greater clarity about their career direction within their chosen stream.',
-                },
-                {
-                  name: 'oa_q2' as const,
-                  title: '2. The programme helped bring my expectations and my child\'s aspirations closer together.',
-                },
-                {
-                  name: 'oa_q3' as const,
-                  title: '3. My own understanding of my child\'s strengths, personality, and career options has improved.',
-                },
-              ].map(q => (
-                <QuestionCard key={q.name}>
-                  <QuestionTitle>{q.title}</QuestionTitle>
-                  <Controller
-                    name={q.name}
-                    control={control}
-                    render={({ field }) => (
-                      <RatingOptionsGroup>
-                        {CLARITY_SCALE.map(option => (
-                          <RatingOptionButton
-                            key={option.score}
-                            type="button"
-                            $isSelected={field.value === option.score}
-                            onClick={() => field.onChange(option.score)}
-                          >
-                            <OptionScoreBadge $isSelected={field.value === option.score}>
-                              {option.score}
-                            </OptionScoreBadge>
-                            <OptionText>{option.label}</OptionText>
-                          </RatingOptionButton>
-                        ))}
-                      </RatingOptionsGroup>
-                    )}
-                  />
-                </QuestionCard>
-              ))}
-            </SectionBlock>
-
-            {/* Section 4: Decision Confidence */}
-            <SectionBlock>
-              <SectionHeader>
-                <SectionHeaderIcon>
-                  <RiAwardLine size={20} />
-                </SectionHeaderIcon>
-                <SectionTitleText>Decision Confidence</SectionTitleText>
-              </SectionHeader>
-
-              {[
-                {
-                  name: 'dc_q1' as const,
-                  title: '1. I feel confident in the career direction and final choices made for my child.',
-                },
-                {
-                  name: 'dc_q2' as const,
-                  title: '2. I believe the career plan and roadmap presented is achievable and appropriate for my child.',
-                },
-              ].map(q => (
-                <QuestionCard key={q.name}>
-                  <QuestionTitle>{q.title}</QuestionTitle>
-                  <Controller
-                    name={q.name}
-                    control={control}
-                    render={({ field }) => (
-                      <RatingOptionsGroup>
-                        {CLARITY_SCALE.map(option => (
-                          <RatingOptionButton
-                            key={option.score}
-                            type="button"
-                            $isSelected={field.value === option.score}
-                            onClick={() => field.onChange(option.score)}
-                          >
-                            <OptionScoreBadge $isSelected={field.value === option.score}>
-                              {option.score}
-                            </OptionScoreBadge>
-                            <OptionText>{option.label}</OptionText>
-                          </RatingOptionButton>
-                        ))}
-                      </RatingOptionsGroup>
-                    )}
-                  />
-                </QuestionCard>
-              ))}
-            </SectionBlock>
-
-            {/* Section 5: Recommendation */}
-            <SectionBlock>
-              <SectionHeader>
-                <SectionHeaderIcon>
-                  <RiStarLine size={20} />
-                </SectionHeaderIcon>
-                <SectionTitleText>Recommendation</SectionTitleText>
-              </SectionHeader>
-
-              <QuestionCard>
-                <QuestionTitle>1. How likely are you to recommend this programme?</QuestionTitle>
-                <Controller
-                  name="rc_q1"
-                  control={control}
-                  render={({ field }) => (
-                    <RatingOptionsGroup>
-                      {RECOMMENDATION_OPTIONS.map(option => (
-                        <RatingOptionButton
-                          key={option.score}
-                          type="button"
-                          $isSelected={field.value === option.score}
-                          onClick={() => field.onChange(option.score)}
-                        >
-                          <OptionScoreBadge $isSelected={field.value === option.score}>
-                            {option.score}
-                          </OptionScoreBadge>
-                          <OptionText>{option.label}</OptionText>
-                        </RatingOptionButton>
-                      ))}
-                    </RatingOptionsGroup>
-                  )}
-                />
-              </QuestionCard>
-            </SectionBlock>
-
-            {/* Section 6: Open Feedback */}
-            <SectionBlock>
-              <SectionHeader>
-                <SectionHeaderIcon>
-                  <RiChat3Line size={20} />
-                </SectionHeaderIcon>
-                <SectionTitleText>Open Feedback</SectionTitleText>
-              </SectionHeader>
-
-              <QuestionCard>
-                <QuestionTitle>1. What did you appreciate most about this career counselling programme?</QuestionTitle>
-                <CustomTextArea
-                  placeholder="Share what worked best for you and your child..."
-                  {...register('appreciated_part')}
-                />
-              </QuestionCard>
-
-              <QuestionCard>
-                <QuestionTitle>2. What should we improve to make this programme more valuable for parents?</QuestionTitle>
-                <CustomTextArea
-                  placeholder="Let us know how we can enhance the experience for parents..."
-                  {...register('improvement_part')}
-                />
-              </QuestionCard>
-            </SectionBlock>
+                    </QuestionCard>
+                  )
+                )}
+              </SectionBlock>
+            ))}
 
             {/* Form Actions */}
             <FormFooterActions style={{ justifyContent: 'flex-end' }}>
               <Button
                 type="submit"
                 variant="primary"
-                isLoading={isSubmitting}
+                isLoading={submitMutation.isPending || isTemplateLoading}
                 leftIcon={<RiCheckLine size={18} />}
               >
                 Submit Feedback

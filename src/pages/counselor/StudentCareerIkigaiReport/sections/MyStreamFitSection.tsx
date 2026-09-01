@@ -1,6 +1,6 @@
 import React from 'react';
 import { RiGitBranchLine } from 'react-icons/ri';
-import { StudentCareerIkigaiReportData } from '@/mocks/studentIkigaiReport.mock';
+import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,
