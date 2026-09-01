@@ -193,11 +193,11 @@ export const AssessmentFormPage: React.FC = () => {
 
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { data: me } = useCurrentStudent();
+  const { data: me, isLoading: isMeLoading } = useCurrentStudent();
   const cohort = me?.cohort?.code;
 
   // Authoritative question bank from the backend, mapped into the wizard shape.
-  const { data: backendQuestions } = useQuery({
+  const { data: backendQuestions, isLoading: isQuestionsLoading } = useQuery({
     queryKey: ['assessment-questions', cohort],
     queryFn: () => assessmentService.getQuestions(cohort!),
     enabled: !!cohort,
@@ -211,7 +211,7 @@ export const AssessmentFormPage: React.FC = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   // Start or resume the student's attempt; its saved answers prefill the form.
-  const { data: attempt } = useQuery({
+  const { data: attempt, isLoading: isAttemptLoading } = useQuery({
     queryKey: ['assessment-attempt', me?.id, cohort],
     queryFn: () => assessmentService.startAttempt(me!.id, cohort!),
     enabled: !!me?.id && !!cohort,
@@ -231,6 +231,18 @@ export const AssessmentFormPage: React.FC = () => {
     if (Object.keys(prefilled).length) setAnswers(prev => ({ ...prefilled, ...prev }));
   }, [attempt]);
 
+  // Per-question elapsed time (ms), keyed by fieldKey — feeds the aptitude Time
+  // Consistency component of ARI on the backend (scoring/ari.ts). Measured from when a
+  // question first becomes visible to when it's (re-)answered; re-selecting an answer
+  // keeps extending from the same shown-time, so the value reflects total time spent
+  // deciding, not just the latest click.
+  const [questionTimes, setQuestionTimes] = useState<Record<string, number>>({});
+  const questionShownAtRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    questionShownAtRef.current = Date.now();
+  }, [currentQuestionIndex, isFormStarted]);
+
   const topRef = useRef<HTMLDivElement>(null);
 
   const scrollToTop = () => {
@@ -247,14 +259,16 @@ export const AssessmentFormPage: React.FC = () => {
   };
 
   // Persist one answer in the background (best-effort; submit re-saves the full set).
-  const persistAnswer = (fieldKey: string, value: number | string) => {
+  const persistAnswer = (fieldKey: string, value: number | string, timeTakenMs: number) => {
     if (!attemptId) return;
-    assessmentService.saveAnswers(attemptId, [{ fieldKey, selectedOption: value }]).catch(() => {});
+    assessmentService.saveAnswers(attemptId, [{ fieldKey, selectedOption: value, timeTakenMs }]).catch(() => {});
   };
 
   const handleSelectAnswer = (qId: string, value: number | string) => {
+    const timeTakenMs = Date.now() - questionShownAtRef.current;
     setAnswers(prev => ({ ...prev, [qId]: value }));
-    persistAnswer(qId, value);
+    setQuestionTimes(prev => ({ ...prev, [qId]: timeTakenMs }));
+    persistAnswer(qId, value, timeTakenMs);
   };
 
   const handleNextQuestion = () => {
@@ -268,7 +282,7 @@ export const AssessmentFormPage: React.FC = () => {
   const buildAllAnswers = (): SaveAnswerInput[] =>
     questions
       .filter(q => answers[q.id] !== undefined)
-      .map(q => ({ fieldKey: q.id, selectedOption: answers[q.id] }));
+      .map(q => ({ fieldKey: q.id, selectedOption: answers[q.id], timeTakenMs: questionTimes[q.id] }));
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -298,11 +312,6 @@ export const AssessmentFormPage: React.FC = () => {
   });
 
   const handleSubmitAssessment = () => {
-    if (!attemptId) {
-      localStorage.setItem('pwc_assessment_form_submitted', 'true');
-      setIsCompletionModalOpen(true);
-      return;
-    }
     submitMutation.mutate();
   };
 
@@ -551,6 +560,8 @@ export const AssessmentFormPage: React.FC = () => {
               variant="primary"
               size="lg"
               rightIcon={<RiPlayCircleLine size={20} />}
+              isLoading={isMeLoading || isQuestionsLoading || isAttemptLoading}
+              disabled={!isMeLoading && !cohort}
               onClick={() => {
                 setIsFormStarted(true);
                 setCurrentQuestionIndex(0);
@@ -560,6 +571,12 @@ export const AssessmentFormPage: React.FC = () => {
             >
               Start Career Assessment
             </Button>
+            {!isMeLoading && !cohort && (
+              <p style={{ color: '#DC2626', fontSize: 13, marginTop: 8 }}>
+                We couldn&apos;t find an active cohort on your student record, so this assessment can&apos;t
+                load yet. Please contact your counsellor or admin.
+              </p>
+            )}
           </StartCtaBox>
         </HeroHeaderCard>
       ) : (

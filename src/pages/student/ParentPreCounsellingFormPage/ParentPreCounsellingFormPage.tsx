@@ -1,5 +1,7 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import {
   RiQuestionLine,
   RiGridLine,
@@ -16,16 +18,33 @@ import {
   RiArrowRightLine,
   RiCheckLine,
   RiHeartLine,
+  RiTimeLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { SuccessModal } from '@/components';
 import { ROUTES } from '@/constants';
+import { useToast } from '@/hooks';
+import { formsService, FormAnswerItem, FormQuestion } from '@/services/forms.service';
+import { getApiErrorMessage } from '@/utils';
+import { QuestionRenderer, isAnswerEmpty } from '../PreCounsellingFormPage/QuestionRenderer';
 import {
   FormPageContainer,
   HeroHeaderCard,
   DocumentHeaderRow,
   DocTitle,
   StatsGridBar,
+  QuestionBox,
+  QuestionTitle,
+  RequiredMarker,
+  QuestionErrorText,
+  InlineLabelRow,
+  ReasonLabel,
+  OptionList,
+  OptionLabel,
+  OptionTextGroup,
+  InlineOptionTextGroup,
+  OptionTitle,
+  CustomTextInput,
   StatBlock,
   StatIconBox,
   StatInfoBox,
@@ -59,62 +78,187 @@ import {
   ProgressTrack,
   ProgressBar,
   WizardStepBody,
-  QuestionBox,
-  QuestionTitle,
-  OptionList,
-  OptionLabel,
-  OptionTextGroup,
-  InlineOptionTextGroup,
-  OptionTitle,
-  CustomTextInput,
   WizardFooterNav,
-  MarksTableContainer,
-  MarksTable,
-  InlineLabelRow,
-  ReasonLabel,
 } from '../PreCounsellingFormPage/PreCounsellingFormPage.styles';
 
-/* ──────────────────────────────────────────────
-   STRENGTHS TABLE DATA
-   ────────────────────────────────────────────── */
-const STRENGTHS_LIST = [
-  'Speaking or presenting in front of others',
-  'Writing clearly (essays, stories, descriptions)',
-  'Drawing, designing or making creative things',
-  'Coming up with original or unusual ideas',
-  'Solving maths or logic problems quickly',
-  'Analysing and understanding complex topics',
-  'Fixing or building things with hands',
-  'Using computers, gadgets or digital tools',
-  'Making friends easily and working in teams',
-  'Understanding how others feel (empathy)',
-  'Playing sports or physical coordination',
-  'Remembering facts and details accurately',
-  'Persuading or motivating others to follow an idea',
-  'Organising work, notes and assignments neatly',
-  'Finding patterns and solving puzzles',
-  'Visualising shapes, maps, or objects in different positions',
-  'Being comfortable trying something new even when success is uncertain',
-  'Taking initiative without being told what to do',
-];
+// ─────────────────────────────────────────────────────────────
+// Every question, its section grouping (the wizard's 5 steps), and its options come from
+// the real GET /forms/PRE_COUNSELLING_PARENT template — nothing here is hardcoded
+// per-question. The generic questionType-driven renderer lives in
+// ../PreCounsellingFormPage/QuestionRenderer, shared with the student pre-counselling form.
+//
+// Parents have no login — the link they're sent carries the studentId directly
+// (/parent-pre-counselling-form/:studentId), and the form-write endpoints are public but
+// project-window gated (403 once the student's project has closed/expired).
+// ─────────────────────────────────────────────────────────────
 
-const STRENGTHS_COLUMNS = ['Clearly See This', 'Sometimes', 'Rarely / Never', 'Not Sure'];
+// No public endpoint exists yet to look up a student's cohort from an unauthenticated
+// parent link, and the org currently runs a single cohort — see CLAUDE.md.
+const COHORT = 'CLASS_9_10';
 
-/* ──────────────────────────────────────────────
-   ANSWER STATE INTERFACE
-   ────────────────────────────────────────────── */
-interface ParentFormAnswers {
-  [key: string]: string | string[] | Record<string, string> | undefined;
+// ---- Interim special-case for Q1/Q2 (strong/struggling subject + reason) ----
+// The backend's MATRIX seed for these two questions only has 3 plain subject-name fields
+// (no "why" reason picker), unlike the matching student-form questions (Q2/Q3) which do.
+// We asked backend to add a `reason` field matching that pattern; until they do, we render
+// the original single-subject + reason UI here and nest the reason answer under an extra,
+// backend-undeclared key inside the MATRIX answer object — the backend only validates the
+// top-level fieldKey (see forms.service.ts on PWC-backend), not what's nested inside a
+// MATRIX answer, so this round-trips through the real API with nothing silently dropped.
+// Once backend ships the real field, swap `reasonFieldKey`/`reasonOtherFieldKey` below for
+// whatever key they use — no other change needed.
+interface SubjectReasonConfig {
+  subjectFieldKey: string;
+  subjectLabel: string;
+  reasonPrompt: string;
+  reasonFieldKey: string;
+  reasonOtherFieldKey: string;
+  reasonOptions: { key: string; text: string }[];
+  // Falls back to this when the backend question has no helpText of its own (Q2's seed
+  // is missing one entirely) — remove once backend adds it.
+  helpTextFallback?: string;
 }
+
+const SUBJECT_REASON_CONFIG: Record<string, SubjectReasonConfig> = {
+  strong_subjects_block: {
+    subjectFieldKey: 'strong_subject_1',
+    subjectLabel: 'Strong Subject',
+    reasonPrompt: 'I believe my child enjoys this subject because :',
+    reasonFieldKey: 'strong_subject_reason',
+    reasonOtherFieldKey: 'strong_subject_reason_other',
+    reasonOptions: [
+      { key: 'a', text: 'My child love solving problems and puzzles in this subject' },
+      { key: 'b', text: 'It allows my child to be creative and come up with new ideas' },
+      { key: 'c', text: 'It connects to real life, my child can see how it is actually used' },
+      { key: 'd', text: 'It just feels easy and natural to my child who simply enjoys it' },
+    ],
+  },
+  struggle_subjects_block: {
+    subjectFieldKey: 'struggle_subject_1',
+    subjectLabel: 'Struggling Subject',
+    reasonPrompt: 'It is difficult because :',
+    reasonFieldKey: 'struggle_subject_reason',
+    reasonOtherFieldKey: 'struggle_subject_reason_other',
+    reasonOptions: [
+      { key: 'a', text: "My child don't understand the concepts, it feels like just memorising" },
+      { key: 'b', text: 'My child get anxious during exams or tests for this subject' },
+      { key: 'c', text: 'The way it is taught is too theoretical and boring' },
+      { key: 'd', text: 'My child is simply not interested in this topic' },
+    ],
+    helpTextFallback:
+      'Difficulty does not mean your child is bad at it (not based on scores), it just means your child enjoy the least or do not enjoy at all.',
+  },
+};
+
+const SubjectReasonQuestion: React.FC<{
+  question: FormQuestion;
+  config: SubjectReasonConfig;
+  value: Record<string, unknown> | undefined;
+  onChange: (v: Record<string, unknown>) => void;
+  hasError?: boolean;
+}> = ({ question, config, value, onChange, hasError }) => {
+  const data = value ?? {};
+  const subject = (data[config.subjectFieldKey] as string) ?? '';
+  const reason = (data[config.reasonFieldKey] as string) ?? '';
+  const reasonOther = (data[config.reasonOtherFieldKey] as string) ?? '';
+
+  const setField = (key: string, val: string) => onChange({ ...data, [key]: val });
+  const helpText = question.helpText || config.helpTextFallback;
+
+  return (
+    <QuestionBox $hasError={hasError}>
+      <QuestionTitle>
+        {question.questionCode.replace(/^Q/i, '')}. {question.questionText}
+        {question.isRequired && <RequiredMarker>*</RequiredMarker>}
+      </QuestionTitle>
+      {helpText && (
+        <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: 13, marginTop: 4, marginBottom: 16 }}>
+          {helpText}
+        </p>
+      )}
+      {hasError && <QuestionErrorText>This question is required.</QuestionErrorText>}
+
+      <InlineLabelRow>
+        <label>{config.subjectLabel} :</label>
+        <CustomTextInput
+          placeholder="Enter subject name..."
+          style={{ flex: 1, minWidth: 260 }}
+          value={subject}
+          onChange={e => setField(config.subjectFieldKey, e.target.value)}
+        />
+      </InlineLabelRow>
+
+      <ReasonLabel>{config.reasonPrompt}</ReasonLabel>
+      <OptionList>
+        {config.reasonOptions.map(opt => (
+          <OptionLabel key={opt.key} $selected={reason === opt.key}>
+            <input type="radio" checked={reason === opt.key} onChange={() => setField(config.reasonFieldKey, opt.key)} />
+            <OptionTextGroup>
+              <OptionTitle>{opt.text}</OptionTitle>
+            </OptionTextGroup>
+          </OptionLabel>
+        ))}
+        <OptionLabel $selected={reason === 'other'}>
+          <input type="radio" checked={reason === 'other'} onChange={() => setField(config.reasonFieldKey, 'other')} />
+          <InlineOptionTextGroup>
+            <OptionTitle>Any Other Reason :</OptionTitle>
+            <CustomTextInput
+              placeholder="Please specify..."
+              value={reasonOther}
+              onChange={e => setField(config.reasonOtherFieldKey, e.target.value)}
+            />
+          </InlineOptionTextGroup>
+        </OptionLabel>
+      </OptionList>
+    </QuestionBox>
+  );
+};
 
 export const ParentPreCounsellingFormPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
+  const { studentId } = useParams<{ studentId: string }>();
+
+  const { data: template, isLoading: isTemplateLoading } = useQuery({
+    queryKey: ['form-template', 'PRE_COUNSELLING_PARENT', COHORT],
+    queryFn: () => formsService.getTemplate('PRE_COUNSELLING_PARENT', COHORT),
+    staleTime: 5 * 60_000,
+  });
+
+  // Load any existing draft/submission so the form prefills what was saved before.
+  const { data: existingSubmission } = useQuery({
+    queryKey: ['form-submission', 'PRE_COUNSELLING_PARENT', studentId, COHORT],
+    queryFn: () => formsService.getSubmission('PRE_COUNSELLING_PARENT', studentId!, COHORT),
+    enabled: !!studentId,
+    staleTime: 30_000,
+  });
+
+  const sections = useMemo(() => {
+    const questions = [...(template?.questions ?? [])].sort((a, b) => a.order - b.order);
+    // Display-order override: product wants Q3 (strengths table) on the same page as
+    // Q1/Q2, but the backend seed still files it under Section 2. Re-home it under
+    // whatever label Q1 actually uses, so this survives the section wording changing —
+    // remove once backend moves p_strengths_table's sectionLabel to Section 1.
+    const section1Label = questions.find(q => q.fieldKey === 'strong_subjects_block')?.sectionLabel;
+    const bySection = new Map<string, FormQuestion[]>();
+    const sectionOrder: string[] = [];
+    questions.forEach(q => {
+      const key = (q.fieldKey === 'p_strengths_table' && section1Label) || q.sectionLabel || 'Questions';
+      if (!bySection.has(key)) {
+        bySection.set(key, []);
+        sectionOrder.push(key);
+      }
+      bySection.get(key)!.push(q);
+    });
+    return sectionOrder.map(label => ({ label, questions: bySection.get(label)! }));
+  }, [template]);
+
+  const totalSteps = sections.length || 1;
+  const totalQuestions = template?.questions.length ?? 0;
+
   const [isFormStarted, setIsFormStarted] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const totalSteps = 5;
 
   const topRef = useRef<HTMLDivElement>(null);
-
   const scrollToTop = () => {
     setTimeout(() => {
       if (topRef.current) {
@@ -123,55 +267,161 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
     }, 100);
   };
 
-  const [answers, setAnswers] = useState<ParentFormAnswers>({});
-  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  // Answers keyed by fieldKey — a MATRIX question's value is a nested object
+  // (per-row/per-field), everything else is a plain value.
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
 
-  const handleSingleSelect = (field: string, value: string) => {
-    setAnswers(prev => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    if (!existingSubmission) return;
+    setAnswers(prev => ({
+      ...prev,
+      ...Object.fromEntries(existingSubmission.answers.map(a => [a.fieldKey, a.answer])),
+    }));
+  }, [existingSubmission]);
+
+  // Required questions left blank, keyed by fieldKey — populated on a failed Next/Submit
+  // attempt so QuestionRenderer can highlight them; cleared as soon as the step re-validates clean.
+  const [errorFieldKeys, setErrorFieldKeys] = useState<Set<string>>(new Set());
+
+  const setAnswer = (fieldKey: string, value: unknown) => {
+    setAnswers(prev => ({ ...prev, [fieldKey]: value }));
+    if (!isAnswerEmpty(value)) {
+      setErrorFieldKeys(prev => {
+        if (!prev.has(fieldKey)) return prev;
+        const next = new Set(prev);
+        next.delete(fieldKey);
+        return next;
+      });
+    }
   };
 
-  const handleMultiSelect = (field: string, value: string) => {
-    setAnswers(prev => {
-      const current = (prev[field] as string[]) || [];
-      if (current.includes(value)) {
-        return { ...prev, [field]: current.filter(v => v !== value) };
-      }
-      return { ...prev, [field]: [...current, value] };
-    });
-  };
+  const buildAnswers = (): FormAnswerItem[] =>
+    (template?.questions ?? []).map(q => ({ fieldKey: q.fieldKey, answer: answers[q.fieldKey] ?? null }));
 
-  const handleStrengthSelect = (strength: string, column: string) => {
-    setAnswers(prev => {
-      const strengthsMap = (prev.q3_strengths as Record<string, string>) || {};
-      return { ...prev, q3_strengths: { ...strengthsMap, [strength]: column } };
-    });
-  };
+  const missingRequiredIn = (questions: FormQuestion[]): string[] =>
+    questions.filter(q => q.isRequired && isAnswerEmpty(answers[q.fieldKey])).map(q => q.fieldKey);
+
+  const currentSection = sections[currentStep - 1];
 
   const goNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(prev => prev + 1);
-      scrollToTop();
+    const missing = missingRequiredIn(currentSection?.questions ?? []);
+    if (missing.length > 0) {
+      setErrorFieldKeys(new Set(missing));
+      toast.error(
+        'Some answers are missing',
+        `Please answer all required questions on this step (${missing.length} remaining).`
+      );
+      return;
     }
+    setErrorFieldKeys(new Set());
+    setCurrentStep(prev => Math.min(totalSteps, prev + 1));
+    scrollToTop();
   };
 
   const goPrev = () => {
-    if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
-      scrollToTop();
-    }
+    setErrorFieldKeys(new Set());
+    setCurrentStep(prev => Math.max(1, prev - 1));
+    scrollToTop();
   };
 
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState<boolean>(false);
+  // The project-window gate (docs: "Show an 'this link has expired' screen — don't retry")
+  // — set once, blocks the wizard permanently rather than letting the parent retry.
+  const [linkExpiredMessage, setLinkExpiredMessage] = useState<string | null>(null);
+
   const handleSubmitForm = () => {
-    localStorage.setItem('pwc_parent_pre_counselling_submitted', 'true');
+    const missing = missingRequiredIn(template?.questions ?? []);
+    if (missing.length > 0) {
+      const missingSet = new Set(missing);
+      setErrorFieldKeys(missingSet);
+      const firstErrorStepIndex = sections.findIndex(s => s.questions.some(q => missingSet.has(q.fieldKey)));
+      if (firstErrorStepIndex >= 0) setCurrentStep(firstErrorStepIndex + 1);
+      scrollToTop();
+      toast.error(
+        'Some answers are missing',
+        `Please complete all required questions before submitting (${missing.length} remaining).`
+      );
+      return;
+    }
+    setErrorFieldKeys(new Set());
     setIsCompletionModalOpen(true);
   };
 
-  const handleConfirmCompletion = useCallback(() => {
-    setIsCompletionModalOpen(false);
-    navigate(ROUTES.LOGIN);
-  }, [navigate]);
+  const submitMutation = useMutation({
+    mutationFn: () =>
+      formsService.submitForm('PRE_COUNSELLING_PARENT', studentId!, {
+        cohort: COHORT,
+        answers: buildAnswers(),
+      }),
+    onSuccess: () => {
+      localStorage.setItem('pwc_parent_pre_counselling_submitted', 'true');
+      toast.success(
+        'Pre-Counselling Form Submitted!',
+        'Thank you for completing the form. Your responses will only be seen by the career counsellor.'
+      );
+      setIsCompletionModalOpen(false);
+      navigate(ROUTES.LOGIN);
+    },
+    onError: (err: unknown) => {
+      setIsCompletionModalOpen(false);
+      if (err instanceof AxiosError && err.response?.status === 403) {
+        setLinkExpiredMessage(getApiErrorMessage(err, 'This link has expired — submissions are closed.'));
+        return;
+      }
+      if (err instanceof AxiosError && err.response?.status === 400) {
+        const missing = (err.response.data as { error?: { details?: { missingFieldKeys?: string[] } } })
+          ?.error?.details?.missingFieldKeys;
+        toast.error(
+          'Some answers are missing',
+          missing?.length
+            ? `Please complete all required questions before submitting (${missing.length} remaining).`
+            : 'Please complete all required questions before submitting.'
+        );
+        return;
+      }
+      toast.error('Error', getApiErrorMessage(err, 'Failed to submit the form.'));
+    },
+  });
 
-  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+  const handleConfirmCompletion = () => {
+    submitMutation.mutate();
+  };
+
+  const progressPercent = totalSteps ? Math.round((currentStep / totalSteps) * 100) : 0;
+
+  if (!studentId) {
+    return (
+      <FormPageContainer ref={topRef}>
+        <HeroHeaderCard>
+          <StatementParagraphCard style={{ borderLeftColor: '#DC2626' }}>
+            <StatementList>
+              <StatementListItem>
+                <RiInformationLine size={20} style={{ color: '#DC2626' }} />
+                <span>This link is missing student information and can&apos;t be opened. Please ask for a new link.</span>
+              </StatementListItem>
+            </StatementList>
+          </StatementParagraphCard>
+        </HeroHeaderCard>
+      </FormPageContainer>
+    );
+  }
+
+  if (linkExpiredMessage) {
+    return (
+      <FormPageContainer ref={topRef}>
+        <HeroHeaderCard>
+          <StatementParagraphCard style={{ borderLeftColor: '#DC2626' }}>
+            <StatementList>
+              <StatementListItem>
+                <RiTimeLine size={20} style={{ color: '#DC2626' }} />
+                <span>{linkExpiredMessage}</span>
+              </StatementListItem>
+            </StatementList>
+          </StatementParagraphCard>
+        </HeroHeaderCard>
+      </FormPageContainer>
+    );
+  }
 
   return (
     <FormPageContainer ref={topRef}>
@@ -189,7 +439,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
                 <RiQuestionLine size={24} />
               </StatIconBox>
               <StatInfoBox>
-                <StatNumber $color="#1E40AF">22</StatNumber>
+                <StatNumber $color="#1E40AF">{totalQuestions || '22'}</StatNumber>
                 <StatLabel>Questions</StatLabel>
               </StatInfoBox>
             </StatBlock>
@@ -199,7 +449,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
                 <RiGridLine size={24} />
               </StatIconBox>
               <StatInfoBox>
-                <StatNumber $color="#6B21A8">5</StatNumber>
+                <StatNumber $color="#6B21A8">{sections.length || '5'}</StatNumber>
                 <StatLabel>Sections</StatLabel>
               </StatInfoBox>
             </StatBlock>
@@ -411,6 +661,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
               variant="primary"
               size="lg"
               rightIcon={<RiPlayCircleLine size={20} />}
+              isLoading={isTemplateLoading}
               onClick={() => {
                 setIsFormStarted(true);
                 scrollToTop();
@@ -423,17 +674,11 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
           </StartCtaBox>
         </HeroHeaderCard>
       ) : (
-        /* WIZARD VIEW */
+        /* WIZARD VIEW — driven entirely by the fetched template's sections/questions */
         <WizardContainer>
           <WizardProgressHeader>
             <WizardStepInfoRow>
-              <span>
-                {currentStep === 1 && 'HOW I SEE MY CHILD\'S ACADEMIC STRENGTHS'}
-                {currentStep === 2 && 'MY CHILD\'S INTERESTS & FREE TIME'}
-                {currentStep === 3 && 'MY CHILD\'S PERSONALITY'}
-                {currentStep === 4 && 'CAREER DIRECTION & EXPECTATIONS'}
-                {currentStep === 5 && 'WHAT YOU EXPECT FROM THIS PROGRAMME'}
-              </span>
+              <span>{sections[currentStep - 1]?.label?.replace(/^Section\s*\d+\s*[—-]\s*/i, '').toUpperCase()}</span>
               <span>Step {currentStep} of {totalSteps} ({progressPercent}%)</span>
             </WizardStepInfoRow>
 
@@ -443,699 +688,27 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
           </WizardProgressHeader>
 
           <WizardStepBody>
-            {/* ═══════════════════════════════════════════
-                STEP 1: HOW I SEE MY CHILD'S ACADEMIC STRENGTHS (Q1–Q3)
-               ═══════════════════════════════════════════ */}
-            {currentStep === 1 && (
-              <>
-                {/* Q1 */}
-                <QuestionBox>
-                  <QuestionTitle>1. Which subjects do you consider your child genuinely strong in?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Strong means they understand it well, perform consistently, or show real interest in that subject (not based on scores).
-                  </p>
-
-                  <InlineLabelRow>
-                    <label htmlFor="q1_strongSubject">Strong Subject :</label>
-                    <CustomTextInput
-                      id="q1_strongSubject"
-                      placeholder="Enter subject name..."
-                      style={{ flex: 1, minWidth: 260 }}
-                      value={(answers.q1_strongSubject as string) || ''}
-                      onChange={e => setAnswers(prev => ({ ...prev, q1_strongSubject: e.target.value }))}
-                    />
-                  </InlineLabelRow>
-
-                  <ReasonLabel>I believe my child enjoys this subject because :</ReasonLabel>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'My child love solving problems and puzzles in this subject' },
-                      { key: 'b', text: 'It allows my child to be creative and come up with new ideas' },
-                      { key: 'c', text: 'It connects to real life, my child can see how it is actually used' },
-                      { key: 'd', text: 'It just feels easy and natural to my child who simply enjoys it' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q1_enjoyReason === opt.key}>
-                        <input
-                          type="radio"
-                          name="q1_enjoyReason"
-                          checked={answers.q1_enjoyReason === opt.key}
-                          onChange={() => handleSingleSelect('q1_enjoyReason', opt.key)}
-                        />
-                        <OptionTextGroup>
-                          <OptionTitle>{opt.text}</OptionTitle>
-                        </OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={answers.q1_enjoyReason === 'other'}>
-                      <input
-                        type="radio"
-                        name="q1_enjoyReason"
-                        checked={answers.q1_enjoyReason === 'other'}
-                        onChange={() => handleSingleSelect('q1_enjoyReason', 'other')}
-                      />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other Reason :</OptionTitle>
-                        <CustomTextInput
-                          placeholder="Please specify..."
-                          value={(answers.q1_enjoyOther as string) || ''}
-                          onChange={e => setAnswers(prev => ({ ...prev, q1_enjoyOther: e.target.value }))}
-                        />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q2 */}
-                <QuestionBox>
-                  <QuestionTitle>2. Which subjects do you feel your child struggles with the most?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Difficulty does not mean your child is bad at it (not based on scores), it just means your child enjoy the least or do not enjoy at all.
-                  </p>
-
-                  <InlineLabelRow>
-                    <label htmlFor="q2_strugglingSubject">Struggling Subject :</label>
-                    <CustomTextInput
-                      id="q2_strugglingSubject"
-                      placeholder="Enter subject name..."
-                      style={{ flex: 1, minWidth: 260 }}
-                      value={(answers.q2_strugglingSubject as string) || ''}
-                      onChange={e => setAnswers(prev => ({ ...prev, q2_strugglingSubject: e.target.value }))}
-                    />
-                  </InlineLabelRow>
-
-                  <ReasonLabel>It is difficult because :</ReasonLabel>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'My child don\'t understand the concepts, it feels like just memorising' },
-                      { key: 'b', text: 'My child get anxious during exams or tests for this subject' },
-                      { key: 'c', text: 'The way it is taught is too theoretical and boring' },
-                      { key: 'd', text: 'My child is simply not interested in this topic' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q2_difficultReason === opt.key}>
-                        <input
-                          type="radio"
-                          name="q2_difficultReason"
-                          checked={answers.q2_difficultReason === opt.key}
-                          onChange={() => handleSingleSelect('q2_difficultReason', opt.key)}
-                        />
-                        <OptionTextGroup>
-                          <OptionTitle>{opt.text}</OptionTitle>
-                        </OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={answers.q2_difficultReason === 'other'}>
-                      <input
-                        type="radio"
-                        name="q2_difficultReason"
-                        checked={answers.q2_difficultReason === 'other'}
-                        onChange={() => handleSingleSelect('q2_difficultReason', 'other')}
-                      />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other Reason :</OptionTitle>
-                        <CustomTextInput
-                          placeholder="Please specify..."
-                          value={(answers.q2_difficultOther as string) || ''}
-                          onChange={e => setAnswers(prev => ({ ...prev, q2_difficultOther: e.target.value }))}
-                        />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q3 — Strengths Table */}
-                <QuestionBox>
-                  <QuestionTitle>3. Read each strength below. Tick what you clearly observe, sometimes notice, or rarely see in your child.</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    As a parent, you observe your child in situations that others don&apos;t see. Your observations here are very valuable. Please tick based on what you have genuinely seen not what you hope for.
-                  </p>
-
-                  <MarksTableContainer>
-                    <MarksTable>
-                      <thead>
-                        <tr>
-                          <th style={{ width: '34%', textAlign: 'left' }}>Strength / Ability / Quality</th>
-                          {STRENGTHS_COLUMNS.map(col => (
-                            <th key={col} style={{ width: '16.5%', textAlign: 'center', fontSize: '12px' }}>{col}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {STRENGTHS_LIST.map(strength => {
-                          const strengthsMap = (answers.q3_strengths as Record<string, string>) || {};
-                          return (
-                            <tr key={strength}>
-                              <td style={{ fontSize: '13px', color: '#334155' }}>{strength}</td>
-                              {STRENGTHS_COLUMNS.map(col => (
-                                <td key={col} style={{ textAlign: 'center' }}>
-                                  <input
-                                    type="radio"
-                                    name={`strength_${strength}`}
-                                    checked={strengthsMap[strength] === col}
-                                    onChange={() => handleStrengthSelect(strength, col)}
-                                    style={{ cursor: 'pointer', width: 16, height: 16 }}
-                                  />
-                                </td>
-                              ))}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </MarksTable>
-                  </MarksTableContainer>
-                </QuestionBox>
-              </>
-            )}
-
-            {/* ═══════════════════════════════════════════
-                STEP 2: MY CHILD'S INTERESTS & FREE TIME (Q4–Q6)
-               ═══════════════════════════════════════════ */}
-            {currentStep === 2 && (
-              <>
-                {/* Q4 */}
-                <QuestionBox>
-                  <QuestionTitle>4. What does your child enjoy doing most in their free time? (Tick all that apply)</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Free time includes evenings, weekends, school holidays, any time that is not class or homework time.
-                  </p>
-
-                  <OptionList>
-                    {[
-                      { key: 'sports', text: 'Sports or physical activities' },
-                      { key: 'gaming', text: 'Gaming — mobile, PC or console' },
-                      { key: 'creative', text: 'Creative hobbies — drawing, music, writing, crafts, etc' },
-                      { key: 'socialising', text: 'Socialising with friends or on social media' },
-                      { key: 'skills', text: 'Skill-building activities — coding, video editing, public speaking, etc' },
-                      { key: 'reading', text: 'Reading — books, articles, news, etc' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={((answers.q4_freeTime as string[]) || []).includes(opt.key)}>
-                        <input
-                          type="checkbox"
-                          checked={((answers.q4_freeTime as string[]) || []).includes(opt.key)}
-                          onChange={() => handleMultiSelect('q4_freeTime', opt.key)}
-                        />
-                        <OptionTextGroup>
-                          <OptionTitle>{opt.text}</OptionTitle>
-                        </OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={((answers.q4_freeTime as string[]) || []).includes('other')}>
-                      <input
-                        type="checkbox"
-                        checked={((answers.q4_freeTime as string[]) || []).includes('other')}
-                        onChange={() => handleMultiSelect('q4_freeTime', 'other')}
-                      />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other :</OptionTitle>
-                        <CustomTextInput
-                          placeholder="Please specify..."
-                          value={(answers.q4_freeTimeOther as string) || ''}
-                          onChange={e => setAnswers(prev => ({ ...prev, q4_freeTimeOther: e.target.value }))}
-                        />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                    <OptionLabel $selected={((answers.q4_freeTime as string[]) || []).includes('notSure')}>
-                      <input
-                        type="checkbox"
-                        checked={((answers.q4_freeTime as string[]) || []).includes('notSure')}
-                        onChange={() => handleMultiSelect('q4_freeTime', 'notSure')}
-                      />
-                      <OptionTextGroup>
-                        <OptionTitle>Not Sure</OptionTitle>
-                      </OptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q5 */}
-                <QuestionBox>
-                  <QuestionTitle>5. Have you noticed any one special talent or unique ability in your child?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    This could be anything a way of thinking, a skill, a habit, or something others have also noticed or commented on.
-                  </p>
-                  <CustomTextInput
-                    placeholder="Write your observation here..."
-                    style={{ width: '100%' }}
-                    value={(answers.q5_specialTalent as string) || ''}
-                    onChange={e => setAnswers(prev => ({ ...prev, q5_specialTalent: e.target.value }))}
-                  />
-                </QuestionBox>
-
-                {/* Q6 */}
-                <QuestionBox>
-                  <QuestionTitle>6. How consistent are your child&apos;s interests over time?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Even casual things like watching YouTube or playing with pets count as interests / hobbies.
-                  </p>
-
-                  <OptionList>
-                    {[
-                      { key: 'very', text: 'Very consistent — the same interests have continued for a long time' },
-                      { key: 'mostly', text: 'Mostly consistent — with some natural variation' },
-                      { key: 'frequently', text: 'Frequently changing — new interests appear often and old ones fade quickly' },
-                      { key: 'notSure', text: 'Not Sure' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q6_consistency === opt.key}>
-                        <input
-                          type="radio"
-                          name="q6_consistency"
-                          checked={answers.q6_consistency === opt.key}
-                          onChange={() => handleSingleSelect('q6_consistency', opt.key)}
-                        />
-                        <OptionTextGroup>
-                          <OptionTitle>{opt.text}</OptionTitle>
-                        </OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                  </OptionList>
-                </QuestionBox>
-              </>
-            )}
-
-            {/* ═══════════════════════════════════════════
-                STEP 3: MY CHILD'S PERSONALITY (Q7–Q11)
-               ═══════════════════════════════════════════ */}
-            {currentStep === 3 && (
-              <>
-                {/* Q7 */}
-                <QuestionBox>
-                  <QuestionTitle>7. Which of these best describes your child&apos;s general personality? (Choose ONE)</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    This just helps us understand how your child gets his energy.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'Confident and a natural leader — takes charge in situations' },
-                      { key: 'b', text: 'Reserved and reflective — prefers to observe before acting' },
-                      { key: 'c', text: 'Social and outgoing — energised by people and interactions' },
-                      { key: 'd', text: 'Independent — prefers working alone and self-directed' },
-                      { key: 'e', text: 'Practical and hands-on — prefers doing over discussing' },
-                      { key: 'f', text: 'Creative and imaginative — always thinking of new things' },
-                      { key: 'g', text: 'Not Sure' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q7_personality === opt.key}>
-                        <input type="radio" name="q7_personality" checked={answers.q7_personality === opt.key} onChange={() => handleSingleSelect('q7_personality', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q8 */}
-                <QuestionBox>
-                  <QuestionTitle>8. How does your child generally interact with others — friends, classmates, teachers?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    This simply helps us understand how your child relates to people around them.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'Collaborative and friendly, gets along with most people easily' },
-                      { key: 'b', text: 'Reserved or formal, keeps appropriate distance with teachers and seniors' },
-                      { key: 'c', text: 'Easily influenced by peer pressure — tends to follow the group' },
-                      { key: 'd', text: 'More confident online than in person' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q8_interaction === opt.key}>
-                        <input type="radio" name="q8_interaction" checked={answers.q8_interaction === opt.key} onChange={() => handleSingleSelect('q8_interaction', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={answers.q8_interaction === 'other'}>
-                      <input type="radio" name="q8_interaction" checked={answers.q8_interaction === 'other'} onChange={() => handleSingleSelect('q8_interaction', 'other')} />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other :</OptionTitle>
-                        <CustomTextInput placeholder="Please specify..." value={(answers.q8_interactionOther as string) || ''} onChange={e => setAnswers(prev => ({ ...prev, q8_interactionOther: e.target.value }))} />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                    <OptionLabel $selected={answers.q8_interaction === 'notSure'}>
-                      <input type="radio" name="q8_interaction" checked={answers.q8_interaction === 'notSure'} onChange={() => handleSingleSelect('q8_interaction', 'notSure')} />
-                      <OptionTextGroup><OptionTitle>Not Sure</OptionTitle></OptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q9 */}
-                <QuestionBox>
-                  <QuestionTitle>9. How does your child typically make important decisions?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Example: Deciding which book to read, which tuition/course to take, which activity to join.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'Thinks carefully about pros and cons before deciding' },
-                      { key: 'b', text: 'Goes with what feels right and is practical' },
-                      { key: 'c', text: 'Seeks guidance from a trusted person' },
-                      { key: 'd', text: 'Thinks about long-term consequences' },
-                      { key: 'e', text: 'Just tries it out and learns from what happens' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q9_decisions === opt.key}>
-                        <input type="radio" name="q9_decisions" checked={answers.q9_decisions === opt.key} onChange={() => handleSingleSelect('q9_decisions', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={answers.q9_decisions === 'other'}>
-                      <input type="radio" name="q9_decisions" checked={answers.q9_decisions === 'other'} onChange={() => handleSingleSelect('q9_decisions', 'other')} />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other :</OptionTitle>
-                        <CustomTextInput placeholder="Please specify..." value={(answers.q9_decisionsOther as string) || ''} onChange={e => setAnswers(prev => ({ ...prev, q9_decisionsOther: e.target.value }))} />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                    <OptionLabel $selected={answers.q9_decisions === 'notSure'}>
-                      <input type="radio" name="q9_decisions" checked={answers.q9_decisions === 'notSure'} onChange={() => handleSingleSelect('q9_decisions', 'notSure')} />
-                      <OptionTextGroup><OptionTitle>Not Sure</OptionTitle></OptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q10 */}
-                <QuestionBox>
-                  <QuestionTitle>10. How does your child usually handle failure or critical feedback?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Think of a time they got a low mark, lost a competition, or were told they did something wrong.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'Gives justifications or reasons, deflects responsibility' },
-                      { key: 'b', text: 'Becomes visibly demotivated or loses confidence for some time' },
-                      { key: 'c', text: 'Brushes it off and moves on without reflecting' },
-                      { key: 'd', text: 'Compares with others, becomes competitive or envious' },
-                      { key: 'e', text: 'Accepts it, reflects, and genuinely tries to improve' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q10_failure === opt.key}>
-                        <input type="radio" name="q10_failure" checked={answers.q10_failure === opt.key} onChange={() => handleSingleSelect('q10_failure', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={answers.q10_failure === 'other'}>
-                      <input type="radio" name="q10_failure" checked={answers.q10_failure === 'other'} onChange={() => handleSingleSelect('q10_failure', 'other')} />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other :</OptionTitle>
-                        <CustomTextInput placeholder="Please specify..." value={(answers.q10_failureOther as string) || ''} onChange={e => setAnswers(prev => ({ ...prev, q10_failureOther: e.target.value }))} />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                    <OptionLabel $selected={answers.q10_failure === 'notSure'}>
-                      <input type="radio" name="q10_failure" checked={answers.q10_failure === 'notSure'} onChange={() => handleSingleSelect('q10_failure', 'notSure')} />
-                      <OptionTextGroup><OptionTitle>Not Sure</OptionTitle></OptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q11 */}
-                <QuestionBox>
-                  <QuestionTitle>11. What is the biggest obstacle your child faces in studying or performing academically?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Being honest here helps the counsellor give your child practical tips.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'Distraction phone, TV, other activities pull attention away' },
-                      { key: 'b', text: 'No clear study strategy or method' },
-                      { key: 'c', text: 'Exam anxiety or fear of failure' },
-                      { key: 'd', text: 'Pressure from peers or from us as parents' },
-                      { key: 'e', text: 'Procrastination, putting off studying' },
-                      { key: 'f', text: 'Difficulty understanding concepts, relies on memorisation' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q11_obstacle === opt.key}>
-                        <input type="radio" name="q11_obstacle" checked={answers.q11_obstacle === opt.key} onChange={() => handleSingleSelect('q11_obstacle', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={answers.q11_obstacle === 'other'}>
-                      <input type="radio" name="q11_obstacle" checked={answers.q11_obstacle === 'other'} onChange={() => handleSingleSelect('q11_obstacle', 'other')} />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other :</OptionTitle>
-                        <CustomTextInput placeholder="Please specify..." value={(answers.q11_obstacleOther as string) || ''} onChange={e => setAnswers(prev => ({ ...prev, q11_obstacleOther: e.target.value }))} />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                    <OptionLabel $selected={answers.q11_obstacle === 'notSure'}>
-                      <input type="radio" name="q11_obstacle" checked={answers.q11_obstacle === 'notSure'} onChange={() => handleSingleSelect('q11_obstacle', 'notSure')} />
-                      <OptionTextGroup><OptionTitle>Not Sure</OptionTitle></OptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-              </>
-            )}
-
-            {/* ═══════════════════════════════════════════
-                STEP 4: CAREER DIRECTION & EXPECTATIONS (Q12–Q13)
-               ═══════════════════════════════════════════ */}
-            {currentStep === 4 && (
-              <>
-                {/* Q12 */}
-                <QuestionBox>
-                  <QuestionTitle>12. Do you currently have a preferred career path or stream in mind for your child? If yes, please write it.</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    This can be anything related to education like any particular course as well as related to career like any profession.
-                  </p>
-                  <CustomTextInput
-                    placeholder="Write your preferred career / stream here... (Write 'Nil' if none)"
-                    style={{ width: '100%' }}
-                    value={(answers.q12_careerPath as string) || ''}
-                    onChange={e => setAnswers(prev => ({ ...prev, q12_careerPath: e.target.value }))}
-                  />
-                </QuestionBox>
-
-                {/* Q13 */}
-                <QuestionBox>
-                  <QuestionTitle>13. If you have a preference, what is the main reason behind it? (Choose ONE)</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Being honest here helps your counsellor guide better.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'I believe my child is genuinely passionate about this field' },
-                      { key: 'b', text: 'It offers strong earning potential' },
-                      { key: 'c', text: 'It is a stable and respected career path' },
-                      { key: 'd', text: 'It brings recognition or social prestige' },
-                      { key: 'e', text: 'It offers independence and flexibility in work' },
-                      { key: 'f', text: 'It allows my child to contribute to society' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q13_reason === opt.key}>
-                        <input type="radio" name="q13_reason" checked={answers.q13_reason === opt.key} onChange={() => handleSingleSelect('q13_reason', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={answers.q13_reason === 'other'}>
-                      <input type="radio" name="q13_reason" checked={answers.q13_reason === 'other'} onChange={() => handleSingleSelect('q13_reason', 'other')} />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other :</OptionTitle>
-                        <CustomTextInput placeholder="Please specify..." value={(answers.q13_reasonOther as string) || ''} onChange={e => setAnswers(prev => ({ ...prev, q13_reasonOther: e.target.value }))} />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                    <OptionLabel $selected={answers.q13_reason === 'nil'}>
-                      <input type="radio" name="q13_reason" checked={answers.q13_reason === 'nil'} onChange={() => handleSingleSelect('q13_reason', 'nil')} />
-                      <OptionTextGroup><OptionTitle>I have no specific preference — My answer to Q12 was &apos;Nil&apos;</OptionTitle></OptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q14 */}
-                <QuestionBox>
-                  <QuestionTitle>14. Are you open to your child exploring unconventional or emerging careers if the assessment strongly suggests suitability?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Examples: UX design, environmental science, data analytics, sports psychology, content creation, etc or anything likewise in their liking.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'Yes. I am open to whatever the counsellor recommends' },
-                      { key: 'b', text: 'Open but with reservations. I would want to understand it fully first' },
-                      { key: 'c', text: 'No. I have a clear plan and prefer to stick to it' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q14_unconventional === opt.key}>
-                        <input type="radio" name="q14_unconventional" checked={answers.q14_unconventional === opt.key} onChange={() => handleSingleSelect('q14_unconventional', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q15 */}
-                <QuestionBox>
-                  <QuestionTitle>15. Are there financial or practical constraints that should be considered in planning your child&apos;s education?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Being honest helps for defining the career path.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'No significant constraints, we are open to most options' },
-                      { key: 'b', text: 'Moderate constraints, we prefer affordable domestic options' },
-                      { key: 'c', text: 'Significant constraints, budget is a key decision factor' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q15_financial === opt.key}>
-                        <input type="radio" name="q15_financial" checked={answers.q15_financial === opt.key} onChange={() => handleSingleSelect('q15_financial', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q16 — Table */}
-                <QuestionBox>
-                  <QuestionTitle>16. How open are you to your child studying away from home for their higher education?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Being honest here helps your counsellor give you practical tips.
-                  </p>
-                  <MarksTableContainer>
-                    <MarksTable>
-                      <thead>
-                        <tr>
-                          <th style={{ width: '50%', textAlign: 'left' }}>Option</th>
-                          <th style={{ width: '25%', textAlign: 'center' }}>Open to it ✓</th>
-                          <th style={{ width: '25%', textAlign: 'center' }}>Not Open ✗</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[
-                          { key: 'withinIndia', text: 'Studying in another city (within India)' },
-                          { key: 'abroad', text: 'Studying abroad (international)' },
-                        ].map(row => (
-                          <tr key={row.key}>
-                            <td style={{ fontSize: '13px', color: '#334155' }}>{row.text}</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <input type="radio" name={`q16_${row.key}`} checked={(answers as Record<string, string>)[`q16_${row.key}`] === 'open'} onChange={() => setAnswers(prev => ({ ...prev, [`q16_${row.key}`]: 'open' }))} style={{ cursor: 'pointer', width: 16, height: 16 }} />
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <input type="radio" name={`q16_${row.key}`} checked={(answers as Record<string, string>)[`q16_${row.key}`] === 'notOpen'} onChange={() => setAnswers(prev => ({ ...prev, [`q16_${row.key}`]: 'notOpen' }))} style={{ cursor: 'pointer', width: 16, height: 16 }} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </MarksTable>
-                  </MarksTableContainer>
-                </QuestionBox>
-
-                {/* Q17 */}
-                <QuestionBox>
-                  <QuestionTitle>17. Who usually makes the final decisions about your child&apos;s education and future?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Being honest here helps your counsellor understand your family&apos;s decision-making style.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'Primarily us as parents' },
-                      { key: 'b', text: 'Primarily my child' },
-                      { key: 'c', text: 'We decide together as a family' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q17_decisions === opt.key}>
-                        <input type="radio" name="q17_decisions" checked={answers.q17_decisions === opt.key} onChange={() => handleSingleSelect('q17_decisions', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q18 */}
-                <QuestionBox>
-                  <QuestionTitle>18. How actively is your child involved in these major education decisions?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Being honest here helps your counsellor understand how involved your child is in decisions about their own future.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'a', text: 'Always — every major decision is discussed with them' },
-                      { key: 'b', text: 'Sometimes — for some decisions' },
-                      { key: 'c', text: 'Rarely — we prefer to decide on their behalf' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={answers.q18_involvement === opt.key}>
-                        <input type="radio" name="q18_involvement" checked={answers.q18_involvement === opt.key} onChange={() => handleSingleSelect('q18_involvement', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q19 */}
-                <QuestionBox>
-                  <QuestionTitle>19. What is your biggest concern about your child&apos;s academic and career future? (Tick all that apply)</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Being honest here helps your counsellor address what matters most to you.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'confused', text: 'My child is confused about what to do' },
-                      { key: 'performance', text: 'Academic performance is below expectations' },
-                      { key: 'focus', text: 'My child lacks focus and direction' },
-                      { key: 'peer', text: 'Peer pressure is a negative influence' },
-                      { key: 'wrongChoice', text: 'I am worried they will make a wrong career choice' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={((answers.q19_concerns as string[]) || []).includes(opt.key)}>
-                        <input type="checkbox" checked={((answers.q19_concerns as string[]) || []).includes(opt.key)} onChange={() => handleMultiSelect('q19_concerns', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={((answers.q19_concerns as string[]) || []).includes('other')}>
-                      <input type="checkbox" checked={((answers.q19_concerns as string[]) || []).includes('other')} onChange={() => handleMultiSelect('q19_concerns', 'other')} />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other :</OptionTitle>
-                        <CustomTextInput placeholder="Please specify..." value={(answers.q19_concernsOther as string) || ''} onChange={e => setAnswers(prev => ({ ...prev, q19_concernsOther: e.target.value }))} />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q20 */}
-                <QuestionBox>
-                  <QuestionTitle>20. Is there any specific concern academic, behavioural or emotional, you would like the counsellor to address in the session?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    This is confidential and will only be used to make the session more useful for your child.
-                  </p>
-                  <CustomTextInput
-                    placeholder="Write your concern here..."
-                    style={{ width: '100%' }}
-                    value={(answers.q20_concern as string) || ''}
-                    onChange={e => setAnswers(prev => ({ ...prev, q20_concern: e.target.value }))}
-                  />
-                </QuestionBox>
-              </>
-            )}
-
-            {/* ═══════════════════════════════════════════
-                STEP 5: WHAT YOU EXPECT FROM THIS PROGRAMME (Q21–Q22)
-               ═══════════════════════════════════════════ */}
-            {currentStep === 5 && (
-              <>
-                {/* Q21 */}
-                <QuestionBox>
-                  <QuestionTitle>21. What are you hoping your child will gain from this counselling programme? (Tick all that apply)</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    Look at this as a conversation with your best friend and hence choose an answer so that the discussion is meaningful.
-                  </p>
-                  <OptionList>
-                    {[
-                      { key: 'stream', text: 'Clarity on which stream to choose (Science / Commerce / Humanities)' },
-                      { key: 'roadmap', text: 'A clear career direction with a roadmap' },
-                      { key: 'confidence', text: 'More confidence in themselves and their choices' },
-                      { key: 'selfAwareness', text: 'Better self-awareness — understanding their own personality and strengths' },
-                      { key: 'alignment', text: 'Alignment between what my child wants and what we as parents expect' },
-                    ].map(opt => (
-                      <OptionLabel key={opt.key} $selected={((answers.q21_hopes as string[]) || []).includes(opt.key)}>
-                        <input type="checkbox" checked={((answers.q21_hopes as string[]) || []).includes(opt.key)} onChange={() => handleMultiSelect('q21_hopes', opt.key)} />
-                        <OptionTextGroup><OptionTitle>{opt.text}</OptionTitle></OptionTextGroup>
-                      </OptionLabel>
-                    ))}
-                    <OptionLabel $selected={((answers.q21_hopes as string[]) || []).includes('other')}>
-                      <input type="checkbox" checked={((answers.q21_hopes as string[]) || []).includes('other')} onChange={() => handleMultiSelect('q21_hopes', 'other')} />
-                      <InlineOptionTextGroup>
-                        <OptionTitle>Any Other :</OptionTitle>
-                        <CustomTextInput placeholder="Please specify..." value={(answers.q21_hopesOther as string) || ''} onChange={e => setAnswers(prev => ({ ...prev, q21_hopesOther: e.target.value }))} />
-                      </InlineOptionTextGroup>
-                    </OptionLabel>
-                  </OptionList>
-                </QuestionBox>
-
-                {/* Q22 */}
-                <QuestionBox>
-                  <QuestionTitle>22. Is there anything you want to personally share with the counsellor, something about your family context, your child&apos;s background, or anything that may be RELEVANT for our programme?</QuestionTitle>
-                  <p style={{ fontStyle: 'italic', color: '#64748B', fontSize: '13px', marginTop: 4, marginBottom: 16 }}>
-                    This is confidential and will only be used to make the session more useful for your child.
-                  </p>
-                  <CustomTextInput
-                    placeholder="Write your response here..."
-                    style={{ width: '100%' }}
-                    value={(answers.q22_personalShare as string) || ''}
-                    onChange={e => setAnswers(prev => ({ ...prev, q22_personalShare: e.target.value }))}
-                  />
-                </QuestionBox>
-              </>
-            )}
+            {currentSection?.questions.map(q => {
+              const subjectReasonConfig = SUBJECT_REASON_CONFIG[q.fieldKey];
+              return subjectReasonConfig ? (
+                <SubjectReasonQuestion
+                  key={q.id}
+                  question={q}
+                  config={subjectReasonConfig}
+                  value={answers[q.fieldKey] as Record<string, unknown> | undefined}
+                  onChange={v => setAnswer(q.fieldKey, v)}
+                  hasError={errorFieldKeys.has(q.fieldKey)}
+                />
+              ) : (
+                <QuestionRenderer
+                  key={q.id}
+                  question={q}
+                  value={answers[q.fieldKey]}
+                  onChange={v => setAnswer(q.fieldKey, v)}
+                  hasError={errorFieldKeys.has(q.fieldKey)}
+                />
+              );
+            })}
           </WizardStepBody>
 
           {/* FOOTER NAV */}

@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
 import { ROUTES } from '@/constants';
-import { useToast } from '@/hooks';
+import { useToast, useCurrentStudent } from '@/hooks';
 import {
   PageWrapper,
   MainCard,
@@ -94,6 +94,7 @@ export const BookSessionsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const toast = useToast();
+  const { data: me } = useCurrentStudent();
 
   const sessionParam = searchParams.get('session') || searchParams.get('reschedule');
   const isSession1Completed = localStorage.getItem('pwc_session_1_completed') === 'true';
@@ -160,7 +161,7 @@ export const BookSessionsPage: React.FC = () => {
   };
 
   const handleCopyParentLink = () => {
-    const parentLink = `${window.location.origin}${ROUTES.PARENT_PRE_COUNSELLING_FORM}`;
+    const parentLink = `${window.location.origin}${ROUTES.PARENT_PRE_COUNSELLING_FORM}/${me?.id ?? ''}`;
     navigator.clipboard.writeText(parentLink);
     toast.success(
       'Parent Form Link Copied!',

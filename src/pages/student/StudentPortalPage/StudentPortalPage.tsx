@@ -168,7 +168,7 @@ export const StudentPortalPage: React.FC = () => {
   };
 
   const handleCopyParentLink = () => {
-    const parentLink = `${window.location.origin}${ROUTES.PARENT_PRE_COUNSELLING_FORM}`;
+    const parentLink = `${window.location.origin}${ROUTES.PARENT_PRE_COUNSELLING_FORM}/${me?.id ?? ''}`;
     navigator.clipboard.writeText(parentLink);
     toast.success(
       'Parent Form Link Copied!',
@@ -296,7 +296,7 @@ export const StudentPortalPage: React.FC = () => {
                 Start Student Form
               </Button>
             )}
-            {isProfileCompleted && (
+            {isProfileCompleted && !isParentFormSubmitted && (
               <Button
                 variant="secondary"
                 size="sm"

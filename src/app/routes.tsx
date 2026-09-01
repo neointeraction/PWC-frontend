@@ -147,7 +147,7 @@ export const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path={ROUTES.PARENT_PRE_COUNSELLING_FORM}
+          path={`${ROUTES.PARENT_PRE_COUNSELLING_FORM}/:studentId`}
           element={<ParentPreCounsellingFormPage />}
         />
         <Route
