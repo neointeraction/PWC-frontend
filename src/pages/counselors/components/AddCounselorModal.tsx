@@ -13,6 +13,7 @@ import { useToast } from '@/hooks';
 import { ModalForm } from '../CounselorsList.styles';
 
 const addCounselorSchema = z.object({
+  counselorId: z.string().min(1, 'Counselor ID is required'),
   name: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email address'),
   mobile: z.string().min(10, 'Mobile number must be at least 10 digits'),
@@ -36,6 +37,7 @@ export const AddCounselorModal: React.FC = () => {
   } = useForm<AddCounselorFormData>({
     resolver: zodResolver(addCounselorSchema),
     defaultValues: {
+      counselorId: '',
       name: '',
       email: '',
       mobile: '',
@@ -81,6 +83,13 @@ export const AddCounselorModal: React.FC = () => {
       }
     >
       <ModalForm id="add-counselor-form" onSubmit={handleSubmit(onSubmit)}>
+        <Input
+          label="Counselor ID"
+          placeholder="Enter counselor ID"
+          error={errors.counselorId?.message}
+          {...register('counselorId')}
+        />
+
         <Input
           label="Counselor Name"
           placeholder="e.g. Anil Iyer"

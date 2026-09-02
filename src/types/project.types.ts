@@ -62,6 +62,7 @@ export interface ProjectStudent {
 }
 
 export interface InstituteDetails {
+  instituteId: string;
   name: string;
   email: string;
   location: string;

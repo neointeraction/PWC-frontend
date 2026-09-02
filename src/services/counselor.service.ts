@@ -132,7 +132,8 @@ export const counselorService = {
       lastName,
       email: input.email,
       mobile: normalizePhone(input.mobile),
-      ...(input.counselorId ? { counsellorCode: input.counselorId } : {}),
+      // Required by the backend (no longer auto-generated).
+      counsellorCode: (input.counselorId || '').trim(),
       ...(input.pwd ? { password: input.pwd } : {}),
       ...(input.meetingLink ? { meetingLink: input.meetingLink } : {}),
     });

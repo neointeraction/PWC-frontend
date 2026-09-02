@@ -69,8 +69,10 @@ export interface PendingRatification {
   suggestedCategory: string;
   description: string;
   submittedAt: string;
+  // Always 'pending' in practice — GET /career-library/proposals only ever returns
+  // unresolved rows (approve/reject delete the row rather than transitioning status).
   status: 'pending' | 'ratified' | 'rejected';
-  // Carried through from GET /career-library/requests for the review screens.
+  // Carried through from GET /career-library/proposals for the review screens.
   suggestedIndustry?: string;
   suggestedDomain?: string;
   justification?: string;

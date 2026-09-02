@@ -110,3 +110,24 @@ export const isValidPhone = (value?: string | null): boolean =>
 /** Whether a value will pass the backend's @IsEmail() check. */
 export const isValidEmail = (value?: string | null): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value ?? '').trim());
+
+const MONTH_ABBR: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/**
+ * Converts the API's pre-formatted display date ("01 Aug 2026") to ISO "YYYY-MM-DD"
+ * so it can be fed into `new Date()`/`dayjs()`/date-only parsers elsewhere in the app.
+ * Falls back to slicing the first 10 chars for fields that are already ISO
+ * (e.g. `createdAt`/`updatedAt`), per the backend's date-field conventions.
+ */
+export const parseApiDate = (value?: string | null): string => {
+  if (!value) return '';
+  const match = value.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
+  if (!match) return value.slice(0, 10);
+  const [, day, monthName, year] = match;
+  const month = MONTH_ABBR[monthName.slice(0, 3).toLowerCase()];
+  if (!month) return value.slice(0, 10);
+  return `${year}-${month}-${day.padStart(2, '0')}`;
+};

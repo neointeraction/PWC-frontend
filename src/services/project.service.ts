@@ -13,7 +13,13 @@ import {
   TimeSlot,
 } from '@/types/project.types';
 import { PaginatedResponse } from '@/types/api.types';
-import { formatFullName, getApiErrorMessage, getApiErrorStatus, normalizePhone } from '@/utils';
+import {
+  formatFullName,
+  getApiErrorMessage,
+  getApiErrorStatus,
+  normalizePhone,
+  parseApiDate,
+} from '@/utils';
 
 // ---- Backend project shape (GET /projects — institute + _count) ----
 interface ApiProject {
@@ -185,8 +191,8 @@ const mapProject = (p: ApiProject): Project => ({
   counselorCount: p._count?.counsellors ?? 0,
   studentCount: p._count?.students ?? 0,
   status: API_TO_STATUS[p.status] ?? 'active',
-  validFrom: (p.fromDate ?? '').slice(0, 10),
-  validTo: (p.toDate ?? '').slice(0, 10),
+  validFrom: parseApiDate(p.fromDate),
+  validTo: parseApiDate(p.toDate),
   createdAt: (p.createdAt ?? '').slice(0, 10),
 });
 
@@ -366,6 +372,7 @@ export const projectService = {
       address: instituteDetails.location.trim(),
       contactNumber: normalizePhone(instituteDetails.phone),
       primaryEmail: instituteDetails.email,
+      ...(instituteDetails.instituteId ? { instituteCode: instituteDetails.instituteId.trim() } : {}),
     });
 
     // 2. Project (window = the institute-step dates).
@@ -401,10 +408,10 @@ export const projectService = {
       divisionIdByKey.set(key, div.id);
     }
 
-    // 4. Bulk-create students. `studentCode` is deliberately omitted so the backend mints
-    //    its own sequential code (S0001, S0002, …) — the same thing `saveProjectStudent`
-    //    does. Supplying one is only for carrying a legacy code in from another system.
-    //    `seq` is kept purely to label a failed row that has no name or email.
+    // 4. Bulk-create students. `studentCode` is required by the backend (no longer
+    //    auto-generated) — taken from the sheet's Student ID column, falling back to a
+    //    generated placeholder for rows that don't carry one so the row isn't rejected.
+    //    `seq` is also used to label a failed row that has no name or email.
     const failures: StudentImportFailure[] = [];
     let imported = 0;
     let seq = 0;
@@ -433,6 +440,7 @@ export const projectService = {
           divisionId,
           parentMobile: normalizePhone(s.parentMobile || s.mobile),
           parentEmail: s.parentEmail || s.email,
+          studentCode: s.studentId?.trim() || `S${String(seq).padStart(4, '0')}`,
           ...(s.parentName ? { fatherName: s.parentName } : {}),
           ...(s.password ? { password: s.password } : {}),
         });
@@ -689,8 +697,8 @@ export const projectService = {
   },
 
   // Add (POST /students) or edit (PATCH /students/{id}) a single student on a project.
-  // A student with no `id` is a new row. `studentCode` is left out so the backend
-  // generates the next one in sequence (S0001, S0002, ...).
+  // A student with no `id` is a new row. `studentCode` is only sent when the admin typed
+  // one in; left out otherwise so the backend generates the next one in sequence (S0001, S0002, ...).
   //
   // Email is only sent on create: PATCH /students/{id} has no `email` field — the login
   // address lives on the User row and there's no admin endpoint to change it — so an
@@ -720,6 +728,9 @@ export const projectService = {
         // so the student's own details stand in — same fallback the import wizard uses.
         parentMobile: normalizePhone(student.parentMobile || student.mobile),
         parentEmail: student.parentEmail || student.email,
+        // Required by the backend (no longer auto-generated) — the Add Student form
+        // validates this is filled in before calling here.
+        studentCode: (student.studentId || '').trim(),
         ...(student.parentName ? { fatherName: student.parentName } : {}),
       });
       return { emailChangeIgnored: false };

@@ -37,6 +37,8 @@ export const StepStudents: React.FC = () => {
         }
 
         const rawStudents: ProjectStudent[] = rows.map(row => ({
+          studentId:
+            row['Student ID'] || row['Student Id'] || row['studentId'] || row['StudentID'] || '',
           name: row['Student Name'] || row['Name'] || row['name'] || '',
           email: row['Student Email ID'] || row['Email'] || row['email'] || '',
           mobile:
@@ -88,6 +90,10 @@ export const StepStudents: React.FC = () => {
 
   const columns: Column<ProjectStudent>[] = [
     {
+      key: 'studentId',
+      header: 'Student ID',
+    },
+    {
       key: 'name',
       header: 'Name',
     },
@@ -128,7 +134,7 @@ export const StepStudents: React.FC = () => {
 
       <FileUpload
         label="Student List"
-        hint="CSV with columns: Name, Email, Mobile, Grade"
+        hint="CSV with columns: Student ID, Name, Email, Mobile, Grade"
         onFileSelect={handleFileSelect}
         onFileRemove={handleFileRemove}
         selectedFile={selectedFile}

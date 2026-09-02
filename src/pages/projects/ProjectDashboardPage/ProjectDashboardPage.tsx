@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -29,6 +29,7 @@ import { formatDate, getApiErrorMessage } from '@/utils';
 import { EditProjectModal } from '../components/EditProjectModal';
 import { EditStudentModal } from '../ProjectStudentsPage/EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
+import { buildCounselorChartReport, buildCounselorFeedbackRatingReport } from './projectReports';
 import {
   DashboardContainer,
   ProjectTopHeaderCard,
@@ -58,6 +59,9 @@ import {
   FlagIconWrapper,
   FlagFilterButton,
   ToolbarIconButton,
+  ExportMenuWrapper,
+  ExportMenu,
+  ExportMenuItem,
 } from './ProjectDashboardPage.styles';
 
 export const PROJECT_STAGES_OPTIONS = [
@@ -145,7 +149,23 @@ export const ProjectDashboardPage: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<ProjectStudentDetail | null>(null);
   const [viewingStudent, setViewingStudent] = useState<ProjectStudentDetail | null>(null);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [exportingReport, setExportingReport] = useState<
+    'student' | 'counselorChart' | 'counselorFeedback' | null
+  >(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const limit = 10;
+
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isExportMenuOpen]);
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['projectStudents', projectId],
@@ -236,7 +256,22 @@ export const ProjectDashboardPage: React.FC = () => {
     setIsAddStudentModalOpen(true);
   };
 
-  const handleExportExcel = () => {
+  const downloadCsv = (csvContent: string, filenameSuffix: string) => {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute(
+      'download',
+      `${(project?.name ?? 'Project').replace(/\s+/g, '_')}_${filenameSuffix}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportStudentReport = () => {
     // Generate stage-wise distribution summary
     const stageCounts: Record<string, number> = {};
     PROJECT_STAGES_OPTIONS.filter(opt => opt.value !== 'all').forEach(opt => {
@@ -269,21 +304,39 @@ export const ProjectDashboardPage: React.FC = () => {
       csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || 'COU-01'}","${s.counselorName || s.session1?.counselorName || 'Dr. Rajeshwari Menon'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
     });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute(
-      'download',
-      `${(project?.name ?? 'Project').replace(/\s+/g, '_')}_Stage_Report.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(
-      'Excel Export Started',
-      'Downloaded project stage distribution and students report (.csv).'
-    );
+    downloadCsv(csvContent, 'Student_Details_Report');
+    toast.success('Report Export Started', 'Downloaded student details report (.csv).');
+  };
+
+  // Per-student counsellor chart (pre-counselling + computed assessment + SCRI) — real
+  // .xlsx matching docs/Class 910_Counsellor Chart(4analytics).xlsx.
+  const handleExportCounselorChart = async () => {
+    setExportingReport('counselorChart');
+    try {
+      await buildCounselorChartReport(project, students);
+      toast.success('Report Export Started', 'Downloaded counselor chart report (.xlsx).');
+    } catch (err) {
+      toast.error('Export Failed', getApiErrorMessage(err, 'Could not generate the counselor chart report.'));
+    } finally {
+      setExportingReport(null);
+    }
+  };
+
+  // Raw per-question feedback form answers — real .xlsx matching
+  // docs/Class 910_Counsellor Feedback Rating.xlsx.
+  const handleExportCounselorFeedback = async () => {
+    setExportingReport('counselorFeedback');
+    try {
+      await buildCounselorFeedbackRatingReport(project, students);
+      toast.success('Report Export Started', 'Downloaded counselor feedback rating report (.xlsx).');
+    } catch (err) {
+      toast.error(
+        'Export Failed',
+        getApiErrorMessage(err, 'Could not generate the counselor feedback rating report.')
+      );
+    } finally {
+      setExportingReport(null);
+    }
   };
 
   const totalFlaggedCount = students.filter(s => s.isFlagged).length;
@@ -451,19 +504,21 @@ export const ProjectDashboardPage: React.FC = () => {
           >
             {isProjectClosed ? 'Closed' : 'Close Project'}
           </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            leftIcon={<RiDeleteBinLine size={16} />}
-            onClick={() => setIsDeleteModalOpen(true)}
-          >
-            Delete project
-          </Button>
+          {isProjectClosed && (
+            <Button
+              variant="danger"
+              size="sm"
+              leftIcon={<RiDeleteBinLine size={16} />}
+              onClick={() => setIsDeleteModalOpen(true)}
+            >
+              Delete project
+            </Button>
+          )}
           <Button
             variant="primary"
             size="sm"
             leftIcon={<RiDownloadLine size={16} />}
-            onClick={handleExportExcel}
+            onClick={handleExportStudentReport}
           >
             Export Report
           </Button>
@@ -543,16 +598,55 @@ export const ProjectDashboardPage: React.FC = () => {
               </span>
             </FlagFilterButton>
 
-            <Tooltip content="Export Students Stage Report to Excel">
-              <ToolbarIconButton
-                type="button"
-                $variant="excel"
-                onClick={handleExportExcel}
-                aria-label="Export Students to Excel"
-              >
-                <RiFileExcel2Line size={18} />
-              </ToolbarIconButton>
-            </Tooltip>
+            <ExportMenuWrapper ref={exportMenuRef}>
+              <Tooltip content="Export Reports">
+                <ToolbarIconButton
+                  type="button"
+                  $variant="excel"
+                  onClick={() => setIsExportMenuOpen(prev => !prev)}
+                  aria-label="Export Reports"
+                  aria-haspopup="true"
+                  aria-expanded={isExportMenuOpen}
+                >
+                  <RiFileExcel2Line size={18} />
+                </ToolbarIconButton>
+              </Tooltip>
+
+              {isExportMenuOpen && (
+                <ExportMenu>
+                  <ExportMenuItem
+                    type="button"
+                    disabled={exportingReport !== null}
+                    onClick={() => {
+                      handleExportStudentReport();
+                      setIsExportMenuOpen(false);
+                    }}
+                  >
+                    Student details report
+                  </ExportMenuItem>
+                  <ExportMenuItem
+                    type="button"
+                    disabled={exportingReport !== null}
+                    onClick={async () => {
+                      setIsExportMenuOpen(false);
+                      await handleExportCounselorChart();
+                    }}
+                  >
+                    Counselor chart report
+                  </ExportMenuItem>
+                  <ExportMenuItem
+                    type="button"
+                    disabled={exportingReport !== null}
+                    onClick={async () => {
+                      setIsExportMenuOpen(false);
+                      await handleExportCounselorFeedback();
+                    }}
+                  >
+                    Counselor feedback rating report
+                  </ExportMenuItem>
+                </ExportMenu>
+              )}
+            </ExportMenuWrapper>
 
             <Button leftIcon={<RiUserAddLine size={16} />} onClick={handleCreateNewStudent}>
               Add Student

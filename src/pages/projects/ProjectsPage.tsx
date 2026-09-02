@@ -8,7 +8,7 @@ import {
   RiEditLine,
   RiDeleteBinLine,
   RiUserLine,
-  RiDownloadLine,
+  // RiDownloadLine,
   RiRefreshLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
@@ -56,7 +56,7 @@ export const ProjectsPage: React.FC = () => {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
 
-  const handleDownloadProjectReport = (project: Project) => {
+  /* const handleDownloadProjectReport = (project: Project) => {
     const csvContent =
       `Project Summary Report\n` +
       `Project Name,${project.name}\n` +
@@ -83,7 +83,7 @@ export const ProjectsPage: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     toast.success('Report Downloaded', `Exported project report CSV for ${project.name}.`);
-  };
+  }; */
 
   const { data, isLoading } = useQuery({
     queryKey: ['projects', searchQuery, statusFilter, page, limit],
@@ -269,14 +269,15 @@ export const ProjectsPage: React.FC = () => {
       render: (row: Project) => (
         <ActionIconButtonGroup>
           {isViewOnlyUser ? (
-            <Tooltip content="Download Project Report">
-              <ActionIconButton
-                aria-label="Download Project Report"
-                onClick={() => handleDownloadProjectReport(row)}
-              >
-                <RiDownloadLine size={16} />
-              </ActionIconButton>
-            </Tooltip>
+            // <Tooltip content="Download Project Report">
+            //   <ActionIconButton
+            //     aria-label="Download Project Report"
+            //     onClick={() => handleDownloadProjectReport(row)}
+            //   >
+            //     <RiDownloadLine size={16} />
+            //   </ActionIconButton>
+            // </Tooltip>
+            <></>
           ) : row.status === 'deleted' ? (
             <Tooltip content="Revert / Restore Project">
               <ActionIconButton
@@ -293,14 +294,14 @@ export const ProjectsPage: React.FC = () => {
                   <RiEditLine size={16} />
                 </ActionIconButton>
               </Tooltip>
-              <Tooltip content="Download Project Report">
+              {/* <Tooltip content="Download Project Report">
                 <ActionIconButton
                   aria-label="Download Project Report"
                   onClick={() => handleDownloadProjectReport(row)}
                 >
                   <RiDownloadLine size={16} />
                 </ActionIconButton>
-              </Tooltip>
+              </Tooltip> */}
               <Tooltip content="Delete Project">
                 <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
                   <RiDeleteBinLine size={16} />

@@ -95,6 +95,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
 
   const validate = (): boolean => {
     const nextErrors: Record<string, string> = {};
+    if (!formData.id && !formData.studentId?.trim()) {
+      nextErrors.studentId = 'Student ID is required.';
+    }
     if (!formData.name.trim()) nextErrors.name = 'Student name is required.';
     if (!formData.email.trim()) nextErrors.email = 'Email address is required.';
     else if (!isValidEmail(formData.email)) nextErrors.email = 'Enter a valid email address.';
@@ -157,6 +160,12 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
         <SectionBox>
           <SectionTitle>Student Information</SectionTitle>
           <FormGrid>
+            <Input
+              label="Student ID"
+              value={formData.studentId || ''}
+              onChange={e => setFormData({ ...formData, studentId: e.target.value })}
+              error={errors.studentId}
+            />
             <Input
               label="Student Full Name"
               value={formData.name}

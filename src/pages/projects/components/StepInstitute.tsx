@@ -16,6 +16,7 @@ import { InstituteDetails } from '@/types/project.types';
 
 const instituteSchema = z
   .object({
+    instituteId: z.string().optional(),
     name: z
       .string()
       .min(1, 'Institute name is required')
@@ -72,6 +73,14 @@ export const StepInstitute: React.FC = () => {
       <FormGrid>
         <FormGroup>
           <Input
+            label="Institute ID"
+            placeholder="Enter institute ID"
+            error={errors.instituteId?.message}
+            {...register('instituteId', {
+              onChange: e => handleChange('instituteId', e.target.value),
+            })}
+          />
+          <Input
             label="Institute Name"
             placeholder="Enter institute name"
             error={errors.name?.message}
@@ -86,15 +95,6 @@ export const StepInstitute: React.FC = () => {
             error={errors.email?.message}
             {...register('email', {
               onChange: e => handleChange('email', e.target.value),
-            })}
-          />
-          <Input
-            label="Phone Number"
-            type="tel"
-            placeholder="XXXXX XXXXX"
-            error={errors.phone?.message}
-            {...register('phone', {
-              onChange: e => handleChange('phone', e.target.value),
             })}
           />
         </FormGroup>
@@ -161,6 +161,15 @@ export const StepInstitute: React.FC = () => {
             error={errors.location?.message}
             {...register('location', {
               onChange: e => handleChange('location', e.target.value),
+            })}
+          />
+          <Input
+            label="Phone Number"
+            type="tel"
+            placeholder="XXXXX XXXXX"
+            error={errors.phone?.message}
+            {...register('phone', {
+              onChange: e => handleChange('phone', e.target.value),
             })}
           />
         </FormGroup>

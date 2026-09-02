@@ -4,4 +4,6 @@ dist
 .env.local
 .env.production
 
+docs/
+
 .DS_Store

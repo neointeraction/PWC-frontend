@@ -226,6 +226,48 @@ export const ToolbarIconButton = styled.button<{
   }
 `;
 
+export const ExportMenuWrapper = styled.div`
+  position: relative;
+`;
+
+export const ExportMenu = styled.div`
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  width: 260px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  box-shadow: ${({ theme }) => theme.colors.shadowLg};
+  padding: ${({ theme }) => theme.spacing.xs} 0;
+  overflow: hidden;
+`;
+
+export const ExportMenuItem = styled.button`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  padding: 10px ${({ theme }) => theme.spacing.md};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.medium};
+  color: ${({ theme }) => theme.colors.text};
+  text-align: left;
+  cursor: pointer;
+  transition: background-color ${({ theme }) => theme.transition.fast};
+
+  &:hover:not(:disabled) {
+    background-color: ${({ theme }) => theme.colors.surfaceHover};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
 export const StudentCell = styled.div`
   display: flex;
   flex-direction: column;

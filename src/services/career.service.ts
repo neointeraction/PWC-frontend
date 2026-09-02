@@ -454,39 +454,29 @@ const fetchEntriesByIndustry = async (industryId: string): Promise<Career[]> => 
   return all.map(mapCareerEntry);
 };
 
-// ---- Ratification requests (docs/api-list.md -> Career Library -> Ratification requests) ----
+// ---- Career entry proposals (docs/api-list.md is stale here \u2014 PWC-backend renamed
+// CareerLibraryRequest -> CareerLibraryEntryProposal, /career-library/requests ->
+// /career-library/proposals. A proposal is staged from the same payload as a real
+// entry (POST /career-library as a counsellor) and is DELETED on approve/reject rather
+// than transitioning status, so a listable proposal is always implicitly "pending" \u2014
+// there is no server-side history of resolved ones. ----
 
-interface ApiCareerRequest {
+interface ApiCareerEntryProposal {
   id: string;
-  requestedById: string;
-  jobTitle: string;
-  suggestedCluster: string;
-  suggestedIndustry: string;
-  suggestedDomain: string | null;
+  jobRole: string;
   oneLineDescription: string;
-  justification: string;
-  referenceLinks: string[];
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  reviewedBy: string | null;
-  reviewedAt: string | null;
-  resultingEntry: { id: string; jobRole: string; status: string } | null;
+  submittedBy: string;
   createdAt: string;
+  domain: ApiCareerDomainChain | null;
 }
 
-const REQUEST_STATUS: Record<ApiCareerRequest['status'], PendingRatification['status']> = {
-  PENDING: 'pending',
-  APPROVED: 'ratified',
-  REJECTED: 'rejected',
-};
+interface ApiCareerEntryProposalListResponse {
+  data: ApiCareerEntryProposal[];
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+}
 
-const API_REQUEST_STATUS: Record<PendingRatification['status'], ApiCareerRequest['status']> = {
-  pending: 'PENDING',
-  ratified: 'APPROVED',
-  rejected: 'REJECTED',
-};
-
-// A request row carries only `requestedById` (a counsellor id), so the requester's name
-// comes from the counsellor directory. A failure there must not blank the whole list.
+// A proposal row carries only `submittedBy` (a counsellor's User id), so the requester's
+// name comes from the counsellor directory. A failure there must not blank the whole list.
 const getCounsellorNames = async (): Promise<Map<string, string>> => {
   try {
     const { data } = await apiClient.get<
@@ -500,34 +490,34 @@ const getCounsellorNames = async (): Promise<Map<string, string>> => {
   }
 };
 
-const mapCareerRequest = (
-  r: ApiCareerRequest,
+const mapCareerProposal = (
+  p: ApiCareerEntryProposal,
   names: Map<string, string>
 ): PendingRatification => ({
-  id: r.id,
-  careerName: r.jobTitle,
-  sourceTenant: names.get(r.requestedById) || '\u2014',
-  suggestedCategory: r.suggestedCluster,
-  description: r.oneLineDescription,
-  submittedAt: r.createdAt,
-  status: REQUEST_STATUS[r.status] ?? 'pending',
-  suggestedIndustry: r.suggestedIndustry,
-  suggestedDomain: r.suggestedDomain ?? undefined,
-  justification: r.justification,
-  referenceLinks: r.referenceLinks ?? [],
-  resultingEntryId: r.resultingEntry?.id ?? null,
+  id: p.id,
+  careerName: p.jobRole,
+  sourceTenant: names.get(p.submittedBy) || '\u2014',
+  suggestedCategory: p.domain?.industry?.cluster?.name ?? '\u2014',
+  description: p.oneLineDescription,
+  submittedAt: p.createdAt,
+  // Nothing but pending proposals are ever returned \u2014 see note above.
+  status: 'pending',
+  suggestedIndustry: p.domain?.industry?.name,
+  suggestedDomain: p.domain?.name,
+  resultingEntryId: null,
 });
 
+// `status` no longer maps to anything server-side (resolved proposals don't exist as
+// rows); an 'ratified'/'rejected' filter can only ever be empty.
 const listRatificationRequests = async (
   status?: PendingRatification['status']
 ): Promise<PendingRatification[]> => {
+  if (status === 'ratified' || status === 'rejected') return [];
   const [{ data }, names] = await Promise.all([
-    apiClient.get<ApiCareerRequest[]>('/career-library/requests', {
-      params: status ? { status: API_REQUEST_STATUS[status] } : undefined,
-    }),
+    apiClient.get<ApiCareerEntryProposalListResponse>('/career-library/proposals'),
     getCounsellorNames(),
   ]);
-  return data.map(r => mapCareerRequest(r, names));
+  return data.data.map(p => mapCareerProposal(p, names));
 };
 
 export const careerService = {
@@ -809,27 +799,22 @@ export const careerService = {
     invalidateCareerCaches();
   },
 
-  // ---- Ratification requests: counsellors propose careers, admins review ----
-  // GET /career-library/requests, POST .../{id}/approve, POST .../{id}/reject.
+  // ---- Career entry proposals: counsellors propose careers, admins review ----
+  // GET /career-library/proposals, POST .../{id}/approve, POST .../{id}/reject.
+  // Approve creates the real CareerLibraryEntry straight from the proposal's own data
+  // (it was staged with the full entry payload) and deletes the proposal; reject just
+  // deletes it. Neither returns a proposal-shaped object, so both resolve void.
 
   getRatificationRequests: listRatificationRequests,
 
   getPendingRatifications: (): Promise<PendingRatification[]> =>
     listRatificationRequests('pending'),
 
-  // `resultingEntryId` links the library entry the admin created from the request.
-  ratify: async (id: string, resultingEntryId?: string): Promise<PendingRatification> => {
-    const { data } = await apiClient.post<ApiCareerRequest>(
-      `/career-library/requests/${id}/approve`,
-      resultingEntryId ? { resultingEntryId } : {}
-    );
-    return mapCareerRequest(data, await getCounsellorNames());
+  ratify: async (id: string): Promise<void> => {
+    await apiClient.post(`/career-library/proposals/${id}/approve`);
   },
 
-  rejectRatification: async (id: string): Promise<PendingRatification> => {
-    const { data } = await apiClient.post<ApiCareerRequest>(
-      `/career-library/requests/${id}/reject`
-    );
-    return mapCareerRequest(data, await getCounsellorNames());
+  rejectRatification: async (id: string): Promise<void> => {
+    await apiClient.post(`/career-library/proposals/${id}/reject`);
   },
 };
