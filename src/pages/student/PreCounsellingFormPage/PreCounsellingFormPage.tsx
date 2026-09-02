@@ -201,24 +201,6 @@ export const PreCounsellingFormPage: React.FC = () => {
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState<boolean>(false);
 
-  const handleSubmitForm = () => {
-    const missing = missingRequiredIn(template?.questions ?? []);
-    if (missing.length > 0) {
-      const missingSet = new Set(missing);
-      setErrorFieldKeys(missingSet);
-      const firstErrorStepIndex = sections.findIndex(s => s.questions.some(q => missingSet.has(q.fieldKey)));
-      if (firstErrorStepIndex >= 0) setCurrentStep(firstErrorStepIndex + 1);
-      scrollToTop();
-      toast.error(
-        'Some answers are missing',
-        `Please complete all required questions before submitting (${missing.length} remaining).`
-      );
-      return;
-    }
-    setErrorFieldKeys(new Set());
-    setIsCompletionModalOpen(true);
-  };
-
   const submitMutation = useMutation({
     mutationFn: () =>
       formsService.submitForm('PRE_COUNSELLING_STUDENT', me!.id, {
@@ -228,15 +210,9 @@ export const PreCounsellingFormPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
       queryClient.invalidateQueries({ queryKey: ['student-forms-status'] });
-      toast.success(
-        'Pre-Counselling Form Submitted!',
-        'Thank you for completing the form. Your counsellor will review your responses before Session 1.'
-      );
-      setIsCompletionModalOpen(false);
-      navigate(ROUTES.STUDENT_PORTAL);
+      setIsCompletionModalOpen(true);
     },
     onError: (err: unknown) => {
-      setIsCompletionModalOpen(false);
       // 400 with { missingFieldKeys } — a required question is still blank.
       if (err instanceof AxiosError && err.response?.status === 400) {
         const missing = (err.response.data as { error?: { details?: { missingFieldKeys?: string[] } } })
@@ -253,8 +229,27 @@ export const PreCounsellingFormPage: React.FC = () => {
     },
   });
 
-  const handleConfirmCompletion = () => {
+  const handleSubmitForm = () => {
+    const missing = missingRequiredIn(template?.questions ?? []);
+    if (missing.length > 0) {
+      const missingSet = new Set(missing);
+      setErrorFieldKeys(missingSet);
+      const firstErrorStepIndex = sections.findIndex(s => s.questions.some(q => missingSet.has(q.fieldKey)));
+      if (firstErrorStepIndex >= 0) setCurrentStep(firstErrorStepIndex + 1);
+      scrollToTop();
+      toast.error(
+        'Some answers are missing',
+        `Please complete all required questions before submitting (${missing.length} remaining).`
+      );
+      return;
+    }
+    setErrorFieldKeys(new Set());
     submitMutation.mutate();
+  };
+
+  const handleConfirmCompletion = () => {
+    setIsCompletionModalOpen(false);
+    navigate(ROUTES.STUDENT_PORTAL);
   };
 
   // TEST-ONLY: fills every question with random data so the wizard can be clicked through
@@ -617,6 +612,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 size="md"
                 leftIcon={<RiCheckLine size={18} />}
                 onClick={handleSubmitForm}
+                isLoading={submitMutation.isPending}
               >
                 Submit Form
               </Button>
@@ -630,6 +626,7 @@ export const PreCounsellingFormPage: React.FC = () => {
         isOpen={isCompletionModalOpen}
         onClose={() => setIsCompletionModalOpen(false)}
         title="Thank you for completing your Pre-Counselling Form!"
+        message="Your counsellor will review your responses before Session 1."
         confirmText="Go to Student Portal"
         onConfirm={handleConfirmCompletion}
       />

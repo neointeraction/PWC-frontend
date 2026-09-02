@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import {
@@ -23,7 +23,6 @@ import {
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { SuccessModal } from '@/components';
-import { ROUTES } from '@/constants';
 import { useToast } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion } from '@/services/forms.service';
 import { getApiErrorMessage } from '@/utils';
@@ -215,7 +214,6 @@ const SubjectReasonQuestion: React.FC<{
 };
 
 export const ParentPreCounsellingFormPage: React.FC = () => {
-  const navigate = useNavigate();
   const toast = useToast();
   const { studentId } = useParams<{ studentId: string }>();
 
@@ -330,24 +328,6 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
   // — set once, blocks the wizard permanently rather than letting the parent retry.
   const [linkExpiredMessage, setLinkExpiredMessage] = useState<string | null>(null);
 
-  const handleSubmitForm = () => {
-    const missing = missingRequiredIn(template?.questions ?? []);
-    if (missing.length > 0) {
-      const missingSet = new Set(missing);
-      setErrorFieldKeys(missingSet);
-      const firstErrorStepIndex = sections.findIndex(s => s.questions.some(q => missingSet.has(q.fieldKey)));
-      if (firstErrorStepIndex >= 0) setCurrentStep(firstErrorStepIndex + 1);
-      scrollToTop();
-      toast.error(
-        'Some answers are missing',
-        `Please complete all required questions before submitting (${missing.length} remaining).`
-      );
-      return;
-    }
-    setErrorFieldKeys(new Set());
-    setIsCompletionModalOpen(true);
-  };
-
   const submitMutation = useMutation({
     mutationFn: () =>
       formsService.submitForm('PRE_COUNSELLING_PARENT', studentId!, {
@@ -355,15 +335,9 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
         answers: buildAnswers(),
       }),
     onSuccess: () => {
-      toast.success(
-        'Pre-Counselling Form Submitted!',
-        'Thank you for completing the form. Your responses will only be seen by the career counsellor.'
-      );
-      setIsCompletionModalOpen(false);
-      navigate(ROUTES.LOGIN);
+      setIsCompletionModalOpen(true);
     },
     onError: (err: unknown) => {
-      setIsCompletionModalOpen(false);
       if (err instanceof AxiosError && err.response?.status === 403) {
         setLinkExpiredMessage(getApiErrorMessage(err, 'This link has expired — submissions are closed.'));
         return;
@@ -383,7 +357,21 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
     },
   });
 
-  const handleConfirmCompletion = () => {
+  const handleSubmitForm = () => {
+    const missing = missingRequiredIn(template?.questions ?? []);
+    if (missing.length > 0) {
+      const missingSet = new Set(missing);
+      setErrorFieldKeys(missingSet);
+      const firstErrorStepIndex = sections.findIndex(s => s.questions.some(q => missingSet.has(q.fieldKey)));
+      if (firstErrorStepIndex >= 0) setCurrentStep(firstErrorStepIndex + 1);
+      scrollToTop();
+      toast.error(
+        'Some answers are missing',
+        `Please complete all required questions before submitting (${missing.length} remaining).`
+      );
+      return;
+    }
+    setErrorFieldKeys(new Set());
     submitMutation.mutate();
   };
 
@@ -751,7 +739,14 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
                 Next
               </Button>
             ) : (
-              <Button type="button" variant="primary" leftIcon={<RiCheckLine size={18} />} onClick={handleSubmitForm} style={{ marginLeft: 'auto' }}>
+              <Button
+                type="button"
+                variant="primary"
+                leftIcon={<RiCheckLine size={18} />}
+                onClick={handleSubmitForm}
+                isLoading={submitMutation.isPending}
+                style={{ marginLeft: 'auto' }}
+              >
                 Submit Form
               </Button>
             )}
@@ -759,13 +754,15 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
         </WizardContainer>
       )}
 
-      {/* Completion Modal */}
+      {/* Completion Modal — shown after the submission API call succeeds. Parents have no
+          login/portal to return to, so the modal just confirms and closes. */}
       <SuccessModal
         isOpen={isCompletionModalOpen}
         onClose={() => setIsCompletionModalOpen(false)}
         title="Thank you for completing your Pre-Counselling Form!"
-        confirmText="Back to Home"
-        onConfirm={handleConfirmCompletion}
+        message="Your responses have been submitted and will only be seen by the career counsellor."
+        confirmText="Close"
+        onConfirm={() => setIsCompletionModalOpen(false)}
       />
     </FormPageContainer>
   );

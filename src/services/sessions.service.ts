@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { apiClient } from './api';
+import { parseApiDate } from '@/utils';
 
 // Client-side "Join Now" gate, shown 10 minutes before the session starts through its
 // end time — mirrors the backend's own window (POST /sessions/{id}/join,
@@ -39,7 +40,7 @@ interface ApiBookingSlot {
 }
 
 const mapSlot = (s: ApiBookingSlot): BookingSlotOption => ({
-  date: s.slotDate.slice(0, 10),
+  date: parseApiDate(s.slotDate),
   startTime: s.startTime,
   endTime: s.endTime,
 });
@@ -108,8 +109,8 @@ interface ApiSession
 
 const mapSession = (s: ApiSession): Session => ({
   ...s,
-  scheduledDate: s.scheduledDate.slice(0, 10),
-  counsellorProposedDate: s.counsellorProposedDate ? s.counsellorProposedDate.slice(0, 10) : null,
+  scheduledDate: parseApiDate(s.scheduledDate),
+  counsellorProposedDate: s.counsellorProposedDate ? parseApiDate(s.counsellorProposedDate) : null,
 });
 
 export interface BookSessionsInput {
@@ -160,7 +161,7 @@ const mapCounsellorSlot = (s: ApiCounsellorSlot): CounsellorSlot => ({
   id: s.id,
   projectId: s.projectId,
   counsellorId: s.counsellorId,
-  date: s.slotDate.slice(0, 10),
+  date: parseApiDate(s.slotDate),
   startTime: s.startTime,
   endTime: s.endTime,
   status: s.status,

@@ -550,7 +550,7 @@ export const projectService = {
         formatFullName(c.user.firstName, c.user.lastName),
         ''
       );
-      const slotDate = slot.slotDate.slice(0, 10);
+      const slotDate = parseApiDate(slot.slotDate);
       const booking = slot.sessionId ? sessionById.get(slot.sessionId) : undefined;
       entry.slots.push({
         id: slot.id,
@@ -590,13 +590,13 @@ export const projectService = {
           email: sess.student.user.email,
           mobile: sess.student.mobile,
           grade: sess.student.division?.class?.name || sess.student.division?.name || '',
-          sessionDate: sess.scheduledDate ? sess.scheduledDate.slice(0, 10) : '',
+          sessionDate: sess.scheduledDate ? parseApiDate(sess.scheduledDate) : '',
           timeSlot: `${sess.startTime} - ${sess.endTime}`,
           sessionType: sess.sessionNumber === 'SESSION_1' ? 'S1' : 'S2',
         });
       }
       if (slotBackedSessionIds.has(sess.id)) continue;
-      const scheduledDate = sess.scheduledDate ? sess.scheduledDate.slice(0, 10) : '';
+      const scheduledDate = sess.scheduledDate ? parseApiDate(sess.scheduledDate) : '';
       entry.slots.push({
         id: `session-${sess.id}`,
         date: formatSlotDate(scheduledDate),
@@ -646,7 +646,7 @@ export const projectService = {
         ? {
             sessionNumber: num,
             status: SESSION_STATUS[sess.status] ?? 'pending',
-            date: sess.scheduledDate ? sess.scheduledDate.slice(0, 10) : '',
+            date: sess.scheduledDate ? parseApiDate(sess.scheduledDate) : '',
             timeSlot: sess.startTime ? `${sess.startTime} - ${sess.endTime}` : '',
             counselorId: sess.counsellor?.counsellorCode,
             counselorName: sess.counsellor

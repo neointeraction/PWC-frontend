@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import {
@@ -14,7 +14,6 @@ import {
   RiInformationLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
-import { ROUTES } from '@/constants';
 import { SuccessModal } from '@/components';
 import { useToast } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion, McqOption } from '@/services/forms.service';
@@ -91,7 +90,6 @@ const scaleOptions = (q: FormQuestion): McqOption[] =>
   Array.isArray(q.options) ? (q.options.filter(o => typeof o !== 'string') as McqOption[]) : [];
 
 export const ParentFeedbackFormPage: React.FC = () => {
-  const navigate = useNavigate();
   const toast = useToast();
   const { studentId } = useParams<{ studentId: string }>();
 
@@ -199,8 +197,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
 
   const handleConfirmCompletion = useCallback(() => {
     setIsCompletionModalOpen(false);
-    navigate(ROUTES.LOGIN);
-  }, [navigate]);
+  }, []);
 
   if (!studentId) {
     return (
@@ -324,7 +321,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
         onClose={() => setIsCompletionModalOpen(false)}
         title="Feedback Submitted Successfully!"
         message="Thank you for your valuable feedback."
-        confirmText="Back to Home"
+        confirmText="Close"
         onConfirm={handleConfirmCompletion}
       />
     </>
