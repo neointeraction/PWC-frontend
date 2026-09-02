@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FormQuestion, McqOption, MatrixOptions } from '@/services/forms.service';
+import { FormQuestion, McqOption, MatrixOptions, MatrixField } from '@/services/forms.service';
 import {
   QuestionBox,
   QuestionTitle,
@@ -57,6 +57,80 @@ const extractMaxSelections = (questionText: string): number => {
 
 export const sectionHeading = (label: string | null | undefined): string =>
   (label || '').replace(/^Section\s*\d+\s*[—-]\s*/i, '').toUpperCase();
+
+// ─────────────────────────────────────────────────────────────
+// TEST-ONLY: random-answer generator for the "Fill Random Data" QA button.
+// Not used in the real submit flow — safe to delete along with that button.
+// ─────────────────────────────────────────────────────────────
+const RANDOM_WORD_BANK = ['Reading', 'Coding', 'Sports', 'Music', 'Art', 'Science', 'Gaming', 'Writing', 'Design', 'Robotics'];
+const RANDOM_SENTENCE_BANK = [
+  'I enjoy exploring new ideas and solving problems creatively.',
+  'This is a randomly generated test answer for QA purposes.',
+  'I like working with others and learning new things.',
+  'I am still exploring what excites me the most.',
+  'I find this topic interesting because it connects to real life.',
+];
+const randomFrom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+const randomMcqValue = (options: McqOption[]): string => (options.length ? randomFrom(options).value : '');
+
+const randomMatrixFieldValue = (field: MatrixField): unknown => {
+  switch (field.type) {
+    case 'NUMBER':
+      return String(Math.floor(Math.random() * 41) + 60);
+    case 'MCQ_SINGLE':
+      return randomMcqValue(normalizeOptions(field.options));
+    case 'MCQ_MULTI':
+      return [randomMcqValue(normalizeOptions(field.options))].filter(Boolean);
+    case 'SHORT_TEXT':
+    default:
+      return randomFrom(RANDOM_WORD_BANK);
+  }
+};
+
+export const generateRandomAnswer = (question: FormQuestion): unknown => {
+  const opts = normalizeOptions(question.options as McqOption[] | string[] | undefined);
+  switch (question.questionType) {
+    case 'MCQ_SINGLE':
+    case 'SCALE': {
+      const val = randomMcqValue(opts);
+      return question.allowOtherText ? { value: val, other: '' } : val;
+    }
+    case 'MCQ_MULTI': {
+      const cap = Math.max(1, Math.min(extractMaxSelections(question.questionText), opts.length, 2));
+      const selected = [...opts]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, cap)
+        .map(o => o.value);
+      return question.allowOtherText ? { selected, other: '' } : selected;
+    }
+    case 'NUMBER':
+      return String(Math.floor(Math.random() * 100) + 1);
+    case 'MATRIX': {
+      const matrix = question.options as MatrixOptions;
+      const fields = matrix?.fields ?? [];
+      const rows = matrix?.rows;
+      const result: Record<string, unknown> = {};
+      if (!rows || rows.length === 0) {
+        fields.forEach(f => {
+          result[f.key] = randomMatrixFieldValue(f);
+        });
+      } else {
+        rows.forEach(row => {
+          const rowData: Record<string, unknown> = {};
+          fields.forEach(f => {
+            rowData[f.key] = randomMatrixFieldValue(f);
+          });
+          result[row.key] = rowData;
+        });
+      }
+      return result;
+    }
+    case 'SHORT_TEXT':
+    case 'OPEN_TEXT':
+    default:
+      return randomFrom(RANDOM_SENTENCE_BANK);
+  }
+};
 
 // Mirrors the backend's isAnswerEmpty (forms.service.ts on PWC-backend) exactly, so a
 // question flagged as missing here is guaranteed to also be flagged in the 400
@@ -346,6 +420,7 @@ const MatrixQuestion: React.FC<{
                     <SubjectCellText>{row.label}:</SubjectCellText>
                     <OtherSubjectInput
                       placeholder="Specify..."
+                      maxLength={50}
                       value={(getCell(row.key, '__label') as string) ?? ''}
                       onChange={e => setCell(row.key, '__label', e.target.value)}
                     />
@@ -367,6 +442,7 @@ const MatrixQuestion: React.FC<{
                     <TableInput
                       type={field.type === 'NUMBER' ? 'number' : 'text'}
                       placeholder={field.label}
+                      maxLength={10}
                       value={(getCell(row.key, field.key) as string) ?? ''}
                       onChange={e => setCell(row.key, field.key, e.target.value)}
                     />

@@ -196,7 +196,6 @@ const mapProject = (p: ApiProject): Project => ({
   createdAt: (p.createdAt ?? '').slice(0, 10),
 });
 
-// ---- Mock stores still backing the not-yet-integrated methods (Stage 2/3) ----
 // One student row that never made it into the table, with the reason to show the user.
 export interface StudentImportFailure {
   name: string;
@@ -356,8 +355,6 @@ export const projectService = {
     const { data } = await apiClient.patch<ApiProject>(`/projects/${id}/restore`, {});
     return mapProject(data);
   },
-
-  // ---- Stage 2/3 (still mock — orchestration/oversight not wired yet) ----
 
   // Orchestrates real creation: institute → project → classes/divisions → students
   // (bulk). Counsellor assignment + slot import land in Stage 2b. Institute = project

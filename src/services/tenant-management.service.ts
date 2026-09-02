@@ -126,10 +126,4 @@ export const tenantManagementService = {
     );
     return mapAdmin(data.admin, data.tempPassword);
   },
-
-  // POST /api/v1/auth/forgot-password mints a single-use reset link and emails it
-  // (always 202, never leaks whether the address exists).
-  sendPasswordReset: async (email: string): Promise<void> => {
-    await apiClient.post('/auth/forgot-password', { email });
-  },
 };

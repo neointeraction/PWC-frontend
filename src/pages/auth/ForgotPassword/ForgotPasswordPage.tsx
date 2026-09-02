@@ -10,6 +10,8 @@ import { ROUTES } from '@/constants';
 import designDestinyLogo from '@/assets/design-destiny.png';
 import kreateLogo from '@/assets/logo.jpg';
 import { useToast } from '@/hooks';
+import { authService } from '@/services/auth.service';
+import { getApiErrorMessage } from '@/utils';
 
 // We reuse the login layout styles to maintain consistency
 import {
@@ -49,14 +51,18 @@ export const ForgotPasswordPage: React.FC = () => {
     resolver: zodResolver(forgotPasswordSchema),
   });
 
-  const onSubmit = async (_data: ForgotPasswordFormData) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setIsSubmitted(true);
-    toast.success(
-      'Recovery Email Sent',
-      'If an account matches that email, you will receive password reset instructions.'
-    );
+  const onSubmit = async (data: ForgotPasswordFormData) => {
+    try {
+      // Backend always responds 202 and never reveals whether the email exists.
+      await authService.forgotPassword(data.email);
+      setIsSubmitted(true);
+      toast.success(
+        'Recovery Email Sent',
+        'If an account matches that email, you will receive password reset instructions.'
+      );
+    } catch (err) {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to send reset instructions.'));
+    }
   };
 
   return (

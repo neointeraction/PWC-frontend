@@ -1,6 +1,7 @@
 export const ROUTES = {
   LOGIN: '/kreate',
   RESET_PASSWORD: '/reset-password',
+  RESET_PASSWORD_CONFIRM: '/reset-password-confirm',
   DASHBOARD: '/dashboard',
   UPCOMING_SESSIONS: '/upcoming-sessions',
   COUNSELOR_STUDENT_CHART: '/counselor/student-chart/:sessionId',

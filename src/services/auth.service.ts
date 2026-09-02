@@ -62,4 +62,16 @@ export const authService = {
   changePassword: async (payload: { currentPassword: string; newPassword: string }): Promise<void> => {
     await apiClient.post('/auth/change-password', payload);
   },
+
+  // POST /api/v1/auth/forgot-password — always 202, never reveals whether the email
+  // exists. Backend emails a single-use `${APP_WEB_URL}/reset-password?token=...` link.
+  forgotPassword: async (email: string): Promise<void> => {
+    await apiClient.post('/auth/forgot-password', { email });
+  },
+
+  // POST /api/v1/auth/reset-password — 204 on success; 400 if the token is
+  // invalid/expired/already used. Token is single-use, expires in 1h by default.
+  resetPassword: async (payload: { token: string; newPassword: string }): Promise<void> => {
+    await apiClient.post('/auth/reset-password', payload);
+  },
 };

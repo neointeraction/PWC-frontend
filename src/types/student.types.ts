@@ -1,23 +1,3 @@
-export interface PreCounsellingForm {
-  id: string;
-  studentId: string;
-  careerInterests: string[];
-  strengths: string[];
-  preferredSubjects: string[];
-  additionalNotes?: string;
-  submittedAt: string;
-}
-
-export interface Student {
-  id: string;
-  name: string;
-  email: string;
-  school: string;
-  grade: string;
-  assignedCounselorId: string;
-  formStatus: 'pending' | 'submitted';
-}
-
 // Backend workflow stages (Prisma `WorkflowStatus`) — the student's position in the
 // counselling journey, the real source of truth behind the portal's step tracker.
 export type StudentWorkflowStatus =
@@ -58,9 +38,4 @@ export interface CurrentStudent {
   stageLabel?: string;
   isFlagged?: boolean;
   flagReason?: string | null;
-}
-
-export interface StudentListResponse {
-  data: Student[];
-  total: number;
 }

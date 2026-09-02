@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { RiSearchLine, RiAddLine, RiInformationLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
@@ -7,7 +8,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Badge } from '@/components/Badge';
 import { Checkbox } from '@/components/Checkbox';
-import { mockCareers, mockClusters } from '@/mocks/careers.mock';
+import { careerService } from '@/services/career.service';
 import { CareerCompassItem } from '@/mocks/studentFormChart.mock';
 
 // The Compass Report only ever prints the counsellor's top picks, so the chart is
@@ -135,15 +136,27 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
   const [selectedCluster, setSelectedCluster] = useState('ALL');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  const { data: clusters = [] } = useQuery({
+    queryKey: ['career-clusters'],
+    queryFn: () => careerService.getClusters(),
+    enabled: isOpen,
+  });
+
+  const { data: careers = [] } = useQuery({
+    queryKey: ['career-job-roles'],
+    queryFn: () => careerService.getJobRoles(),
+    enabled: isOpen,
+  });
+
   const clusterOptions = useMemo(() => {
     return [
       { label: 'All Career Clusters', value: 'ALL' },
-      ...mockClusters.map(c => ({ label: c.name, value: c.name })),
+      ...clusters.map(c => ({ label: c.name, value: c.name })),
     ];
-  }, []);
+  }, [clusters]);
 
   const filteredCareers = useMemo(() => {
-    return mockCareers.filter(c => {
+    return careers.filter(c => {
       const searchLower = search.toLowerCase();
       const roleText = c.jobRole || c.title || '';
       const domainText = c.domain || '';
@@ -158,7 +171,7 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
 
       return matchesSearch && matchesCluster;
     });
-  }, [search, selectedCluster]);
+  }, [careers, search, selectedCluster]);
 
   // Total the chart would hold if the current selection were added.
   const compassTotal = existingCount + selectedIds.length;
@@ -179,7 +192,7 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
   };
 
   const handleAddSubmit = () => {
-    const selectedCareers = mockCareers.filter(c => selectedIds.includes(c.id));
+    const selectedCareers = careers.filter(c => selectedIds.includes(c.id));
     const itemsToAdd: CareerCompassItem[] = selectedCareers.map(career => ({
       id: `cc-cl-${career.id}-${Date.now()}`,
       domain: career.domain || career.careerCluster || 'General Domain',
