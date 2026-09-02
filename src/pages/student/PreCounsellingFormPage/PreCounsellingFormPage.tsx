@@ -186,6 +186,9 @@ export const PreCounsellingFormPage: React.FC = () => {
       return;
     }
     setErrorFieldKeys(new Set());
+    if (me?.id && cohort) {
+      saveDraftMutation.mutate();
+    }
     setCurrentStep(prev => Math.min(totalSteps, prev + 1));
     scrollToTop();
   };
@@ -267,32 +270,23 @@ export const PreCounsellingFormPage: React.FC = () => {
   };
 
   // "Save Draft" — PUT the current answers without the required-field validation, so the
-  // student can save partial progress and come back later. Commented out along with the
-  // button while Save Draft is disabled.
-  // const saveDraftMutation = useMutation({
-  //   mutationFn: () =>
-  //     formsService.saveDraft('PRE_COUNSELLING_STUDENT', me!.id, {
-  //       cohort: cohort!,
-  //       answers: buildAnswers(),
-  //     }),
-  //   onSuccess: () => {
-  //     queryClient.invalidateQueries({
-  //       queryKey: ['form-submission', 'PRE_COUNSELLING_STUDENT', me?.id, cohort],
-  //     });
-  //     toast.success('Draft Saved', 'Your progress has been saved — you can come back and finish later.');
-  //   },
-  //   onError: (err: unknown) => {
-  //     toast.error('Error', getApiErrorMessage(err, 'Failed to save your draft.'));
-  //   },
-  // });
-
-  // const handleSaveDraft = () => {
-  //   if (!me?.id || !cohort) {
-  //     toast.info('Please wait', 'Your student record is still loading — try again in a moment.');
-  //     return;
-  //   }
-  //   saveDraftMutation.mutate();
-  // };
+  // student's progress is persisted (silently) every time they move to the next step, and
+  // prefilled via `existingSubmission` above when they come back to this page later.
+  const saveDraftMutation = useMutation({
+    mutationFn: () =>
+      formsService.saveDraft('PRE_COUNSELLING_STUDENT', me!.id, {
+        cohort: cohort!,
+        answers: buildAnswers(),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['form-submission', 'PRE_COUNSELLING_STUDENT', me?.id, cohort],
+      });
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to save your progress.'));
+    },
+  });
 
   const progressPercent = totalSteps ? Math.round((currentStep / totalSteps) * 100) : 0;
   const currentSection = sections[currentStep - 1];

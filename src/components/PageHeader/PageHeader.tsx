@@ -102,7 +102,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     <TopRow>
       <HeaderLeft>
         {onBack && (
-          <Tooltip content={backDisabled ? "Can't go back once you've started answering" : 'Go back'}>
+          <Tooltip content={backDisabled ? "Can't go back — this must be finished in one go" : 'Go back'}>
             <BackButton
               type="button"
               onClick={backDisabled ? undefined : onBack}

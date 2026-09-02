@@ -279,6 +279,20 @@ export const AssessmentFormPage: React.FC = () => {
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
 
+  // The assessment must be finished in one sitting — once started, warn on tab close/refresh
+  // so an accidental reload (e.g. a network blip) doesn't look like a safe way to leave.
+  // Answers already saved (per-question, plus the full resend on submit) still recover via
+  // attempt resume either way — this is just to stop a student from walking away mid-test.
+  useEffect(() => {
+    if (!isFormStarted || isCompletionModalOpen) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isFormStarted, isCompletionModalOpen]);
+
   const buildAllAnswers = (): SaveAnswerInput[] =>
     questions
       .filter(q => answers[q.id] !== undefined)
@@ -323,8 +337,6 @@ export const AssessmentFormPage: React.FC = () => {
     ? Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)
     : 0;
 
-  const hasAnsweredFirstQuestion = questions.length > 0 && answers[questions[0].id] !== undefined;
-
   return (
     <FormPageContainer ref={topRef}>
       {isFormStarted && (
@@ -335,7 +347,7 @@ export const AssessmentFormPage: React.FC = () => {
             { label: 'Career Assessment' },
           ]}
           onBack={() => navigate(ROUTES.STUDENT_PORTAL)}
-          backDisabled={hasAnsweredFirstQuestion}
+          backDisabled={isFormStarted}
           actions={
             <HeaderProgressCard>
               <HeaderProgressRow style={{ justifyContent: 'flex-end' }}>
