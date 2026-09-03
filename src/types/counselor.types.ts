@@ -48,7 +48,6 @@ export interface UpdateCounselorInput {
   mobile?: string;
   email?: string;
   meetingLink?: string;
-  pwd?: string;
   status?: 'active' | 'inactive';
 }
 

@@ -18,7 +18,6 @@ const editCounselorSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   mobile: z.string().min(10, 'Mobile number must be at least 10 digits'),
   meetingLink: z.string().optional(),
-  pwd: z.string().optional(),
   status: z.enum(['active', 'inactive']),
 });
 
@@ -47,7 +46,6 @@ export const EditCounselorModal: React.FC = () => {
         email: selectedCounselorForEdit.email,
         mobile: selectedCounselorForEdit.mobile,
         meetingLink: selectedCounselorForEdit.meetingLink || '',
-        pwd: selectedCounselorForEdit.pwd || '',
         status: selectedCounselorForEdit.status,
       });
     }
@@ -126,14 +124,6 @@ export const EditCounselorModal: React.FC = () => {
           placeholder="e.g. https://meet.google.com/abc-defg-hij"
           error={errors.meetingLink?.message}
           {...register('meetingLink')}
-        />
-
-        <Input
-          label="Password / PWD"
-          type="password"
-          placeholder="Enter new password to update"
-          error={errors.pwd?.message}
-          {...register('pwd')}
         />
 
         <Controller

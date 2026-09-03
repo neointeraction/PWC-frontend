@@ -136,7 +136,6 @@ interface LinkedSectionProps {
   onToggle: (key: string) => void;
   onAddNew: (item: IncludedItem) => void;
   addButtonLabel: string;
-  emptyHint: string;
   renderSubform: (helpers: {
     addNew: (item: IncludedItem) => void;
     close: () => void;
@@ -149,7 +148,6 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
   onToggle,
   onAddNew,
   addButtonLabel,
-  emptyHint,
   renderSubform,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
@@ -158,25 +156,25 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
     <S.SectionBox>
       <S.SectionTitle>{title}</S.SectionTitle>
 
-      <S.FieldLabel>Included with this role (tick / untick):</S.FieldLabel>
-      {items.length === 0 ? (
-        <S.EmptyListHint>{emptyHint}</S.EmptyListHint>
-      ) : (
-        <S.ExistingEntriesList>
-          {items.map(item => (
-            <S.EntryRow key={item.key} $checked={item.checked}>
-              <S.EntryCheckboxWrapper>
-                <Checkbox checked={item.checked} onChange={() => onToggle(item.key)} />
-                <span>{item.label}</span>
-                {item.isNew ? (
-                  <S.NewTag>new</S.NewTag>
-                ) : (
-                  <S.LinkedTag>(existing library record)</S.LinkedTag>
-                )}
-              </S.EntryCheckboxWrapper>
-            </S.EntryRow>
-          ))}
-        </S.ExistingEntriesList>
+      {items.length > 0 && (
+        <>
+          <S.FieldLabel>Included with this role (tick / untick):</S.FieldLabel>
+          <S.ExistingEntriesList>
+            {items.map(item => (
+              <S.EntryRow key={item.key} $checked={item.checked}>
+                <S.EntryCheckboxWrapper>
+                  <Checkbox checked={item.checked} onChange={() => onToggle(item.key)} />
+                  <span>{item.label}</span>
+                  {item.isNew ? (
+                    <S.NewTag>new</S.NewTag>
+                  ) : (
+                    <S.LinkedTag>(existing library record)</S.LinkedTag>
+                  )}
+                </S.EntryCheckboxWrapper>
+              </S.EntryRow>
+            ))}
+          </S.ExistingEntriesList>
+        </>
       )}
 
       {!isAdding ? (
@@ -1129,7 +1127,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             onToggle={toggle(setExams)}
             onAddNew={addNew(setExams)}
             addButtonLabel="Add New Exam"
-            emptyHint="No entrance exams linked yet. Add a new exam."
             renderSubform={({ addNew: a, close }) => <ExamSubform addNew={a} close={close} />}
           />
 
@@ -1139,7 +1136,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             onToggle={toggle(setCourses)}
             onAddNew={addNew(setCourses)}
             addButtonLabel="Add New Course"
-            emptyHint="No courses linked yet. Add a new course."
             renderSubform={({ addNew: a, close }) => <CourseSubform addNew={a} close={close} />}
           />
 
@@ -1149,7 +1145,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             onToggle={toggle(setInstitutions)}
             onAddNew={addNew(setInstitutions)}
             addButtonLabel="Add New Institution"
-            emptyHint="No institutions linked yet. Add a new institution."
             renderSubform={({ addNew: a, close }) => <InstitutionSubform addNew={a} close={close} />}
           />
         </S.ModalScrollContainer>
