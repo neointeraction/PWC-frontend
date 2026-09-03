@@ -277,6 +277,31 @@ export const AssessmentFormPage: React.FC = () => {
     scrollToTop();
   };
 
+  // DEV-ONLY testing shortcut: randomly answer every question and jump to the last one,
+  // so QA doesn't have to click through all 73 questions by hand to test submission.
+  const handleDevRandomFillToEnd = () => {
+    const filled: Record<string, number | string> = { ...answers };
+    for (const q of questions) {
+      if (filled[q.id] !== undefined) continue;
+      if (q.type === 'likert') {
+        const opt = DETAILED_LIKERT_OPTIONS[Math.floor(Math.random() * DETAILED_LIKERT_OPTIONS.length)];
+        filled[q.id] = opt.val;
+      } else if (q.options && q.options.length) {
+        const opt = q.options[Math.floor(Math.random() * q.options.length)];
+        filled[q.id] = opt.label;
+      }
+    }
+    setAnswers(filled);
+    if (attemptId) {
+      const payload: SaveAnswerInput[] = questions
+        .filter(q => filled[q.id] !== undefined)
+        .map(q => ({ fieldKey: q.id, selectedOption: filled[q.id], timeTakenMs: questionTimes[q.id] ?? 0 }));
+      assessmentService.saveAnswers(attemptId, payload).catch(() => {});
+    }
+    setCurrentQuestionIndex(totalQuestions - 1);
+    scrollToTop();
+  };
+
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
 
   // The assessment must be finished in one sitting — once started, warn on tab close/refresh
@@ -652,7 +677,17 @@ export const AssessmentFormPage: React.FC = () => {
           </WizardStepBody>
 
           {/* Wizard Footer Navigation — Forward only, no back button */}
-          <WizardFooterNav style={{ justifyContent: 'flex-end' }}>
+          <WizardFooterNav
+            style={{
+              justifyContent:
+                import.meta.env.DEV && currentQuestionIndex === 0 ? 'space-between' : 'flex-end',
+            }}
+          >
+            {import.meta.env.DEV && currentQuestionIndex === 0 && (
+              <Button type="button" variant="secondary" size="md" onClick={handleDevRandomFillToEnd}>
+                [DEV] Random-fill &amp; skip to end
+              </Button>
+            )}
             {currentQuestionIndex < totalQuestions - 1 ? (
               <Button
                 type="button"
