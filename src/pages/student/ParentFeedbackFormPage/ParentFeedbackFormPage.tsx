@@ -195,8 +195,11 @@ export const ParentFeedbackFormPage: React.FC = () => {
     submitMutation.mutate();
   };
 
+  // Parents have no login/portal to return to — Close attempts to close the tab (only works
+  // if the browser opened it via script; otherwise this just dismisses the modal) so they
+  // can't accidentally submit again.
   const handleConfirmCompletion = useCallback(() => {
-    setIsCompletionModalOpen(false);
+    window.close();
   }, []);
 
   if (!studentId) {
@@ -225,6 +228,24 @@ export const ParentFeedbackFormPage: React.FC = () => {
               <StatementListItem>
                 <RiTimeLine size={20} style={{ color: '#DC2626' }} />
                 <span>{linkExpiredMessage}</span>
+              </StatementListItem>
+            </StatementList>
+          </StatementParagraphCard>
+        </HeroHeaderCard>
+      </FormPageContainer>
+    );
+  }
+
+  // The parent already submitted this feedback on a previous visit — don't let them resubmit.
+  if (existingSubmission?.submittedAt) {
+    return (
+      <FormPageContainer>
+        <HeroHeaderCard>
+          <StatementParagraphCard style={{ borderLeftColor: '#047857' }}>
+            <StatementList>
+              <StatementListItem>
+                <RiCheckLine size={20} style={{ color: '#047857' }} />
+                <span>You have already submitted this feedback. Thank you for sharing your thoughts with us.</span>
               </StatementListItem>
             </StatementList>
           </StatementParagraphCard>
@@ -318,9 +339,9 @@ export const ParentFeedbackFormPage: React.FC = () => {
       {/* Completion Confirmation Popup Modal */}
       <SuccessModal
         isOpen={isCompletionModalOpen}
-        onClose={() => setIsCompletionModalOpen(false)}
+        onClose={handleConfirmCompletion}
         title="Feedback Submitted Successfully!"
-        message="Thank you for your valuable feedback."
+        message="Thank you for your valuable feedback. You may now close this tab."
         confirmText="Close"
         onConfirm={handleConfirmCompletion}
       />

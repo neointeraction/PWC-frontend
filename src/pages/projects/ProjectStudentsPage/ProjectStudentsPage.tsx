@@ -5,7 +5,7 @@ import {
   RiSearchLine,
   RiFlag2Fill,
   RiFlag2Line,
-  RiFileExcel2Line,
+  // RiFileExcel2Line,
   RiUserAddLine,
   RiCalendarLine,
 } from 'react-icons/ri';
@@ -36,7 +36,7 @@ import {
   DateCellWrapper,
   FlagIconWrapper,
   FlagFilterButton,
-  ToolbarIconButton,
+  // ToolbarIconButton,
 } from './ProjectStudentsPage.styles';
 
 export const PROJECT_STAGES_OPTIONS = [
@@ -108,7 +108,7 @@ export const ProjectStudentsPage: React.FC = () => {
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
       id: '',
-      studentId: `ST${100 + students.length + 1}`,
+      studentId: '',
       name: '',
       email: '',
       mobile: '',
@@ -121,6 +121,7 @@ export const ProjectStudentsPage: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
+  /*
   const handleExportExcel = () => {
     // Generate stage-wise distribution summary
     const stageCounts: Record<string, number> = {};
@@ -170,6 +171,7 @@ export const ProjectStudentsPage: React.FC = () => {
       'Downloaded project stage distribution and students report (.csv).'
     );
   };
+  */
 
   const totalFlaggedCount = students.filter(s => s.isFlagged).length;
 
@@ -344,7 +346,7 @@ export const ProjectStudentsPage: React.FC = () => {
               </span>
             </FlagFilterButton>
 
-            <Tooltip content="Export Students Stage Report to Excel">
+            {/* <Tooltip content="Export Students Stage Report to Excel">
               <ToolbarIconButton
                 type="button"
                 $variant="excel"
@@ -353,7 +355,7 @@ export const ProjectStudentsPage: React.FC = () => {
               >
                 <RiFileExcel2Line size={18} />
               </ToolbarIconButton>
-            </Tooltip>
+            </Tooltip> */}
 
             <Button leftIcon={<RiUserAddLine size={16} />} onClick={handleCreateNewStudent}>
               Add Student

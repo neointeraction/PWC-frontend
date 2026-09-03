@@ -20,12 +20,11 @@ interface ApiCurrentStudent {
   academicYear?: string | null;
   workflowStatus: StudentWorkflowStatus;
   user: { id: string; email: string; firstName: string; lastName: string; isActive: boolean };
-  project: { id: string; name: string; instituteId: string };
-  division: {
-    id: string;
-    name?: string | null;
-    class?: { id: string; name: string; instituteId: string } | null;
-  };
+  project: { id: string; name: string };
+  // Institute was merged into Project — className/divisionName are plain free-text
+  // fields on the Student row now (no Division/Class entity to join against).
+  className?: string | null;
+  divisionName?: string | null;
   cohort?: { code: string; name: string } | null;
   stageInfo?: {
     stageLabel?: string;
@@ -101,10 +100,8 @@ const mapCurrentStudent = (s: ApiCurrentStudent): CurrentStudent => ({
   workflowStatus: s.workflowStatus,
   project: s.project,
   division: {
-    id: s.division.id,
-    name: s.division.name || undefined,
-    className: s.division.class?.name,
-    classId: s.division.class?.id,
+    name: s.divisionName || undefined,
+    className: s.className || undefined,
   },
   cohort: s.cohort || undefined,
   stageLabel: s.stageInfo?.stageLabel,

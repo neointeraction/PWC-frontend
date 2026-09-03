@@ -433,6 +433,28 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
     );
   }
 
+  // The parent already finalized this form on a previous visit — don't let them resubmit,
+  // just confirm it's done.
+  if (existingSubmission?.submittedAt) {
+    return (
+      <FormPageContainer ref={topRef}>
+        <HeroHeaderCard>
+          <StatementParagraphCard style={{ borderLeftColor: '#047857' }}>
+            <StatementList>
+              <StatementListItem>
+                <RiCheckLine size={20} style={{ color: '#047857' }} />
+                <span>
+                  You have already submitted this Pre-Counselling Form. Your responses have been recorded and
+                  will only be seen by the career counsellor.
+                </span>
+              </StatementListItem>
+            </StatementList>
+          </StatementParagraphCard>
+        </HeroHeaderCard>
+      </FormPageContainer>
+    );
+  }
+
   return (
     <FormPageContainer ref={topRef}>
       {/* STAGE 1: INSTRUCTIONS VIEW */}
@@ -755,14 +777,16 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
       )}
 
       {/* Completion Modal — shown after the submission API call succeeds. Parents have no
-          login/portal to return to, so the modal just confirms and closes. */}
+          login/portal to return to, so Close attempts to close the tab (only works if the
+          browser opened it via script; otherwise this just dismisses the modal) so they
+          can't accidentally hit Submit again. */}
       <SuccessModal
         isOpen={isCompletionModalOpen}
-        onClose={() => setIsCompletionModalOpen(false)}
+        onClose={() => window.close()}
         title="Thank you for completing your Pre-Counselling Form!"
-        message="Your responses have been submitted and will only be seen by the career counsellor."
+        message="Your responses have been submitted and will only be seen by the career counsellor. You may now close this tab."
         confirmText="Close"
-        onConfirm={() => setIsCompletionModalOpen(false)}
+        onConfirm={() => window.close()}
       />
     </FormPageContainer>
   );

@@ -202,15 +202,18 @@ export const ProjectsPage: React.FC = () => {
     {
       key: 'validFrom',
       header: 'Valid From',
-      render: row => row.validFrom || '—',
+      render: row => (row.validFrom ? dayjs(row.validFrom).format('D MMM YYYY') : '—'),
     },
     {
       key: 'validTo',
       header: 'Valid To',
       render: row => {
         if (!row.validTo) return '—';
-        const formattedDate = row.validTo;
-        if (row.status === 'active') {
+        const formattedDate = dayjs(row.validTo).format('D MMM YYYY');
+        // Only warn once the project has actually started — otherwise "days left" is
+        // measured against a window that hasn't begun and overstates urgency.
+        const hasStarted = !row.validFrom || !dayjs().isBefore(dayjs(row.validFrom), 'day');
+        if (row.status === 'active' && hasStarted) {
           const daysLeft = Math.ceil(dayjs(row.validTo).diff(dayjs(), 'day', true));
           if (daysLeft >= 0 && daysLeft <= 15) {
             return (

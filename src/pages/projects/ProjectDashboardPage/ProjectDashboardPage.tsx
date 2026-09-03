@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  RiDownloadLine,
+  // RiDownloadLine,
   RiTimeLine,
   RiDeleteBinLine,
   RiArrowLeftLine,
@@ -114,11 +114,15 @@ const totalDays = (from?: string, to?: string): number | null => {
   return Math.round((end - start) / MS_PER_DAY) + 1;
 };
 
-// Whole days left after today; 0 once the window has closed.
-const remainingDays = (to?: string): number | null => {
+// Whole days left in the project window: the full window before it starts, counting
+// down as days elapse, 0 once it has closed. Never exceeds totalDays.
+const remainingDays = (from?: string, to?: string): number | null => {
+  const start = parseYmd(from);
   const end = parseYmd(to);
-  if (end === null) return null;
-  return Math.max(0, Math.round((end - todayUtc()) / MS_PER_DAY));
+  if (start === null || end === null || end < start) return null;
+  const total = Math.round((end - start) / MS_PER_DAY) + 1;
+  const elapsed = Math.max(0, Math.min(total, Math.round((todayUtc() - start) / MS_PER_DAY)));
+  return total - elapsed;
 };
 
 export const ProjectDashboardPage: React.FC = () => {
@@ -135,7 +139,7 @@ export const ProjectDashboardPage: React.FC = () => {
 
   const isProjectClosed = project?.status === 'closed';
   const projectTotalDays = totalDays(project?.validFrom, project?.validTo);
-  const projectRemainingDays = remainingDays(project?.validTo);
+  const projectRemainingDays = remainingDays(project?.validFrom, project?.validTo);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
@@ -514,14 +518,14 @@ export const ProjectDashboardPage: React.FC = () => {
               Delete project
             </Button>
           )}
-          <Button
+          {/* <Button
             variant="primary"
             size="sm"
             leftIcon={<RiDownloadLine size={16} />}
             onClick={handleExportStudentReport}
           >
             Export Report
-          </Button>
+          </Button> */}
         </TopHeaderActions>
       </ProjectTopHeaderCard>
 

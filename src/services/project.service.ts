@@ -21,16 +21,19 @@ import {
   parseApiDate,
 } from '@/utils';
 
-// ---- Backend project shape (GET /projects — institute + _count) ----
+// ---- Backend project shape (GET /projects) — Institute was merged into Project, so
+// address/contactNumber/primaryEmail/languageId now live directly on the project row. ----
 interface ApiProject {
   id: string;
   code?: string;
   name: string;
-  instituteId: string;
+  address?: string;
+  contactNumber?: string;
+  primaryEmail?: string;
+  languageId?: string;
   fromDate: string;
   toDate: string;
   status: 'ACTIVE' | 'CLOSED' | 'DELETED';
-  institute?: { id: string; name: string; address?: string };
   _count?: { students: number; counsellors: number; counsellorSlots: number };
   createdAt?: string;
 }
@@ -43,7 +46,8 @@ interface ApiCounsellorDir {
   user?: { firstName: string; lastName: string; email: string };
 }
 
-// GET /students?projectId
+// GET /students?projectId — className/divisionName are plain free-text fields on the
+// Student row now (no Division/Class entity to join against).
 interface ApiStudent {
   id: string;
   studentCode: string;
@@ -53,8 +57,9 @@ interface ApiStudent {
   fatherName?: string;
   workflowStatus: string;
   user: { firstName: string; lastName: string; email: string };
-  project?: { id: string; instituteId: string };
-  division?: { id: string; name: string; class?: { id: string; name: string } };
+  project?: { id: string };
+  className?: string;
+  divisionName?: string;
   // Computed live by the backend (never stored): derived stage + ageing/🚩 flag.
   stageInfo?: {
     stage: string;
@@ -87,7 +92,8 @@ interface ApiSession {
     studentCode: string;
     mobile: string;
     user: { firstName: string; lastName: string; email: string };
-    division?: { name: string; class?: { name: string } };
+    className?: string;
+    divisionName?: string;
   };
 }
 interface ApiSlot {
@@ -142,39 +148,6 @@ const formatSlotDate = (ymd: string): string => {
 const sameName = (a: string | undefined, b: string | undefined): boolean =>
   (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
 
-// An institute's classes come back with their divisions nested, so one GET is enough to
-// resolve (or create) the class/division pair a student was filed under.
-interface ApiInstituteClass {
-  id: string;
-  name: string;
-  divisions?: { id: string; name: string }[];
-}
-
-const resolveDivisionId = async (
-  instituteId: string,
-  className: string,
-  divisionName: string
-): Promise<string> => {
-  const { data: classes } = await apiClient.get<ApiInstituteClass[]>(
-    `/institutes/${instituteId}/classes`
-  );
-  let cls = classes.find(c => sameName(c.name, className));
-  if (!cls) {
-    const { data } = await apiClient.post<ApiInstituteClass>(
-      `/institutes/${instituteId}/classes`,
-      { name: className }
-    );
-    cls = { ...data, divisions: [] };
-  }
-  const existing = (cls.divisions ?? []).find(d => sameName(d.name, divisionName));
-  if (existing) return existing.id;
-  const { data: division } = await apiClient.post<{ id: string }>(
-    `/institutes/${instituteId}/classes/${cls.id}/divisions`,
-    { name: divisionName }
-  );
-  return division.id;
-};
-
 // PATCH /students/{id} can't change a login email; the caller is told when one was typed
 // so it can say so instead of reporting a clean save.
 export interface SaveStudentResult {
@@ -185,9 +158,10 @@ const mapProject = (p: ApiProject): Project => ({
   id: p.id,
   code: p.code,
   name: p.name,
-  instituteId: p.instituteId,
-  instituteName: p.institute?.name ?? '',
-  location: p.institute?.address || undefined,
+  instituteName: p.name,
+  location: p.address || undefined,
+  email: p.primaryEmail || undefined,
+  phone: p.contactNumber || undefined,
   counselorCount: p._count?.counsellors ?? 0,
   studentCount: p._count?.students ?? 0,
   status: API_TO_STATUS[p.status] ?? 'active',
@@ -337,6 +311,9 @@ export const projectService = {
   update: async (id: string, updates: Partial<Project>): Promise<Project> => {
     const body: Record<string, unknown> = {};
     if (updates.name !== undefined) body.name = updates.name;
+    if (updates.location !== undefined) body.address = updates.location;
+    if (updates.email !== undefined) body.primaryEmail = updates.email;
+    if (updates.phone !== undefined) body.contactNumber = normalizePhone(updates.phone);
     if (updates.validFrom !== undefined) body.fromDate = updates.validFrom;
     if (updates.validTo !== undefined) body.toDate = updates.validTo;
     if (updates.status !== undefined && STATUS_TO_API[updates.status]) {
@@ -356,59 +333,30 @@ export const projectService = {
     return mapProject(data);
   },
 
-  // Orchestrates real creation: institute → project → classes/divisions → students
-  // (bulk). Counsellor assignment + slot import land in Stage 2b. Institute = project
-  // (1:1, created inline). A bad student row doesn't abort the batch, but every skipped
-  // row is counted and returned so the wizard can say what actually landed.
+  // Orchestrates real creation: project (institute fields sent directly on it, no more
+  // separate Institute entity) → students (bulk) → counsellors + slot import. A bad
+  // student row doesn't abort the batch, but every skipped row is counted and returned
+  // so the wizard can say what actually landed.
   create: async (payload: CreateProjectPayload): Promise<CreateProjectResult> => {
     const { instituteDetails, students, counselors } = payload;
 
-    // 1. Institute (address/contactNumber/primaryEmail all come from the institute step).
-    const { data: institute } = await apiClient.post<{ id: string; name: string }>('/institutes', {
+    // 1. Project — `code` is admin-supplied and required (no longer auto-generated);
+    //    address/contactNumber/primaryEmail live directly on the project row now.
+    const { data: project } = await apiClient.post<ApiProject>('/projects', {
+      code: instituteDetails.instituteId.trim(),
       name: instituteDetails.name.trim(),
       address: instituteDetails.location.trim(),
       contactNumber: normalizePhone(instituteDetails.phone),
       primaryEmail: instituteDetails.email,
-      ...(instituteDetails.instituteId ? { instituteCode: instituteDetails.instituteId.trim() } : {}),
-    });
-
-    // 2. Project (window = the institute-step dates).
-    const { data: project } = await apiClient.post<ApiProject>('/projects', {
-      instituteId: institute.id,
-      name: institute.name,
       fromDate: instituteDetails.validFrom,
       toDate: instituteDetails.validTo,
     });
 
-    // 3. Resolve each distinct Class + Division from the sheet into a real divisionId.
-    const classIdByName = new Map<string, string>();
-    const divisionIdByKey = new Map<string, string>();
-    const keyOf = (cls: string, div: string) => `${cls}||${div}`;
-    for (const s of students) {
-      const className = (s.grade || 'General').trim();
-      const divisionName = (s.division || className).trim();
-      const key = keyOf(className, divisionName);
-      if (divisionIdByKey.has(key)) continue;
-      let classId = classIdByName.get(className);
-      if (!classId) {
-        const { data: cls } = await apiClient.post<{ id: string }>(
-          `/institutes/${institute.id}/classes`,
-          { name: className }
-        );
-        classId = cls.id;
-        classIdByName.set(className, classId);
-      }
-      const { data: div } = await apiClient.post<{ id: string }>(
-        `/institutes/${institute.id}/classes/${classId}/divisions`,
-        { name: divisionName }
-      );
-      divisionIdByKey.set(key, div.id);
-    }
-
-    // 4. Bulk-create students. `studentCode` is required by the backend (no longer
+    // 2. Bulk-create students. `studentCode` is required by the backend (no longer
     //    auto-generated) — taken from the sheet's Student ID column, falling back to a
     //    generated placeholder for rows that don't carry one so the row isn't rejected.
-    //    `seq` is also used to label a failed row that has no name or email.
+    //    `className`/`divisionName` are plain free-text fields on the student, no
+    //    class/division lookup needed. `seq` also labels a failed row with no name/email.
     const failures: StudentImportFailure[] = [];
     let imported = 0;
     let seq = 0;
@@ -416,14 +364,6 @@ export const projectService = {
       seq += 1;
       const className = (s.grade || 'General').trim();
       const divisionName = (s.division || className).trim();
-      const divisionId = divisionIdByKey.get(keyOf(className, divisionName));
-      if (!divisionId) {
-        failures.push({
-          name: s.name || s.email || `Row ${seq}`,
-          reason: `No class/division matched "${className} ${divisionName}"`,
-        });
-        continue;
-      }
       const parts = s.name.trim().split(/\s+/);
       const firstName = parts[0] || s.name.trim();
       const lastName = parts.slice(1).join(' ') || firstName;
@@ -434,7 +374,8 @@ export const projectService = {
           email: s.email,
           mobile: normalizePhone(s.mobile),
           projectId: project.id,
-          divisionId,
+          className,
+          divisionName,
           parentMobile: normalizePhone(s.parentMobile || s.mobile),
           parentEmail: s.parentEmail || s.email,
           studentCode: s.studentId?.trim() || `S${String(seq).padStart(4, '0')}`,
@@ -451,7 +392,7 @@ export const projectService = {
       }
     }
 
-    // 5. Counsellors: assign each matched (directory) counsellor to the project, and
+    // 3. Counsellors: assign each matched (directory) counsellor to the project, and
     //    import their availability slots.
     const counselorAssign = await assignCounselorsWithSlots(project.id, counselors);
 
@@ -523,7 +464,7 @@ export const projectService = {
               : '',
             studentEmail: sess.student?.user.email,
             mobile: sess.student?.mobile,
-            grade: sess.student?.division?.class?.name || sess.student?.division?.name || '',
+            grade: sess.student?.className || sess.student?.divisionName || '',
             sessionType: (sess.sessionNumber === 'SESSION_1' ? 'S1' : 'S2') as 'S1' | 'S2',
             notes: sess.notes ?? undefined,
             meetingLink: sess.meetingLink ?? undefined,
@@ -589,7 +530,7 @@ export const projectService = {
           name: formatFullName(sess.student.user.firstName, sess.student.user.lastName),
           email: sess.student.user.email,
           mobile: sess.student.mobile,
-          grade: sess.student.division?.class?.name || sess.student.division?.name || '',
+          grade: sess.student.className || sess.student.divisionName || '',
           sessionDate: sess.scheduledDate ? parseApiDate(sess.scheduledDate) : '',
           timeSlot: `${sess.startTime} - ${sess.endTime}`,
           sessionType: sess.sessionNumber === 'SESSION_1' ? 'S1' : 'S2',
@@ -660,8 +601,8 @@ export const projectService = {
       const session1 = mapSess(byStudent.get(st.id)?.s1, 1);
       const session2 = mapSess(byStudent.get(st.id)?.s2, 2);
       const assignedSession = session1.counselorName ? session1 : session2;
-      const className = st.division?.class?.name ?? '';
-      const divisionName = st.division?.name ?? '';
+      const className = st.className ?? '';
+      const divisionName = st.divisionName ?? '';
       return {
         id: st.id,
         studentId: st.studentCode,
@@ -712,15 +653,14 @@ export const projectService = {
     const divisionName = (student.division || className).trim();
 
     if (!student.id) {
-      const { data: project } = await apiClient.get<ApiProject>(`/projects/${projectId}`);
-      const divisionId = await resolveDivisionId(project.instituteId, className, divisionName);
       await apiClient.post('/students', {
         firstName,
         lastName,
         email: student.email,
         mobile: normalizePhone(student.mobile),
         projectId,
-        divisionId,
+        className,
+        divisionName,
         // Both are required by the backend; a project sheet may only carry one contact,
         // so the student's own details stand in — same fallback the import wizard uses.
         parentMobile: normalizePhone(student.parentMobile || student.mobile),
@@ -743,18 +683,9 @@ export const projectService = {
     if (student.parentEmail) body.parentEmail = student.parentEmail;
     if (student.parentName) body.fatherName = student.parentName;
 
-    // Only re-file the student when the class/division actually changed — resolving is a
-    // find-or-create, so sending it unconditionally could mint divisions from the
-    // modal's placeholder values.
-    const movedClass = !sameName(current.division?.class?.name, className);
-    const movedDivision = !sameName(current.division?.name, divisionName);
-    if ((movedClass || movedDivision) && current.project?.instituteId) {
-      body.divisionId = await resolveDivisionId(
-        current.project.instituteId,
-        className,
-        divisionName
-      );
-    }
+    // Only send class/division when they actually changed.
+    if (!sameName(current.className, className)) body.className = className;
+    if (!sameName(current.divisionName, divisionName)) body.divisionName = divisionName;
 
     await apiClient.patch(`/students/${student.id}`, body);
     return {

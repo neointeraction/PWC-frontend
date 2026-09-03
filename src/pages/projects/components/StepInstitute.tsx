@@ -16,7 +16,7 @@ import { InstituteDetails } from '@/types/project.types';
 
 const instituteSchema = z
   .object({
-    instituteId: z.string().optional(),
+    instituteId: z.string().min(1, 'Institute ID is required'),
     name: z
       .string()
       .min(1, 'Institute name is required')

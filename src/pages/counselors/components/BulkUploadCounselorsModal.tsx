@@ -165,9 +165,9 @@ export const BulkUploadCounselorsModal: React.FC = () => {
 
   const handleDownloadTemplate = () => {
     const csvContent =
-      'Counsellor ID,PWD,Counsellor Name,Mobile No.,Email ID\n' +
-      'C014,,Anil Sharma,9876543210,anil.sharma@example.com\n' +
-      'C015,,Sunita Roy,9812345678,sunita.roy@example.com\n';
+      'Counsellor ID,PWD,Counsellor Name,Mobile No.,Email ID,Meeting Link\n' +
+      'C014,,Anil Sharma,9876543210,anil.sharma@example.com,https://meet.google.com/abc-defg-hij\n' +
+      'C015,,Sunita Roy,9812345678,sunita.roy@example.com,\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -193,6 +193,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
       const name = (row['Counsellor Name'] || row['Counselor Name'] || row['Name'] || '').trim();
       const mobile = (row['Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '').trim();
       const email = (row['Email ID'] || row['Email'] || row['email'] || '').trim();
+      const meetingLink = (row['Meeting Link'] || row['GMeet / Zoom Link'] || row['meetingLink'] || '').trim();
       const hasName = Boolean(name);
       const hasEmail = Boolean(email && email.includes('@'));
       const hasMobile = isValidPhone(mobile);
@@ -207,6 +208,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
         name: name || 'Unknown Counselor',
         mobile,
         email: email || 'invalid@example.com',
+        meetingLink: meetingLink || undefined,
         pwd: pwd || undefined,
         status: 'active',
         isValid,
@@ -270,6 +272,11 @@ export const BulkUploadCounselorsModal: React.FC = () => {
       render: row => row.email,
     },
     {
+      key: 'meetingLink',
+      header: 'Meeting Link',
+      render: row => row.meetingLink || '—',
+    },
+    {
       key: 'isValid',
       header: 'Validation',
       width: '110px',
@@ -330,7 +337,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
         <TemplateSection>
           <TemplateInfo>
             <h4>CSV Template Format</h4>
-            <p>Headers required: Counsellor ID, PWD, Counsellor Name, Mobile No., Email ID</p>
+            <p>Headers required: Counsellor ID, PWD, Counsellor Name, Mobile No., Email ID, Meeting Link</p>
           </TemplateInfo>
           <Button variant="secondary" size="sm" leftIcon={<RiDownloadLine size={16} />} onClick={handleDownloadTemplate}>
             Download Sample CSV

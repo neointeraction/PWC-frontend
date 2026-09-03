@@ -189,6 +189,11 @@ export const StepCounselors: React.FC = () => {
       header: 'Name',
     },
     {
+      key: 'counsellorCode',
+      header: 'Counselor ID',
+      render: row => row.counsellorCode || '-',
+    },
+    {
       key: 'email',
       header: 'Email',
     },

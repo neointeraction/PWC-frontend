@@ -30,8 +30,8 @@ export interface CurrentStudent {
   mother: { name?: string; occupation?: string; employer?: string };
   academicYear?: string;
   workflowStatus: StudentWorkflowStatus;
-  project: { id: string; name: string; instituteId: string };
-  division: { id: string; name?: string; className?: string; classId?: string };
+  project: { id: string; name: string };
+  division: { name?: string; className?: string };
   // Active cohort code (e.g. CLASS_9_10) — selects the right form/assessment bank.
   cohort?: { code: string; name: string };
   // Derived stage + red-flag, computed live by the backend (never stored).

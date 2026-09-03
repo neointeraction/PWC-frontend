@@ -38,22 +38,24 @@ export interface CounselorProjectSummary {
   bookedSlots: number;
 }
 
+// Institute was merged into Project — address/name live directly on the project row.
 interface ApiProjectDetail {
   id: string;
   code?: string | null;
   name: string;
+  address?: string;
   status: 'ACTIVE' | 'CLOSED' | 'DELETED';
-  institute?: { id: string; name: string; address?: string };
 }
 
 interface ApiStudentGrade {
   id: string;
-  division?: { name: string; class?: { name: string } } | null;
+  className?: string;
+  divisionName?: string;
 }
 
-const formatGrade = (division?: ApiStudentGrade['division']): string => {
-  const className = division?.class?.name ?? '';
-  const divisionName = division?.name ?? '';
+const formatGrade = (student: ApiStudentGrade): string => {
+  const className = student.className ?? '';
+  const divisionName = student.divisionName ?? '';
   if (className && divisionName && divisionName !== className) return `${className} - ${divisionName}`;
   return className || divisionName;
 };
@@ -79,14 +81,14 @@ export const counselorSessionsService = {
     const instituteByProject = new Map<string, string>();
     const projectDetailById = new Map<string, ApiProjectDetail>();
     projectDetails.forEach((res, i) => {
-      instituteByProject.set(projects[i].projectId, res.data.institute?.name ?? '');
+      instituteByProject.set(projects[i].projectId, res.data.name ?? '');
       projectDetailById.set(projects[i].projectId, res.data);
     });
 
     const studentInfo = new Map<string, { projectId: string; grade: string }>();
     studentLists.forEach((res, i) => {
       const projectId = projects[i].projectId;
-      res.data.forEach(st => studentInfo.set(st.id, { projectId, grade: formatGrade(st.division) }));
+      res.data.forEach(st => studentInfo.set(st.id, { projectId, grade: formatGrade(st) }));
     });
 
     const projectName = (projectId: string | undefined) =>
@@ -136,8 +138,8 @@ export const counselorSessionsService = {
         projectId: p.projectId,
         code: detail?.code ?? '',
         name: p.name,
-        instituteName: detail?.institute?.name ?? '',
-        instituteAddress: detail?.institute?.address ?? '',
+        instituteName: detail?.name ?? '',
+        instituteAddress: detail?.address ?? '',
         status: detail?.status ?? 'ACTIVE',
         totalAllotted: projectSlots.length,
         openSlots: projectSlots.filter(sl => sl.status === 'OPEN').length,

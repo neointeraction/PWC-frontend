@@ -1,29 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  RiArrowLeftLine,
-  RiArrowRightLine,
-  RiCheckLine,
-  RiBuildingLine,
-  RiTeamLine,
-  RiGraduationCapLine,
-} from 'react-icons/ri';
+import { RiCheckLine } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
-import { Stepper, StepConfig } from '@/components/Stepper';
 import { Input } from '@/components/Input';
-import { Select } from '@/components/Select';
+// import { Select } from '@/components/Select';
 import { DatePicker } from '@/components/DatePicker';
 import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
 import { useToast } from '@/hooks';
-import { Project, ProjectStatus, ProjectStudent, ProjectCounselor } from '@/types/project.types';
-import { StepStudents } from './StepStudents';
-import { StepCounselors } from './StepCounselors';
+import { Project, ProjectStatus } from '@/types/project.types';
 import {
-  WizardStepperWrapper,
   WizardContent,
-  FooterLeftSection,
   FooterRightSection,
   FooterContainer,
   StepFormContainer,
@@ -38,30 +26,10 @@ interface EditProjectModalProps {
   onClose: () => void;
 }
 
-const EDIT_WIZARD_STEPS: StepConfig[] = [
-  { label: 'Institute & Project', description: 'Edit details & status', icon: <RiBuildingLine size={16} /> },
-  { label: 'Students', description: 'Manage students', icon: <RiGraduationCapLine size={16} /> },
-  { label: 'Counselors', description: 'Manage counselors', icon: <RiTeamLine size={16} /> },
-];
-
-const statusOptions = [
-  { value: 'active', label: 'Active' },
-  { value: 'closed', label: 'Closed' },
-];
-
-const mockInitialStudents: ProjectStudent[] = [
-  { name: 'Aarav Sharma', email: 'aarav.sharma@gmail.com', mobile: '98765 43210', grade: 'Grade 11' },
-  { name: 'Ananya Patel', email: 'ananya.patel@gmail.com', mobile: '98765 43211', grade: 'Grade 11' },
-  { name: 'Rohan Gupta', email: 'rohan.gupta@gmail.com', mobile: '98765 43212', grade: 'Grade 12' },
-  { name: 'Diya Nair', email: 'diya.nair@gmail.com', mobile: '98765 43213', grade: 'Grade 11' },
-  { name: 'Vihaan Iyer', email: 'vihaan.iyer@gmail.com', mobile: '98765 43214', grade: 'Grade 12' },
-];
-
-const mockInitialCounselors: ProjectCounselor[] = [
-  { name: 'Priya Sundaram', email: 'priya.sundaram@pwc.org', mobile: '98111 22334', matchStatus: 'matched' },
-  { name: 'Rahul Verma', email: 'rahul.verma@pwc.org', mobile: '98222 33445', matchStatus: 'matched' },
-  { name: 'Sarah Jenkins', email: 'sarah.jenkins@pwc.org', mobile: '98333 44556', matchStatus: 'matched' },
-];
+// const statusOptions = [
+//   { value: 'active', label: 'Active' },
+//   { value: 'closed', label: 'Closed' },
+// ];
 
 export const EditProjectModal: React.FC<EditProjectModalProps> = ({
   isOpen,
@@ -70,36 +38,25 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const {
-    instituteDetails,
-    setInstituteDetails,
-    students,
-    setStudents,
-    counselors,
-    setCounselors,
-  } = useProjectStore();
+  const { instituteDetails, setInstituteDetails } = useProjectStore();
 
-  const [activeStep, setActiveStep] = useState(0);
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>('active');
 
   useEffect(() => {
     if (isOpen && project) {
-      setActiveStep(0);
       setProjectStatus(project.status || 'active');
 
       setInstituteDetails({
+        instituteId: project.code || '',
         name: project.name || '',
-        email: `contact@${(project.instituteName || 'institute').toLowerCase().replace(/[^a-z0-9]/g, '')}.edu`,
-        phone: '98765 43210',
+        email: project.email || '',
+        phone: project.phone || '',
+        location: project.location || '',
         validFrom: project.validFrom || '',
         validTo: project.validTo || '',
       });
-
-      // Pre-populate students & counselors for edit project flow
-      setStudents(mockInitialStudents);
-      setCounselors(mockInitialCounselors);
     }
-  }, [isOpen, project, setInstituteDetails, setStudents, setCounselors]);
+  }, [isOpen, project, setInstituteDetails]);
 
   const updateMutation = useMutation({
     mutationFn: (updates: Partial<Project>) => {
@@ -111,10 +68,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
       queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       // Keeps the project dashboard banner in step with an edit made from it.
       queryClient.invalidateQueries({ queryKey: ['project', updated.id] });
-      toast.success(
-        'Project Updated',
-        `Successfully updated project "${updated.name}" with ${students.length} student(s) and ${counselors.length} counselor(s).`
-      );
+      toast.success('Project Updated', `Successfully updated project "${updated.name}".`);
       onClose();
     },
     onError: () => {
@@ -131,123 +85,28 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
     updateMutation.mutate({
       name: instituteDetails.name,
       instituteName: instituteDetails.name,
+      location: instituteDetails.location,
+      email: instituteDetails.email,
+      phone: instituteDetails.phone,
       validFrom: instituteDetails.validFrom,
       validTo: instituteDetails.validTo,
       status: projectStatus,
-      studentCount: students.length,
-      counselorCount: counselors.length,
     });
   };
 
-  const renderStepContent = () => {
-    switch (activeStep) {
-      case 0:
-        return (
-          <StepFormContainer>
-            <StepSubtitle>
-              Update primary institute details, project timeline, and current project status.
-            </StepSubtitle>
-            <FormGrid>
-              <FormGroup>
-                <Input
-                  label="Project / Institute Name"
-                  placeholder="Enter project name"
-                  value={instituteDetails.name}
-                  onChange={e => setInstituteDetails({ name: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Contact Email"
-                  type="email"
-                  placeholder="admin@institute.edu"
-                  value={instituteDetails.email}
-                  onChange={e => setInstituteDetails({ email: e.target.value })}
-                />
-                <Input
-                  label="Contact Phone"
-                  type="tel"
-                  placeholder="98765 43210"
-                  value={instituteDetails.phone}
-                  onChange={e => setInstituteDetails({ phone: e.target.value })}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <FormGrid>
-                  <DatePicker
-                    label="Valid From"
-                    selected={instituteDetails.validFrom ? new Date(instituteDetails.validFrom) : null}
-                    onChange={(date: Date | null) =>
-                      setInstituteDetails({ validFrom: date ? date.toISOString() : '' })
-                    }
-                    placeholderText="Select start date"
-                  />
-                  <DatePicker
-                    label="Valid To"
-                    selected={instituteDetails.validTo ? new Date(instituteDetails.validTo) : null}
-                    onChange={(date: Date | null) =>
-                      setInstituteDetails({ validTo: date ? date.toISOString() : '' })
-                    }
-                    placeholderText="Select end date"
-                  />
-                </FormGrid>
-
-                <div style={{ marginTop: '12px' }}>
-                  <Select
-                    label="Project Status"
-                    options={statusOptions}
-                    value={projectStatus}
-                    onChange={e => setProjectStatus(e.target.value as ProjectStatus)}
-                  />
-                </div>
-              </FormGroup>
-            </FormGrid>
-          </StepFormContainer>
-        );
-      case 1:
-        return <StepStudents />;
-      case 2:
-        return <StepCounselors />;
-      default:
-        return null;
-    }
-  };
-
-  const isLastStep = activeStep === EDIT_WIZARD_STEPS.length - 1;
-
   const wizardFooter = (
     <FooterContainer>
-      <FooterLeftSection>
-        {activeStep > 0 && (
-          <Button
-            variant="secondary"
-            leftIcon={<RiArrowLeftLine size={16} />}
-            onClick={() => setActiveStep(prev => prev - 1)}
-          >
-            Back
-          </Button>
-        )}
-      </FooterLeftSection>
       <FooterRightSection>
         <Button variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        {isLastStep ? (
-          <Button
-            leftIcon={<RiCheckLine size={16} />}
-            onClick={handleFinish}
-            isLoading={updateMutation.isPending}
-          >
-            Save Changes
-          </Button>
-        ) : (
-          <Button
-            rightIcon={<RiArrowRightLine size={16} />}
-            onClick={() => setActiveStep(prev => prev + 1)}
-          >
-            Next
-          </Button>
-        )}
+        <Button
+          leftIcon={<RiCheckLine size={16} />}
+          onClick={handleFinish}
+          isLoading={updateMutation.isPending}
+        >
+          Save Changes
+        </Button>
       </FooterRightSection>
     </FooterContainer>
   );
@@ -257,14 +116,84 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={`Edit Project — ${project?.name || 'Project Details'}`}
-      subtitle="Modify institute info, project status, onboarded students, and assigned counselors"
+      subtitle="Modify project details, timeline, and status"
       size="xl"
       footer={wizardFooter}
     >
-      <WizardStepperWrapper>
-        <Stepper steps={EDIT_WIZARD_STEPS} activeStep={activeStep} />
-      </WizardStepperWrapper>
-      <WizardContent>{renderStepContent()}</WizardContent>
+      <WizardContent>
+        <StepFormContainer>
+          <StepSubtitle>
+            Update primary project details, timeline, and current project status.
+          </StepSubtitle>
+          <FormGrid>
+            <FormGroup>
+              <Input
+                label="Institute ID"
+                placeholder="Enter institute ID"
+                value={instituteDetails.instituteId}
+                disabled
+              />
+              <Input
+                label="Institute Name"
+                placeholder="Enter institute name"
+                value={instituteDetails.name}
+                onChange={e => setInstituteDetails({ name: e.target.value })}
+                required
+              />
+              <Input
+                label="Email Address"
+                type="email"
+                placeholder="admin@institute.edu"
+                value={instituteDetails.email}
+                onChange={e => setInstituteDetails({ email: e.target.value })}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <FormGrid>
+                <DatePicker
+                  label="Valid From"
+                  selected={instituteDetails.validFrom ? new Date(instituteDetails.validFrom) : null}
+                  onChange={(date: Date | null) =>
+                    setInstituteDetails({ validFrom: date ? date.toISOString() : '' })
+                  }
+                  placeholderText="Select start date"
+                />
+                <DatePicker
+                  label="Valid To"
+                  selected={instituteDetails.validTo ? new Date(instituteDetails.validTo) : null}
+                  onChange={(date: Date | null) =>
+                    setInstituteDetails({ validTo: date ? date.toISOString() : '' })
+                  }
+                  placeholderText="Select end date"
+                />
+              </FormGrid>
+              <Input
+                label="Location"
+                placeholder="Location"
+                value={instituteDetails.location}
+                onChange={e => setInstituteDetails({ location: e.target.value })}
+              />
+              <Input
+                label="Phone Number"
+                type="tel"
+                placeholder="98765 43210"
+                value={instituteDetails.phone}
+                onChange={e => setInstituteDetails({ phone: e.target.value })}
+              />
+
+              {/* <div style={{ marginTop: '12px' }}>
+                <Select
+                  label="Project Status"
+                  options={statusOptions}
+                  value={projectStatus}
+                  onChange={e => setProjectStatus(e.target.value as ProjectStatus)}
+                />
+              </div> */}
+            </FormGroup>
+          </FormGrid>
+        </StepFormContainer>
+      </WizardContent>
     </Modal>
   );
 };

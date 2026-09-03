@@ -13,6 +13,8 @@ export interface Project {
   validFrom: string;
   validTo: string;
   location?: string;
+  email?: string;
+  phone?: string;
   createdAt?: string;
   hasRedFlag?: boolean;
 }

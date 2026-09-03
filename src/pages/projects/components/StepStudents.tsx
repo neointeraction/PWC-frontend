@@ -7,6 +7,7 @@ import { useProjectStore } from '@/store/project.store';
 import { parseExcelFile } from '@/utils/excelParser';
 import { ProjectStudent } from '@/types/project.types';
 import { useToast } from '@/hooks';
+import { isValidEmail, isValidPhone } from '@/utils';
 import { ActionIconButton } from '../Projects.styles';
 import {
   StepFormContainer,
@@ -53,22 +54,64 @@ export const StepStudents: React.FC = () => {
             row['Password'] || row['password'] || row['Temp Password'] || row['PWD'] || '',
         }));
 
-        const validStudents = rawStudents.filter(s => s.name && s.email);
+        // Student ID, Name, Email, Mobile, Class and Division are mandatory —
+        // everything else (parent details, password) is optional.
+        const rowLabel = (s: ProjectStudent, i: number) => s.name || s.email || `Row ${i + 2}`;
+        const invalid: { row: ProjectStudent; index: number; reason: string }[] = [];
+        const validStudents = rawStudents.filter((s, i) => {
+          if (!s.studentId) {
+            invalid.push({ row: s, index: i, reason: 'missing Student ID' });
+            return false;
+          }
+          if (!s.name) {
+            invalid.push({ row: s, index: i, reason: 'missing Name' });
+            return false;
+          }
+          if (!s.email || !isValidEmail(s.email)) {
+            invalid.push({ row: s, index: i, reason: 'missing/invalid Email' });
+            return false;
+          }
+          if (!s.mobile || !isValidPhone(s.mobile)) {
+            invalid.push({ row: s, index: i, reason: 'missing/invalid Mobile' });
+            return false;
+          }
+          if (!s.grade) {
+            invalid.push({ row: s, index: i, reason: 'missing Class' });
+            return false;
+          }
+          if (!s.division) {
+            invalid.push({ row: s, index: i, reason: 'missing Division' });
+            return false;
+          }
+          return true;
+        });
 
         if (validStudents.length === 0) {
           toast.error(
             'Invalid Format',
-            'No valid student records found. Ensure columns: Name, Email, Mobile, Grade.'
+            'No valid student records found. Required columns: Student ID, Name, Email, Mobile, Class, Division.'
           );
           setIsProcessing(false);
           return;
         }
 
         setStudents([...students, ...validStudents]);
-        toast.success(
-          'Students Loaded',
-          `${validStudents.length} student(s) added successfully.`
-        );
+        if (invalid.length > 0) {
+          toast.warning(
+            'Some Rows Skipped',
+            `${validStudents.length} student(s) added. ${invalid.length} skipped — ` +
+              invalid
+                .slice(0, 3)
+                .map(f => `${rowLabel(f.row, f.index)}: ${f.reason}`)
+                .join(' · ') +
+              (invalid.length > 3 ? ` (and ${invalid.length - 3} more)` : '')
+          );
+        } else {
+          toast.success(
+            'Students Loaded',
+            `${validStudents.length} student(s) added successfully.`
+          );
+        }
       } catch {
         toast.error('Parse Error', 'Failed to parse the uploaded file.');
       } finally {
@@ -134,7 +177,7 @@ export const StepStudents: React.FC = () => {
 
       <FileUpload
         label="Student List"
-        hint="CSV with columns: Student ID, Name, Email, Mobile, Grade"
+        hint="CSV with columns: Student ID, Name, Email, Mobile, Class, Division (required) — Parent Name/Mobile/Email, Password (optional)"
         onFileSelect={handleFileSelect}
         onFileRemove={handleFileRemove}
         selectedFile={selectedFile}

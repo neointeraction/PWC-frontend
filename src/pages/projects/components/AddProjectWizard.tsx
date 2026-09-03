@@ -14,7 +14,7 @@ import { Stepper, StepConfig } from '@/components/Stepper';
 import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
 import { useToast } from '@/hooks';
-import { getApiErrorMessage, isValidPhone } from '@/utils';
+import { getApiErrorMessage, isValidEmail, isValidPhone } from '@/utils';
 import { StepInstitute } from './StepInstitute';
 import { StepStudents } from './StepStudents';
 import { StepCounselors } from './StepCounselors';
@@ -115,9 +115,12 @@ export const AddProjectWizard: React.FC = () => {
   const isNextDisabled = useMemo(() => {
     switch (wizardStep) {
       case 0: {
-        const { name, email, location, phone, validFrom, validTo } = instituteDetails;
+        const { instituteId, name, email, location, phone, validFrom, validTo } =
+          instituteDetails;
+        if (!instituteId) return true;
         if (!name || name.trim().length < 3) return true;
         if (!email || !location || !phone || !validFrom || !validTo) return true;
+        if (!isValidEmail(email)) return true;
         if (!isValidPhone(phone)) return true;
         if (new Date(validFrom) > new Date(validTo)) return true;
         return false;
@@ -183,6 +186,7 @@ export const AddProjectWizard: React.FC = () => {
           <Button
             rightIcon={<RiArrowRightLine size={16} />}
             onClick={nextStep}
+            disabled={isNextDisabled}
           >
             Next
           </Button>
