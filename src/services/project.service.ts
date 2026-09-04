@@ -11,6 +11,7 @@ import {
   StudentSessionDetail,
   ProjectStudent,
   TimeSlot,
+  StudentDuplicateCheckResult,
 } from '@/types/project.types';
 import { PaginatedResponse } from '@/types/api.types';
 import {
@@ -36,6 +37,13 @@ interface ApiProject {
   status: 'ACTIVE' | 'CLOSED' | 'DELETED';
   _count?: { students: number; counsellors: number; counsellorSlots: number };
   createdAt?: string;
+}
+
+// POST /students/check-duplicates response shape.
+interface ApiDuplicateCheckResult {
+  index: number;
+  isDuplicate: boolean;
+  matches: { field: string; value: string; studentId: string; projectId: string; projectName: string }[];
 }
 
 // Directory shape (GET /counsellors) — used to match project uploads by code.
@@ -378,8 +386,8 @@ export const projectService = {
           className,
           divisionName,
           parentMobile: normalizePhone(s.parentMobile || s.mobile),
-          parentEmail: s.parentEmail || s.email,
           studentCode: s.studentId?.trim() || `S${String(seq).padStart(4, '0')}`,
+          ...(s.parentEmail ? { parentEmail: s.parentEmail } : {}),
           ...(s.parentName ? { fatherName: s.parentName } : {}),
           ...(s.password ? { password: s.password } : {}),
           ...(s.whatsappNumber ? { whatsappNumber: normalizePhone(s.whatsappNumber) } : {}),
@@ -664,13 +672,15 @@ export const projectService = {
         projectId,
         className,
         divisionName,
-        // Both are required by the backend; a project sheet may only carry one contact,
-        // so the student's own details stand in — same fallback the import wizard uses.
+        // parentMobile is required by the backend and a project sheet may only carry one
+        // contact number, so the student's own mobile stands in when parent mobile is
+        // missing. parentEmail has no such fallback — left unset when not supplied,
+        // rather than duplicating the student's own login email onto the parent contact.
         parentMobile: normalizePhone(student.parentMobile || student.mobile),
-        parentEmail: student.parentEmail || student.email,
         // Required by the backend (no longer auto-generated) — the Add Student form
         // validates this is filled in before calling here.
         studentCode: (student.studentId || '').trim(),
+        ...(student.parentEmail ? { parentEmail: student.parentEmail } : {}),
         ...(student.parentName ? { fatherName: student.parentName } : {}),
         ...(student.whatsappNumber
           ? { whatsappNumber: normalizePhone(student.whatsappNumber) }
@@ -795,5 +805,32 @@ export const projectService = {
         counsellorCode: match?.counsellorCode ?? c.counsellorCode,
       };
     });
+  },
+
+  // POST /students/check-duplicates — searches by email/studentCode/mobile across ALL
+  // projects (those fields are globally unique), so a re-uploaded student is caught at
+  // upload time instead of surfacing as a POST /students rejection at project submission.
+  checkDuplicateStudents: async (
+    students: ProjectStudent[]
+  ): Promise<StudentDuplicateCheckResult[]> => {
+    const { data } = await apiClient.post<{ results: ApiDuplicateCheckResult[] }>(
+      '/students/check-duplicates',
+      {
+        students: students.map(s => ({
+          email: s.email || undefined,
+          studentCode: s.studentId || undefined,
+          mobile: s.mobile || undefined,
+        })),
+      }
+    );
+    return data.results.map(r => ({
+      index: r.index,
+      isDuplicate: r.isDuplicate,
+      matches: r.matches.map(m => ({
+        field: m.field,
+        value: m.value,
+        projectName: m.projectName,
+      })),
+    }));
   },
 };

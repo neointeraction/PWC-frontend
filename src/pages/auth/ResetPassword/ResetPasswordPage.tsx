@@ -59,7 +59,7 @@ export const ResetPasswordPage: React.FC = () => {
       // The backend revokes every refresh session on a successful change, so the
       // current session is already dead server-side — sign out and send the user
       // back to login rather than letting the next token refresh fail mid-task.
-      toast.success('Password Changed Successfully', 'Please sign in again with your new password.');
+      toast.success('Password Changed Successfully', 'Please relogin with your new password.');
       logout();
       navigate(ROUTES.LOGIN, { replace: true });
     },

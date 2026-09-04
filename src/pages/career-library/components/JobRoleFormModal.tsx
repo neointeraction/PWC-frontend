@@ -191,11 +191,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
                 <S.EntryCheckboxWrapper>
                   <Checkbox checked={item.checked} onChange={() => onToggle(item.key)} />
                   <span>{item.label}</span>
-                  {item.isNew ? (
-                    <S.NewTag>new</S.NewTag>
-                  ) : (
-                    <S.LinkedTag>(existing library record)</S.LinkedTag>
-                  )}
+                  {item.isNew && <S.NewTag>new</S.NewTag>}
                 </S.EntryCheckboxWrapper>
                 {(item.isNew || item.record) && (
                   <S.EditIconButton
@@ -237,6 +233,13 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
 // course / institution sections work), not the domain's whole education path. Anything
 // added here is saved to the shared domain library (POST /career-library/education), so
 // every future role that names it inherits it — hence the wording on the add button.
+
+// Certifications have their own dedicated fields on this form, so the education path
+// (both the tick-list and the "add new entry" level picker) only ever shows/offers the
+// non-certification levels.
+const EDUCATION_PATH_LEVELS = EDUCATION_LEVELS.filter(
+  l => l !== 'CERTIFICATION_STUDENT' && l !== 'CERTIFICATION_UG'
+);
 
 
 // Validation for a new education-path entry. Returns the problem, or null when valid.
@@ -294,8 +297,15 @@ const EducationPathSection: React.FC<{
   });
 
   // Only entries actually linked to this role — ticking through the domain's whole
-  // education path lives in the career-taxonomy admin screens, not here.
-  const linked = useMemo(() => entries.filter(e => checkedIds.has(e.id)), [entries, checkedIds]);
+  // education path lives in the career-taxonomy admin screens, not here. Certification
+  // levels are excluded since certifications have their own dedicated fields above.
+  const linked = useMemo(
+    () =>
+      entries.filter(
+        e => checkedIds.has(e.id) && e.level !== 'CERTIFICATION_STUDENT' && e.level !== 'CERTIFICATION_UG'
+      ),
+    [entries, checkedIds]
+  );
 
   const ordered = useMemo(
     () =>
@@ -403,11 +413,7 @@ const EducationPathSection: React.FC<{
                         {EDUCATION_LEVEL_LABEL[entry.level]}:
                       </S.EducationLevelName>{' '}
                       {entry.programme}
-                      {sessionAddedIds.has(entry.id) ? (
-                        <S.NewTag>new</S.NewTag>
-                      ) : (
-                        <S.LinkedTag>(existing library record)</S.LinkedTag>
-                      )}
+                      {sessionAddedIds.has(entry.id) && <S.NewTag>new</S.NewTag>}
                     </S.EducationEntryText>
                     {/* Editing renames the shared canonical row, so it's only offered for
                         entries created in this form session, not ones already linked. */}
@@ -450,7 +456,7 @@ const EducationPathSection: React.FC<{
                 <Select
                   value={level}
                   onChange={e => setLevel(e.target.value as EducationLevel)}
-                  options={EDUCATION_LEVELS.map(value => ({
+                  options={EDUCATION_PATH_LEVELS.map(value => ({
                     value,
                     label: EDUCATION_LEVEL_LABEL[value],
                   }))}
@@ -887,11 +893,23 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
   const [educationIds, setEducationIds] = useState<Set<string>>(new Set());
   const [domainEducation, setDomainEducation] = useState<DomainEducationEntry[]>([]);
 
+  // Only one entry per level can be linked to a role — ticking one unticks whatever else
+  // was checked at that same level, capping the education path at one row per level
+  // (3 total, since certification levels are excluded above).
   const toggleEducation = (id: string) =>
     setEducationIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        return next;
+      }
+      const level = domainEducation.find(e => e.id === id)?.level;
+      if (level) {
+        for (const other of domainEducation) {
+          if (other.level === level) next.delete(other.id);
+        }
+      }
+      next.add(id);
       return next;
     });
 

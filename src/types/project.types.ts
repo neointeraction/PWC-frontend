@@ -64,6 +64,18 @@ export interface ProjectStudent {
   isMissed?: boolean;
 }
 
+export interface StudentDuplicateMatch {
+  field: string;
+  value: string;
+  projectName: string;
+}
+
+export interface StudentDuplicateCheckResult {
+  index: number;
+  isDuplicate: boolean;
+  matches: StudentDuplicateMatch[];
+}
+
 export interface InstituteDetails {
   instituteId: string;
   name: string;

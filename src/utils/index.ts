@@ -26,6 +26,23 @@ export const formatDate = (dateStr: string): string => {
 };
 
 /**
+ * Formats a date string into "10 Aug 2026, 11:24 AM" style — the app-wide date+time display format.
+ */
+export const formatDateTime = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  return date.toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+/**
  * Truncates a string to the given maximum length and appends "..." if truncated.
  */
 export const truncateText = (text: string, maxLength: number): string => {

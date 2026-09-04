@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
-import { ToastContainer } from '@/components/Toast';
 import { Loader } from '@/components/Loader';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useSidebarStore } from '@/store';
@@ -71,7 +70,6 @@ export const DashboardLayout: React.FC = () => {
           </ErrorBoundary>
         </ContentArea>
       </MainArea>
-      <ToastContainer />
     </LayoutRoot>
   );
 };

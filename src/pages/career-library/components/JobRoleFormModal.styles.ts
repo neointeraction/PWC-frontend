@@ -172,13 +172,6 @@ export const NewTag = styled.span`
   margin-left: 6px;
 `;
 
-export const LinkedTag = styled.span`
-  font-size: 11px;
-  font-style: italic;
-  color: ${({ theme }) => theme.colors.textMuted};
-  margin-left: 6px;
-`;
-
 export const EditIconButton = styled.button`
   border: none;
   background: transparent;

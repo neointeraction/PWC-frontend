@@ -23,7 +23,6 @@ import {
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { SuccessModal } from '@/components';
-import { ToastContainer } from '@/components/Toast';
 import { useToast } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion } from '@/services/forms.service';
 import { getApiErrorMessage } from '@/utils';
@@ -845,11 +844,6 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
         confirmText={tabCloseBlocked ? 'Got it' : 'Close'}
         onConfirm={tabCloseBlocked ? () => setIsCompletionModalOpen(false) : attemptCloseTab}
       />
-
-      {/* This route is public and rendered outside DashboardLayout, which normally supplies
-          the app-wide ToastContainer — without mounting one here, toast.error/success calls
-          on this page silently no-op. */}
-      <ToastContainer />
     </FormPageContainer>
   );
 };

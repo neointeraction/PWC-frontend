@@ -806,7 +806,7 @@ export const MatrixOptionsGroup = styled.div`
 export const WizardFooterNav = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
   background-color: ${({ theme }) => theme.colors.background};
   border-top: 1px solid ${({ theme }) => theme.colors.border};

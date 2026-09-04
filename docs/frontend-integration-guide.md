@@ -349,9 +349,12 @@ non-student account.
   "motherEmployer": "City Hospital"
 }
 ```
-`whatsappNumber`, `fatherEmployer`, `motherEmployer` are optional. `studentCode` is
+`whatsappNumber`, `parentMobile`, `parentEmail`, `fatherName`, `fatherOccupation`,
+`fatherEmployer`, `motherName`, `motherOccupation`, `motherEmployer` are all optional —
+a bulk import may only carry a single parent contact, or none at all. `studentCode` is
 **auto-generated** (`S0001`, `S0002`, …) — omit it (pass one only to carry a legacy/import
-code). Everything else is required.
+code). Everything else (`firstName`, `lastName`, `email`, `mobile`, `projectId`,
+`divisionId`) is required.
 
 **Create response** — note the shape is `{ student, tempPassword }`, not just the
 student:

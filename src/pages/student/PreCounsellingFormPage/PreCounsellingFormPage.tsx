@@ -193,11 +193,13 @@ export const PreCounsellingFormPage: React.FC = () => {
     scrollToTop();
   };
 
-  const handlePrevStep = () => {
-    setErrorFieldKeys(new Set());
-    setCurrentStep(prev => Math.max(1, prev - 1));
-    scrollToTop();
-  };
+  // Previous-step navigation is disabled (see the commented button below) — kept here
+  // so it's a one-line uncomment if backward navigation is ever restored.
+  // const handlePrevStep = () => {
+  //   setErrorFieldKeys(new Set());
+  //   setCurrentStep(prev => Math.max(1, prev - 1));
+  //   scrollToTop();
+  // };
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState<boolean>(false);
 
@@ -573,7 +575,10 @@ export const PreCounsellingFormPage: React.FC = () => {
 
           {/* Wizard Footer Navigation */}
           <WizardFooterNav>
-            <Button
+            {/* Previous Step is disabled — once a step's required questions are answered
+                and validated, the student moves forward only, so answers already given
+                can't be edited around after the fact. */}
+            {/* <Button
               type="button"
               variant="secondary"
               size="md"
@@ -582,7 +587,7 @@ export const PreCounsellingFormPage: React.FC = () => {
               onClick={handlePrevStep}
             >
               Previous Step
-            </Button>
+            </Button> */}
 
             {/* <Button
               type="button"

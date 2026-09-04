@@ -3,7 +3,7 @@ import { Modal } from '@/components/Modal';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { useTenantManagementStore } from '@/store/tenant-management.store';
-import { formatDate } from '@/utils';
+import { formatDate, formatDateTime } from '@/utils';
 import { DetailGrid, DetailItem, FlexColumnGap, FlexRowEnd } from '../TenantManagement.styles';
 
 export const ViewTenantModal: React.FC = () => {
@@ -65,7 +65,7 @@ export const ViewTenantModal: React.FC = () => {
 
           <DetailItem>
             <label>Last Active</label>
-            <p>{selectedUser.lastActive ? formatDate(selectedUser.lastActive) : 'N/A'}</p>
+            <p>{selectedUser.lastActive ? formatDateTime(selectedUser.lastActive) : 'N/A'}</p>
           </DetailItem>
         </DetailGrid>
 

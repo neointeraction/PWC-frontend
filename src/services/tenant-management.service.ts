@@ -44,7 +44,7 @@ const mapAdmin = (a: ApiAdmin, tempPassword?: string): UserRecord => {
     status: a.isActive ? 'active' : 'inactive',
     isViewOnly,
     createdAt: a.createdAt ? a.createdAt.slice(0, 10) : '',
-    lastActive: a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString() : undefined,
+    lastActive: a.lastLoginAt || undefined,
     generatedPassword: tempPassword,
   };
 };

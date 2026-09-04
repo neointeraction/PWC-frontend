@@ -214,7 +214,7 @@ export const StudentPortalPage: React.FC = () => {
     // 3. Assessment Form
     const s3Status: 'completed' | 'current' | 'upcoming' = isAssessmentSubmitted
       ? 'completed'
-      : isPreCounsellingSubmitted
+      : isPreCounsellingSubmitted && isParentFormSubmitted
         ? 'current'
         : 'upcoming';
 
@@ -314,13 +314,21 @@ export const StudentPortalPage: React.FC = () => {
         title: 'Career Profiling',
         subtext: isAssessmentSubmitted
           ? 'Completed'
-          : isPreCounsellingSubmitted
+          : isPreCounsellingSubmitted && isParentFormSubmitted
             ? 'Step 3 — Psychometric abilities & career interest assessment'
-            : 'Locked — Complete Pre-Counselling Form first',
+            : isPreCounsellingSubmitted
+              ? 'Locked — Waiting for Parent to complete Pre-Counselling Form'
+              : 'Locked — Complete Pre-Counselling Form first',
         status: s3Status,
-        attachedStatus: null,
+        attachedStatus:
+          isPreCounsellingSubmitted && !isParentFormSubmitted && !isAssessmentSubmitted ? (
+            <AttachedStatusBadge $variant="warning">
+              <RiNotification3Line size={13} style={{ color: '#D97706' }} />
+              <span>Waiting for Parent to fill Pre-Counselling Form</span>
+            </AttachedStatusBadge>
+          ) : null,
         action:
-          isPreCounsellingSubmitted && !isAssessmentSubmitted ? (
+          isPreCounsellingSubmitted && isParentFormSubmitted && !isAssessmentSubmitted ? (
             <Button
               variant="primary"
               size="sm"

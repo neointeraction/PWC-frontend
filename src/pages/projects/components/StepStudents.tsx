@@ -5,6 +5,7 @@ import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { useProjectStore } from '@/store/project.store';
 import { parseExcelFile } from '@/utils/excelParser';
+import { projectService } from '@/services/project.service';
 import { ProjectStudent } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { isValidEmail, isValidPhone } from '@/utils';
@@ -100,22 +101,58 @@ export const StepStudents: React.FC = () => {
           return;
         }
 
-        setStudents([...students, ...validStudents]);
-        if (invalid.length > 0) {
+        // Reject rows that match a student already onboarded to ANY project — email,
+        // Student ID, and mobile are each globally unique on the backend.
+        let duplicateCheck;
+        try {
+          duplicateCheck = await projectService.checkDuplicateStudents(validStudents);
+        } catch {
+          toast.error('Duplicate Check Failed', 'Could not verify students against existing records. Please try again.');
+          setIsProcessing(false);
+          return;
+        }
+        const duplicateIndexes = new Set(
+          duplicateCheck.filter(r => r.isDuplicate).map(r => r.index)
+        );
+        const newStudents = validStudents.filter((_, i) => !duplicateIndexes.has(i));
+        const duplicates = validStudents
+          .map((s, i) => ({ row: s, index: i }))
+          .filter(({ index }) => duplicateIndexes.has(index));
+
+        if (newStudents.length === 0 && duplicates.length > 0) {
+          toast.error(
+            'Duplicate Students',
+            `All ${duplicates.length} student(s) already exist in the system — none were added.`
+          );
+          setIsProcessing(false);
+          return;
+        }
+
+        setStudents([...students, ...newStudents]);
+
+        const skipped = invalid.length + duplicates.length;
+        if (skipped > 0) {
+          const duplicateReasons = duplicates.map(({ row, index }) => {
+            const match = duplicateCheck.find(r => r.index === index)?.matches[0];
+            return {
+              row,
+              index,
+              reason: match
+                ? `already exists in "${match.projectName}" (${match.field})`
+                : 'already exists',
+            };
+          });
           toast.warning(
             'Some Rows Skipped',
-            `${validStudents.length} student(s) added. ${invalid.length} skipped — ` +
-              invalid
+            `${newStudents.length} student(s) added. ${skipped} skipped — ` +
+              [...invalid, ...duplicateReasons]
                 .slice(0, 3)
                 .map(f => `${rowLabel(f.row, f.index)}: ${f.reason}`)
                 .join(' · ') +
-              (invalid.length > 3 ? ` (and ${invalid.length - 3} more)` : '')
+              (skipped > 3 ? ` (and ${skipped - 3} more)` : '')
           );
         } else {
-          toast.success(
-            'Students Loaded',
-            `${validStudents.length} student(s) added successfully.`
-          );
+          toast.success('Students Loaded', `${newStudents.length} student(s) added successfully.`);
         }
       } catch {
         toast.error('Parse Error', 'Failed to parse the uploaded file.');
