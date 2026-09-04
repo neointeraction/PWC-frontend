@@ -7,6 +7,7 @@ import {
   RiAddLine,
   RiCloseLine,
   RiLock2Line,
+  RiPencilLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Input } from '@/components/Input';
@@ -106,6 +107,9 @@ interface IncludedItem {
   label: string;
   isNew?: boolean;
   newRecord?: NewRecord;
+  // Full field set for an existing canonical record (id set, isNew unset) — what the
+  // edit form pre-fills from before PATCHing /career-library/{...}/{id} in place.
+  record?: NewRecord;
   level?: 'UG' | 'PG';
   checked: boolean;
 }
@@ -135,22 +139,44 @@ interface LinkedSectionProps {
   items: IncludedItem[];
   onToggle: (key: string) => void;
   onAddNew: (item: IncludedItem) => void;
+  // Replaces the item at `key` in place. Only reachable for `isNew` items — a ticked
+  // existing library record has no canonical-record update endpoint (see docs/
+  // frontend-integration-guide.md §9.5), so it stays non-editable here.
+  onUpdate: (key: string, item: IncludedItem) => void;
   addButtonLabel: string;
   renderSubform: (helpers: {
-    addNew: (item: IncludedItem) => void;
+    initial?: IncludedItem;
+    save: (item: IncludedItem) => void;
     close: () => void;
   }) => React.ReactNode;
 }
+
+type SectionFormMode = { type: 'closed' } | { type: 'add' } | { type: 'edit'; key: string };
 
 const LinkedSection: React.FC<LinkedSectionProps> = ({
   title,
   items,
   onToggle,
   onAddNew,
+  onUpdate,
   addButtonLabel,
   renderSubform,
 }) => {
-  const [isAdding, setIsAdding] = useState(false);
+  const [formMode, setFormMode] = useState<SectionFormMode>({ type: 'closed' });
+
+  const editingItem =
+    formMode.type === 'edit' ? items.find(i => i.key === formMode.key) : undefined;
+
+  const close = () => setFormMode({ type: 'closed' });
+
+  const save = (item: IncludedItem) => {
+    if (formMode.type === 'edit') {
+      onUpdate(formMode.key, { ...item, key: formMode.key });
+    } else {
+      onAddNew(item);
+    }
+    close();
+  };
 
   return (
     <S.SectionBox>
@@ -171,32 +197,35 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
                     <S.LinkedTag>(existing library record)</S.LinkedTag>
                   )}
                 </S.EntryCheckboxWrapper>
+                {(item.isNew || item.record) && (
+                  <S.EditIconButton
+                    type="button"
+                    aria-label={`Edit ${item.label}`}
+                    onClick={() => setFormMode({ type: 'edit', key: item.key })}
+                  >
+                    <RiPencilLine size={14} />
+                  </S.EditIconButton>
+                )}
               </S.EntryRow>
             ))}
           </S.ExistingEntriesList>
         </>
       )}
 
-      {!isAdding ? (
+      {formMode.type === 'closed' ? (
         <S.AddRowWrapper>
           <Button
             type="button"
             variant="secondary"
             size="sm"
             leftIcon={<RiAddLine size={14} />}
-            onClick={() => setIsAdding(true)}
+            onClick={() => setFormMode({ type: 'add' })}
           >
             {addButtonLabel}
           </Button>
         </S.AddRowWrapper>
       ) : (
-        renderSubform({
-          addNew: item => {
-            onAddNew(item);
-            setIsAdding(false);
-          },
-          close: () => setIsAdding(false),
-        })
+        renderSubform({ initial: editingItem, save, close })
       )}
     </S.SectionBox>
   );
@@ -204,12 +233,10 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
 
 
 // ---- Education Path -------------------------------------------------------------
-// The domain's education entries, ticked per job role. Anything added here is saved to
-// the domain library (POST /career-taxonomy/domains/{id}/education), so every future
-// role in the domain inherits it — hence the wording on the add button.
-// The domain-scoped list is only pulled in edit mode (`pullDomainEntries`): a new role
-// starts with an empty path and picks its own entries by search, the same way the
-// exam / course / institution sections work.
+// Shows only the education entries already linked to this role (mirrors how the exam /
+// course / institution sections work), not the domain's whole education path. Anything
+// added here is saved to the shared domain library (POST /career-library/education), so
+// every future role that names it inherits it — hence the wording on the add button.
 
 
 // Validation for a new education-path entry. Returns the problem, or null when valid.
@@ -238,54 +265,66 @@ export const validateEducationEntry = (
 
 const EducationPathSection: React.FC<{
   domainId?: string;
-  pullDomainEntries: boolean;
+  // Entries already linked to this specific role — not the whole domain's education path.
   entries: DomainEducationEntry[];
   checkedIds: Set<string>;
   onToggle: (id: string) => void;
   onAdd: (entry: DomainEducationEntry) => void;
-  onEntriesLoaded: (entries: DomainEducationEntry[]) => void;
-}> = ({ domainId, pullDomainEntries, entries, checkedIds, onToggle, onAdd, onEntriesLoaded }) => {
+  onUpdate: (entry: DomainEducationEntry) => void;
+}> = ({ domainId, entries, checkedIds, onToggle, onAdd, onUpdate }) => {
   const toast = useToast();
-  const [isAdding, setIsAdding] = useState(false);
+  // 'closed' | 'add' | editing a specific entry (PATCH /career-library/education/{id} —
+  // only reachable for entries added in this form session, since it renames a canonical
+  // row shared by every role that names it).
+  const [formMode, setFormMode] = useState<'closed' | 'add' | DomainEducationEntry>('closed');
   const [level, setLevel] = useState<EducationLevel>('GRADUATE');
   const [programme, setProgramme] = useState('');
   const [description, setDescription] = useState('');
+  const [sessionAddedIds, setSessionAddedIds] = useState<Set<string>>(new Set());
 
-  // Entries already linked to job roles in this domain — the "pulled from this Domain"
-  // list. Approved rows only; the endpoint defaults to that.
-  const { data: domainEntries, isLoading } = useQuery({
+  const editing = formMode !== 'closed' && formMode !== 'add' ? formMode : undefined;
+
+  // Domain-scoped list, fetched quietly (never rendered) purely to give a friendly
+  // "already in the education path" message instead of a raw 409 from the create call.
+  const { data: domainEntries } = useQuery({
     queryKey: ['education-entries', 'domain', domainId],
     queryFn: () => careerService.listEducationEntries({ domainId }),
-    enabled: Boolean(domainId) && pullDomainEntries,
+    enabled: Boolean(domainId),
     staleTime: 60_000,
   });
 
-  useEffect(() => {
-    if (domainEntries) onEntriesLoaded(domainEntries);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [domainEntries]);
+  // Only entries actually linked to this role — ticking through the domain's whole
+  // education path lives in the career-taxonomy admin screens, not here.
+  const linked = useMemo(() => entries.filter(e => checkedIds.has(e.id)), [entries, checkedIds]);
 
   const ordered = useMemo(
     () =>
-      [...entries].sort((a, b) => {
+      [...linked].sort((a, b) => {
         const byLevel = EDUCATION_LEVELS.indexOf(a.level) - EDUCATION_LEVELS.indexOf(b.level);
         return byLevel !== 0 ? byLevel : a.programme.localeCompare(b.programme);
       }),
-    [entries]
-  );
-
-  // Only rows that actually came back from the domain-scoped fetch are "pulled from this
-  // Domain"; anything added via search or created here is a plain addition.
-  const pulledIds = useMemo(
-    () => new Set((domainEntries ?? []).map(e => e.id)),
-    [domainEntries]
+    [linked]
   );
 
   const resetForm = () => {
     setLevel('GRADUATE');
     setProgramme('');
     setDescription('');
-    setIsAdding(false);
+    setFormMode('closed');
+  };
+
+  const openAdd = () => {
+    setLevel('GRADUATE');
+    setProgramme('');
+    setDescription('');
+    setFormMode('add');
+  };
+
+  const openEdit = (entry: DomainEducationEntry) => {
+    setLevel(entry.level);
+    setProgramme(entry.programme);
+    setDescription(entry.description ?? '');
+    setFormMode(entry);
   };
 
   const addMutation = useMutation({
@@ -297,6 +336,7 @@ const EducationPathSection: React.FC<{
       }),
     onSuccess: entry => {
       onAdd(entry);
+      setSessionAddedIds(prev => new Set(prev).add(entry.id));
       resetForm();
       toast.success('Education Entry Added', `"${entry.programme}" was added to the education path.`);
     },
@@ -308,13 +348,39 @@ const EducationPathSection: React.FC<{
     },
   });
 
-  const handleAdd = () => {
-    const problem = validateEducationEntry({ level, programme, description }, entries);
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      careerService.updateEducationEntry(editing!.id, {
+        level,
+        programme: programme.trim(),
+        description: description.trim() || undefined,
+      }),
+    onSuccess: entry => {
+      onUpdate(entry);
+      resetForm();
+      toast.success('Education Entry Updated', `"${entry.programme}" was updated.`);
+    },
+    onError: err => {
+      toast.error(
+        'Could Not Update Entry',
+        getApiErrorMessage(err, 'Failed to update the education entry.')
+      );
+    },
+  });
+
+  const handleSave = () => {
+    // Exclude the entry being edited from the duplicate-clash check, or leaving it
+    // unchanged would falsely collide with itself.
+    const problem = validateEducationEntry(
+      { level, programme, description },
+      (domainEntries ?? []).filter(e => e.id !== editing?.id)
+    );
     if (problem) {
       toast.error('Check the entry', problem);
       return;
     }
-    addMutation.mutate();
+    if (editing) updateMutation.mutate();
+    else addMutation.mutate();
   };
 
   return (
@@ -325,56 +391,59 @@ const EducationPathSection: React.FC<{
         <S.EmptyListHint>Select a domain first to see its education path.</S.EmptyListHint>
       ) : (
         <>
-          {pullDomainEntries && (
-            <S.FieldLabel>
-              Existing entries pulled from this Domain (Tick / Untick to include):
-            </S.FieldLabel>
-          )}
-
-          {isLoading ? (
-            <S.EmptyListHint>Loading the education path…</S.EmptyListHint>
-          ) : ordered.length === 0 ? (
-            pullDomainEntries ? (
-              <S.EmptyListHint>
-                No education entries linked yet. Add a new entry below.
-              </S.EmptyListHint>
-            ) : null
-          ) : (
-            <S.ExistingEntriesList>
-              {ordered.map(entry => (
-                <S.EducationEntryRow key={entry.id}>
-                  <Checkbox checked={checkedIds.has(entry.id)} onChange={() => onToggle(entry.id)} />
-                  <S.EducationEntryText>
-                    <S.EducationLevelName>
-                      {EDUCATION_LEVEL_LABEL[entry.level]}:
-                    </S.EducationLevelName>{' '}
-                    {entry.programme}
-                    {pulledIds.has(entry.id) ? (
-                      <S.LinkedTag>(auto-pulled from Domain library)</S.LinkedTag>
-                    ) : (
-                      <S.NewTag>added</S.NewTag>
+          {ordered.length > 0 && (
+            <>
+              <S.FieldLabel>Included with this role (tick / untick):</S.FieldLabel>
+              <S.ExistingEntriesList>
+                {ordered.map(entry => (
+                  <S.EducationEntryRow key={entry.id}>
+                    <Checkbox checked={checkedIds.has(entry.id)} onChange={() => onToggle(entry.id)} />
+                    <S.EducationEntryText>
+                      <S.EducationLevelName>
+                        {EDUCATION_LEVEL_LABEL[entry.level]}:
+                      </S.EducationLevelName>{' '}
+                      {entry.programme}
+                      {sessionAddedIds.has(entry.id) ? (
+                        <S.NewTag>new</S.NewTag>
+                      ) : (
+                        <S.LinkedTag>(existing library record)</S.LinkedTag>
+                      )}
+                    </S.EducationEntryText>
+                    {/* Editing renames the shared canonical row, so it's only offered for
+                        entries created in this form session, not ones already linked. */}
+                    {sessionAddedIds.has(entry.id) && (
+                      <S.EditIconButton
+                        type="button"
+                        aria-label={`Edit ${entry.programme}`}
+                        onClick={() => openEdit(entry)}
+                      >
+                        <RiPencilLine size={14} />
+                      </S.EditIconButton>
                     )}
-                  </S.EducationEntryText>
-                </S.EducationEntryRow>
-              ))}
-            </S.ExistingEntriesList>
+                  </S.EducationEntryRow>
+                ))}
+              </S.ExistingEntriesList>
+            </>
           )}
 
-          {!isAdding ? (
+          {formMode === 'closed' ? (
             <S.AddRowWrapper>
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 leftIcon={<RiAddLine size={14} />}
-                onClick={() => setIsAdding(true)}
+                onClick={openAdd}
               >
                 Add New Education Entry
               </Button>
             </S.AddRowWrapper>
           ) : (
             <S.ExpandedFormCard>
-              <SubformHeader label="ADD NEW EDUCATION ENTRY" onClose={resetForm} />
+              <SubformHeader
+                label={editing ? 'EDIT EDUCATION ENTRY' : 'ADD NEW EDUCATION ENTRY'}
+                onClose={resetForm}
+              />
 
               <S.FieldGroup>
                 <S.FieldLabel>Level</S.FieldLabel>
@@ -412,7 +481,7 @@ const EducationPathSection: React.FC<{
                   variant="secondary"
                   size="sm"
                   onClick={resetForm}
-                  disabled={addMutation.isPending}
+                  disabled={addMutation.isPending || updateMutation.isPending}
                 >
                   Cancel
                 </Button>
@@ -420,10 +489,10 @@ const EducationPathSection: React.FC<{
                   type="button"
                   variant="primary"
                   size="sm"
-                  onClick={handleAdd}
-                  isLoading={addMutation.isPending}
+                  onClick={handleSave}
+                  isLoading={addMutation.isPending || updateMutation.isPending}
                 >
-                  Add to Education Path
+                  {editing ? 'Save Changes' : 'Add to Education Path'}
                 </Button>
               </S.FormActions>
             </S.ExpandedFormCard>
@@ -445,20 +514,42 @@ const SubformHeader: React.FC<{ label: string; onClose: () => void }> = ({ label
   </S.ExpandedFormTitle>
 );
 
-const ExamSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => void }> = ({
-  addNew,
-  close,
-}) => {
-  const [abbr, setAbbr] = useState('');
-  const [name, setName] = useState('');
-  const [level, setLevel] = useState<'UG' | 'PG'>('UG');
-  const [conductedBy, setConductedBy] = useState('');
-  const [mode, setMode] = useState('Online / CBT');
-  const [freq, setFreq] = useState('');
-  const [req12th, setReq12th] = useState('');
-  const [applicableFor, setApplicableFor] = useState('');
-  const [examWindow, setExamWindow] = useState('');
-  const [website, setWebsite] = useState('');
+// The abbr/fullForm pair (exams, courses) collapses to one `name` field once an item has
+// no abbreviation — reverse that back into the two form fields when re-opening for edit.
+const splitAbbrName = (rec?: { name: string; fullForm?: string }) => {
+  if (!rec) return { abbr: '', name: '' };
+  return rec.fullForm ? { abbr: rec.name, name: rec.fullForm } : { abbr: '', name: rec.name };
+};
+
+const ExamSubform: React.FC<{
+  initial?: IncludedItem;
+  save: (i: IncludedItem) => void;
+  close: () => void;
+}> = ({ initial, save, close }) => {
+  const toast = useToast();
+  // Editing an existing linked record (has an id, wasn't created this session) PATCHes
+  // the shared canonical row immediately; a still-local `newRecord` is edited in place
+  // and only reaches the API when the whole job role is saved.
+  const isExistingEdit = Boolean(initial && !initial.isNew && initial.id);
+  const initRecord = (initial?.newRecord ?? initial?.record) as CareerEntryExamInput | undefined;
+  const { abbr: initAbbr, name: initName } = splitAbbrName(initRecord);
+  const [abbr, setAbbr] = useState(initAbbr);
+  const [name, setName] = useState(initName);
+  const [level, setLevel] = useState<'UG' | 'PG'>(initRecord?.level ?? 'UG');
+  const [conductedBy, setConductedBy] = useState(initRecord?.conductingBody ?? '');
+  const [mode, setMode] = useState(initRecord?.examMode ?? 'Online / CBT');
+  const [freq, setFreq] = useState(initRecord?.frequency ?? '');
+  const [req12th, setReq12th] = useState(initRecord?.subjectRequirements12th ?? '');
+  const [applicableFor, setApplicableFor] = useState(initRecord?.applicableFor ?? '');
+  const [examWindow, setExamWindow] = useState(initRecord?.applicationWindow ?? '');
+  const [website, setWebsite] = useState(initRecord?.officialWebsite ?? '');
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: CareerEntryExamInput) => careerService.updateEntranceExam(initial!.id!, payload),
+    onError: err => {
+      toast.error('Could Not Update Exam', getApiErrorMessage(err, 'Failed to update the exam.'));
+    },
+  });
 
   const canAdd = name.trim() || abbr.trim();
   const submit = () => {
@@ -469,30 +560,40 @@ const ExamSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => vo
     const label = `${abbr.trim() ? `${abbr.trim()} — ` : ''}${name.trim() || abbr.trim()}${
       conductedBy.trim() ? ` (${conductedBy.trim()})` : ''
     }`;
-    addNew({
-      key: `new-exam-${Date.now()}`,
+    const record: CareerEntryExamInput = {
+      name: canonicalName,
+      level,
+      fullForm: abbr.trim() ? opt(name) : undefined,
+      conductingBody: opt(conductedBy),
+      examMode: opt(mode),
+      frequency: opt(freq),
+      subjectRequirements12th: opt(req12th),
+      applicableFor: opt(applicableFor),
+      applicationWindow: opt(examWindow),
+      officialWebsite: opt(website),
+    };
+    if (isExistingEdit) {
+      updateMutation.mutate(record, {
+        onSuccess: () => {
+          toast.success('Exam Updated', `"${label}" was updated.`);
+          save({ ...initial!, label, level, record });
+        },
+      });
+      return;
+    }
+    save({
+      key: initial?.key ?? `new-exam-${Date.now()}`,
       isNew: true,
       label,
       level,
-      checked: true,
-      newRecord: {
-        name: canonicalName,
-        level,
-        fullForm: abbr.trim() ? opt(name) : undefined,
-        conductingBody: opt(conductedBy),
-        examMode: opt(mode),
-        frequency: opt(freq),
-        subjectRequirements12th: opt(req12th),
-        applicableFor: opt(applicableFor),
-        applicationWindow: opt(examWindow),
-        officialWebsite: opt(website),
-      },
+      checked: initial?.checked ?? true,
+      newRecord: record,
     });
   };
 
   return (
     <S.ExpandedFormCard>
-      <SubformHeader label="ADD NEW EXAM" onClose={close} />
+      <SubformHeader label={initial ? 'EDIT EXAM' : 'ADD NEW EXAM'} onClose={close} />
       <S.FormGrid $columns={2}>
         <Input label="Exam Abbreviation" placeholder="e.g. NID DAT" value={abbr} onChange={e => setAbbr(e.target.value)} />
         <Input label="Exam Name *" placeholder="e.g. National Institute of Design Admission Test" value={name} onChange={e => setName(e.target.value)} />
@@ -518,25 +619,44 @@ const ExamSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => vo
         <Button type="button" variant="secondary" size="sm" onClick={close}>
           Cancel
         </Button>
-        <Button type="button" variant="primary" size="sm" disabled={!canAdd} onClick={submit}>
-          Add Exam
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          disabled={!canAdd || updateMutation.isPending}
+          isLoading={updateMutation.isPending}
+          onClick={submit}
+        >
+          {initial ? 'Save Changes' : 'Add Exam'}
         </Button>
       </S.FormActions>
     </S.ExpandedFormCard>
   );
 };
 
-const CourseSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => void }> = ({
-  addNew,
-  close,
-}) => {
-  const [abbr, setAbbr] = useState('');
-  const [name, setName] = useState('');
-  const [req12th, setReq12th] = useState('');
-  const [exams, setExams] = useState('');
-  const [programs, setPrograms] = useState('');
-  const [colleges, setColleges] = useState('');
-  const [furtherStudy, setFurtherStudy] = useState('');
+const CourseSubform: React.FC<{
+  initial?: IncludedItem;
+  save: (i: IncludedItem) => void;
+  close: () => void;
+}> = ({ initial, save, close }) => {
+  const toast = useToast();
+  const isExistingEdit = Boolean(initial && !initial.isNew && initial.id);
+  const initRecord = (initial?.newRecord ?? initial?.record) as CareerEntryCourseInput | undefined;
+  const { abbr: initAbbr, name: initName } = splitAbbrName(initRecord);
+  const [abbr, setAbbr] = useState(initAbbr);
+  const [name, setName] = useState(initName);
+  const [req12th, setReq12th] = useState(initRecord?.stream12thRequirements ?? '');
+  const [exams, setExams] = useState(initRecord?.relevantEntranceExams ?? '');
+  const [programs, setPrograms] = useState(initRecord?.programmesOffered ?? '');
+  const [colleges, setColleges] = useState(initRecord?.topColleges ?? '');
+  const [furtherStudy, setFurtherStudy] = useState(initRecord?.furtherStudyOptions ?? '');
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: CareerEntryCourseInput) => careerService.updateCourse(initial!.id!, payload),
+    onError: err => {
+      toast.error('Could Not Update Course', getApiErrorMessage(err, 'Failed to update the course.'));
+    },
+  });
 
   const canAdd = name.trim() || abbr.trim();
   const submit = () => {
@@ -544,26 +664,36 @@ const CourseSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => 
     // Same abbreviation-as-`name` convention as exams ("B.Des" + "Bachelor of Design").
     const canonicalName = (abbr.trim() || name.trim()).trim();
     const label = `${abbr.trim() ? `${abbr.trim()} — ` : ''}${name.trim() || abbr.trim()}`;
-    addNew({
-      key: `new-course-${Date.now()}`,
+    const record: CareerEntryCourseInput = {
+      name: canonicalName,
+      fullForm: abbr.trim() ? opt(name) : undefined,
+      stream12thRequirements: opt(req12th),
+      relevantEntranceExams: opt(exams),
+      programmesOffered: opt(programs),
+      topColleges: opt(colleges),
+      furtherStudyOptions: opt(furtherStudy),
+    };
+    if (isExistingEdit) {
+      updateMutation.mutate(record, {
+        onSuccess: () => {
+          toast.success('Course Updated', `"${label}" was updated.`);
+          save({ ...initial!, label, record });
+        },
+      });
+      return;
+    }
+    save({
+      key: initial?.key ?? `new-course-${Date.now()}`,
       isNew: true,
       label,
-      checked: true,
-      newRecord: {
-        name: canonicalName,
-        fullForm: abbr.trim() ? opt(name) : undefined,
-        stream12thRequirements: opt(req12th),
-        relevantEntranceExams: opt(exams),
-        programmesOffered: opt(programs),
-        topColleges: opt(colleges),
-        furtherStudyOptions: opt(furtherStudy),
-      },
+      checked: initial?.checked ?? true,
+      newRecord: record,
     });
   };
 
   return (
     <S.ExpandedFormCard>
-      <SubformHeader label="ADD NEW COURSE" onClose={close} />
+      <SubformHeader label={initial ? 'EDIT COURSE' : 'ADD NEW COURSE'} onClose={close} />
       <S.FormGrid $columns={2}>
         <Input label="Course Abbreviation" placeholder="e.g. B.Des" value={abbr} onChange={e => setAbbr(e.target.value)} />
         <Input label="Course Name *" placeholder="e.g. Bachelor of Design" value={name} onChange={e => setName(e.target.value)} />
@@ -583,25 +713,49 @@ const CourseSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => 
         <Button type="button" variant="secondary" size="sm" onClick={close}>
           Cancel
         </Button>
-        <Button type="button" variant="primary" size="sm" disabled={!canAdd} onClick={submit}>
-          Add Course
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          disabled={!canAdd || updateMutation.isPending}
+          isLoading={updateMutation.isPending}
+          onClick={submit}
+        >
+          {initial ? 'Save Changes' : 'Add Course'}
         </Button>
       </S.FormActions>
     </S.ExpandedFormCard>
   );
 };
 
-const InstitutionSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: () => void }> = ({
-  addNew,
-  close,
-}) => {
-  const [abbr, setAbbr] = useState('');
-  const [name, setName] = useState('');
-  const [location, setLocation] = useState('');
-  const [examReq, setExamReq] = useState('');
-  const [programs, setPrograms] = useState('');
-  const [ranking, setRanking] = useState('');
-  const [website, setWebsite] = useState('');
+const InstitutionSubform: React.FC<{
+  initial?: IncludedItem;
+  save: (i: IncludedItem) => void;
+  close: () => void;
+}> = ({ initial, save, close }) => {
+  const toast = useToast();
+  const isExistingEdit = Boolean(initial && !initial.isNew && initial.id);
+  const initRecord = (initial?.newRecord ?? initial?.record) as CareerEntryInstitutionInput | undefined;
+  const [abbr, setAbbr] = useState(initRecord?.shortName ?? '');
+  const [name, setName] = useState(initRecord?.name ?? '');
+  const [location, setLocation] = useState(
+    initRecord ? [initRecord.city, initRecord.state].filter(Boolean).join(', ') : ''
+  );
+  const [examReq, setExamReq] = useState(initRecord?.entranceExamsRequired ?? '');
+  const [programs, setPrograms] = useState(initRecord?.programmesOffered ?? '');
+  const [ranking, setRanking] = useState(initRecord?.ranking ?? '');
+  const [website, setWebsite] = useState(initRecord?.website ?? '');
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: CareerEntryInstitutionInput) =>
+      careerService.updateInstitution(initial!.id!, payload),
+    onError: err => {
+      toast.error(
+        'Could Not Update Institution',
+        getApiErrorMessage(err, 'Failed to update the institution.')
+      );
+    },
+  });
 
   const canAdd = name.trim() || abbr.trim();
   const submit = () => {
@@ -614,29 +768,39 @@ const InstitutionSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: (
     const label = `${abbr.trim() ? `${abbr.trim()} — ` : ''}${name.trim() || abbr.trim()}${
       location.trim() ? `, ${location.trim()}` : ''
     }`;
-    addNew({
-      key: `new-inst-${Date.now()}`,
+    // Inverted from exams/courses: `name` is the full institution name (unique on its
+    // own) and the abbreviation goes in `shortName`.
+    const record: CareerEntryInstitutionInput = {
+      name: canonicalName,
+      shortName: opt(abbr),
+      city: city || undefined,
+      state: restState.length ? restState.join(', ') : undefined,
+      entranceExamsRequired: opt(examReq),
+      programmesOffered: opt(programs),
+      ranking: opt(ranking),
+      website: opt(website),
+    };
+    if (isExistingEdit) {
+      updateMutation.mutate(record, {
+        onSuccess: () => {
+          toast.success('Institution Updated', `"${label}" was updated.`);
+          save({ ...initial!, label, record });
+        },
+      });
+      return;
+    }
+    save({
+      key: initial?.key ?? `new-inst-${Date.now()}`,
       isNew: true,
       label,
-      checked: true,
-      // Inverted from exams/courses: `name` is the full institution name (unique on its
-      // own) and the abbreviation goes in `shortName`.
-      newRecord: {
-        name: canonicalName,
-        shortName: opt(abbr),
-        city: city || undefined,
-        state: restState.length ? restState.join(', ') : undefined,
-        entranceExamsRequired: opt(examReq),
-        programmesOffered: opt(programs),
-        ranking: opt(ranking),
-        website: opt(website),
-      },
+      checked: initial?.checked ?? true,
+      newRecord: record,
     });
   };
 
   return (
     <S.ExpandedFormCard>
-      <SubformHeader label="ADD NEW INSTITUTION" onClose={close} />
+      <SubformHeader label={initial ? 'EDIT INSTITUTION' : 'ADD NEW INSTITUTION'} onClose={close} />
       <S.FormGrid $columns={2}>
         <Input label="Institution Abbreviation" placeholder="e.g. NIFT" value={abbr} onChange={e => setAbbr(e.target.value)} />
         <Input label="Institution Name *" placeholder="e.g. National Institute of Fashion Technology" value={name} onChange={e => setName(e.target.value)} />
@@ -655,8 +819,15 @@ const InstitutionSubform: React.FC<{ addNew: (i: IncludedItem) => void; close: (
         <Button type="button" variant="secondary" size="sm" onClick={close}>
           Cancel
         </Button>
-        <Button type="button" variant="primary" size="sm" disabled={!canAdd} onClick={submit}>
-          Add Institution
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          disabled={!canAdd || updateMutation.isPending}
+          isLoading={updateMutation.isPending}
+          onClick={submit}
+        >
+          {initial ? 'Save Changes' : 'Add Institution'}
         </Button>
       </S.FormActions>
     </S.ExpandedFormCard>
@@ -789,7 +960,14 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
   useEffect(() => {
     if (!isOpen || mode !== 'edit' || !detail) return;
     const toItems = (opts: CareerLinkOption[]): IncludedItem[] =>
-      opts.map(o => ({ key: `existing-${o.id}`, id: o.id, label: o.label, level: o.level, checked: true }));
+      opts.map(o => ({
+        key: `existing-${o.id}`,
+        id: o.id,
+        label: o.label,
+        level: o.level,
+        record: o.record,
+        checked: true,
+      }));
     setExams(toItems(detail.linkedEntranceExams));
     setCourses(toItems(detail.linkedCourses));
     setInstitutions(toItems(detail.linkedInstitutions));
@@ -816,6 +994,10 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
 
   const addNew = (setter: React.Dispatch<React.SetStateAction<IncludedItem[]>>) => (item: IncludedItem) =>
     setter(prev => [...prev, item]);
+
+  const updateItem =
+    (setter: React.Dispatch<React.SetStateAction<IncludedItem[]>>) => (key: string, item: IncludedItem) =>
+      setter(prev => prev.map(i => (i.key === key ? item : i)));
 
   // On PATCH, omitting a field leaves the old value and '' is rejected — so an emptied
   // input has to be sent as an explicit `null` (lists as `[]`) for the clear to stick.
@@ -1099,7 +1281,6 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
               qualification columns are derived from it on create (see the mutation). */}
           <EducationPathSection
             domainId={effectiveDomainId}
-            pullDomainEntries={mode === 'edit'}
             entries={domainEducation}
             checkedIds={educationIds}
             onToggle={toggleEducation}
@@ -1109,14 +1290,8 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
               );
               setEducationIds(prev => new Set(prev).add(entry.id));
             }}
-            onEntriesLoaded={loaded => {
-              // Merge rather than replace: entries pulled in by search, or already
-              // linked to the role from another domain, must survive a refetch.
-              setDomainEducation(prev => {
-                const merged = [...loaded];
-                for (const e of prev) if (!merged.some(m => m.id === e.id)) merged.push(e);
-                return merged;
-              });
+            onUpdate={entry => {
+              setDomainEducation(prev => prev.map(e => (e.id === entry.id ? entry : e)));
             }}
           />
 
@@ -1126,8 +1301,11 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             items={exams}
             onToggle={toggle(setExams)}
             onAddNew={addNew(setExams)}
+            onUpdate={updateItem(setExams)}
             addButtonLabel="Add New Exam"
-            renderSubform={({ addNew: a, close }) => <ExamSubform addNew={a} close={close} />}
+            renderSubform={({ initial, save, close }) => (
+              <ExamSubform initial={initial} save={save} close={close} />
+            )}
           />
 
           <LinkedSection
@@ -1135,8 +1313,11 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             items={courses}
             onToggle={toggle(setCourses)}
             onAddNew={addNew(setCourses)}
+            onUpdate={updateItem(setCourses)}
             addButtonLabel="Add New Course"
-            renderSubform={({ addNew: a, close }) => <CourseSubform addNew={a} close={close} />}
+            renderSubform={({ initial, save, close }) => (
+              <CourseSubform initial={initial} save={save} close={close} />
+            )}
           />
 
           <LinkedSection
@@ -1144,8 +1325,11 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             items={institutions}
             onToggle={toggle(setInstitutions)}
             onAddNew={addNew(setInstitutions)}
+            onUpdate={updateItem(setInstitutions)}
             addButtonLabel="Add New Institution"
-            renderSubform={({ addNew: a, close }) => <InstitutionSubform addNew={a} close={close} />}
+            renderSubform={({ initial, save, close }) => (
+              <InstitutionSubform initial={initial} save={save} close={close} />
+            )}
           />
         </S.ModalScrollContainer>
       </form>

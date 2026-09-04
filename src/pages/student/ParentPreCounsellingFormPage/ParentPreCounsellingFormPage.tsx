@@ -23,6 +23,7 @@ import {
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { SuccessModal } from '@/components';
+import { ToastContainer } from '@/components/Toast';
 import { useToast } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion } from '@/services/forms.service';
 import { getApiErrorMessage } from '@/utils';
@@ -291,6 +292,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
         next.delete(fieldKey);
         return next;
       });
+      setSubmitErrorMessage(null);
     }
   };
 
@@ -324,9 +326,26 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
   };
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState<boolean>(false);
+  // Browsers only let script close a tab that script itself opened (window.open) — since
+  // parents reach this page via a link (WhatsApp/email/typed URL), window.close() silently
+  // no-ops here. There's no way to detect that in advance, so try it and, if we're still
+  // around a moment later, fall back to telling them to close the tab themselves.
+  const [tabCloseBlocked, setTabCloseBlocked] = useState<boolean>(false);
+  const attemptCloseTab = () => {
+    window.close();
+    setTimeout(() => setTabCloseBlocked(true), 300);
+  };
   // The project-window gate (docs: "Show an 'this link has expired' screen — don't retry")
   // — set once, blocks the wizard permanently rather than letting the parent retry.
   const [linkExpiredMessage, setLinkExpiredMessage] = useState<string | null>(null);
+  // A failed submit shown as a prominent centered banner (not just a corner toast, which a
+  // parent on an unfamiliar public form can easily miss) — cleared as soon as they fix an answer.
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null);
+
+  const questionTextByFieldKey = useMemo(
+    () => new Map((template?.questions ?? []).map(q => [q.fieldKey, q.questionText])),
+    [template]
+  );
 
   const submitMutation = useMutation({
     mutationFn: () =>
@@ -335,6 +354,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
         answers: buildAnswers(),
       }),
     onSuccess: () => {
+      setSubmitErrorMessage(null);
       setIsCompletionModalOpen(true);
     },
     onError: (err: unknown) => {
@@ -343,17 +363,31 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
         return;
       }
       if (err instanceof AxiosError && err.response?.status === 400) {
+        // The backend rejected the submission over fields our own client-side check missed
+        // (e.g. a required question the frontend template doesn't yet flag as required).
+        // Its response names exactly which fieldKeys are missing — use that to jump the
+        // parent straight to the offending question instead of a vague "something's wrong".
         const missing = (err.response.data as { error?: { details?: { missingFieldKeys?: string[] } } })
-          ?.error?.details?.missingFieldKeys;
-        toast.error(
-          'Some answers are missing',
-          missing?.length
-            ? `Please complete all required questions before submitting (${missing.length} remaining).`
-            : 'Please complete all required questions before submitting.'
-        );
+          ?.error?.details?.missingFieldKeys ?? [];
+        if (missing.length > 0) {
+          const missingSet = new Set(missing);
+          setErrorFieldKeys(missingSet);
+          const firstErrorStepIndex = sections.findIndex(s => s.questions.some(q => missingSet.has(q.fieldKey)));
+          if (firstErrorStepIndex >= 0) setCurrentStep(firstErrorStepIndex + 1);
+          scrollToTop();
+        }
+        const missingLabels = missing.map(key => questionTextByFieldKey.get(key) || key);
+        const message =
+          missingLabels.length > 0
+            ? `Please answer the following before submitting: ${missingLabels.join(', ')}`
+            : 'Please complete all required questions before submitting.';
+        setSubmitErrorMessage(message);
+        toast.error('Some answers are missing', message);
         return;
       }
-      toast.error('Error', getApiErrorMessage(err, 'Failed to submit the form.'));
+      const message = getApiErrorMessage(err, 'Failed to submit the form. Please try again.');
+      setSubmitErrorMessage(message);
+      toast.error('Submission failed', message);
     },
   });
 
@@ -725,6 +759,25 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
             </ProgressTrack>
           </WizardProgressHeader>
 
+          {submitErrorMessage && (
+            <p
+              role="alert"
+              style={{
+                textAlign: 'center',
+                color: '#DC2626',
+                fontWeight: 600,
+                fontSize: 14,
+                background: '#FEF2F2',
+                border: '1px solid #FCA5A5',
+                borderRadius: 8,
+                padding: '12px 16px',
+                margin: '0 0 16px',
+              }}
+            >
+              {submitErrorMessage}
+            </p>
+          )}
+
           <WizardStepBody>
             {currentSection?.questions.map(q => {
               const subjectReasonConfig = SUBJECT_REASON_CONFIG[q.fieldKey];
@@ -777,17 +830,26 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
       )}
 
       {/* Completion Modal — shown after the submission API call succeeds. Parents have no
-          login/portal to return to, so Close attempts to close the tab (only works if the
-          browser opened it via script; otherwise this just dismisses the modal) so they
-          can't accidentally hit Submit again. */}
+          login/portal to return to, so Close attempts to close the tab; if the browser blocks
+          it (it wasn't opened via script), the message/button below switch to telling the
+          parent to close it manually instead of the button silently doing nothing. */}
       <SuccessModal
         isOpen={isCompletionModalOpen}
-        onClose={() => window.close()}
+        onClose={attemptCloseTab}
         title="Thank you for completing your Pre-Counselling Form!"
-        message="Your responses have been submitted and will only be seen by the career counsellor. You may now close this tab."
-        confirmText="Close"
-        onConfirm={() => window.close()}
+        message={
+          tabCloseBlocked
+            ? 'Your responses have been submitted and will only be seen by the career counsellor. You can now close this tab — just tap the X on the tab or swipe it away.'
+            : 'Your responses have been submitted and will only be seen by the career counsellor. You may now close this tab.'
+        }
+        confirmText={tabCloseBlocked ? 'Got it' : 'Close'}
+        onConfirm={tabCloseBlocked ? () => setIsCompletionModalOpen(false) : attemptCloseTab}
       />
+
+      {/* This route is public and rendered outside DashboardLayout, which normally supplies
+          the app-wide ToastContainer — without mounting one here, toast.error/success calls
+          on this page silently no-op. */}
+      <ToastContainer />
     </FormPageContainer>
   );
 };

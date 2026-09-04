@@ -50,6 +50,11 @@ export const StepStudents: React.FC = () => {
           parentMobile:
             row['Parent Mobile No.'] || row['Parent Mobile'] || row['parentMobile'] || '',
           parentEmail: row['Parent Email ID'] || row['Parent Email'] || row['parentEmail'] || '',
+          whatsappNumber:
+            row['WhatsApp Number (if different)'] ||
+            row['WhatsApp Number'] ||
+            row['whatsappNumber'] ||
+            '',
           password:
             row['Password'] || row['password'] || row['Temp Password'] || row['PWD'] || '',
         }));

@@ -131,7 +131,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
   if (!student) return null;
 
   const studentPhone = student.mobile || '';
-  const cleanStudentPhone = studentPhone.replace(/\D/g, '');
+  const cleanStudentPhone = (student.whatsappNumber || studentPhone).replace(/\D/g, '');
   const parentPhone = student.parentMobile || '';
   const cleanParentPhone = parentPhone.replace(/\D/g, '');
   const studentEmail = student.email || '';

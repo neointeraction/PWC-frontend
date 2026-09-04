@@ -121,17 +121,27 @@ export const StepCounselors: React.FC = () => {
             : { name: g.name, email: '', mobile: '', matchStatus: 'new' as const, counsellorCode: g.code, slots: g.slots };
         });
 
-        setCounselors([...counselors, ...parsed]);
-        const matchedN = parsed.filter(p => p.matchStatus === 'matched').length;
-        const newN = parsed.length - matchedN;
-        const totalSlots = parsed.reduce((n, p) => n + (p.slots?.length || 0), 0);
+        const matched = parsed.filter(p => p.matchStatus === 'matched');
+        const newN = parsed.length - matched.length;
+        const totalSlots = matched.reduce((n, p) => n + (p.slots?.length || 0), 0);
+
+        if (matched.length === 0) {
+          toast.warning(
+            'No Matching Counselors',
+            'None of the uploaded counselors were found in the directory. Add them there first.'
+          );
+          setIsProcessing(false);
+          return;
+        }
+
+        setCounselors([...counselors, ...matched]);
         if (newN > 0) {
           toast.error(
             'Some Not In Directory',
-            `${matchedN} matched, ${newN} not in the counsellor directory (add them there first).`
+            `${matched.length} matched, ${newN} skipped (not in the counsellor directory — add them there first).`
           );
         } else {
-          toast.success('Counselors Loaded', `${matchedN} counsellor(s) with ${totalSlots} slots.`);
+          toast.success('Counselors Loaded', `${matched.length} counsellor(s) with ${totalSlots} slots.`);
         }
       } catch {
         toast.error('Parse Error', 'Failed to parse the uploaded file.');

@@ -492,6 +492,56 @@ export const ProjectDashboardPage: React.FC = () => {
         </TopHeaderLeft>
 
         <TopHeaderActions>
+          <ExportMenuWrapper ref={exportMenuRef}>
+            <Tooltip content="Export Reports">
+              <ToolbarIconButton
+                type="button"
+                $variant="excel"
+                onClick={() => setIsExportMenuOpen(prev => !prev)}
+                aria-label="Export Reports"
+                aria-haspopup="true"
+                aria-expanded={isExportMenuOpen}
+              >
+                <RiFileExcel2Line size={18} />
+              </ToolbarIconButton>
+            </Tooltip>
+
+            {isExportMenuOpen && (
+              <ExportMenu>
+                <ExportMenuItem
+                  type="button"
+                  disabled={exportingReport !== null}
+                  onClick={() => {
+                    handleExportStudentReport();
+                    setIsExportMenuOpen(false);
+                  }}
+                >
+                  Student details report
+                </ExportMenuItem>
+                <ExportMenuItem
+                  type="button"
+                  disabled={exportingReport !== null}
+                  onClick={async () => {
+                    setIsExportMenuOpen(false);
+                    await handleExportCounselorChart();
+                  }}
+                >
+                  Counselor chart report
+                </ExportMenuItem>
+                <ExportMenuItem
+                  type="button"
+                  disabled={exportingReport !== null}
+                  onClick={async () => {
+                    setIsExportMenuOpen(false);
+                    await handleExportCounselorFeedback();
+                  }}
+                >
+                  Counselor feedback rating report
+                </ExportMenuItem>
+              </ExportMenu>
+            )}
+          </ExportMenuWrapper>
+
           <Button
             variant="secondary"
             size="sm"
@@ -601,56 +651,6 @@ export const ProjectDashboardPage: React.FC = () => {
                 {isFlagFilterActive ? 'Showing Flagged' : `Flagged (${totalFlaggedCount})`}
               </span>
             </FlagFilterButton>
-
-            <ExportMenuWrapper ref={exportMenuRef}>
-              <Tooltip content="Export Reports">
-                <ToolbarIconButton
-                  type="button"
-                  $variant="excel"
-                  onClick={() => setIsExportMenuOpen(prev => !prev)}
-                  aria-label="Export Reports"
-                  aria-haspopup="true"
-                  aria-expanded={isExportMenuOpen}
-                >
-                  <RiFileExcel2Line size={18} />
-                </ToolbarIconButton>
-              </Tooltip>
-
-              {isExportMenuOpen && (
-                <ExportMenu>
-                  <ExportMenuItem
-                    type="button"
-                    disabled={exportingReport !== null}
-                    onClick={() => {
-                      handleExportStudentReport();
-                      setIsExportMenuOpen(false);
-                    }}
-                  >
-                    Student details report
-                  </ExportMenuItem>
-                  <ExportMenuItem
-                    type="button"
-                    disabled={exportingReport !== null}
-                    onClick={async () => {
-                      setIsExportMenuOpen(false);
-                      await handleExportCounselorChart();
-                    }}
-                  >
-                    Counselor chart report
-                  </ExportMenuItem>
-                  <ExportMenuItem
-                    type="button"
-                    disabled={exportingReport !== null}
-                    onClick={async () => {
-                      setIsExportMenuOpen(false);
-                      await handleExportCounselorFeedback();
-                    }}
-                  >
-                    Counselor feedback rating report
-                  </ExportMenuItem>
-                </ExportMenu>
-              )}
-            </ExportMenuWrapper>
 
             <Button leftIcon={<RiUserAddLine size={16} />} onClick={handleCreateNewStudent}>
               Add Student

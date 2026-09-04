@@ -56,6 +56,7 @@ export interface ProjectStudent {
   parentName?: string;
   parentMobile?: string;
   parentEmail?: string;
+  whatsappNumber?: string;
   password?: string;
   sessionDate?: string;
   timeSlot?: string;
@@ -154,6 +155,7 @@ export interface ProjectStudentDetail {
   parentName?: string;
   parentMobile?: string;
   parentEmail?: string;
+  whatsappNumber?: string;
   grade: string;
   className?: string;
   division?: string;

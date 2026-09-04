@@ -128,7 +128,7 @@ export const AddProjectWizard: React.FC = () => {
       case 1:
         return students.length === 0;
       case 2:
-        return counselors.length === 0;
+        return counselors.filter(c => c.matchStatus === 'matched').length === 0;
       default:
         return false;
     }

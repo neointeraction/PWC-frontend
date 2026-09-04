@@ -235,6 +235,10 @@ export interface CareerLinkOption {
   id: string;
   label: string;
   level?: 'UG' | 'PG';
+  // Full canonical field set, present only when the caller already has it (an entry's
+  // currently-linked records) — what the edit-in-place form on the job-role modal
+  // pre-fills from. Absent on typeahead search results.
+  record?: CareerEntryExamInput | CareerEntryCourseInput | CareerEntryInstitutionInput;
 }
 
 export interface CareerEntryPayload {
@@ -645,11 +649,48 @@ export const careerService = {
         id: e.id,
         label: examOptionLabel(e),
         level: e.level === 'PG' ? 'PG' : 'UG',
+        record: {
+          name: e.name,
+          level: e.level === 'PG' ? 'PG' : 'UG',
+          fullForm: e.fullForm ?? undefined,
+          conductingBody: e.conductingBody ?? undefined,
+          officialWebsite: e.officialWebsite ?? undefined,
+          examMode: e.examMode ?? undefined,
+          frequency: e.frequency ?? undefined,
+          applicableFor: e.applicableFor ?? undefined,
+          subjectRequirements12th: e.subjectRequirements12th ?? undefined,
+          applicationWindow: e.applicationWindow ?? undefined,
+        },
       })),
-      linkedCourses: (data.linkedCourses || []).map(c => ({ id: c.id, label: courseOptionLabel(c) })),
+      linkedCourses: (data.linkedCourses || []).map(c => ({
+        id: c.id,
+        label: courseOptionLabel(c),
+        // CourseSubform has no level field, so it's left off the record here too.
+        record: {
+          name: c.name,
+          fullForm: c.fullForm ?? undefined,
+          stream12thRequirements: c.stream12thRequirements ?? undefined,
+          relevantEntranceExams: c.relevantEntranceExams ?? undefined,
+          programmesOffered: c.programmesOffered ?? undefined,
+          topColleges: c.topColleges ?? undefined,
+          furtherStudyOptions: c.furtherStudyOptions ?? undefined,
+        },
+      })),
       linkedInstitutions: (data.linkedInstitutions || []).map(i => ({
         id: i.id,
         label: institutionOptionLabel(i),
+        // The read shape doesn't carry `shortName` back (write-only), so an edit here
+        // starts with the abbreviation field blank — the admin retypes it if needed.
+        record: {
+          name: i.name,
+          city: i.city ?? undefined,
+          state: i.state ?? undefined,
+          type: i.type ?? undefined,
+          website: i.website ?? undefined,
+          entranceExamsRequired: i.entranceExamsRequired ?? undefined,
+          programmesOffered: i.programmesOffered ?? undefined,
+          ranking: i.ranking ?? undefined,
+        },
       })),
       linkedEducationEntries: data.linkedEducationEntries || [],
     };
@@ -695,6 +736,37 @@ export const careerService = {
       ...(input.description ? { description: input.description } : {}),
     });
     return data;
+  },
+
+  // PATCH /career-library/education/{entryId} (Admin). `description: null` clears it.
+  updateEducationEntry: async (
+    entryId: string,
+    input: { level: EducationLevel; programme: string; description?: string }
+  ): Promise<DomainEducationEntry> => {
+    const { data } = await apiClient.patch<DomainEducationEntry>(
+      `/career-library/education/${entryId}`,
+      {
+        level: input.level,
+        programme: input.programme,
+        description: input.description ? input.description : null,
+      }
+    );
+    return data;
+  },
+
+  // PATCH /career-library/{entrance-exams|courses|institutions}/{id} (Admin). Unlike the
+  // find-or-create resolvers used when linking by name, this always writes every provided
+  // field outright — for fixing a value that was entered wrong. All fields optional; 409
+  // on a clash with the row's unique constraint (name+level for exams/courses, name for
+  // institutions), 404 if missing.
+  updateEntranceExam: async (id: string, input: Partial<CareerEntryExamInput>): Promise<void> => {
+    await apiClient.patch(`/career-library/entrance-exams/${id}`, input);
+  },
+  updateCourse: async (id: string, input: Partial<CareerEntryCourseInput>): Promise<void> => {
+    await apiClient.patch(`/career-library/courses/${id}`, input);
+  },
+  updateInstitution: async (id: string, input: Partial<CareerEntryInstitutionInput>): Promise<void> => {
+    await apiClient.patch(`/career-library/institutions/${id}`, input);
   },
 
   searchEntranceExams: async (search: string, level?: 'UG' | 'PG'): Promise<CareerLinkOption[]> => {

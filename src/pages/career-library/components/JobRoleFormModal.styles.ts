@@ -179,6 +179,21 @@ export const LinkedTag = styled.span`
   margin-left: 6px;
 `;
 
+export const EditIconButton = styled.button`
+  border: none;
+  background: transparent;
+  padding: 2px;
+  cursor: pointer;
+  color: ${({ theme }) => theme.colors.textMuted};
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
 // ---- Typeahead search-to-add existing records ----
 
 export const SearchWrapper = styled.div`

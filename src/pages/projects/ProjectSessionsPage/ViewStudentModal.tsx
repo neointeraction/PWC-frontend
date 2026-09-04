@@ -145,7 +145,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
   const studentIdDisplay =
     ('studentId' in student && student.studentId) || ('id' in student && student.id) || '—';
 
-  const studentPhone = student.mobile || '';
+  const studentPhone = student.whatsappNumber || student.mobile || '';
   const cleanStudentPhone = studentPhone.replace(/\D/g, '');
   const cleanCounselorPhone = counselorPhone.replace(/\D/g, '');
 

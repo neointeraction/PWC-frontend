@@ -52,6 +52,7 @@ interface ApiStudent {
   id: string;
   studentCode: string;
   mobile: string;
+  whatsappNumber?: string;
   parentMobile: string;
   parentEmail?: string;
   fatherName?: string;
@@ -381,6 +382,7 @@ export const projectService = {
           studentCode: s.studentId?.trim() || `S${String(seq).padStart(4, '0')}`,
           ...(s.parentName ? { fatherName: s.parentName } : {}),
           ...(s.password ? { password: s.password } : {}),
+          ...(s.whatsappNumber ? { whatsappNumber: normalizePhone(s.whatsappNumber) } : {}),
         });
         imported += 1;
       } catch (err) {
@@ -609,6 +611,7 @@ export const projectService = {
         name: formatFullName(st.user.firstName, st.user.lastName),
         email: st.user.email,
         mobile: st.mobile,
+        whatsappNumber: st.whatsappNumber || undefined,
         parentMobile: st.parentMobile,
         grade:
           className && divisionName && divisionName !== className
@@ -669,6 +672,9 @@ export const projectService = {
         // validates this is filled in before calling here.
         studentCode: (student.studentId || '').trim(),
         ...(student.parentName ? { fatherName: student.parentName } : {}),
+        ...(student.whatsappNumber
+          ? { whatsappNumber: normalizePhone(student.whatsappNumber) }
+          : {}),
       });
       return { emailChangeIgnored: false };
     }
@@ -682,6 +688,7 @@ export const projectService = {
     if (student.parentMobile) body.parentMobile = normalizePhone(student.parentMobile);
     if (student.parentEmail) body.parentEmail = student.parentEmail;
     if (student.parentName) body.fatherName = student.parentName;
+    if (student.whatsappNumber) body.whatsappNumber = normalizePhone(student.whatsappNumber);
 
     // Only send class/division when they actually changed.
     if (!sameName(current.className, className)) body.className = className;

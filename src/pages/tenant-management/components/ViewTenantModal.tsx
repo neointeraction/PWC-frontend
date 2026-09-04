@@ -3,6 +3,7 @@ import { Modal } from '@/components/Modal';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { useTenantManagementStore } from '@/store/tenant-management.store';
+import { formatDate } from '@/utils';
 import { DetailGrid, DetailItem, FlexColumnGap, FlexRowEnd } from '../TenantManagement.styles';
 
 export const ViewTenantModal: React.FC = () => {
@@ -59,12 +60,12 @@ export const ViewTenantModal: React.FC = () => {
 
           <DetailItem>
             <label>Created On</label>
-            <p>{selectedUser.createdAt || 'N/A'}</p>
+            <p>{selectedUser.createdAt ? formatDate(selectedUser.createdAt) : 'N/A'}</p>
           </DetailItem>
 
           <DetailItem>
             <label>Last Active</label>
-            <p>{selectedUser.lastActive || 'N/A'}</p>
+            <p>{selectedUser.lastActive ? formatDate(selectedUser.lastActive) : 'N/A'}</p>
           </DetailItem>
         </DetailGrid>
 

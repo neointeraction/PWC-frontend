@@ -15,6 +15,7 @@ import {
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { SuccessModal } from '@/components';
+import { ToastContainer } from '@/components/Toast';
 import { useToast } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion, McqOption } from '@/services/forms.service';
 import { getApiErrorMessage } from '@/utils';
@@ -153,18 +154,28 @@ export const ParentFeedbackFormPage: React.FC = () => {
 
   const setAnswer = (fieldKey: string, value: unknown) => {
     setAnswers(prev => ({ ...prev, [fieldKey]: value }));
+    setSubmitErrorMessage(null);
   };
 
   const buildAnswers = (): FormAnswerItem[] =>
     (template?.questions ?? []).map(q => ({ fieldKey: q.fieldKey, answer: answers[q.fieldKey] ?? null }));
 
+  const questionTextByFieldKey = useMemo(
+    () => new Map((template?.questions ?? []).map(q => [q.fieldKey, q.questionText])),
+    [template]
+  );
+
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [linkExpiredMessage, setLinkExpiredMessage] = useState<string | null>(null);
+  // A failed submit shown as a prominent centered banner (not just a corner toast, which a
+  // parent on an unfamiliar public form can easily miss) — cleared as soon as they edit an answer.
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null);
 
   const submitMutation = useMutation({
     mutationFn: () =>
       formsService.submitForm('FEEDBACK_PARENT', studentId!, { cohort: COHORT, answers: buildAnswers() }),
     onSuccess: () => {
+      setSubmitErrorMessage(null);
       setIsCompletionModalOpen(true);
     },
     onError: (err: unknown) => {
@@ -173,10 +184,23 @@ export const ParentFeedbackFormPage: React.FC = () => {
         return;
       }
       if (err instanceof AxiosError && err.response?.status === 400) {
-        toast.error('Some answers are missing', 'Please answer every question before submitting.');
+        // The backend names exactly which fieldKeys are missing — surface those question
+        // texts instead of a vague "something's wrong", in case a required question here
+        // slips past our own client-side check (e.g. isRequired metadata drift).
+        const missing = (err.response.data as { error?: { details?: { missingFieldKeys?: string[] } } })
+          ?.error?.details?.missingFieldKeys ?? [];
+        const missingLabels = missing.map(key => questionTextByFieldKey.get(key) || key);
+        const message =
+          missingLabels.length > 0
+            ? `Please answer the following before submitting: ${missingLabels.join(', ')}`
+            : 'Please answer every question before submitting.';
+        setSubmitErrorMessage(message);
+        toast.error('Some answers are missing', message);
         return;
       }
-      toast.error('Error', getApiErrorMessage(err, 'Failed to submit your feedback.'));
+      const message = getApiErrorMessage(err, 'Failed to submit your feedback. Please try again.');
+      setSubmitErrorMessage(message);
+      toast.error('Submission failed', message);
     },
   });
 
@@ -186,12 +210,14 @@ export const ParentFeedbackFormPage: React.FC = () => {
       q => q.isRequired && isAnswerEmpty(answers[q.fieldKey])
     );
     if (missing.length > 0) {
-      toast.error(
-        'Some answers are missing',
-        `Please answer all required questions before submitting (${missing.length} remaining).`
-      );
+      const message = `Please answer the following before submitting: ${missing
+        .map(q => q.questionText)
+        .join(', ')}`;
+      setSubmitErrorMessage(message);
+      toast.error('Some answers are missing', message);
       return;
     }
+    setSubmitErrorMessage(null);
     submitMutation.mutate();
   };
 
@@ -266,6 +292,25 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 Thank you for partnering with us in your child&apos;s career discovery journey. Please provide your candid feedback to help us refine our guidance services.
               </DocNote>
             </DocumentHeaderRow>
+
+            {submitErrorMessage && (
+              <p
+                role="alert"
+                style={{
+                  textAlign: 'center',
+                  color: '#DC2626',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  background: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                  margin: '0 0 16px',
+                }}
+              >
+                {submitErrorMessage}
+              </p>
+            )}
 
             {/* Sections — driven entirely by the fetched template */}
             {sections.map(section => (
@@ -345,6 +390,11 @@ export const ParentFeedbackFormPage: React.FC = () => {
         confirmText="Close"
         onConfirm={handleConfirmCompletion}
       />
+
+      {/* This route is public and rendered outside DashboardLayout, which normally supplies
+          the app-wide ToastContainer — without mounting one here, toast.error/success calls
+          on this page silently no-op. */}
+      <ToastContainer />
     </>
   );
 };

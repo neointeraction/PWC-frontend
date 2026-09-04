@@ -105,6 +105,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
     if (formData.parentMobile && !isValidPhone(formData.parentMobile)) {
       nextErrors.parentMobile = 'Enter a valid parent phone number.';
     }
+    if (formData.whatsappNumber && !isValidPhone(formData.whatsappNumber)) {
+      nextErrors.whatsappNumber = 'Enter a valid WhatsApp number.';
+    }
     if (formData.parentEmail && !isValidEmail(formData.parentEmail)) {
       nextErrors.parentEmail = 'Enter a valid parent email address.';
     }
@@ -203,6 +206,12 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               value={formData.parentMobile || ''}
               onChange={e => setFormData({ ...formData, parentMobile: e.target.value })}
               error={errors.parentMobile}
+            />
+            <Input
+              label="WhatsApp Number (if different)"
+              value={formData.whatsappNumber || ''}
+              onChange={e => setFormData({ ...formData, whatsappNumber: e.target.value })}
+              error={errors.whatsappNumber}
             />
 
             <Input

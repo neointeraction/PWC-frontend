@@ -7,7 +7,7 @@ import {
   RiFlag2Fill,
   RiUserForbidLine,
   RiCalendarEventLine,
-  RiFileExcel2Line,
+  // RiFileExcel2Line,
   RiVideoChatLine,
   RiUserAddLine,
   RiDeleteBinLine,
@@ -40,7 +40,7 @@ import {
   FilterBar,
   FiltersLeft,
   FiltersRight,
-  ToolbarIconButton,
+  // ToolbarIconButton,
   SearchWrapper,
   CounselorsGrid,
   CounselorCard,
@@ -253,31 +253,31 @@ export const ProjectSessionsPage: React.FC = () => {
     );
   };
 
-  const handleExportExcel = () => {
-    const rows: string[] = [];
-    rows.push('Counselor Code,Counselor Name,Counselor Email,Counselor Phone,Date,Time,Student Name,Session,Student Phone,Status');
+  // const handleExportExcel = () => {
+  //   const rows: string[] = [];
+  //   rows.push('Counselor Code,Counselor Name,Counselor Email,Counselor Phone,Date,Time,Student Name,Session,Student Phone,Status');
 
-    filteredSessions.forEach(session => {
-      const code = session.counselorCode;
-      session.slots.forEach(slot => {
-        const student = slot.studentName || 'Not Booked';
-        const sessionType = slot.sessionType || (slot.isBooked ? 'S1' : 'NB');
-        const phone = slot.mobile || '—';
-        const status = slot.isMissed ? 'Missed' : slot.isBooked ? 'Completed' : 'Available';
-        rows.push(`"${code}","${session.counselorName}","${session.counselorEmail}","${session.counselorPhone}","${slot.date}","${slot.time}","${student}","${sessionType}","${phone}","${status}"`);
-      });
-    });
+  //   filteredSessions.forEach(session => {
+  //     const code = session.counselorCode;
+  //     session.slots.forEach(slot => {
+  //       const student = slot.studentName || 'Not Booked';
+  //       const sessionType = slot.sessionType || (slot.isBooked ? 'S1' : 'NB');
+  //       const phone = slot.mobile || '—';
+  //       const status = slot.isMissed ? 'Missed' : slot.isBooked ? 'Completed' : 'Available';
+  //       rows.push(`"${code}","${session.counselorName}","${session.counselorEmail}","${session.counselorPhone}","${slot.date}","${slot.time}","${student}","${sessionType}","${phone}","${status}"`);
+  //     });
+  //   });
 
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${(project?.name || 'Project_Sessions').replace(/\s+/g, '_')}_List.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Excel Export Started', 'Downloaded project sessions list (.csv).');
-  };
+  //   const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  //   const url = URL.createObjectURL(blob);
+  //   const link = document.createElement('a');
+  //   link.setAttribute('href', url);
+  //   link.setAttribute('download', `${(project?.name || 'Project_Sessions').replace(/\s+/g, '_')}_List.csv`);
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  //   toast.success('Excel Export Started', 'Downloaded project sessions list (.csv).');
+  // };
 
   const handleOpenAssignModal = (session: CounselorSession, slot: ProjectSlot) => {
     setSelectedSlotForAssign({ session, slot });
@@ -583,7 +583,7 @@ export const ProjectSessionsPage: React.FC = () => {
           </FiltersLeft>
 
           <FiltersRight>
-            <Tooltip content="Export Sessions to Excel">
+            {/* <Tooltip content="Export Sessions to Excel">
               <ToolbarIconButton
                 type="button"
                 $variant="excel"
@@ -592,7 +592,7 @@ export const ProjectSessionsPage: React.FC = () => {
               >
                 <RiFileExcel2Line size={18} />
               </ToolbarIconButton>
-            </Tooltip>
+            </Tooltip> */}
 
             <Button
               leftIcon={<RiUserAddLine size={16} />}
