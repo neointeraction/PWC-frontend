@@ -54,7 +54,10 @@ const studentProfileSchema = z.object({
   fatherOccupation: z.string().optional(),
   fatherEmployer: z.string().optional(),
   fatherWhatsapp: z.string().optional(),
-  fatherEmail: z.string().optional(),
+  fatherEmail: z
+    .string()
+    .min(1, "Father's email is required to send the Pre-Counselling form")
+    .email('Enter a valid email address'),
 
   // MOTHER'S DETAILS
   motherFullName: z.string().optional(),
@@ -336,7 +339,7 @@ export const StudentProfileFormPage: React.FC = () => {
 
               <FormRow>
                 <Input
-                  label="Email ID"
+                  label="Email ID *"
                   type="email"
                   placeholder="For sending Pre-counselling form & Feedback form"
                   leftIcon={<RiMailLine size={18} />}
