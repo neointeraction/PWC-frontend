@@ -88,29 +88,22 @@ export interface Session {
   cancellationReason: CancellationReason | null;
   cancellationNotes: string | null;
   // Set once a STUDENT-initiated reschedule has been used — self-service reschedule is
-  // limited to one per session; a further attempt 400s and points to Admin.
+  // limited to one per session; a further attempt 400s and points to Admin. Counsellors
+  // have no self-service reschedule of their own — one who needs a session moved
+  // contacts Admin manually, who reschedules on the student's behalf via `initiatedBy:
+  // "ADMIN"` on the same endpoint below (no separate counsellor-proposal flow exists).
   studentRescheduleUsed: boolean;
-  // A pending counsellor-proposed reschedule (non-null counsellorProposedDate = pending).
-  // The student accepts (moves the session) or declines (clears it) via the dedicated
-  // endpoints below; doesn't touch scheduledDate/startTime/endTime until accepted.
-  counsellorRescheduleReason: string | null;
-  counsellorProposedDate: string | null; // YYYY-MM-DD
-  counsellorProposedStartTime: string | null;
-  counsellorProposedEndTime: string | null;
   student: SessionStudent;
   counsellor: SessionCounsellor;
 }
 
-interface ApiSession
-  extends Omit<Session, 'scheduledDate' | 'counsellorProposedDate'> {
+interface ApiSession extends Omit<Session, 'scheduledDate'> {
   scheduledDate: string;
-  counsellorProposedDate: string | null;
 }
 
 const mapSession = (s: ApiSession): Session => ({
   ...s,
   scheduledDate: parseApiDate(s.scheduledDate),
-  counsellorProposedDate: s.counsellorProposedDate ? parseApiDate(s.counsellorProposedDate) : null,
 });
 
 export interface BookSessionsInput {
@@ -250,20 +243,6 @@ export const sessionsService = {
       `/sessions/students/${studentId}/restart`
     );
     return data.cancelled.map(mapSession);
-  },
-
-  // POST /sessions/{id}/reschedule-request/accept — performs the counsellor's proposed
-  // move. Doesn't consume the student's own 1-reschedule allowance.
-  acceptCounsellorReschedule: async (sessionId: string): Promise<Session> => {
-    const { data } = await apiClient.post<ApiSession>(`/sessions/${sessionId}/reschedule-request/accept`);
-    return mapSession(data);
-  },
-
-  // POST /sessions/{id}/reschedule-request/decline — clears the proposal; no automatic
-  // cancellation (restart is the student's own next move if they want a fresh start).
-  declineCounsellorReschedule: async (sessionId: string): Promise<Session> => {
-    const { data } = await apiClient.post<ApiSession>(`/sessions/${sessionId}/reschedule-request/decline`);
-    return mapSession(data);
   },
 
   // GET /sessions/counsellors/{counsellorId} — the counsellor's own dashboard sessions.

@@ -21,7 +21,7 @@ import { Tooltip } from '@/components/Tooltip';
 import { SuccessModal } from '@/components/SuccessModal';
 import { ROUTES } from '@/constants';
 import { useToast, useCurrentStudent } from '@/hooks';
-import { studentService, StudentProfileUpdate } from '@/services/student.service';
+import { studentService, StudentSelfUpdate } from '@/services/student.service';
 import { getApiErrorMessage } from '@/utils';
 import {
   FormPageContainer,
@@ -123,16 +123,21 @@ export const StudentProfileFormPage: React.FC = () => {
     });
   }, [me, reset]);
 
-  // The backend captures profile fields at creation; the student can only *confirm* them
-  // (PATCH is admin-only), so submitting confirms the profile (DRAFT -> PROFILE_COMPLETED).
-  const confirmMutation = useMutation({
-    mutationFn: (payload: StudentProfileUpdate) => studentService.confirmProfile(me!.id, payload),
+  // confirm-profile takes no body and just flips DRAFT -> PROFILE_COMPLETED using whatever
+  // is already saved on the Student record, so edited fields must be PATCHed to /students/me
+  // first — otherwise they're lost and the parent pre-counselling email goes out with stale data.
+  const submitMutation = useMutation({
+    mutationFn: async (payload: StudentSelfUpdate) => {
+      await studentService.updateMe(payload);
+      await studentService.confirmProfile(me!.id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
       setIsSuccessModalOpen(true);
     },
     onError: (err: unknown) => {
-      // 409 = already confirmed (not DRAFT) — treat as done rather than an error.
+      // 409 = already confirmed (not DRAFT) — the updateMe PATCH above still went through,
+      // so treat this as done rather than an error.
       if (err instanceof AxiosError && err.response?.status === 409) {
         queryClient.invalidateQueries({ queryKey: ['student-me'] });
         setIsSuccessModalOpen(true);
@@ -142,18 +147,13 @@ export const StudentProfileFormPage: React.FC = () => {
     },
   });
 
-  // Map the form fields to the student-editable payload. Field names mirror POST /students.
+  // Map the form fields to the whitelisted self-service payload PATCH /students/me accepts.
   // Note: the backend's Student model has no fatherEmail/fatherWhatsapp columns (only a
   // single parentMobile/parentEmail pair) — see docs/db-design.md — so those two inputs
-  // and the student's own email (not self-editable per docs/api-list.md) have nowhere to
-  // be saved and are intentionally left out of this payload.
-  const buildProfilePayload = (data: StudentProfileFormData): StudentProfileUpdate => {
-    const fullName = (data.studentFullName || '').trim();
-    const [firstName, ...rest] = fullName.split(/\s+/);
+  // and the student's own name/email/mobile (identity fields, not accepted by /students/me)
+  // have nowhere to be saved and are intentionally left out of this payload.
+  const buildProfilePayload = (data: StudentProfileFormData): StudentSelfUpdate => {
     return {
-      firstName: firstName || undefined,
-      lastName: rest.length ? rest.join(' ') : undefined,
-      mobile: data.studentMobile?.trim() || undefined,
       whatsappNumber: data.studentWhatsapp?.trim() || undefined,
       parentMobile: data.alternateMobile?.trim() || undefined,
       parentEmail: data.alternateEmail?.trim() || undefined,
@@ -173,7 +173,7 @@ export const StudentProfileFormPage: React.FC = () => {
       setIsSuccessModalOpen(true);
       return;
     }
-    confirmMutation.mutate(buildProfilePayload(data));
+    submitMutation.mutate(buildProfilePayload(data));
   };
 
   const handleProceedToDashboard = () => {
@@ -404,7 +404,7 @@ export const StudentProfileFormPage: React.FC = () => {
               variant="primary"
               size="md"
               leftIcon={<RiCheckLine size={18} />}
-              isLoading={confirmMutation.isPending}
+              isLoading={submitMutation.isPending}
             >
               Save & Submit Profile
             </Button>

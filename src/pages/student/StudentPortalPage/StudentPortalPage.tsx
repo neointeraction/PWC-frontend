@@ -110,7 +110,11 @@ export const StudentPortalPage: React.FC = () => {
   const isPreCounsellingSubmitted = formsStatus?.preCounsellingStudent ?? wf?.preCounsellingSubmitted ?? false;
   const isParentFormSubmitted = formsStatus?.preCounsellingParent ?? false;
   const isAssessmentSubmitted = wf?.assessmentSubmitted ?? false;
-  const isBooked = wf?.booked ?? false;
+  // workflowStatus only moves forward (see deriveStudentProgress's cumulative `reached`
+  // check) — cancelling via restart doesn't roll it back off SESSION_SCHEDULED, so
+  // `wf.booked` alone would stay true forever after a student's first booking. Require an
+  // actual active (non-cancelled) session pair too, so cancelling for real re-opens booking.
+  const isBooked = (wf?.booked ?? false) && !!session1 && !!session2;
   const isSession1Completed = wf?.session1Completed ?? false;
   const isSession2Completed = wf?.session2Completed ?? false;
   const isStudentFeedbackSubmitted = formsStatus?.feedbackStudent ?? false;
@@ -157,30 +161,6 @@ export const StudentPortalPage: React.FC = () => {
   const handleBookWorkflow = () => {
     navigate(ROUTES.BOOK_SESSIONS);
   };
-
-  // POST /sessions/{id}/reschedule-request/accept|decline — respond to a counsellor's
-  // proposed alternative time.
-  const acceptProposalMutation = useMutation({
-    mutationFn: (session: Session) => sessionsService.acceptCounsellorReschedule(session.id),
-    onSuccess: () => {
-      refreshSessions();
-      toast.success('Reschedule Accepted', 'Your session has been moved to the proposed time.');
-    },
-    onError: (err: unknown) => {
-      toast.error('Error', getApiErrorMessage(err, 'Could not accept the proposed time.'));
-    },
-  });
-
-  const declineProposalMutation = useMutation({
-    mutationFn: (session: Session) => sessionsService.declineCounsellorReschedule(session.id),
-    onSuccess: () => {
-      refreshSessions();
-      toast.info('Reschedule Declined', 'The proposed time was declined.');
-    },
-    onError: (err: unknown) => {
-      toast.error('Error', getApiErrorMessage(err, 'Could not decline the proposed time.'));
-    },
-  });
 
   const handleCopyParentLink = () => {
     const parentLink = `${window.location.origin}${ROUTES.PARENT_PRE_COUNSELLING_FORM}/${me?.id ?? ''}`;
@@ -508,7 +488,6 @@ export const StudentPortalPage: React.FC = () => {
             const isSessionCard = step.id === 5 || step.id === 6;
             const sessionNum = step.id === 5 ? 1 : 2;
             const sessionForCard = sessionNum === 1 ? session1 : session2;
-            const hasPendingProposal = !!sessionForCard?.counsellorProposedDate;
 
             return (
               <TimelineItem key={step.id}>
@@ -585,51 +564,6 @@ export const StudentPortalPage: React.FC = () => {
                               : 'kREATE & Stream Review Call')}
                         </span>
                       </SessionDateTimeRow>
-
-                      {step.status === 'current' && hasPendingProposal && sessionForCard && (
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 6,
-                            padding: '8px 10px',
-                            marginTop: 4,
-                            background: '#FEF3C7',
-                            border: '1px solid #FDE68A',
-                            borderRadius: 4,
-                            fontSize: 12,
-                          }}
-                        >
-                          <span style={{ color: '#92400E', fontWeight: 600 }}>
-                            Your counsellor proposed a new time:{' '}
-                            {dayjs(sessionForCard.counsellorProposedDate!).format('MMM D, YYYY')} •{' '}
-                            {formatTime(sessionForCard.counsellorProposedStartTime!)} -{' '}
-                            {formatTime(sessionForCard.counsellorProposedEndTime!)}
-                            {sessionForCard.counsellorRescheduleReason
-                              ? ` — ${sessionForCard.counsellorRescheduleReason}`
-                              : ''}
-                          </span>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <SessionActionLink
-                              type="button"
-                              onClick={() => acceptProposalMutation.mutate(sessionForCard)}
-                              style={{ color: '#16A34A' }}
-                            >
-                              <RiCheckLine size={12} />
-                              Accept
-                            </SessionActionLink>
-                            <SessionLinkDivider>|</SessionLinkDivider>
-                            <SessionActionLink
-                              type="button"
-                              $danger
-                              onClick={() => declineProposalMutation.mutate(sessionForCard)}
-                            >
-                              <RiCloseCircleLine size={12} />
-                              Decline
-                            </SessionActionLink>
-                          </div>
-                        </div>
-                      )}
 
                       {step.status === 'current' && (
                         <SessionActionLinksRow>

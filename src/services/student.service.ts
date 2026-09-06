@@ -49,13 +49,9 @@ interface ApiFormsStatus {
   feedbackComplete?: boolean;
 }
 
-// Student-editable profile fields sent with confirm-profile. Field names mirror the
-// POST /students create body so the backend can reuse its validation; firstName/lastName
-// update the linked User, the rest are Student columns.
-export interface StudentProfileUpdate {
-  firstName?: string;
-  lastName?: string;
-  mobile?: string;
+// Whitelisted fields accepted by PATCH /students/me — identity fields (name/email/mobile/
+// studentCode/etc.) are rejected there, unlike the admin PATCH /students/{id}.
+export interface StudentSelfUpdate {
   whatsappNumber?: string;
   parentMobile?: string;
   parentEmail?: string;
@@ -158,13 +154,20 @@ export const studentService = {
     return mapCurrentStudent(data);
   },
 
-  // POST /api/v1/students/{id}/confirm-profile — student confirms their profile
-  // (DRAFT → PROFILE_COMPLETED). Optionally saves the student-editable fields in the same
-  // call (contract mirrors the POST /students create body; firstName/lastName update the
-  // linked User). Backend support for the body is pending — sending it is a no-op until
-  // the endpoint accepts it, and the empty-body confirm still works today.
-  confirmProfile: async (studentId: string, payload?: StudentProfileUpdate): Promise<void> => {
-    await apiClient.post(`/students/${studentId}/confirm-profile`, payload);
+  // PATCH /api/v1/students/me — the logged-in student saves their own whitelisted fields
+  // (parent/guardian contact info etc.). Must be called BEFORE confirm-profile: confirm-profile
+  // does not read a request body, so this is the only way those edits get persisted.
+  updateMe: async (payload: StudentSelfUpdate): Promise<CurrentStudent> => {
+    const { data } = await apiClient.patch<ApiCurrentStudent>('/students/me', payload);
+    return mapCurrentStudent(data);
+  },
+
+  // POST /api/v1/students/{id}/confirm-profile — advances DRAFT -> PROFILE_COMPLETED and
+  // fires the one-time PRE_COUNSELLING_PARENT email using whatever is already saved on the
+  // Student record. Takes no body — save any field changes first via updateMe (self) or the
+  // admin PATCH /students/{id} before calling this. One-time only: 409 once already confirmed.
+  confirmProfile: async (studentId: string): Promise<void> => {
+    await apiClient.post(`/students/${studentId}/confirm-profile`);
   },
 
   // GET /api/v1/forms/students/{id}/status — per-form submission flags (finalized only).

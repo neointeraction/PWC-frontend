@@ -11,7 +11,7 @@ import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import { useToast } from '@/hooks';
-import { studentService, StudentProfileUpdate } from '@/services/student.service';
+import { studentService, StudentSelfUpdate } from '@/services/student.service';
 import { CurrentStudent } from '@/types';
 import { getApiErrorMessage } from '@/utils';
 
@@ -107,7 +107,12 @@ export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = (
   }, [isOpen, student, reset, initialName, initialEmail]);
 
   const confirmMutation = useMutation({
-    mutationFn: (payload: StudentProfileUpdate) => studentService.confirmProfile(student!.id, payload),
+    mutationFn: async (payload: StudentSelfUpdate) => {
+      // confirm-profile takes no body — persist the edited fields first via /students/me,
+      // then advance the workflow status.
+      await studentService.updateMe(payload);
+      await studentService.confirmProfile(student!.id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
       toast.success(
@@ -136,12 +141,9 @@ export const StudentProfileFormModal: React.FC<StudentProfileFormModalProps> = (
       onClose();
       return;
     }
-    // Send the editable fields this modal exposes (contract mirrors POST /students).
-    const fullName = data.fullName.trim();
-    const [firstName, ...rest] = fullName.split(/\s+/);
+    // Send the whitelisted self-service fields this modal exposes (fullName/email are
+    // identity fields — not accepted by PATCH /students/me — so they're left out).
     confirmMutation.mutate({
-      firstName: firstName || undefined,
-      lastName: rest.length ? rest.join(' ') : undefined,
       fatherName: data.guardianName?.trim() || undefined,
       parentMobile: data.guardianPhone?.trim() || undefined,
     });

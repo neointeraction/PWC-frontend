@@ -8,36 +8,9 @@ import { Input } from '@/components/Input';
 import { Tooltip } from '@/components/Tooltip';
 import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
-import { parseExcelFile } from '@/utils/excelParser';
+import { parseExcelFile, toISODate, toHHMM, normalizeCounsellorCode } from '@/utils/excelParser';
 import { ProjectCounselor, CounsellorSlotRow } from '@/types/project.types';
 import { useToast } from '@/hooks';
-
-// Excel serial (1900 system) or a date string → YYYY-MM-DD.
-const toISODate = (v: string): string => {
-  const s = String(v ?? '').trim();
-  if (!s) return '';
-  if (/^\d+(\.\d+)?$/.test(s)) {
-    const serial = Math.floor(parseFloat(s));
-    return new Date((serial - 25569) * 86400000).toISOString().slice(0, 10);
-  }
-  return s;
-};
-
-// "9:00" / "09:00" / Excel time fraction → HH:mm (24h, zero-padded).
-const toHHMM = (v: string): string => {
-  const s = String(v ?? '').trim();
-  if (!s) return '';
-  if (s.includes(':')) {
-    const [h, m] = s.split(':');
-    return `${h.padStart(2, '0')}:${(m || '0').slice(0, 2).padStart(2, '0')}`;
-  }
-  const num = parseFloat(s);
-  if (!isNaN(num) && num >= 0 && num < 1) {
-    const total = Math.round(num * 24 * 60);
-    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-  }
-  return s;
-};
 
 const rowKey = (c: ProjectCounselor) => c.counsellorCode || c.email || c.name;
 import { ActionIconButton } from '../Projects.styles';
@@ -103,11 +76,14 @@ export const StepCounselors: React.FC = () => {
         }
 
         // Match each Counsellor ID against the real directory (only directory
-        // counsellors can be added to a project).
+        // counsellors can be added to a project). Sheet codes and directory codes can
+        // differ in zero-padding (e.g. "C0001" vs "C001"), so match on a normalized form.
         const directory = await projectService.getCounsellorDirectory();
-        const dirByCode = new Map(directory.map(d => [d.counsellorCode, d]));
+        const dirByCode = new Map(directory.map(d => [normalizeCounsellorCode(d.counsellorCode), d]));
+        const unresolved: string[] = [];
         const parsed: ProjectCounselor[] = Array.from(byCode.values()).map(g => {
-          const dir = dirByCode.get(g.code);
+          const dir = dirByCode.get(normalizeCounsellorCode(g.code));
+          if (!dir) unresolved.push(g.code);
           return dir
             ? {
                 name: dir.name || g.name,
@@ -120,6 +96,15 @@ export const StepCounselors: React.FC = () => {
               }
             : { name: g.name, email: '', mobile: '', matchStatus: 'new' as const, counsellorCode: g.code, slots: g.slots };
         });
+
+        if (unresolved.length > 0) {
+          toast.error(
+            'Unknown Counsellor Code',
+            `Unknown counsellor code: ${unresolved.join(', ')}. Fix the sheet or add them to the directory first.`
+          );
+          setIsProcessing(false);
+          return;
+        }
 
         const matched = parsed.filter(p => p.matchStatus === 'matched');
         const newN = parsed.length - matched.length;

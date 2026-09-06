@@ -20,7 +20,7 @@ import { Tooltip } from '@/components/Tooltip';
 import { ROUTES } from '@/constants';
 import { useToast, useCurrentStudent } from '@/hooks';
 import { deriveStudentProgress } from '@/services/student.service';
-import { sessionsService, BookingSlotOption, SessionNumber, Session } from '@/services/sessions.service';
+import { sessionsService, BookingSlotOption, SessionNumber } from '@/services/sessions.service';
 import { getApiErrorMessage } from '@/utils';
 import {
   PageWrapper,
@@ -60,6 +60,15 @@ import {
   ConfirmationRow,
   NavigationFooter,
 } from './BookSessionsPage.styles';
+
+// Marks a failure in the second leg of the Session-1-reschedule cascade below, so onError
+// can tell "nothing moved" apart from "Session 1 moved but Session 2 didn't" and message
+// the student accordingly instead of implying the whole reschedule was rolled back.
+class Session2CascadeFailure extends Error {
+  constructor(public readonly cause: unknown) {
+    super('Session 1 rescheduled but Session 2 could not follow.');
+  }
+}
 
 const groupByDate = (options: BookingSlotOption[]): Map<string, BookingSlotOption[]> => {
   const map = new Map<string, BookingSlotOption[]>();
@@ -107,11 +116,12 @@ export const BookSessionsPage: React.FC = () => {
       ? 'SESSION_1'
       : 'SESSION_2'
     : null;
-  const targetSession: Session | undefined =
-    rescheduleTarget === 'SESSION_1' ? existingSession1 : rescheduleTarget === 'SESSION_2' ? existingSession2 : undefined;
-
+  // Rescheduling Session 1 before it's happened cascades to Session 2 as well — Session 2's
+  // counsellor lock and its ≥2-day gap are both derived from Session 1's slot, so moving
+  // Session 1 alone would leave Session 2 stale (or invalid) relative to it. Session 2 gets
+  // its own reschedule link on the portal, so it's the only case left as single-session.
   const showSession1Section = rescheduleTarget === null || rescheduleTarget === 'SESSION_1';
-  const showSession2Section = rescheduleTarget === null || rescheduleTarget === 'SESSION_2';
+  const showSession2Section = true;
 
   const [step, setStep] = useState<number>(1);
 
@@ -172,13 +182,24 @@ export const BookSessionsPage: React.FC = () => {
   const [s2Date, setS2Date] = useState<string>('');
   const [s2StartTime, setS2StartTime] = useState<string>('');
 
+  // Session 2 options are keyed on session1Ref (date/startTime) — whenever that changes,
+  // any previously selected Session 2 slot is stale until the refetched options confirm it.
   useEffect(() => {
-    if (s2Dates.length === 0) return;
+    setS2Date('');
+    setS2StartTime('');
+  }, [session1Ref.date, session1Ref.startTime]);
+
+  useEffect(() => {
+    if (s2Dates.length === 0) {
+      if (s2Date) setS2Date('');
+      if (s2StartTime) setS2StartTime('');
+      return;
+    }
     if (s2Dates.includes(s2Date)) return;
     const firstDate = s2Dates[0];
     setS2Date(firstDate);
     setS2StartTime(s2OptionsByDate.get(firstDate)?.[0]?.startTime ?? '');
-  }, [s2Dates, s2Date, s2OptionsByDate]);
+  }, [s2Dates, s2Date, s2StartTime, s2OptionsByDate]);
 
   const handleSelectS2Date = (dateStr: string) => {
     setS2Date(dateStr);
@@ -212,10 +233,31 @@ export const BookSessionsPage: React.FC = () => {
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      if (rescheduleTarget && targetSession) {
-        const date = rescheduleTarget === 'SESSION_1' ? s1Date : s2Date;
-        const startTime = rescheduleTarget === 'SESSION_1' ? s1StartTime : s2StartTime;
-        return sessionsService.reschedule(targetSession.id, { date, startTime, initiatedBy: 'STUDENT' });
+      if (rescheduleTarget === 'SESSION_1' && existingSession1) {
+        await sessionsService.reschedule(existingSession1.id, {
+          date: s1Date,
+          startTime: s1StartTime,
+          initiatedBy: 'STUDENT',
+        });
+        if (existingSession2) {
+          try {
+            await sessionsService.reschedule(existingSession2.id, {
+              date: s2Date,
+              startTime: s2StartTime,
+              initiatedBy: 'STUDENT',
+            });
+          } catch (err) {
+            throw new Session2CascadeFailure(err);
+          }
+        }
+        return;
+      }
+      if (rescheduleTarget === 'SESSION_2' && existingSession2) {
+        return sessionsService.reschedule(existingSession2.id, {
+          date: s2Date,
+          startTime: s2StartTime,
+          initiatedBy: 'STUDENT',
+        });
       }
       return sessionsService.bookSessions(studentId!, {
         session1: { date: s1Date, startTime: s1StartTime },
@@ -226,13 +268,13 @@ export const BookSessionsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['student-sessions', studentId] });
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
 
-      if (rescheduleTarget) {
+      if (rescheduleTarget === 'SESSION_1') {
         toast.success(
-          `Session ${rescheduleTarget === 'SESSION_1' ? '1' : '2'} Rescheduled Successfully!`,
-          rescheduleTarget === 'SESSION_1'
-            ? `New Slot: ${s1Date} • ${s1StartTime}`
-            : `New Slot: ${s2Date} • ${s2StartTime}`
+          'Sessions 1 & 2 Rescheduled!',
+          `Session 1 moved to ${s1Date} • ${s1StartTime}, and Session 2 to ${s2Date} • ${s2StartTime}.`
         );
+      } else if (rescheduleTarget === 'SESSION_2') {
+        toast.success('Session 2 Rescheduled Successfully!', `New Slot: ${s2Date} • ${s2StartTime}`);
       } else {
         toast.success(
           'Sessions 1 & 2 Booked Successfully!',
@@ -242,6 +284,19 @@ export const BookSessionsPage: React.FC = () => {
       navigate(ROUTES.STUDENT_PORTAL);
     },
     onError: (err: unknown) => {
+      if (err instanceof Session2CascadeFailure) {
+        queryClient.invalidateQueries({ queryKey: ['student-sessions', studentId] });
+        queryClient.invalidateQueries({ queryKey: ['student-me'] });
+        toast.error(
+          'Session 2 Needs Attention',
+          getApiErrorMessage(
+            err.cause,
+            'Session 1 was moved to the new slot, but Session 2 could not follow automatically — please reschedule it separately.'
+          )
+        );
+        navigate(ROUTES.STUDENT_PORTAL);
+        return;
+      }
       if (err instanceof AxiosError && err.response?.status === 409) {
         toast.error(
           'Slot no longer available',
@@ -278,14 +333,18 @@ export const BookSessionsPage: React.FC = () => {
 
           <HeaderTitleGroup>
             <TitleText>
-              {rescheduleTarget
-                ? `RESCHEDULE SESSION ${rescheduleTarget === 'SESSION_1' ? '1' : '2'}`
-                : 'BOOK YOUR COUNSELLING SESSIONS'}
+              {rescheduleTarget === 'SESSION_1'
+                ? 'RESCHEDULE SESSION 1 & 2'
+                : rescheduleTarget === 'SESSION_2'
+                  ? 'RESCHEDULE SESSION 2'
+                  : 'BOOK YOUR COUNSELLING SESSIONS'}
             </TitleText>
             <SubtitleText>
-              {rescheduleTarget
-                ? `Select a new date & time slot for Session ${rescheduleTarget === 'SESSION_1' ? '1 (Discovery & Assessment Review)' : '2 (Roadmap & Recommendations)'}`
-                : 'Schedule 1-on-1 Guidance Calls (Session 1 & Session 2)'}
+              {rescheduleTarget === 'SESSION_1'
+                ? "Since Session 1 hasn't happened yet, choose new slots for both Session 1 (Discovery & Assessment Review) and Session 2 (Roadmap & Recommendations)."
+                : rescheduleTarget === 'SESSION_2'
+                  ? 'Select a new date & time slot for Session 2 (Roadmap & Recommendations)'
+                  : 'Schedule 1-on-1 Guidance Calls (Session 1 & Session 2)'}
             </SubtitleText>
           </HeaderTitleGroup>
         </HeaderRow>
@@ -336,8 +395,8 @@ export const BookSessionsPage: React.FC = () => {
                   {step > 1 ? <RiCheckLine size={14} /> : '1'}
                 </StepBadge>
                 <StepLabel $active={step === 1} $completed={step > 1}>
-                  {rescheduleTarget
-                    ? `Select Session ${rescheduleTarget === 'SESSION_1' ? '1' : '2'} Slot`
+                  {rescheduleTarget === 'SESSION_2'
+                    ? 'Select Session 2 Slot'
                     : 'Select Session Slots (Session 1 & 2)'}
                 </StepLabel>
               </StepItem>
@@ -500,27 +559,7 @@ export const BookSessionsPage: React.FC = () => {
                 )}
 
                 {/* UNIFIED SELECTION SUMMARY CARD */}
-                {rescheduleTarget === 'SESSION_1' ? (
-                  s1Date &&
-                  s1StartTime && (
-                    <SelectionSummaryCard>
-                      <SummaryTextGroup>
-                        <SummaryLabel>Selected Session 1 Slot</SummaryLabel>
-                        <SummaryValue style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
-                          <strong>Session 1:</strong> {s1Date} • {s1StartTime}
-                        </SummaryValue>
-                      </SummaryTextGroup>
-                      <Button
-                        variant="primary"
-                        size="md"
-                        rightIcon={<RiArrowRightLine size={16} />}
-                        onClick={handleProceedToConfirmation}
-                      >
-                        Proceed to Final Confirmation
-                      </Button>
-                    </SelectionSummaryCard>
-                  )
-                ) : rescheduleTarget === 'SESSION_2' ? (
+                {rescheduleTarget === 'SESSION_2' ? (
                   s2Date &&
                   s2StartTime && (
                     <SelectionSummaryCard>
@@ -541,13 +580,17 @@ export const BookSessionsPage: React.FC = () => {
                     </SelectionSummaryCard>
                   )
                 ) : (
+                  // Fresh booking and Session 1 reschedule (cascades to Session 2) both
+                  // require both slots picked before the student can proceed.
                   s1Date &&
                   s1StartTime &&
                   s2Date &&
                   s2StartTime && (
                     <SelectionSummaryCard>
                       <SummaryTextGroup>
-                        <SummaryLabel>Selected Counselling Sessions</SummaryLabel>
+                        <SummaryLabel>
+                          {rescheduleTarget === 'SESSION_1' ? 'Selected New Slots (Both Sessions)' : 'Selected Counselling Sessions'}
+                        </SummaryLabel>
                         <SummaryValue style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
                           <strong>Session 1:</strong> {s1Date} • {s1StartTime}
                           <br />
@@ -575,9 +618,11 @@ export const BookSessionsPage: React.FC = () => {
                   <SectionTitle>
                     <RiSparklingLine size={20} style={{ color: '#5D2384' }} />
                     <span>
-                      {rescheduleTarget
-                        ? `Review & Confirm Session ${rescheduleTarget === 'SESSION_1' ? '1' : '2'} Reschedule`
-                        : 'Review & Confirm Session Booking'}
+                      {rescheduleTarget === 'SESSION_1'
+                        ? 'Review & Confirm Session 1 & 2 Reschedule'
+                        : rescheduleTarget === 'SESSION_2'
+                          ? 'Review & Confirm Session 2 Reschedule'
+                          : 'Review & Confirm Session Booking'}
                     </span>
                   </SectionTitle>
                   <SectionSubtext>
@@ -637,9 +682,11 @@ export const BookSessionsPage: React.FC = () => {
                     isLoading={submitMutation.isPending}
                     onClick={handleFinalBooking}
                   >
-                    {rescheduleTarget
-                      ? `Confirm & Reschedule Session ${rescheduleTarget === 'SESSION_1' ? '1' : '2'}`
-                      : 'Confirm Both Sessions & Book Now'}
+                    {rescheduleTarget === 'SESSION_1'
+                      ? 'Confirm & Reschedule Both Sessions'
+                      : rescheduleTarget === 'SESSION_2'
+                        ? 'Confirm & Reschedule Session 2'
+                        : 'Confirm Both Sessions & Book Now'}
                   </Button>
                 </NavigationFooter>
               </ConfirmationCard>
