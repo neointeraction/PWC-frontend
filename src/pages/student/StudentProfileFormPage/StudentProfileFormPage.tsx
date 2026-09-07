@@ -149,14 +149,16 @@ export const StudentProfileFormPage: React.FC = () => {
 
   // Map the form fields to the whitelisted self-service payload PATCH /students/me accepts.
   // Note: the backend's Student model has no fatherEmail/fatherWhatsapp columns (only a
-  // single parentMobile/parentEmail pair) — see docs/db-design.md — so those two inputs
-  // and the student's own name/email/mobile (identity fields, not accepted by /students/me)
-  // have nowhere to be saved and are intentionally left out of this payload.
+  // single parentMobile/parentEmail pair) — see docs/db-design.md. fatherEmail is required
+  // (it's what the Pre-Counselling form is actually sent to) so it's the one saved as
+  // parentEmail; alternateEmail is an optional backup with nowhere to be saved on the
+  // backend today. fatherWhatsapp and the student's own name/email/mobile (identity
+  // fields, not accepted by /students/me) are intentionally left out of this payload.
   const buildProfilePayload = (data: StudentProfileFormData): StudentSelfUpdate => {
     return {
       whatsappNumber: data.studentWhatsapp?.trim() || undefined,
       parentMobile: data.alternateMobile?.trim() || undefined,
-      parentEmail: data.alternateEmail?.trim() || undefined,
+      parentEmail: data.fatherEmail?.trim() || undefined,
       fatherName: data.fatherFullName?.trim() || undefined,
       fatherOccupation: data.fatherOccupation?.trim() || undefined,
       fatherEmployer: data.fatherEmployer?.trim() || undefined,

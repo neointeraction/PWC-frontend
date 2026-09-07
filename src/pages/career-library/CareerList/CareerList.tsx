@@ -524,6 +524,7 @@ export const CareerListPage: React.FC = () => {
               role={roleDetail.career}
               entranceExams={roleDetail.entranceExams}
               courses={roleDetail.courses}
+              relatedCourses={roleDetail.relatedCourses}
               institutions={roleDetail.institutions}
               onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}
             />

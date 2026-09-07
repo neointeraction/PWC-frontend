@@ -147,16 +147,39 @@ export interface DomainEducationEntry {
   description?: string | null;
 }
 
+// Legacy `UgCourse` directory row (pre-dates the normalized `Course` model) — matched to
+// an entry by plain string equality on `careerCluster`, not a foreign key, so this is the
+// same course row for every job role in a cluster. Field names mirror the raw import
+// sheet (`courseName`, not `name`) and only `id`/`courseName`/`careerCluster` are
+// guaranteed; the rest are optional and may not all be populated per row.
+interface ApiRelatedCourse {
+  id: string;
+  courseName: string;
+  level?: string | null;
+  careerCluster?: string | null;
+  fullForm?: string | null;
+  streamRequirement?: string | null;
+  stream12thRequirements?: string | null;
+  entranceExam?: string | null;
+  relevantEntranceExams?: string | null;
+  programsOffered?: string | null;
+  programmesOffered?: string | null;
+  topColleges?: string | null;
+  furtherStudyOptions?: string | null;
+}
+
 interface CareerLibraryDetailResponse extends ApiCareerEntry {
   // Curated many-to-many links actually attached to this entry (with ids) — the source
   // for both the read-only detail tabs and pre-ticking the edit form's tick-lists.
-  // (The API also returns a legacy `related*` broad value-match view — matched by
-  // domain/cluster name, not by this entry's own links — which is deliberately not read
-  // here: it showed unrelated institutions/courses on every role in an industry.)
   linkedEntranceExams?: ApiNormalizedExam[];
   linkedCourses?: ApiNormalizedCourse[];
   linkedInstitutions?: ApiNormalizedInstitution[];
   linkedEducationEntries?: DomainEducationEntry[];
+  // Legacy broad value-match view (matched by this entry's career cluster name, not by
+  // this entry's own links) — every job role in the same cluster gets the same rows.
+  // Used for the "courses mapped by career cluster" section, kept separate from
+  // `linkedCourses` so the two are never conflated in the UI.
+  relatedCourses?: ApiRelatedCourse[];
 }
 
 // Typeahead endpoints ("dropdown" reads) may return a bare array or a `{ data }` wrapper.
@@ -345,6 +368,17 @@ const mapCourse = (course: ApiNormalizedCourse): CourseDetail => ({
   streamRequirement: course.stream12thRequirements || '—',
   entranceExams: course.relevantEntranceExams || '—',
   programsOffered: course.programmesOffered || '—',
+  topColleges: course.topColleges || '—',
+  furtherStudyOptions: course.furtherStudyOptions || '—',
+});
+
+const mapRelatedCourse = (course: ApiRelatedCourse): CourseDetail => ({
+  id: course.id,
+  badge: course.level || 'UG',
+  title: course.fullForm ? `${course.courseName} (${course.fullForm})` : course.courseName,
+  streamRequirement: course.streamRequirement || course.stream12thRequirements || '—',
+  entranceExams: course.entranceExam || course.relevantEntranceExams || '—',
+  programsOffered: course.programsOffered || course.programmesOffered || '—',
   topColleges: course.topColleges || '—',
   furtherStudyOptions: course.furtherStudyOptions || '—',
 });
@@ -630,6 +664,9 @@ export const careerService = {
     entranceExams: EntranceExam[];
     courses: CourseDetail[];
     institutions: InstitutionDetail[];
+    // Courses mapped to this entry's career cluster (legacy broad value-match, shared by
+    // every job role in the cluster), minus any already shown in `courses` above.
+    relatedCourses: CourseDetail[];
     // Currently-linked canonical records (ids) for the edit form's tick-lists.
     linkedEntranceExams: CareerLinkOption[];
     linkedCourses: CareerLinkOption[];
@@ -637,14 +674,19 @@ export const careerService = {
     linkedEducationEntries: DomainEducationEntry[];
   }> => {
     const { data } = await apiClient.get<CareerLibraryDetailResponse>(`/career-library/${id}`);
+    const courses = (data.linkedCourses || []).map(mapCourse);
+    const linkedCourseTitles = new Set(courses.map(c => c.title.toLowerCase()));
     return {
       career: mapCareerEntry(data),
       // The detail tabs show only what's actually linked to this entry — not the API's
       // legacy `related*` view, which broad-matches by domain/cluster name and so showed
       // the same institutions/courses on every role in an industry regardless of links.
       entranceExams: (data.linkedEntranceExams || []).map(mapExam),
-      courses: (data.linkedCourses || []).map(mapCourse),
+      courses,
       institutions: (data.linkedInstitutions || []).map(mapInstitution),
+      relatedCourses: (data.relatedCourses || [])
+        .map(mapRelatedCourse)
+        .filter(c => !linkedCourseTitles.has(c.title.toLowerCase())),
       linkedEntranceExams: (data.linkedEntranceExams || []).map(e => ({
         id: e.id,
         label: examOptionLabel(e),

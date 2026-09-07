@@ -75,56 +75,98 @@ const DetailItem = styled.div`
   }
 `;
 
+const SectionHeading = styled.h4`
+  font-size: ${({ theme }) => theme.fontSize.base};
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.text};
+  margin: 0;
+`;
 
+const SectionSubtext = styled.p`
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  margin: 4px 0 0;
+`;
+
+const EmptyState = styled.p`
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+const renderCourseCard = (course: CourseDetail) => (
+  <CourseCard key={course.id}>
+    <BadgePill>{course.badge}</BadgePill>
+    <CourseTitle>{course.title}</CourseTitle>
+    <Divider />
+
+    <DetailsList>
+      <DetailItem>
+        <p>
+          <strong>12th Stream:</strong> {course.streamRequirement}
+        </p>
+      </DetailItem>
+
+      <DetailItem>
+        <p>
+          <strong>Entrance Exams:</strong> {course.entranceExams}
+        </p>
+      </DetailItem>
+
+      <DetailItem>
+        <p>
+          <strong>Programs Offered:</strong> {course.programsOffered}
+        </p>
+      </DetailItem>
+
+      <DetailItem>
+        <p>
+          <strong>Top Colleges:</strong> {course.topColleges}
+        </p>
+      </DetailItem>
+
+      <DetailItem>
+        <p>
+          <strong>FURTHER STUDY OPTIONS:</strong> {course.furtherStudyOptions}
+        </p>
+      </DetailItem>
+    </DetailsList>
+  </CourseCard>
+);
 
 interface CoursesTabProps {
   courses: CourseDetail[];
+  // Courses mapped to this role's career cluster (shared across every job role in that
+  // cluster), shown separately from the role's own curated `courses` above.
+  relatedCourses?: CourseDetail[];
+  clusterName?: string;
 }
 
-export const CoursesTab: React.FC<CoursesTabProps> = ({ courses }) => {
+export const CoursesTab: React.FC<CoursesTabProps> = ({
+  courses,
+  relatedCourses = [],
+  clusterName,
+}) => {
   return (
     <Container>
-      <Grid>
-        {courses.map(course => (
-          <CourseCard key={course.id}>
-            <BadgePill>{course.badge}</BadgePill>
-            <CourseTitle>{course.title}</CourseTitle>
-            <Divider />
+      {courses.length > 0 ? (
+        <Grid>{courses.map(renderCourseCard)}</Grid>
+      ) : (
+        <EmptyState>No courses linked to this role yet.</EmptyState>
+      )}
 
-            <DetailsList>
-              <DetailItem>
-                <p>
-                  <strong>12th Stream:</strong> {course.streamRequirement}
-                </p>
-              </DetailItem>
-
-              <DetailItem>
-                <p>
-                  <strong>Entrance Exams:</strong> {course.entranceExams}
-                </p>
-              </DetailItem>
-
-              <DetailItem>
-                <p>
-                  <strong>Programs Offered:</strong> {course.programsOffered}
-                </p>
-              </DetailItem>
-
-              <DetailItem>
-                <p>
-                  <strong>Top Colleges:</strong> {course.topColleges}
-                </p>
-              </DetailItem>
-
-              <DetailItem>
-                <p>
-                  <strong>FURTHER STUDY OPTIONS:</strong> {course.furtherStudyOptions}
-                </p>
-              </DetailItem>
-            </DetailsList>
-          </CourseCard>
-        ))}
-      </Grid>
+      {relatedCourses.length > 0 && (
+        <Container>
+          <div>
+            <SectionHeading>
+              More Courses in the {clusterName ? `"${clusterName}"` : 'this'} Career Cluster
+            </SectionHeading>
+            <SectionSubtext>
+              Courses mapped to this career cluster, not specifically curated for this role.
+            </SectionSubtext>
+          </div>
+          <Grid>{relatedCourses.map(renderCourseCard)}</Grid>
+        </Container>
+      )}
     </Container>
   );
 };
