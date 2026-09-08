@@ -16,8 +16,8 @@ import {
   FooterContainer,
   StepFormContainer,
   StepSubtitle,
-  FormGrid,
-  FormGroup,
+  InstituteFormGrid,
+  InstituteFormFullField,
 } from './AddProjectWizard.styles';
 
 interface EditProjectModalProps {
@@ -125,14 +125,33 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
           <StepSubtitle>
             Update primary project details, timeline, and current project status.
           </StepSubtitle>
-          <FormGrid>
-            <FormGroup>
+          <InstituteFormGrid>
+            <InstituteFormFullField>
               <Input
                 label="Institute ID"
                 placeholder="Enter institute ID"
                 value={instituteDetails.instituteId}
                 disabled
               />
+            </InstituteFormFullField>
+            <DatePicker
+              label="Valid From"
+              selected={instituteDetails.validFrom ? new Date(instituteDetails.validFrom) : null}
+              onChange={(date: Date | null) =>
+                setInstituteDetails({ validFrom: date ? date.toISOString() : '' })
+              }
+              placeholderText="Select start date"
+            />
+            <DatePicker
+              label="Valid To"
+              selected={instituteDetails.validTo ? new Date(instituteDetails.validTo) : null}
+              onChange={(date: Date | null) =>
+                setInstituteDetails({ validTo: date ? date.toISOString() : '' })
+              }
+              placeholderText="Select end date"
+            />
+
+            <InstituteFormFullField>
               <Input
                 label="Institute Name"
                 placeholder="Enter institute name"
@@ -140,6 +159,17 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
                 onChange={e => setInstituteDetails({ name: e.target.value })}
                 required
               />
+            </InstituteFormFullField>
+            <InstituteFormFullField>
+              <Input
+                label="Location"
+                placeholder="Location"
+                value={instituteDetails.location}
+                onChange={e => setInstituteDetails({ location: e.target.value })}
+              />
+            </InstituteFormFullField>
+
+            <InstituteFormFullField>
               <Input
                 label="Email Address"
                 type="email"
@@ -147,33 +177,8 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
                 value={instituteDetails.email}
                 onChange={e => setInstituteDetails({ email: e.target.value })}
               />
-            </FormGroup>
-
-            <FormGroup>
-              <FormGrid>
-                <DatePicker
-                  label="Valid From"
-                  selected={instituteDetails.validFrom ? new Date(instituteDetails.validFrom) : null}
-                  onChange={(date: Date | null) =>
-                    setInstituteDetails({ validFrom: date ? date.toISOString() : '' })
-                  }
-                  placeholderText="Select start date"
-                />
-                <DatePicker
-                  label="Valid To"
-                  selected={instituteDetails.validTo ? new Date(instituteDetails.validTo) : null}
-                  onChange={(date: Date | null) =>
-                    setInstituteDetails({ validTo: date ? date.toISOString() : '' })
-                  }
-                  placeholderText="Select end date"
-                />
-              </FormGrid>
-              <Input
-                label="Location"
-                placeholder="Location"
-                value={instituteDetails.location}
-                onChange={e => setInstituteDetails({ location: e.target.value })}
-              />
+            </InstituteFormFullField>
+            <InstituteFormFullField>
               <Input
                 label="Phone Number"
                 type="tel"
@@ -190,8 +195,8 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
                   onChange={e => setProjectStatus(e.target.value as ProjectStatus)}
                 />
               </div> */}
-            </FormGroup>
-          </FormGrid>
+            </InstituteFormFullField>
+          </InstituteFormGrid>
         </StepFormContainer>
       </WizardContent>
     </Modal>

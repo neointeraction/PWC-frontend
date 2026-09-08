@@ -6,10 +6,11 @@ import {
   RiCheckLine,
   RiCloseCircleLine,
   RiMessage3Line,
+  RiRestartLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
-import { Tooltip } from '@/components';
+import { Tooltip, ConfirmDialog } from '@/components';
 import { ProjectStudentDetail, FollowUpRecord } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { formatDate } from '@/utils';
@@ -33,6 +34,7 @@ import {
   MessageQuickSendRow,
   ModalFooterRow,
   FooterRightButtons,
+  FooterLeftButtons,
 } from './StudentFollowUpModal.styles';
 
 export const STAGE_PREDEFINED_MESSAGES: Record<string, { subject: string; message: string }> = {
@@ -98,6 +100,8 @@ interface StudentFollowUpModalProps {
   onClose: () => void;
   student: ProjectStudentDetail | null;
   onSave: (updated: ProjectStudentDetail) => void;
+  onRetest: (student: ProjectStudentDetail) => void;
+  isRetesting?: boolean;
 }
 
 export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
@@ -105,8 +109,11 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
   onClose,
   student,
   onSave,
+  onRetest,
+  isRetesting = false,
 }) => {
   const toast = useToast();
+  const [isRetestConfirmOpen, setIsRetestConfirmOpen] = useState(false);
 
   const currentStage = student?.stage || 'Login Activated';
   const defaultTemplate = STAGE_PREDEFINED_MESSAGES[currentStage] || {
@@ -193,6 +200,11 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
     onClose();
   };
 
+  const handleConfirmRetest = () => {
+    onRetest(student);
+    setIsRetestConfirmOpen(false);
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -202,16 +214,29 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
       size="lg"
       footer={
         <ModalFooterRow>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleMarkDiscontinued}
-            leftIcon={<RiCloseCircleLine size={16} />}
-            style={{ color: '#DC2626', borderColor: '#FCA5A5' }}
-          >
-            Discontinue Student
-          </Button>
+          <FooterLeftButtons>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleMarkDiscontinued}
+              leftIcon={<RiCloseCircleLine size={16} />}
+              style={{ color: '#DC2626', borderColor: '#FCA5A5' }}
+            >
+              Discontinued
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsRetestConfirmOpen(true)}
+              leftIcon={<RiRestartLine size={16} />}
+              style={{ color: '#B45309', borderColor: '#FDE68A' }}
+            >
+              Retest
+            </Button>
+          </FooterLeftButtons>
 
           <FooterRightButtons>
             <Button type="button" variant="secondary" size="sm" onClick={onClose}>
@@ -390,6 +415,18 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
         </HistorySection>
         */}
       </ModalBodyContainer>
+
+      <ConfirmDialog
+        isOpen={isRetestConfirmOpen}
+        onClose={() => setIsRetestConfirmOpen(false)}
+        onConfirm={handleConfirmRetest}
+        title="Retest Student"
+        description="To do a retest, you need to delete this candidate and all their relevant details like pre-counselling form, assessment result etc. data will be deleted. You'll have to add the candidate again and restart the process from the start."
+        confirmLabel="Okay"
+        cancelLabel="Cancel"
+        isDangerous
+        isLoading={isRetesting}
+      />
     </Modal>
   );
 };

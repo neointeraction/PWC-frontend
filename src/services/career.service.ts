@@ -158,13 +158,12 @@ interface ApiRelatedCourse {
   level?: string | null;
   careerCluster?: string | null;
   fullForm?: string | null;
-  streamRequirement?: string | null;
   stream12thRequirements?: string | null;
-  entranceExam?: string | null;
-  relevantEntranceExams?: string | null;
-  programsOffered?: string | null;
-  programmesOffered?: string | null;
-  topColleges?: string | null;
+  entranceExamsPrimary?: string | null;
+  entranceExamsAlternate?: string | null;
+  topSpecialisations?: string | null;
+  topGovtColleges?: string | null;
+  topPrivateColleges?: string | null;
   furtherStudyOptions?: string | null;
 }
 
@@ -376,10 +375,13 @@ const mapRelatedCourse = (course: ApiRelatedCourse): CourseDetail => ({
   id: course.id,
   badge: course.level || 'UG',
   title: course.fullForm ? `${course.courseName} (${course.fullForm})` : course.courseName,
-  streamRequirement: course.streamRequirement || course.stream12thRequirements || '—',
-  entranceExams: course.entranceExam || course.relevantEntranceExams || '—',
-  programsOffered: course.programsOffered || course.programmesOffered || '—',
-  topColleges: course.topColleges || '—',
+  streamRequirement: course.stream12thRequirements || '—',
+  entranceExams:
+    [course.entranceExamsPrimary, course.entranceExamsAlternate].filter(Boolean).join('; ') ||
+    '—',
+  programsOffered: course.topSpecialisations || '—',
+  topColleges:
+    [course.topGovtColleges, course.topPrivateColleges].filter(Boolean).join('; ') || '—',
   furtherStudyOptions: course.furtherStudyOptions || '—',
 });
 

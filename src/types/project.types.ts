@@ -118,7 +118,14 @@ export interface ProjectSlot {
   startTime: string;
   endTime: string;
   isBooked: boolean;
+  // True when either party no-showed — studentNoShow || counsellorNoShow below. Drives
+  // the existing "missed" flag/reschedule-required UI regardless of whose fault it was.
   isMissed?: boolean;
+  studentNoShow?: boolean;
+  counsellorNoShow?: boolean;
+  // Both the student and counsellor actually joined (POST /sessions/{id}/join) — the
+  // green check is this, not just that the booked time has passed.
+  attended?: boolean;
   studentId?: string;
   studentName?: string;
   studentCode?: string;

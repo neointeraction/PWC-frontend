@@ -10,16 +10,13 @@ import {
   SectionBlock,
   SectionBlockTitle,
   SectionBlockSubtitle,
-  FormInput,
-  SummaryCardStrip,
-  SummaryCard,
-  SummaryCardLabel,
   TraitTableContainer,
   TraitTableHeaderRow,
   TraitTableHeaderCell,
   TraitDataRow,
   TraitCell,
   TraitGradeTag,
+  TraitScoreBadge,
   CategoryBlockHeader,
   CategoryBlockTitle,
   CategoryCountBadge,
@@ -30,7 +27,6 @@ interface Step2SectionBProps {
   data: CounsellorFormChartData['sectionB'];
   onChangeNotesPre: (code: string, value: string) => void;
   onChangeTraits?: (traits: TraitAssessmentItem[]) => void;
-  onChangeSummary: (summary: Partial<CounsellorFormChartData['sectionB']['summaryStrip']>) => void;
   onChangeDna: (
     field: keyof CounsellorFormChartData['sectionB']['careerDnaNarrative'],
     value: string
@@ -94,7 +90,6 @@ const dnaRowsDef = [
 export const Step2SectionB: React.FC<Step2SectionBProps> = ({
   data,
   onChangeNotesPre,
-  onChangeSummary,
   onChangeDna,
 }) => {
   const riasecTraits = data.traitsTable.filter(t => t.layerTrait.toLowerCase().includes('riasec'));
@@ -112,8 +107,7 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
   const renderCategoryBlock = (
     categoryTitle: string,
     categoryKey: string,
-    traits: TraitAssessmentItem[],
-    redFlagPlaceholder: string
+    traits: TraitAssessmentItem[]
   ) => (
     <div
       style={{
@@ -145,26 +139,76 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
             No traits available in this assessment category.
           </div>
         ) : (
-          traits.map((t, idx) => (
-            <TraitDataRow key={t.id}>
-              <TraitCell $align="center" $bold style={{ color: '#64748B' }}>
-                {idx + 1}
-              </TraitCell>
-              <TraitCell $bold>{t.traitName}</TraitCell>
-              <TraitCell $secondary>{t.whatItMeasures}</TraitCell>
-              <TraitCell $align="center">
-                <TraitGradeTag $type={t.grade}>{t.grade}</TraitGradeTag>
-              </TraitCell>
-              <TraitCell $secondary>{t.gradeMeaning}</TraitCell>
-            </TraitDataRow>
-          ))
+          traits.map((t, idx) => {
+            const traitCode = t.layerTrait.split(' - ')[1] ?? '';
+            return (
+              <TraitDataRow key={t.id}>
+                <TraitCell $align="center" $bold style={{ color: '#64748B' }}>
+                  {idx + 1}
+                </TraitCell>
+                <TraitCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                  <span style={{ fontWeight: 600 }}>{t.traitName}</span>
+                  {traitCode && (
+                    <span style={{ fontSize: '0.75rem', color: '#64748B' }}>{traitCode}</span>
+                  )}
+                </TraitCell>
+                <TraitCell $secondary>{t.whatItMeasures}</TraitCell>
+                <TraitCell
+                  $align="center"
+                  style={{ flexDirection: 'column', gap: '4px' }}
+                >
+                  <TraitGradeTag $type={t.grade}>{t.grade}</TraitGradeTag>
+                  {t.percentage && <TraitScoreBadge>{t.percentage}%</TraitScoreBadge>}
+                </TraitCell>
+                <TraitCell $secondary>{t.gradeMeaning}</TraitCell>
+              </TraitDataRow>
+            );
+          })
         )}
       </TraitTableContainer>
 
-      <RedFlagNotice>
-        <RiAlertLine size={15} style={{ flexShrink: 0 }} />
-        <span>{data.redFlags?.[categoryKey] || redFlagPlaceholder}</span>
-      </RedFlagNotice>
+      {data.redFlags?.[categoryKey] && (
+        <RedFlagNotice>
+          <RiAlertLine size={15} style={{ flexShrink: 0 }} />
+          <span>{data.redFlags[categoryKey]}</span>
+        </RedFlagNotice>
+      )}
+    </div>
+  );
+
+  const renderDominantTable = (
+    title: string,
+    gridTemplate: string,
+    headers: string[],
+    cells: React.ReactNode[]
+  ) => (
+    <div
+      style={{
+        marginTop: '20px',
+        border: '1px solid #E2E8F0',
+        borderRadius: '4px',
+        padding: '16px',
+        backgroundColor: '#FFFFFF',
+      }}
+    >
+      <CategoryBlockHeader>
+        <CategoryBlockTitle>{title}</CategoryBlockTitle>
+      </CategoryBlockHeader>
+
+      <TraitTableContainer>
+        <TraitTableHeaderRow style={{ gridTemplateColumns: gridTemplate }}>
+          {headers.map(h => (
+            <TraitTableHeaderCell key={h}>{h}</TraitTableHeaderCell>
+          ))}
+        </TraitTableHeaderRow>
+        <TraitDataRow style={{ gridTemplateColumns: gridTemplate }}>
+          {cells.map((c, idx) => (
+            <TraitCell key={idx} $secondary={idx > 0}>
+              {c}
+            </TraitCell>
+          ))}
+        </TraitDataRow>
+      </TraitTableContainer>
     </div>
   );
 
@@ -198,61 +242,59 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
           Records the 18 traits assessed layer-wise under each respective heads.
         </SectionBlockSubtitle>
 
-        {renderCategoryBlock(
-          'RIASEC',
-          'riasec',
-          riasecTraits,
-          'RED FLAG if any — explained in Tie-break & Edge case Rules under RIASEC of Assessment Construct file'
+        {renderCategoryBlock('RIASEC', 'riasec', riasecTraits)}
+
+        {renderCategoryBlock('BIG Five', 'bigFive', bigFiveTraits)}
+
+        {renderCategoryBlock('Cognitive & Decision', 'cogDec', cogDecTraits)}
+
+        {renderCategoryBlock('Aptitude', 'aptitude', aptitudeTraits)}
+
+        {/* Dominant Style Result Tables — one row each, looked up from the RIASEC 120 /
+            BIG FIVE 20 / COG&DEC combination tables computed by the assessment engine. */}
+        {renderDominantTable(
+          'CAREER STYLE (Top Trait of RIASEC 120)',
+          '90px 1.6fr 1.4fr 2.4fr 2.6fr',
+          ['Code', 'Rank Traits (1 → 2 → 3)', 'Dominant Career Style', 'Description', 'Explanation'],
+          [
+            data.summaryStrip.careerStyle.code,
+            data.summaryStrip.careerStyle.traits.join(' → '),
+            <span style={{ fontWeight: 600 }}>{data.summaryStrip.careerStyle.style}</span>,
+            data.summaryStrip.careerStyle.description,
+            data.summaryStrip.careerStyle.explanation,
+          ]
         )}
 
-        {renderCategoryBlock(
-          'BIG Five',
-          'bigFive',
-          bigFiveTraits,
-          'RED FLAG if any — explained in Tie-break & Edge case Rules under BIG Five of Assessment Construct file'
+        {renderDominantTable(
+          'PERSONAL SIGNATURE (Top Trait of BIG FIVE 20)',
+          '90px 1.4fr 2.4fr 2.6fr',
+          ['Code', 'Personality Style', 'Description', 'Explanation'],
+          [
+            data.summaryStrip.personalSignature.code,
+            <span style={{ fontWeight: 600 }}>{data.summaryStrip.personalSignature.style}</span>,
+            data.summaryStrip.personalSignature.description,
+            data.summaryStrip.personalSignature.explanation,
+          ]
         )}
 
-        {renderCategoryBlock(
-          'Cognitive & Decision',
-          'cogDec',
-          cogDecTraits,
-          'RED FLAG if any — explained in Tie-break & Edge case Rules under Cognitive & Decision of Assessment Construct file'
+        {renderDominantTable(
+          'THINKING MODE (Top Trait of COG&DEC)',
+          '1.4fr 2.4fr 130px 2.6fr',
+          ['Trait Name', 'What It Means', 'Current Level', 'What It Means'],
+          [
+            <span style={{ fontWeight: 600 }}>{data.summaryStrip.thinkingMode.traitName}</span>,
+            data.summaryStrip.thinkingMode.whatItMeasures,
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <TraitGradeTag $type={data.summaryStrip.thinkingMode.level}>
+                {data.summaryStrip.thinkingMode.level}
+              </TraitGradeTag>
+              {data.summaryStrip.thinkingMode.percentage && (
+                <TraitScoreBadge>{data.summaryStrip.thinkingMode.percentage}%</TraitScoreBadge>
+              )}
+            </div>,
+            data.summaryStrip.thinkingMode.levelMeaning,
+          ]
         )}
-
-        {renderCategoryBlock(
-          'Aptitude',
-          'aptitude',
-          aptitudeTraits,
-          'RED FLAG if any — explained in Tie-break & Edge case Rules under Aptitude of Assessment Construct file'
-        )}
-
-        {/* 3-cell Summary Strip */}
-        <SummaryCardStrip style={{ marginTop: '20px' }}>
-          <SummaryCard>
-            <SummaryCardLabel>CAREER STYLE (Top Trait of RIASEC 120)</SummaryCardLabel>
-            <FormInput
-              value={data.summaryStrip.careerStyle}
-              onChange={e => onChangeSummary({ careerStyle: e.target.value })}
-              style={{ width: '100%', fontWeight: 700 }}
-            />
-          </SummaryCard>
-          <SummaryCard>
-            <SummaryCardLabel>PERSONAL SIGNATURE (Top Trait of BIG FIVE 20)</SummaryCardLabel>
-            <FormInput
-              value={data.summaryStrip.personalSignature}
-              onChange={e => onChangeSummary({ personalSignature: e.target.value })}
-              style={{ width: '100%', fontWeight: 700 }}
-            />
-          </SummaryCard>
-          <SummaryCard>
-            <SummaryCardLabel>THINKING MODE (Top Trait of COG&DEC)</SummaryCardLabel>
-            <FormInput
-              value={data.summaryStrip.thinkingMode}
-              onChange={e => onChangeSummary({ thinkingMode: e.target.value })}
-              style={{ width: '100%', fontWeight: 700 }}
-            />
-          </SummaryCard>
-        </SummaryCardStrip>
       </SectionBlock>
 
       {/* Career DNA Narrative Block */}

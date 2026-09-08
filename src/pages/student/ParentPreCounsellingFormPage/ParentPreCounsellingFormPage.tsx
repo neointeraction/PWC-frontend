@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import {
   RiQuestionLine,
@@ -14,7 +14,6 @@ import {
   RiStarLine,
   RiSparklingLine,
   RiPlayCircleLine,
-  RiArrowLeftLine,
   RiArrowRightLine,
   RiCheckLine,
   RiHeartLine,
@@ -26,7 +25,7 @@ import { SuccessModal } from '@/components';
 import { useToast } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion } from '@/services/forms.service';
 import { getApiErrorMessage } from '@/utils';
-import { QuestionRenderer, isAnswerEmpty, generateRandomAnswer } from '../PreCounsellingFormPage/QuestionRenderer';
+import { QuestionRenderer, isAnswerEmpty, isQuestionAnswerMissing, generateRandomAnswer } from '../PreCounsellingFormPage/QuestionRenderer';
 import {
   FormPageContainer,
   HeroHeaderCard,
@@ -149,6 +148,21 @@ const SUBJECT_REASON_CONFIG: Record<string, SubjectReasonConfig> = {
   },
 };
 
+// SubjectReasonQuestion's answer only fills subjectFieldKey/reasonFieldKey (+ reasonOtherFieldKey
+// when "other" is picked) — it deliberately leaves the backend's other declared MATRIX fields
+// untouched (see comment above), so the generic per-field isQuestionAnswerMissing check doesn't
+// apply here. This checks completeness against what the UI actually asks for instead.
+const isSubjectReasonMissing = (
+  config: SubjectReasonConfig,
+  value: Record<string, unknown> | undefined
+): boolean => {
+  const data = value ?? {};
+  const reason = data[config.reasonFieldKey];
+  if (isAnswerEmpty(data[config.subjectFieldKey]) || isAnswerEmpty(reason)) return true;
+  if (reason === 'other' && isAnswerEmpty(data[config.reasonOtherFieldKey])) return true;
+  return false;
+};
+
 const SubjectReasonQuestion: React.FC<{
   question: FormQuestion;
   config: SubjectReasonConfig;
@@ -215,6 +229,7 @@ const SubjectReasonQuestion: React.FC<{
 
 export const ParentPreCounsellingFormPage: React.FC = () => {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const { studentId } = useParams<{ studentId: string }>();
 
   const { data: template, isLoading: isTemplateLoading } = useQuery({
@@ -282,13 +297,20 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
   // attempt so QuestionRenderer can highlight them; cleared as soon as the step re-validates clean.
   const [errorFieldKeys, setErrorFieldKeys] = useState<Set<string>>(new Set());
 
-  const setAnswer = (fieldKey: string, value: unknown) => {
-    setAnswers(prev => ({ ...prev, [fieldKey]: value }));
-    if (!isAnswerEmpty(value)) {
+  const isMissing = (question: FormQuestion, value: unknown): boolean => {
+    const config = SUBJECT_REASON_CONFIG[question.fieldKey];
+    return config
+      ? isSubjectReasonMissing(config, value as Record<string, unknown> | undefined)
+      : isQuestionAnswerMissing(question, value);
+  };
+
+  const setAnswer = (question: FormQuestion, value: unknown) => {
+    setAnswers(prev => ({ ...prev, [question.fieldKey]: value }));
+    if (!isMissing(question, value)) {
       setErrorFieldKeys(prev => {
-        if (!prev.has(fieldKey)) return prev;
+        if (!prev.has(question.fieldKey)) return prev;
         const next = new Set(prev);
-        next.delete(fieldKey);
+        next.delete(question.fieldKey);
         return next;
       });
       setSubmitErrorMessage(null);
@@ -299,9 +321,28 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
     (template?.questions ?? []).map(q => ({ fieldKey: q.fieldKey, answer: answers[q.fieldKey] ?? null }));
 
   const missingRequiredIn = (questions: FormQuestion[]): string[] =>
-    questions.filter(q => q.isRequired && isAnswerEmpty(answers[q.fieldKey])).map(q => q.fieldKey);
+    questions.filter(q => q.isRequired && isMissing(q, answers[q.fieldKey])).map(q => q.fieldKey);
 
   const currentSection = sections[currentStep - 1];
+
+  // "Save Draft" — PUT the current answers without the required-field validation, so the
+  // parent's progress is persisted (silently) every time they move to the next step, and
+  // prefilled via `existingSubmission` above when they come back to this link later.
+  const saveDraftMutation = useMutation({
+    mutationFn: () =>
+      formsService.saveDraft('PRE_COUNSELLING_PARENT', studentId!, {
+        cohort: COHORT,
+        answers: buildAnswers(),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['form-submission', 'PRE_COUNSELLING_PARENT', studentId, COHORT],
+      });
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to save your progress.'));
+    },
+  });
 
   const goNext = () => {
     const missing = missingRequiredIn(currentSection?.questions ?? []);
@@ -314,15 +355,20 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
       return;
     }
     setErrorFieldKeys(new Set());
+    if (studentId) {
+      saveDraftMutation.mutate();
+    }
     setCurrentStep(prev => Math.min(totalSteps, prev + 1));
     scrollToTop();
   };
 
-  const goPrev = () => {
-    setErrorFieldKeys(new Set());
-    setCurrentStep(prev => Math.max(1, prev - 1));
-    scrollToTop();
-  };
+  // Previous-step navigation is disabled (see the commented button below) — kept here
+  // so it's a one-line uncomment if backward navigation is ever restored.
+  // const goPrev = () => {
+  //   setErrorFieldKeys(new Set());
+  //   setCurrentStep(prev => Math.max(1, prev - 1));
+  //   scrollToTop();
+  // };
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState<boolean>(false);
   // Browsers only let script close a tab that script itself opened (window.open) — since
@@ -786,7 +832,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
                   question={q}
                   config={subjectReasonConfig}
                   value={answers[q.fieldKey] as Record<string, unknown> | undefined}
-                  onChange={v => setAnswer(q.fieldKey, v)}
+                  onChange={v => setAnswer(q, v)}
                   hasError={errorFieldKeys.has(q.fieldKey)}
                 />
               ) : (
@@ -794,7 +840,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
                   key={q.id}
                   question={q}
                   value={answers[q.fieldKey]}
-                  onChange={v => setAnswer(q.fieldKey, v)}
+                  onChange={v => setAnswer(q, v)}
                   hasError={errorFieldKeys.has(q.fieldKey)}
                 />
               );
@@ -803,11 +849,14 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
 
           {/* FOOTER NAV */}
           <WizardFooterNav>
-            {currentStep > 1 && (
+            {/* Previous is disabled — once a step's required questions are answered and
+                validated, the parent moves forward only, so answers already given can't
+                be edited around after the fact (matches the student form's behavior). */}
+            {/* {currentStep > 1 && (
               <Button type="button" variant="secondary" leftIcon={<RiArrowLeftLine size={18} />} onClick={goPrev}>
                 Previous
               </Button>
-            )}
+            )} */}
             {currentStep < totalSteps ? (
               <Button type="button" variant="primary" rightIcon={<RiArrowRightLine size={18} />} onClick={goNext} style={{ marginLeft: 'auto' }}>
                 Next

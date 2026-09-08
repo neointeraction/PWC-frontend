@@ -75,19 +75,6 @@ const DetailItem = styled.div`
   }
 `;
 
-const SectionHeading = styled.h4`
-  font-size: ${({ theme }) => theme.fontSize.base};
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.text};
-  margin: 0;
-`;
-
-const SectionSubtext = styled.p`
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  margin: 4px 0 0;
-`;
-
 const EmptyState = styled.p`
   font-size: ${({ theme }) => theme.fontSize.sm};
   color: ${({ theme }) => theme.colors.textSecondary};
@@ -141,31 +128,15 @@ interface CoursesTabProps {
   clusterName?: string;
 }
 
-export const CoursesTab: React.FC<CoursesTabProps> = ({
-  courses,
-  relatedCourses = [],
-  clusterName,
-}) => {
+export const CoursesTab: React.FC<CoursesTabProps> = ({ courses, relatedCourses = [] }) => {
+  const clusterCourses = relatedCourses.length > 0 ? relatedCourses : courses;
+
   return (
     <Container>
-      {courses.length > 0 ? (
-        <Grid>{courses.map(renderCourseCard)}</Grid>
+      {clusterCourses.length > 0 ? (
+        <Grid>{clusterCourses.map(renderCourseCard)}</Grid>
       ) : (
         <EmptyState>No courses linked to this role yet.</EmptyState>
-      )}
-
-      {relatedCourses.length > 0 && (
-        <Container>
-          <div>
-            <SectionHeading>
-              More Courses in the {clusterName ? `"${clusterName}"` : 'this'} Career Cluster
-            </SectionHeading>
-            <SectionSubtext>
-              Courses mapped to this career cluster, not specifically curated for this role.
-            </SectionSubtext>
-          </div>
-          <Grid>{relatedCourses.map(renderCourseCard)}</Grid>
-        </Container>
       )}
     </Container>
   );

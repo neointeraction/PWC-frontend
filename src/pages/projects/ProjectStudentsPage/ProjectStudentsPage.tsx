@@ -105,6 +105,23 @@ export const ProjectStudentsPage: React.FC = () => {
     },
   });
 
+  const retestMutation = useMutation({
+    mutationFn: (studentToRetest: ProjectStudentDetail) =>
+      projectService.deleteProjectStudent(studentToRetest.id),
+    onSuccess: (_result, studentToRetest) => {
+      queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      toast.success(
+        'Student Removed for Retest',
+        `${studentToRetest.name}'s details were deleted. Add them again to restart the process.`
+      );
+      setViewingStudent(null);
+    },
+    onError: err => {
+      toast.error('Retest Failed', getApiErrorMessage(err, 'Could not delete student for retest.'));
+    },
+  });
+
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
       id: '',
@@ -385,6 +402,8 @@ export const ProjectStudentsPage: React.FC = () => {
         onClose={() => setViewingStudent(null)}
         student={viewingStudent}
         onSave={updated => updateMutation.mutate(updated)}
+        onRetest={studentToRetest => retestMutation.mutate(studentToRetest)}
+        isRetesting={retestMutation.isPending}
       />
 
       <EditStudentModal

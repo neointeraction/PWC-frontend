@@ -356,6 +356,32 @@ a bulk import may only carry a single parent contact, or none at all. `studentCo
 code). Everything else (`firstName`, `lastName`, `email`, `mobile`, `projectId`,
 `divisionId`) is required.
 
+**Institute roster upload column standard.** Institutes hand over their student roster
+as an Excel sheet with these columns, in this order (see
+`docs/sample-data/sample-students.xlsx`):
+
+| Excel column | Maps to |
+|---|---|
+| Student Id | `studentCode` (legacy/import code — omit to auto-generate) |
+| Student Name | `firstName`/`lastName` (split on first space) |
+| Class | `className` |
+| Division | `divisionName` |
+| Student Mobile No. | `mobile` |
+| WhatsApp Number (if different) | `whatsappNumber` (optional) |
+| Student Email ID | `email` |
+| Father Name | `fatherName` (optional) |
+| Father Mobile No. | `parentMobile` (optional — the single primary parent contact) |
+| Father Email ID | `parentEmail` (optional) |
+
+There is no "Mother" column and no `Password` column in the standard sheet — a roster
+upload only ever carries one parent's contact details (captured as the father fields;
+`motherName`/`motherOccupation`/`motherEmployer` stay unset from bulk import and can only
+be added later via `PATCH /students/{id}` or the student's own `PATCH /students/me`), and
+passwords are always the backend-generated `tempPassword` from the create response, never
+supplied by the sheet. Parsed client-side in
+`src/pages/projects/components/StepStudents.tsx`, which also accepts a few older header
+variants (`Student ID`, `Parent Name`/`Parent Mobile No.`/`Parent Email ID`) as fallbacks.
+
 **Create response** — note the shape is `{ student, tempPassword }`, not just the
 student:
 ```json

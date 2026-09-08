@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
   RiVideoChatLine,
@@ -17,12 +17,14 @@ import { PageHeader } from '@/components/PageHeader';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { DatePicker } from '@/components/DatePicker';
-import { useCurrentCounselor } from '@/hooks';
+import { useCurrentCounselor, useToast } from '@/hooks';
 import {
   counselorSessionsService,
   CounselorSessionRow,
   CounselorProjectSummary,
 } from '@/services/counselorSessions.service';
+import { isWithinJoinWindow, hasJoinWindowClosed, sessionsService } from '@/services/sessions.service';
+import { getApiErrorMessage } from '@/utils';
 import { ROUTES } from '@/constants';
 import {
   Container,
@@ -55,6 +57,8 @@ import {
 
 export const AllSessionsPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
+  const queryClient = useQueryClient();
   const { data: me, isLoading: isMeLoading } = useCurrentCounselor();
 
   const { data: board, isLoading: isBoardLoading } = useQuery({
@@ -65,6 +69,24 @@ export const AllSessionsPage: React.FC = () => {
   });
   const sessions = board?.rows ?? [];
   const projectSummaries = board?.projectSummaries ?? [];
+
+  // POST /sessions/{id}/join — this click is the actual signal the backend uses to know
+  // the counsellor showed up (counsellorJoinedAt); opening the meet link on its own,
+  // without this call, would never clear a no-show.
+  const joinMutation = useMutation({
+    mutationFn: (sessionId: string) => sessionsService.join(sessionId, 'COUNSELLOR'),
+    onSuccess: ({ meetingLink }) => {
+      queryClient.invalidateQueries({ queryKey: ['counselor-sessions-board', me?.id] });
+      if (meetingLink) {
+        window.open(meetingLink, '_blank');
+      } else {
+        toast.warning('No Meeting Link Yet', 'Add a meeting link before joining this session.');
+      }
+    },
+    onError: (err: unknown) => {
+      toast.error('Cannot Join Yet', getApiErrorMessage(err, 'Unable to join this session right now.'));
+    },
+  });
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -111,13 +133,10 @@ export const AllSessionsPage: React.FC = () => {
     setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
-  // Helper to check if join button should be enabled (30 mins before start until session end)
-  const checkCanJoin = (dateTimeStr: string): boolean => {
-    const now = new Date().getTime();
-    const sessionTime = new Date(dateTimeStr).getTime();
-    const diffMinutes = (sessionTime - now) / (1000 * 60);
-    return diffMinutes <= 30 && diffMinutes >= -360;
-  };
+  // Join is only enabled within 10 minutes of the session's start time, either side —
+  // past that band it's treated as a no-show rather than a late join (see
+  // sessions.service's isWithinJoinWindow/hasJoinWindowClosed for the shared rule).
+  const checkCanJoin = (row: CounselorSessionRow): boolean => isWithinJoinWindow(row);
 
   const handleOpenStudentChart = (session: CounselorSessionRow) => {
     navigate(ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', session.id));
@@ -180,19 +199,24 @@ export const AllSessionsPage: React.FC = () => {
         key: 'time',
         header: 'Time',
         cell: (row: CounselorSessionRow) => {
-          const canJoin = row.isBooked ? checkCanJoin(row.dateTime) : false;
+          const canJoin = row.isBooked ? checkCanJoin(row) : false;
+          const missedJoin = row.isBooked && !row.isCompleted && !canJoin && hasJoinWindowClosed(row);
           return (
             <TimeContainer>
               <TimeText>{row.timeSlot || dayjs(row.dateTime).format('HH:mm')}</TimeText>
               {row.isBooked ? (
-                <SessionStatusIndicator $canJoin={canJoin}>
+                <SessionStatusIndicator $canJoin={canJoin} $missed={missedJoin}>
                   {canJoin ? (
                     <>
                       <RiCheckDoubleLine size={14} /> Ready to Join
                     </>
+                  ) : missedJoin ? (
+                    <>
+                      <RiTimeLine size={14} /> Join window closed
+                    </>
                   ) : (
                     <>
-                      <RiTimeLine size={14} /> Opens 30 mins prior
+                      <RiTimeLine size={14} /> Opens 10 mins prior
                     </>
                   )}
                 </SessionStatusIndicator>
@@ -237,7 +261,7 @@ export const AllSessionsPage: React.FC = () => {
             );
           }
 
-          const canJoin = checkCanJoin(row.dateTime);
+          const canJoin = checkCanJoin(row);
 
           if (canJoin) {
             return (
@@ -245,15 +269,24 @@ export const AllSessionsPage: React.FC = () => {
                 size="sm"
                 variant="primary"
                 leftIcon={<RiVideoChatLine size={16} />}
-                onClick={() => window.open(row.meetUrl, '_blank')}
+                isLoading={joinMutation.isPending && joinMutation.variables === row.id}
+                onClick={() => joinMutation.mutate(row.id)}
               >
                 Join Session
               </Button>
             );
           }
 
+          const missedJoin = !row.isCompleted && hasJoinWindowClosed(row);
+
           return (
-            <Tooltip content="Join button enables 30 minutes before session start time">
+            <Tooltip
+              content={
+                missedJoin
+                  ? 'Join window has closed — this session is now marked as a no-show'
+                  : 'Join button enables 10 minutes before session start time'
+              }
+            >
               <Button
                 size="sm"
                 variant="secondary"

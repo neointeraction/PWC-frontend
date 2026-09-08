@@ -2,17 +2,50 @@ import dayjs from 'dayjs';
 import { apiClient } from './api';
 import { parseApiDate } from '@/utils';
 
-// Client-side "Join Now" gate, shown 10 minutes before the session starts through its
-// end time — mirrors the backend's own window (POST /sessions/{id}/join,
-// JOIN_WINDOW_MINUTES_BEFORE in PWC-backend/src/modules/sessions/sessions.service.ts).
-// Keep these two in sync if that value ever changes.
-const JOIN_WINDOW_MINUTES_BEFORE = 10;
+// Client-side "Join Now" gate: enabled only within 10 minutes of the session's start
+// time, before or after. This is a stricter product policy than the backend's own join
+// window (10 min before through endTime — POST /sessions/{id}/join would still accept a
+// join after this closes); anyone who hasn't joined once this band passes is treated as
+// a no-show rather than let in late. Same window on both the student and counsellor
+// sides — see hasJoinWindowClosed below for the no-show check that follows it.
+const JOIN_WINDOW_MINUTES = 10;
 
-export const isWithinJoinWindow = (session: { scheduledDate: string; startTime: string; endTime: string }): boolean => {
+export const isWithinJoinWindow = (session: { scheduledDate: string; startTime: string }): boolean => {
+  const startsAt = dayjs(`${session.scheduledDate}T${session.startTime}`);
+  return Math.abs(dayjs().diff(startsAt, 'minute')) <= JOIN_WINDOW_MINUTES;
+};
+
+// True once the join window above has closed without a join — the moment a session
+// should start reading as a no-show rather than "not joined yet".
+export const hasJoinWindowClosed = (session: { scheduledDate: string; startTime: string }): boolean =>
+  dayjs().isAfter(dayjs(`${session.scheduledDate}T${session.startTime}`).add(JOIN_WINDOW_MINUTES, 'minute'));
+
+// The session's actual scheduled window is happening right now — distinct from
+// isWithinJoinWindow's 10-minutes-early allowance, and from a journey step merely being
+// the student's "current" (next-actionable) one regardless of how far off it is.
+export const isSessionLive = (session: { scheduledDate: string; startTime: string; endTime: string }): boolean => {
   const now = dayjs();
-  const opensAt = dayjs(`${session.scheduledDate}T${session.startTime}`).subtract(JOIN_WINDOW_MINUTES_BEFORE, 'minute');
-  const closesAt = dayjs(`${session.scheduledDate}T${session.endTime}`);
-  return !now.isBefore(opensAt) && now.isBefore(closesAt);
+  const startsAt = dayjs(`${session.scheduledDate}T${session.startTime}`);
+  const endsAt = dayjs(`${session.scheduledDate}T${session.endTime}`);
+  return !now.isBefore(startsAt) && now.isBefore(endsAt);
+};
+
+// True once the scheduled end time has passed. The journey step only moves to
+// "completed" when the counsellor/admin explicitly calls POST /sessions/{id}/complete
+// (§10.9) — so a session can be over in wall-clock time while still sitting here waiting
+// on that confirmation, and shouldn't keep reading as "Scheduled".
+export const hasSessionEnded = (session: { scheduledDate: string; endTime: string }): boolean =>
+  dayjs(`${session.scheduledDate}T${session.endTime}`).isBefore(dayjs());
+
+const RESCHEDULE_LOCKOUT_HOURS = 24;
+
+// A student-initiated reschedule or cancel needs 24 hours' notice — POST
+// /sessions/{id}/reschedule 400s inside this window for initiatedBy: "STUDENT" (see
+// docs/frontend-integration-guide.md §10.10), so the buttons are gated the same way here.
+export const isWithinRescheduleLockout = (session: { scheduledDate: string; startTime: string }): boolean => {
+  const now = dayjs();
+  const startsAt = dayjs(`${session.scheduledDate}T${session.startTime}`);
+  return startsAt.diff(now, 'hour', true) < RESCHEDULE_LOCKOUT_HOURS;
 };
 
 export type SessionNumber = 'SESSION_1' | 'SESSION_2';

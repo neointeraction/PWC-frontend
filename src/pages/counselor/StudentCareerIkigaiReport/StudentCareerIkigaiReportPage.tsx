@@ -147,10 +147,7 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
       <ReportContainer>
         <PageHeader
           title="kREATE Compass Report"
-          breadcrumbs={[
-            { label: 'Dashboard', href: ROUTES.DASHBOARD },
-            { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
-          ]}
+          breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }]}
           onBack={() => navigate(-1)}
         />
         <EmptyState
@@ -170,7 +167,6 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
         title="kREATE Compass Report"
         breadcrumbs={[
           { label: 'Dashboard', href: ROUTES.DASHBOARD },
-          { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
           { label: `kREATE Compass (${reportData.studentInfo.studentName})` },
         ]}
         onBack={() => navigate(-1)}

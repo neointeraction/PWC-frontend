@@ -21,6 +21,7 @@ import {
   normalizePhone,
   parseApiDate,
 } from '@/utils';
+import { hasJoinWindowClosed } from './sessions.service';
 
 // ---- Backend project shape (GET /projects) — Institute was merged into Project, so
 // address/contactNumber/primaryEmail/languageId now live directly on the project row. ----
@@ -91,6 +92,10 @@ interface ApiSession {
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   meetingLink?: string | null;
   notes?: string | null;
+  // Set by POST /sessions/{id}/join (§10.7) when each party actually joins — the ✓ the
+  // schedule table shows means both of these are non-null, not just that time has passed.
+  studentJoinedAt?: string | null;
+  counsellorJoinedAt?: string | null;
   // Reconciled lazily by the backend once a scheduled session's end time passes with
   // no join recorded — this is the 🚩 "missed session" the schedule table shows.
   studentNoShow?: boolean;
@@ -153,6 +158,12 @@ const formatSlotDate = (ymd: string): string => {
   if (!y || !m || !d) return ymd;
   return `${d} ${SLOT_MONTHS[Number(m) - 1] ?? m} ${y}`;
 };
+
+// "9" + "B" -> "9 - B"; skips the " - " when division is missing or repeats the class.
+const formatGrade = (className?: string, divisionName?: string): string =>
+  className && divisionName && divisionName !== className
+    ? `${className} - ${divisionName}`
+    : className || divisionName || '';
 
 const sameName = (a: string | undefined, b: string | undefined): boolean =>
   (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
@@ -427,14 +438,20 @@ export const projectService = {
   // booking made outside the slot inventory, a session with no slot at all) fills in the
   // student side.
   getProjectSessions: async (projectId: string): Promise<CounselorSession[]> => {
-    const [slotsRes, sessionsRes, directoryRes] = await Promise.all([
+    const [slotsRes, sessionsRes, directoryRes, studentsRes] = await Promise.all([
       apiClient.get<ApiSlot[]>('/sessions/slots', { params: { projectId } }),
       apiClient.get<ApiSession[]>('/sessions', { params: { projectId } }),
       // Slots and sessions carry the counsellor's name and code but no contact details;
       // the directory fills the email/phone the counsellor cards show.
       apiClient.get<ApiCounsellorDir[]>('/counsellors', { params: { projectId } }),
+      // /sessions' nested `student` doesn't carry className/divisionName — /students does,
+      // so grade/class is looked up from here instead of off the session payload.
+      apiClient.get<ApiStudent[]>('/students', { params: { projectId } }),
     ]);
     const directory = new Map(directoryRes.data.map(c => [c.id, c]));
+    const studentClass = new Map(
+      studentsRes.data.map(st => [st.id, formatGrade(st.className, st.divisionName)])
+    );
 
     const activeSessions = sessionsRes.data.filter(sess => sess.status !== 'CANCELLED');
     const sessionById = new Map(activeSessions.map(sess => [sess.id, sess]));
@@ -461,25 +478,42 @@ export const projectService = {
       return entry;
     };
 
-    const bookingFields = (sess: ApiSession | undefined) =>
-      sess
-        ? {
-            sessionId: sess.id,
-            isBooked: true,
-            isMissed: Boolean(sess.studentNoShow),
-            studentId: sess.student?.id,
-            studentCode: sess.student?.studentCode,
-            studentName: sess.student
-              ? formatFullName(sess.student.user.firstName, sess.student.user.lastName)
-              : '',
-            studentEmail: sess.student?.user.email,
-            mobile: sess.student?.mobile,
-            grade: sess.student?.className || sess.student?.divisionName || '',
-            sessionType: (sess.sessionNumber === 'SESSION_1' ? 'S1' : 'S2') as 'S1' | 'S2',
-            notes: sess.notes ?? undefined,
-            meetingLink: sess.meetingLink ?? undefined,
-          }
-        : { isBooked: false };
+    const bookingFields = (sess: ApiSession | undefined) => {
+      if (!sess) return { isBooked: false };
+      // A booked session past its 10-minute join window with no join recorded for a
+      // party is a no-show even if the backend's own lazy reconciliation
+      // (student/counsellorNoShow) hasn't caught up yet — the Join button is what
+      // actually records studentJoinedAt/counsellorJoinedAt (POST /sessions/{id}/join),
+      // so their absence past the window is the real signal. See sessions.service's
+      // hasJoinWindowClosed for the shared rule with the student/counsellor dashboards.
+      const joinWindowClosed =
+        sess.status !== 'COMPLETED' &&
+        hasJoinWindowClosed({ scheduledDate: parseApiDate(sess.scheduledDate), startTime: sess.startTime });
+      const counsellorNoShow = Boolean(sess.counsellorNoShow) || (joinWindowClosed && !sess.counsellorJoinedAt);
+      const studentNoShow = Boolean(sess.studentNoShow) || (joinWindowClosed && !sess.studentJoinedAt);
+      return {
+        sessionId: sess.id,
+        isBooked: true,
+        isMissed: studentNoShow || counsellorNoShow,
+        studentNoShow,
+        counsellorNoShow,
+        attended: Boolean(sess.studentJoinedAt) && Boolean(sess.counsellorJoinedAt),
+        studentId: sess.student?.id,
+        studentCode: sess.student?.studentCode,
+        studentName: sess.student
+          ? formatFullName(sess.student.user.firstName, sess.student.user.lastName)
+          : '',
+        studentEmail: sess.student?.user.email,
+        mobile: sess.student?.mobile,
+        grade:
+          formatGrade(sess.student?.className, sess.student?.divisionName) ||
+          (sess.student ? studentClass.get(sess.student.id) : '') ||
+          '',
+        sessionType: (sess.sessionNumber === 'SESSION_1' ? 'S1' : 'S2') as 'S1' | 'S2',
+        notes: sess.notes ?? undefined,
+        meetingLink: sess.meetingLink ?? undefined,
+      };
+    };
 
     // Seed from the project's assigned counsellors so one who has been added but hasn't
     // uploaded availability yet still gets a card, then layer slots and bookings on top.
@@ -540,7 +574,9 @@ export const projectService = {
           name: formatFullName(sess.student.user.firstName, sess.student.user.lastName),
           email: sess.student.user.email,
           mobile: sess.student.mobile,
-          grade: sess.student.className || sess.student.divisionName || '',
+          grade: formatGrade(sess.student.className, sess.student.divisionName) ||
+            studentClass.get(sess.student.id) ||
+            '',
           sessionDate: sess.scheduledDate ? parseApiDate(sess.scheduledDate) : '',
           timeSlot: `${sess.startTime} - ${sess.endTime}`,
           sessionType: sess.sessionNumber === 'SESSION_1' ? 'S1' : 'S2',
@@ -621,10 +657,7 @@ export const projectService = {
         mobile: st.mobile,
         whatsappNumber: st.whatsappNumber || undefined,
         parentMobile: st.parentMobile,
-        grade:
-          className && divisionName && divisionName !== className
-            ? `${className} - ${divisionName}`
-            : className || divisionName,
+        grade: formatGrade(className, divisionName),
         className,
         division: divisionName,
         parentEmail: st.parentEmail ?? '',
@@ -710,6 +743,14 @@ export const projectService = {
         Boolean(student.email.trim()) &&
         !sameName(current.user.email, student.email),
     };
+  },
+
+  // "Retest" — DELETE /students/{id}. Student cascade-deletes to its User row plus every
+  // dependent record (pre-counselling forms, assessment result, sessions, etc — see
+  // db-design.md's `Student`/`Session` cascade notes), so the student's login and all
+  // progress are gone. The institute re-adds them (same email) to start over from scratch.
+  deleteProjectStudent: async (studentId: string): Promise<void> => {
+    await apiClient.delete(`/students/${studentId}`);
   },
 
   // ---- Schedule writes (admin oversight of a project's sessions) ----

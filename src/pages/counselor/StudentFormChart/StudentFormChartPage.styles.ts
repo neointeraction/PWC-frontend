@@ -422,6 +422,8 @@ export const CompResponseCell = styled.div<{ $type?: 'student' | 'parent' }>`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  white-space: pre-line;
+  line-height: 1.5;
   background-color: ${({ $type }) =>
     $type === 'student'
       ? 'rgba(79, 70, 229, 0.02)'
@@ -443,16 +445,6 @@ export const CompResponseCell = styled.div<{ $type?: 'student' | 'parent' }>`
       margin-bottom: 2px;
     }
   }
-`;
-
-export const NaBadge = styled.span`
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background-color: ${({ theme }) => theme.colors.border};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: 0.75rem;
-  font-weight: 600;
 `;
 
 // Full-Width Synthesis Notes Panel
@@ -1051,9 +1043,9 @@ export const RedFlagNotice = styled.div`
   margin-top: 10px;
   padding: 9px 12px;
   border-radius: 4px;
-  border: 1px solid ${({ theme }) => theme.colors.danger}35;
-  background-color: ${({ theme }) => theme.colors.dangerLight};
-  color: ${({ theme }) => theme.colors.danger};
+  border: 1px solid ${({ theme }) => theme.colors.warning}35;
+  background-color: ${({ theme }) => theme.colors.warningLight};
+  color: ${({ theme }) => theme.colors.warning};
   font-size: 0.8rem;
   font-style: italic;
   display: flex;

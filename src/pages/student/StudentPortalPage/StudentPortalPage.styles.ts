@@ -438,6 +438,16 @@ export const SessionActionLink = styled.button<{ $danger?: boolean }>`
     text-decoration: underline;
     color: ${({ $danger, theme }) => ($danger ? '#991B1B' : theme.colors.primaryHover || '#4C1D95')};
   }
+
+  &:disabled {
+    color: #9CA3AF;
+    cursor: not-allowed;
+  }
+
+  &:disabled:hover {
+    text-decoration: none;
+    color: #9CA3AF;
+  }
 `;
 
 export const SessionLinkDivider = styled.span`

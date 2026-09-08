@@ -164,20 +164,20 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
           <SectionTitle>Student Information</SectionTitle>
           <FormGrid>
             <Input
-              label="Student ID"
+              label="Student ID *"
               value={formData.studentId || ''}
               onChange={e => setFormData({ ...formData, studentId: e.target.value })}
               error={errors.studentId}
             />
             <Input
-              label="Student Full Name"
+              label="Student Full Name *"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               error={errors.name}
             />
             <div>
               <Input
-                label="Email Address"
+                label="Email Address *"
                 type="email"
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -196,16 +196,10 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
             </div>
 
             <Input
-              label="Mobile Number"
+              label="Mobile Number *"
               value={formData.mobile}
               onChange={e => setFormData({ ...formData, mobile: e.target.value })}
               error={errors.mobile}
-            />
-            <Input
-              label="Parent Phone Number"
-              value={formData.parentMobile || ''}
-              onChange={e => setFormData({ ...formData, parentMobile: e.target.value })}
-              error={errors.parentMobile}
             />
             <Input
               label="WhatsApp Number (if different)"
@@ -215,14 +209,14 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
             />
 
             <Input
-              label="Class"
+              label="Class *"
               value={formData.className || ''}
               onChange={e => setFormData({ ...formData, className: e.target.value })}
               error={errors.className}
             />
 
             <Input
-              label="Division"
+              label="Division *"
               value={formData.division || ''}
               onChange={e => setFormData({ ...formData, division: e.target.value })}
               error={errors.division}
@@ -241,6 +235,13 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               value={formData.parentEmail || ''}
               onChange={e => setFormData({ ...formData, parentEmail: e.target.value })}
               error={errors.parentEmail}
+            />
+
+            <Input
+              label="Parent Phone Number"
+              value={formData.parentMobile || ''}
+              onChange={e => setFormData({ ...formData, parentMobile: e.target.value })}
+              error={errors.parentMobile}
             />
           </FormGrid>
 

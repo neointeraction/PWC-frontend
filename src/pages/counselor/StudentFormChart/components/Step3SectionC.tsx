@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   RiAddLine,
   RiDeleteBinLine,
-  RiBookReadLine,
+  RiPencilLine,
 } from 'react-icons/ri';
 import {
   CounsellorFormChartData,
@@ -15,31 +16,18 @@ import {
 } from '@/mocks/studentFormChart.mock';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
+import { Badge } from '@/components/Badge';
 import { Select, SelectOption } from '@/components/Select';
 import { useToast } from '@/hooks';
+import { careerService } from '@/services/career.service';
+import { Career } from '@/types/career.types';
+import { JobRoleFormModal } from '@/pages/career-library/components/JobRoleFormModal';
 
-const DOMAIN_OPTIONS: SelectOption[] = [
-  { value: 'Library & Information Science', label: 'Library & Information Science' },
-  { value: 'Applied Arts & Design', label: 'Applied Arts & Design' },
-  { value: 'Animation, Graphics & Digital Arts', label: 'Animation, Graphics & Digital Arts' },
-  { value: 'Performing Arts & Music', label: 'Performing Arts & Music' },
-  { value: 'Aeronautics & Aviation', label: 'Aeronautics & Aviation' },
-  { value: 'Business, Sales & Management', label: 'Business, Sales & Management' },
-  { value: 'Core Engineering & Industrial Systems', label: 'Core Engineering & Industrial Systems' },
-  { value: 'Computer Science & Artificial Intelligence', label: 'Computer Science & Artificial Intelligence' },
-  { value: 'Finance & Algorithmic Trading', label: 'Finance & Algorithmic Trading' },
-  { value: 'Food Science & Agriculture', label: 'Food Science & Agriculture' },
-  { value: 'Healthcare & Clinical Sciences', label: 'Healthcare & Clinical Sciences' },
-  { value: 'Information Technology & Cybersecurity', label: 'Information Technology & Cybersecurity' },
-  { value: 'Law & Public Policy', label: 'Law & Public Policy' },
-  { value: 'Logistics & Supply Chain', label: 'Logistics & Supply Chain' },
-  { value: 'Media, Journalism & Digital Content', label: 'Media, Journalism & Digital Content' },
-  { value: 'STEM Research & Applied Sciences', label: 'STEM Research & Applied Sciences' },
-  { value: 'Social Science, Psychology & Education', label: 'Social Science, Psychology & Education' },
-];
 import { ComparisonTable } from './ComparisonTable';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
-import { CareerLibraryPickerModal } from './CareerLibraryPickerModal';
+// Load-from-Career-Library is disabled for now (see Step3SectionC's read-only tables) —
+// kept around in case it's re-enabled later.
+// import { CareerLibraryPickerModal } from './CareerLibraryPickerModal';
 import {
   StepHeaderCard,
   StepHeaderTitle,
@@ -67,6 +55,9 @@ interface Step3SectionCProps {
   onChangeStreamTable?: (table: StreamFitItem[]) => void;
   onChangeWhyStream1?: (value: string) => void;
   onChangeNotesE: (code: string, value: string) => void;
+  // Graduation fit, colleges, and the indicative-clusters table are now counsellor
+  // read-only (assessment-derived output) — these setters stay on the parent/props
+  // contract so re-enabling editing later doesn't require touching the plumbing.
   onChangeGraduationTable: (table: GraduationItem[]) => void;
   onChangeWhyStream2: (value: string) => void;
   onChangeNotesF: (code: string, value: string) => void;
@@ -170,26 +161,82 @@ const synthesisRowsFDef = [
   },
 ];
 
+const AI_RESILIENCE_OPTIONS: SelectOption[] = [
+  { value: 'Low', label: 'Low' },
+  { value: 'Medium', label: 'Medium' },
+  { value: 'High', label: 'High' },
+  { value: 'Very High', label: 'Very High' },
+];
+
 export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   data,
   onChangeNotesPre,
   onChangeNotesE,
-  onChangeGraduationTable,
   onChangeWhyStream2,
   onChangeNotesF,
   onChangeEntranceExamsTable,
-  onChangeCollegesTable,
-  onChangeCompassClusterTable,
   onChangeCompassTable,
 }) => {
   const toast = useToast();
-  const [isCLModalOpen, setIsCLModalOpen] = useState(false);
-  const handleAddCLRoles = (roles: CareerCompassItem[]) => {
-    onChangeCompassTable([...data.careerCompassTable, ...roles]);
+
+  // "Load from CL" is disabled for now alongside the rest of the Career Compass editing
+  // — kept here (commented) in case it's re-enabled later.
+  // const [isCLModalOpen, setIsCLModalOpen] = useState(false);
+  // const handleAddCLRoles = (roles: CareerCompassItem[]) => {
+  //   onChangeCompassTable([...data.careerCompassTable, ...roles]);
+  //   toast.success(
+  //     'Roles Loaded from Career Library!',
+  //     `${roles.length} role(s) added to Career Compass table.`
+  //   );
+  // };
+
+  // Counsellors can't edit the Career Compass tables directly — the only action left is
+  // proposing a brand-new job role. That reuses the same "Add Job Role" popup the Career
+  // Library admin screen uses; submitted by a counsellor, POST /career-library stages it
+  // as a CareerLibraryEntryProposal (pending Super Admin review) instead of a live entry
+  // — see PWC-backend career-library.service.ts `createCareerEntry`. The role is also
+  // appended to this candidate's own Career Compass table below, purely locally, so it
+  // shows up in this report right away.
+  const [isRequestRoleOpen, setIsRequestRoleOpen] = useState(false);
+  const [requestDomainId, setRequestDomainId] = useState('');
+  // A counsellor-proposed role (approvalStatus === 'Pending Admin Approval') can be edited
+  // or removed inline, purely in this table's local state — same as every other counsellor
+  // edit on this step, it's persisted by the normal step/form save, not a separate API call.
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+
+  const { data: domains = [] } = useQuery({
+    queryKey: ['career-domains-all'],
+    queryFn: () => careerService.getDomains(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const domainOptions: SelectOption[] = domains.map(d => ({
+    value: d.id,
+    label: `${d.name} (${d.industryName})`,
+  }));
+  const selectedDomain = domains.find(d => d.id === requestDomainId);
+
+  const handleRoleProposed = (saved: Career) => {
+    onChangeCompassTable([
+      ...data.careerCompassTable,
+      {
+        id: `cc-${Date.now()}`,
+        domain: saved.domain,
+        role: saved.jobRole,
+        whyItFits: saved.oneLineDescription,
+        topEmployers: (saved.topCompaniesRecruiting || []).join(', '),
+        aiResilience: saved.aiResilienceGrading,
+        salaryIndia: saved.approxSalaryRangeIndia || '',
+        salaryAbroad: saved.globalSalaryRange || '',
+        approvalStatus: 'Pending Admin Approval',
+      },
+    ]);
     toast.success(
-      'Roles Loaded from Career Library!',
-      `${roles.length} role(s) added to Career Compass table.`
+      'Job Role Requested',
+      `"${saved.jobRole}" was submitted for Super Admin approval and added to this report.`
     );
+    setIsRequestRoleOpen(false);
+    setRequestDomainId('');
   };
 
   return (
@@ -246,14 +293,14 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           onChangeNote={onChangeNotesE}
         />
 
-        {/* 2. Graduation Table */}
+        {/* 2. Graduation Table — read-only (assessment-derived output; not counsellor-editable) */}
         <div id="sec-c-graduation-fit" style={{ marginTop: '20px' }}>
           <SectionBlockTitle style={{ marginBottom: '12px' }}>Graduation Fit</SectionBlockTitle>
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 60px',
-                minWidth: '950px',
+                gridTemplateColumns: '120px 180px 180px 150px 1fr 180px',
+                minWidth: '900px',
               }}
             >
               <CompTableHeaderCell>Cluster</CompTableHeaderCell>
@@ -262,118 +309,28 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompTableHeaderCell>Specialization</CompTableHeaderCell>
               <CompTableHeaderCell>Reasoning</CompTableHeaderCell>
               <CompTableHeaderCell>Key Exams</CompTableHeaderCell>
-              <CompTableHeaderCell style={{ textAlign: 'center' }}>Action</CompTableHeaderCell>
             </CompTableHeaderRow>
 
             {data.graduationTable.map(row => (
               <CompDataRow
                 key={row.id}
                 style={{
-                  gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 60px',
-                  minWidth: '950px',
+                  gridTemplateColumns: '120px 180px 180px 150px 1fr 180px',
+                  minWidth: '900px',
                 }}
               >
-                <CompParamCell style={{ padding: '4px' }}>
-                  <FormInput
-                    value={row.cluster}
-                    onChange={e =>
-                      onChangeGraduationTable(
-                        data.graduationTable.map(r =>
-                          r.id === row.id ? { ...r, cluster: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompParamCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.mainStream || ''}
-                    onChange={e =>
-                      onChangeGraduationTable(
-                        data.graduationTable.map(r =>
-                          r.id === row.id ? { ...r, mainStream: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.subStream || ''}
-                    onChange={e =>
-                      onChangeGraduationTable(
-                        data.graduationTable.map(r =>
-                          r.id === row.id ? { ...r, subStream: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.specialization || ''}
-                    onChange={e =>
-                      onChangeGraduationTable(
-                        data.graduationTable.map(r =>
-                          r.id === row.id ? { ...r, specialization: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormTextarea
-                    value={row.reasoning || ''}
-                    onChange={e =>
-                      onChangeGraduationTable(
-                        data.graduationTable.map(r =>
-                          r.id === row.id ? { ...r, reasoning: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%', minHeight: '60px', padding: '4px', fontSize: '0.8rem' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.keyExams}
-                    onChange={e =>
-                      onChangeGraduationTable(
-                        data.graduationTable.map(r =>
-                          r.id === row.id ? { ...r, keyExams: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell
-                  style={{
-                    borderLeft: 'none',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Tooltip content="Delete Row">
-                    <TableActionButton
-                      type="button"
-                      onClick={() =>
-                        onChangeGraduationTable(data.graduationTable.filter(r => r.id !== row.id))
-                      }
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </TableActionButton>
-                  </Tooltip>
-                </CompResponseCell>
+                <CompParamCell>{row.cluster}</CompParamCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.mainStream}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.subStream}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.specialization}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.reasoning}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.keyExams}</CompResponseCell>
               </CompDataRow>
             ))}
           </CompTableContainer>
 
+          {/* Counsellor-added rows/edits are disabled here — kept commented for easy
+              re-enablement rather than deleted.
           <div style={{ marginTop: '12px' }}>
             <Button
               size="sm"
@@ -397,9 +354,10 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               Add Graduation Fit Row
             </Button>
           </div>
+          */}
         </div>
 
-        {/* Colleges After Class 11 & 12 Table */}
+        {/* Colleges After Class 11 & 12 Table — read-only (assessment-derived output) */}
         <div id="sec-c-colleges" style={{ marginTop: '20px' }}>
           <SectionBlockTitle style={{ marginBottom: '12px' }}>
             Colleges After Class 11&12
@@ -407,8 +365,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '1fr 140px 120px 120px 140px 100px 160px 60px',
-                minWidth: '950px',
+                gridTemplateColumns: '1fr 140px 120px 120px 140px 100px 160px',
+                minWidth: '900px',
               }}
             >
               <CompTableHeaderCell>College Name</CompTableHeaderCell>
@@ -418,130 +376,28 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompTableHeaderCell>Entrance Exam</CompTableHeaderCell>
               <CompTableHeaderCell>Ranking</CompTableHeaderCell>
               <CompTableHeaderCell>Website</CompTableHeaderCell>
-              <CompTableHeaderCell style={{ textAlign: 'center' }}>Action</CompTableHeaderCell>
             </CompTableHeaderRow>
 
             {(data.collegesTable || []).map(row => (
               <CompDataRow
                 key={row.id}
                 style={{
-                  gridTemplateColumns: '1fr 140px 120px 120px 140px 100px 160px 60px',
-                  minWidth: '950px',
+                  gridTemplateColumns: '1fr 140px 120px 120px 140px 100px 160px',
+                  minWidth: '900px',
                 }}
               >
-                <CompParamCell style={{ padding: '4px' }}>
-                  <FormInput
-                    value={row.collegeName}
-                    onChange={e =>
-                      onChangeCollegesTable(
-                        data.collegesTable.map(r =>
-                          r.id === row.id ? { ...r, collegeName: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompParamCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.location}
-                    onChange={e =>
-                      onChangeCollegesTable(
-                        data.collegesTable.map(r =>
-                          r.id === row.id ? { ...r, location: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.type}
-                    onChange={e =>
-                      onChangeCollegesTable(
-                        data.collegesTable.map(r =>
-                          r.id === row.id ? { ...r, type: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.course}
-                    onChange={e =>
-                      onChangeCollegesTable(
-                        data.collegesTable.map(r =>
-                          r.id === row.id ? { ...r, course: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.entranceExam}
-                    onChange={e =>
-                      onChangeCollegesTable(
-                        data.collegesTable.map(r =>
-                          r.id === row.id ? { ...r, entranceExam: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.ranking}
-                    onChange={e =>
-                      onChangeCollegesTable(
-                        data.collegesTable.map(r =>
-                          r.id === row.id ? { ...r, ranking: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.website}
-                    onChange={e =>
-                      onChangeCollegesTable(
-                        data.collegesTable.map(r =>
-                          r.id === row.id ? { ...r, website: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell
-                  style={{
-                    borderLeft: 'none',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Tooltip content="Delete Row">
-                    <TableActionButton
-                      type="button"
-                      onClick={() =>
-                        onChangeCollegesTable(data.collegesTable.filter(r => r.id !== row.id))
-                      }
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </TableActionButton>
-                  </Tooltip>
-                </CompResponseCell>
+                <CompParamCell>{row.collegeName}</CompParamCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.location}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.type}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.course}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.entranceExam}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.ranking}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.website}</CompResponseCell>
               </CompDataRow>
             ))}
           </CompTableContainer>
+          {/* Counsellor-added rows/edits are disabled here — kept commented for easy
+              re-enablement rather than deleted.
           <div style={{ marginTop: '12px' }}>
             <Button
               size="sm"
@@ -566,6 +422,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               Add College Row
             </Button>
           </div>
+          */}
         </div>
 
         {/* Entrance Exams Section */}
@@ -793,14 +650,14 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           onChangeNote={onChangeNotesF}
         />
 
-        {/* Career Compass Cluster Table */}
+        {/* Career Compass Cluster Table — read-only (assessment-derived output) */}
         <div style={{ marginTop: '20px' }}>
           <SectionBlockTitle style={{ marginBottom: '12px' }}>
             Career Compass (Indicative Clusters)
           </SectionBlockTitle>
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
-              style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr 60px', minWidth: '950px' }}
+              style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr', minWidth: '900px' }}
             >
               <CompTableHeaderCell>Cluster</CompTableHeaderCell>
               <CompTableHeaderCell>Industry</CompTableHeaderCell>
@@ -808,116 +665,24 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompTableHeaderCell>Stream Requirement</CompTableHeaderCell>
               <CompTableHeaderCell>Grading Level</CompTableHeaderCell>
               <CompTableHeaderCell>Meaning</CompTableHeaderCell>
-              <CompTableHeaderCell style={{ textAlign: 'center' }}>Action</CompTableHeaderCell>
             </CompTableHeaderRow>
 
             {(data.careerCompassClusterTable || []).map(row => (
               <CompDataRow
                 key={row.id}
-                style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr 60px', minWidth: '950px' }}
+                style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr', minWidth: '900px' }}
               >
-                <CompParamCell style={{ padding: '4px' }}>
-                  <FormInput
-                    value={row.cluster}
-                    onChange={e =>
-                      onChangeCompassClusterTable(
-                        data.careerCompassClusterTable.map(r =>
-                          r.id === row.id ? { ...r, cluster: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompParamCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.industry}
-                    onChange={e =>
-                      onChangeCompassClusterTable(
-                        data.careerCompassClusterTable.map(r =>
-                          r.id === row.id ? { ...r, industry: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.domain}
-                    onChange={e =>
-                      onChangeCompassClusterTable(
-                        data.careerCompassClusterTable.map(r =>
-                          r.id === row.id ? { ...r, domain: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.streamRequirement}
-                    onChange={e =>
-                      onChangeCompassClusterTable(
-                        data.careerCompassClusterTable.map(r =>
-                          r.id === row.id ? { ...r, streamRequirement: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.gradingLevel}
-                    onChange={e =>
-                      onChangeCompassClusterTable(
-                        data.careerCompassClusterTable.map(r =>
-                          r.id === row.id ? { ...r, gradingLevel: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.meaning}
-                    onChange={e =>
-                      onChangeCompassClusterTable(
-                        data.careerCompassClusterTable.map(r =>
-                          r.id === row.id ? { ...r, meaning: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell
-                  style={{
-                    borderLeft: 'none',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Tooltip content="Delete Row">
-                    <TableActionButton
-                      type="button"
-                      onClick={() =>
-                        onChangeCompassClusterTable(
-                          data.careerCompassClusterTable.filter(r => r.id !== row.id)
-                        )
-                      }
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </TableActionButton>
-                  </Tooltip>
-                </CompResponseCell>
+                <CompParamCell>{row.cluster}</CompParamCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.industry}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.domain}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.streamRequirement}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.gradingLevel}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.meaning}</CompResponseCell>
               </CompDataRow>
             ))}
           </CompTableContainer>
+          {/* Counsellor-added rows/edits are disabled here — kept commented for easy
+              re-enablement rather than deleted.
           <div style={{ marginTop: '12px' }}>
             <Button
               size="sm"
@@ -941,22 +706,24 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               Add Cluster Row
             </Button>
           </div>
+          */}
         </div>
 
-        {/* 3. Career Compass Job Roles Table */}
+        {/* 3. Career Compass Job Roles Table — read-only (assessment-derived output). The
+            only counsellor action left is proposing a brand-new role (see below). */}
         <div id="sec-c-target-roles" style={{ marginTop: '20px' }}>
           <SectionBlockTitle style={{ marginBottom: '4px' }}>
             Career Compass (Target Roles & Compensation)
           </SectionBlockTitle>
           <div style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: '12px' }}>
             All 18 trait scores were matched against the full career domain library. Counsellors can
-            also propose new job roles and map domains for App Admin approval.
+            propose a new job role for Super Admin approval.
           </div>
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '180px 160px 1fr 180px 120px 120px 120px 60px',
-                minWidth: '1050px',
+                gridTemplateColumns: '180px 160px 1fr 180px 220px 120px 120px',
+                minWidth: '1100px',
               }}
             >
               <CompTableHeaderCell>Domain</CompTableHeaderCell>
@@ -966,146 +733,126 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompTableHeaderCell>AI Resilience</CompTableHeaderCell>
               <CompTableHeaderCell>Salary (India)</CompTableHeaderCell>
               <CompTableHeaderCell>Salary (Abroad)</CompTableHeaderCell>
-              <CompTableHeaderCell style={{ textAlign: 'center' }}>Action</CompTableHeaderCell>
             </CompTableHeaderRow>
 
-            {data.careerCompassTable.map(row => (
-              <CompDataRow
-                key={row.id}
-                style={{
-                  gridTemplateColumns: '180px 160px 1fr 180px 120px 120px 120px 60px',
-                  minWidth: '1050px',
-                }}
-              >
-                <CompParamCell style={{ padding: '4px' }}>
-                  <Select
-                    value={row.domain}
-                    options={
-                      DOMAIN_OPTIONS.some(opt => opt.value === row.domain) || !row.domain
-                        ? DOMAIN_OPTIONS
-                        : [{ value: row.domain, label: row.domain }, ...DOMAIN_OPTIONS]
-                    }
-                    onChange={e =>
-                      onChangeCompassTable(
-                        data.careerCompassTable.map(r =>
-                          r.id === row.id ? { ...r, domain: e.target.value } : r
-                        )
-                      )
-                    }
-                    placeholder="Select Domain"
-                    fullWidth
-                  />
-                </CompParamCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.role}
-                    onChange={e =>
-                      onChangeCompassTable(
-                        data.careerCompassTable.map(r =>
-                          r.id === row.id ? { ...r, role: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.whyItFits}
-                    onChange={e =>
-                      onChangeCompassTable(
-                        data.careerCompassTable.map(r =>
-                          r.id === row.id ? { ...r, whyItFits: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormTextarea
-                    value={row.topEmployers}
-                    onChange={e =>
-                      onChangeCompassTable(
-                        data.careerCompassTable.map(r =>
-                          r.id === row.id ? { ...r, topEmployers: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%', minHeight: '60px', padding: '4px', fontSize: '0.8rem' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormTextarea
-                    value={row.aiResilience}
-                    onChange={e =>
-                      onChangeCompassTable(
-                        data.careerCompassTable.map(r =>
-                          r.id === row.id ? { ...r, aiResilience: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%', minHeight: '60px', padding: '4px', fontSize: '0.8rem' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.salaryIndia}
-                    onChange={e =>
-                      onChangeCompassTable(
-                        data.careerCompassTable.map(r =>
-                          r.id === row.id ? { ...r, salaryIndia: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell style={{ borderLeft: 'none', padding: '4px' }}>
-                  <FormInput
-                    value={row.salaryAbroad}
-                    onChange={e =>
-                      onChangeCompassTable(
-                        data.careerCompassTable.map(r =>
-                          r.id === row.id ? { ...r, salaryAbroad: e.target.value } : r
-                        )
-                      )
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </CompResponseCell>
-                <CompResponseCell
+            {data.careerCompassTable.map(row => {
+              const isCounsellorAdded = row.approvalStatus === 'Pending Admin Approval';
+              const isEditing = isCounsellorAdded && editingRoleId === row.id;
+              const updateRow = (patch: Partial<CareerCompassItem>) =>
+                onChangeCompassTable(
+                  data.careerCompassTable.map(item =>
+                    item.id === row.id ? { ...item, ...patch } : item
+                  )
+                );
+
+              return (
+                <CompDataRow
+                  key={row.id}
                   style={{
-                    borderLeft: 'none',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    gridTemplateColumns: '180px 160px 1fr 180px 220px 120px 120px',
+                    minWidth: '1100px',
                   }}
                 >
-                  <Tooltip content="Delete Row">
-                    <TableActionButton
-                      type="button"
-                      onClick={() =>
-                        onChangeCompassTable(data.careerCompassTable.filter(r => r.id !== row.id))
-                      }
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </TableActionButton>
-                  </Tooltip>
-                </CompResponseCell>
-              </CompDataRow>
-            ))}
+                  <CompParamCell>
+                    {row.domain}
+                    {isCounsellorAdded && (
+                      <span
+                        style={{
+                          marginLeft: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Badge variant="warning">Pending Approval</Badge>
+                        <Tooltip content={isEditing ? 'Done Editing' : 'Edit Job Role'}>
+                          <TableActionButton
+                            type="button"
+                            onClick={() => setEditingRoleId(isEditing ? null : row.id)}
+                          >
+                            <RiPencilLine size={14} />
+                          </TableActionButton>
+                        </Tooltip>
+                        <Tooltip content="Delete Job Role">
+                          <TableActionButton
+                            type="button"
+                            onClick={() => {
+                              onChangeCompassTable(
+                                data.careerCompassTable.filter(item => item.id !== row.id)
+                              );
+                              if (editingRoleId === row.id) setEditingRoleId(null);
+                            }}
+                          >
+                            <RiDeleteBinLine size={14} />
+                          </TableActionButton>
+                        </Tooltip>
+                      </span>
+                    )}
+                  </CompParamCell>
+                  {isEditing ? (
+                    <>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>
+                        <FormInput
+                          value={row.role}
+                          onChange={e => updateRow({ role: e.target.value })}
+                          style={{ width: '100%' }}
+                        />
+                      </CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>
+                        <FormInput
+                          value={row.whyItFits}
+                          onChange={e => updateRow({ whyItFits: e.target.value })}
+                          style={{ width: '100%' }}
+                        />
+                      </CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>
+                        <FormInput
+                          value={row.topEmployers}
+                          onChange={e => updateRow({ topEmployers: e.target.value })}
+                          style={{ width: '100%' }}
+                        />
+                      </CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>
+                        <Select
+                          value={row.aiResilience}
+                          options={AI_RESILIENCE_OPTIONS}
+                          onChange={e => updateRow({ aiResilience: e.target.value })}
+                          fullWidth
+                        />
+                      </CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>
+                        <FormInput
+                          value={row.salaryIndia}
+                          onChange={e => updateRow({ salaryIndia: e.target.value })}
+                          style={{ width: '100%' }}
+                        />
+                      </CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>
+                        <FormInput
+                          value={row.salaryAbroad}
+                          onChange={e => updateRow({ salaryAbroad: e.target.value })}
+                          style={{ width: '100%' }}
+                        />
+                      </CompResponseCell>
+                    </>
+                  ) : (
+                    <>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.role}</CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.whyItFits}</CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.topEmployers}</CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.aiResilience}</CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryIndia}</CompResponseCell>
+                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryAbroad}</CompResponseCell>
+                    </>
+                  )}
+                </CompDataRow>
+              );
+            })}
           </CompTableContainer>
 
-          <div
-            style={{
-              marginTop: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
+          {/* "Load from CL" and manual quick-add rows are disabled alongside the rest of
+              this table's editing — kept commented for easy re-enablement.
+          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <Button
               size="sm"
               variant="primary"
@@ -1137,15 +884,51 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               Add Quick Role Row
             </Button>
           </div>
+          */}
+
+          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: '260px' }}>
+              <Select
+                value={requestDomainId}
+                options={domainOptions}
+                onChange={e => setRequestDomainId(e.target.value)}
+                placeholder="Select a domain to propose a role in"
+                fullWidth
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              leftIcon={<RiAddLine size={16} />}
+              disabled={!requestDomainId}
+              onClick={() => setIsRequestRoleOpen(true)}
+            >
+              Request New Job Role
+            </Button>
+          </div>
         </div>
       </SectionBlock>
 
+      <JobRoleFormModal
+        isOpen={isRequestRoleOpen}
+        onClose={() => setIsRequestRoleOpen(false)}
+        onSaved={handleRoleProposed}
+        mode="add"
+        domainId={selectedDomain?.id}
+        domainLabel={selectedDomain?.name}
+        industryLabel={selectedDomain?.industryName}
+        clusterLabel={selectedDomain?.clusterName}
+      />
+
+      {/* Load-from-Career-Library is disabled for now — kept commented for easy
+          re-enablement rather than deleted.
       <CareerLibraryPickerModal
         isOpen={isCLModalOpen}
         onClose={() => setIsCLModalOpen(false)}
         onAddRoles={handleAddCLRoles}
         existingCount={data.careerCompassTable.length}
       />
+      */}
     </>
   );
 };

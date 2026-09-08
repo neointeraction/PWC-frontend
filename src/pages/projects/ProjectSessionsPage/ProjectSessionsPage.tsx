@@ -23,7 +23,7 @@ import { AlertModal } from '@/components/AlertModal';
 import { DatePicker } from '@/components/DatePicker';
 import { Select } from '@/components/Select';
 import { projectService } from '@/services/project.service';
-import { sessionsService } from '@/services/sessions.service';
+import { sessionsService, hasSessionEnded } from '@/services/sessions.service';
 import { CounselorSession, ProjectStudent, ProjectCounselor, ProjectSlot } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { formatDate, getApiErrorMessage } from '@/utils';
@@ -357,11 +357,13 @@ export const ProjectSessionsPage: React.FC = () => {
     rescheduleMutation.mutate({ sessionId: rescheduleSlot.slot.sessionId, date, startTime });
   };
 
+  const todayLabel = formatDate(new Date().toISOString());
+
   const filteredSessions = effectiveSessions.filter(s => {
     const slots = s.slots;
 
     if (selectedFilterCategory === 'follow_up_today') {
-      return slots.some(slot => slot.isBooked);
+      return slots.some(slot => slot.isBooked && slot.date === todayLabel);
     }
     if (selectedFilterCategory === 'missed_session_1') {
       return slots.some(slot => slot.isBooked && slot.sessionType === 'S1' && slot.isMissed);
@@ -380,7 +382,7 @@ export const ProjectSessionsPage: React.FC = () => {
   });
 
   const followUpTodayCount = effectiveSessions.reduce(
-    (count, s) => count + s.slots.filter(slot => slot.isBooked).length,
+    (count, s) => count + s.slots.filter(slot => slot.isBooked && slot.date === todayLabel).length,
     0
   );
   const missedSession1Count = effectiveSessions.reduce(
@@ -450,13 +452,30 @@ export const ProjectSessionsPage: React.FC = () => {
           return <SessionPill $type="NB">NB</SessionPill>;
         }
         if (row.isMissed) {
+          // Name who no-showed for the admin, even though every case shares the same
+          // "needs reschedule" follow-up — a counsellor-only miss gets a distinct color
+          // so it doesn't read as the student's absence.
+          const missedByStudent = Boolean(row.studentNoShow);
+          const missedByCounsellor = Boolean(row.counsellorNoShow);
+          const missedLabel =
+            missedByStudent && missedByCounsellor
+              ? 'Both Student & Counsellor No-Show — Reschedule Required'
+              : missedByCounsellor
+                ? 'Counsellor No-Show — did not join within the 10-minute window. Reschedule Required.'
+                : missedByStudent
+                  ? 'Student No-Show — did not join within the 10-minute window. Reschedule Required.'
+                  : 'Missed Session — Reschedule Required';
+          const missedByCounsellorOnly = missedByCounsellor && !missedByStudent;
           return (
             <SessionBadgeWrapper>
               <SessionPill $type={row.sessionType === 'S2' ? 'S2' : 'S1'} $isMissed>
                 {row.sessionType || 'S2'}
               </SessionPill>
-              <Tooltip content="Missed Session — Reschedule Required">
-                <RiFlag2Fill size={14} style={{ color: '#EF4444' }} />
+              <Tooltip content={missedLabel}>
+                <RiFlag2Fill
+                  size={14}
+                  style={{ color: missedByCounsellorOnly ? '#D97706' : '#EF4444' }}
+                />
               </Tooltip>
             </SessionBadgeWrapper>
           );
@@ -466,7 +485,11 @@ export const ProjectSessionsPage: React.FC = () => {
             <SessionPill $type={row.sessionType === 'S2' ? 'S2' : 'S1'}>
               {row.sessionType || 'S1'}
             </SessionPill>
-            <RiCheckLine size={16} style={{ color: '#16A34A' }} />
+            {row.attended && (
+              <Tooltip content="Both student and counsellor joined the session">
+                <RiCheckLine size={16} style={{ color: '#16A34A' }} />
+              </Tooltip>
+            )}
           </SessionBadgeWrapper>
         );
       },
@@ -484,12 +507,21 @@ export const ProjectSessionsPage: React.FC = () => {
     {
       key: 'action',
       header: 'Action',
-      render: row => (
-        <ActionCellWrapper>
-          {row.isBooked && row.isMissed ? (
+      render: row => {
+        if (row.isBooked) {
+          // Admin reschedule has no notice window (unlike the student's own 24h
+          // self-service rule) — it's just gated on whether there's still something to
+          // reschedule: a session that already happened and went fine needs nothing,
+          // one that's upcoming or was missed still does.
+          const nothingToReschedule =
+            (hasSessionEnded({ scheduledDate: row.slotDate, endTime: row.endTime }) || row.attended) &&
+            !row.isMissed;
+          const button = (
             <RescheduleButton
               type="button"
+              disabled={nothingToReschedule}
               onClick={() => {
+                if (nothingToReschedule) return;
                 setRescheduleSlot({
                   counselorId: session.counselorId,
                   counselorName: session.counselorName,
@@ -499,7 +531,21 @@ export const ProjectSessionsPage: React.FC = () => {
             >
               Reschedule
             </RescheduleButton>
-          ) : !row.isBooked ? (
+          );
+          return (
+            <ActionCellWrapper>
+              {nothingToReschedule ? (
+                <Tooltip content="This session already happened — nothing to reschedule">
+                  {button}
+                </Tooltip>
+              ) : (
+                button
+              )}
+            </ActionCellWrapper>
+          );
+        }
+        return (
+          <ActionCellWrapper>
             <Tooltip content="Assign Student to Slot">
               <ActionIconButton
                 type="button"
@@ -508,9 +554,9 @@ export const ProjectSessionsPage: React.FC = () => {
                 <RiCalendarEventLine size={15} />
               </ActionIconButton>
             </Tooltip>
-          ) : null}
-        </ActionCellWrapper>
-      ),
+          </ActionCellWrapper>
+        );
+      },
     },
   ];
 

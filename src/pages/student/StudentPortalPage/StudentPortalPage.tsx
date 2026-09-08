@@ -29,7 +29,15 @@ import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
 import { useToast, useCurrentStudent } from '@/hooks';
 import { studentService, deriveStudentProgress } from '@/services/student.service';
-import { sessionsService, Session, isWithinJoinWindow } from '@/services/sessions.service';
+import {
+  sessionsService,
+  Session,
+  isWithinJoinWindow,
+  isWithinRescheduleLockout,
+  isSessionLive,
+  hasSessionEnded,
+  hasJoinWindowClosed,
+} from '@/services/sessions.service';
 import { getApiErrorMessage } from '@/utils';
 import { StudentProfileFormModal } from './components/StudentProfileFormModal';
 import {
@@ -70,7 +78,7 @@ import {
   SessionLinkDivider,
 } from './StudentPortalPage.styles';
 
-const formatTime = (t: string): string => dayjs(`2000-01-01T${t}`).format('hh:mm A');
+const formatTime = (t: string): string => dayjs(`2000-01-01T${t}`).format('HH:mm');
 const formatSlotRange = (s?: Session): string =>
   s ? `${dayjs(s.scheduledDate).format('MMM D, YYYY')} • ${formatTime(s.startTime)} - ${formatTime(s.endTime)}` : '';
 
@@ -115,8 +123,12 @@ export const StudentPortalPage: React.FC = () => {
   // `wf.booked` alone would stay true forever after a student's first booking. Require an
   // actual active (non-cancelled) session pair too, so cancelling for real re-opens booking.
   const isBooked = (wf?.booked ?? false) && !!session1 && !!session2;
-  const isSession1Completed = wf?.session1Completed ?? false;
-  const isSession2Completed = wf?.session2Completed ?? false;
+  // A session is treated as "done" the moment the student has actually joined it
+  // (studentJoinedAt, set by POST /sessions/{id}/join) — no separate staff "mark
+  // complete" action exists or is expected, so we don't gate on workflowStatus alone.
+  // Falls back to workflowStatus in case a session record isn't loaded yet.
+  const isSession1Completed = !!session1?.studentJoinedAt || (wf?.session1Completed ?? false);
+  const isSession2Completed = !!session2?.studentJoinedAt || (wf?.session2Completed ?? false);
   const isStudentFeedbackSubmitted = formsStatus?.feedbackStudent ?? false;
   const isParentFeedbackSubmitted = formsStatus?.feedbackParent ?? false;
 
@@ -253,17 +265,12 @@ export const StudentPortalPage: React.FC = () => {
             ? 'Step 2 — Ready to start 20-min interest assessment'
             : 'Locked — Complete Profile Form first',
         status: s2Status,
-        attachedStatus: !isParentFormSubmitted ? (
-          <AttachedStatusBadge $variant="warning">
-            <RiNotification3Line size={13} style={{ color: '#D97706' }} />
-            <span>Waiting for Parent to fill Pre-Counselling Form</span>
-          </AttachedStatusBadge>
-        ) : (
+        attachedStatus: isParentFormSubmitted ? (
           <AttachedStatusBadge $variant="success">
             <RiCheckLine size={13} />
             <span>Parent Form Completed</span>
           </AttachedStatusBadge>
-        ),
+        ) : null,
         action: (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {isProfileCompleted && !isPreCounsellingSubmitted && (
@@ -519,11 +526,19 @@ export const StudentPortalPage: React.FC = () => {
                               Completed
                             </Badge>
                           )}
-                          {step.status === 'current' && (
-                            <Badge variant="primary" size="sm">
-                              In Progress
-                            </Badge>
-                          )}
+                          {step.status === 'current' &&
+                            sessionForCard &&
+                            !hasSessionEnded(sessionForCard) && (
+                              isSessionLive(sessionForCard) ? (
+                                <Badge variant="primary" size="sm">
+                                  In Progress
+                                </Badge>
+                              ) : (
+                                <Badge variant="info" size="sm">
+                                  Scheduled
+                                </Badge>
+                              )
+                            )}
                         </SessionCardTitle>
 
                         {step.status === 'current' ? (
@@ -539,7 +554,11 @@ export const StudentPortalPage: React.FC = () => {
                             <SessionJoinButton
                               type="button"
                               $disabled
-                              title="Join opens 10 minutes before your session starts"
+                              title={
+                                sessionForCard && hasJoinWindowClosed(sessionForCard)
+                                  ? 'Join window has closed — this is now marked as a missed session'
+                                  : 'Join opens 10 minutes before your session starts'
+                              }
                             >
                               Join
                             </SessionJoinButton>
@@ -565,30 +584,44 @@ export const StudentPortalPage: React.FC = () => {
                         </span>
                       </SessionDateTimeRow>
 
-                      {step.status === 'current' && (
-                        <SessionActionLinksRow>
-                          {sessionNum !== 2 && (
-                            <>
+                      {step.status === 'current' && (() => {
+                        // Self-service cancel/reschedule needs 24 hours' notice before the
+                        // session — inside that window the backend itself would 400.
+                        const lockedOut = Boolean(
+                          sessionForCard && isWithinRescheduleLockout(sessionForCard)
+                        );
+                        const lockoutReason = 'Needs 24 hours’ notice before the session — contact Admin for changes this close to it.';
+                        return (
+                          <SessionActionLinksRow>
+                            {sessionNum !== 2 && (
+                              <>
+                                <Tooltip content={lockedOut ? lockoutReason : ''}>
+                                  <SessionActionLink
+                                    type="button"
+                                    $danger
+                                    disabled={lockedOut}
+                                    onClick={() => setCancelModalSessionNum(sessionNum)}
+                                  >
+                                    <RiCloseCircleLine size={12} />
+                                    Cancel
+                                  </SessionActionLink>
+                                </Tooltip>
+                                <SessionLinkDivider>|</SessionLinkDivider>
+                              </>
+                            )}
+                            <Tooltip content={lockedOut ? lockoutReason : ''}>
                               <SessionActionLink
                                 type="button"
-                                $danger
-                                onClick={() => setCancelModalSessionNum(sessionNum)}
+                                disabled={lockedOut}
+                                onClick={() => handleRescheduleSession(sessionNum)}
                               >
-                                <RiCloseCircleLine size={12} />
-                                Cancel
+                                <RiRefreshLine size={12} />
+                                Reschedule
                               </SessionActionLink>
-                              <SessionLinkDivider>|</SessionLinkDivider>
-                            </>
-                          )}
-                          <SessionActionLink
-                            type="button"
-                            onClick={() => handleRescheduleSession(sessionNum)}
-                          >
-                            <RiRefreshLine size={12} />
-                            Reschedule
-                          </SessionActionLink>
-                        </SessionActionLinksRow>
-                      )}
+                            </Tooltip>
+                          </SessionActionLinksRow>
+                        );
+                      })()}
                     </SessionCardWrapper>
                   ) : (
                     /* Regular timeline step layout */

@@ -243,6 +243,7 @@ export const StudentProfileFormPage: React.FC = () => {
                   placeholder="e.g. Aarav Sharma"
                   leftIcon={<RiUser3Line size={18} />}
                   error={errors.studentFullName?.message}
+                  readOnly
                   {...register('studentFullName')}
                 />
                 <Input

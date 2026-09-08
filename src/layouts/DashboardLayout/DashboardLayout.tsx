@@ -55,7 +55,7 @@ export const DashboardLayout: React.FC = () => {
       <MobileOverlay $visible={isMobileOpen} onClick={() => setMobileOpen(false)} />
       <MainArea>
         <Header />
-        <ContentArea>
+        <ContentArea id="dashboard-content-area">
           <ErrorBoundary key={location.pathname}>
             <Suspense fallback={<Loader fullPage />}>
               <motion.div

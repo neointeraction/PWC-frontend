@@ -75,6 +75,7 @@ export interface PendingRatification {
   // Carried through from GET /career-library/proposals for the review screens.
   suggestedIndustry?: string;
   suggestedDomain?: string;
+  projectName?: string;
   justification?: string;
   referenceLinks?: string[];
   resultingEntryId?: string | null;

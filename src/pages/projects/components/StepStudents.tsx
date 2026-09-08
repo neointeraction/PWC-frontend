@@ -38,19 +38,33 @@ export const StepStudents: React.FC = () => {
           return;
         }
 
+        // Column order/names follow the institute's standard roster template:
+        // Student Id, Student Name, Class, Division, Student Mobile No.,
+        // WhatsApp Number (if different), Student Email ID, Father Name,
+        // Father Mobile No., Father Email ID. Older sheet variants (Student ID,
+        // Parent Name/Mobile/Email, etc.) are still accepted as fallbacks.
         const rawStudents: ProjectStudent[] = rows.map(row => ({
           studentId:
-            row['Student ID'] || row['Student Id'] || row['studentId'] || row['StudentID'] || '',
+            row['Student Id'] || row['Student ID'] || row['studentId'] || row['StudentID'] || '',
           name: row['Student Name'] || row['Name'] || row['name'] || '',
           email: row['Student Email ID'] || row['Email'] || row['email'] || '',
           mobile:
             row['Student Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '',
           grade: row['Class'] || row['Grade'] || row['grade'] || row['class'] || '',
           division: row['Division'] || row['division'] || '',
-          parentName: row['Parent Name'] || row['parentName'] || '',
+          parentName: row['Father Name'] || row['Parent Name'] || row['parentName'] || '',
           parentMobile:
-            row['Parent Mobile No.'] || row['Parent Mobile'] || row['parentMobile'] || '',
-          parentEmail: row['Parent Email ID'] || row['Parent Email'] || row['parentEmail'] || '',
+            row['Father Mobile No.'] ||
+            row['Parent Mobile No.'] ||
+            row['Parent Mobile'] ||
+            row['parentMobile'] ||
+            '',
+          parentEmail:
+            row['Father Email ID'] ||
+            row['Parent Email ID'] ||
+            row['Parent Email'] ||
+            row['parentEmail'] ||
+            '',
           whatsappNumber:
             row['WhatsApp Number (if different)'] ||
             row['WhatsApp Number'] ||

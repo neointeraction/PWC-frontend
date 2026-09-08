@@ -264,3 +264,9 @@ export const FooterRightButtons = styled.div`
   align-items: center;
   gap: 10px;
 `;
+
+export const FooterLeftButtons = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;

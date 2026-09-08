@@ -28,7 +28,7 @@ import { ROUTES } from '@/constants';
 import { useToast, useCurrentStudent } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion } from '@/services/forms.service';
 import { getApiErrorMessage } from '@/utils';
-import { QuestionRenderer, sectionHeading, isAnswerEmpty, generateRandomAnswer } from './QuestionRenderer';
+import { QuestionRenderer, sectionHeading, isQuestionAnswerMissing, generateRandomAnswer } from './QuestionRenderer';
 import {
   FormPageContainer,
   HeroHeaderCard,
@@ -157,13 +157,13 @@ export const PreCounsellingFormPage: React.FC = () => {
   // attempt so QuestionRenderer can highlight them; cleared as soon as the step re-validates clean.
   const [errorFieldKeys, setErrorFieldKeys] = useState<Set<string>>(new Set());
 
-  const setAnswer = (fieldKey: string, value: unknown) => {
-    setAnswers(prev => ({ ...prev, [fieldKey]: value }));
-    if (!isAnswerEmpty(value)) {
+  const setAnswer = (question: FormQuestion, value: unknown) => {
+    setAnswers(prev => ({ ...prev, [question.fieldKey]: value }));
+    if (!isQuestionAnswerMissing(question, value)) {
       setErrorFieldKeys(prev => {
-        if (!prev.has(fieldKey)) return prev;
+        if (!prev.has(question.fieldKey)) return prev;
         const next = new Set(prev);
-        next.delete(fieldKey);
+        next.delete(question.fieldKey);
         return next;
       });
     }
@@ -173,7 +173,7 @@ export const PreCounsellingFormPage: React.FC = () => {
     (template?.questions ?? []).map(q => ({ fieldKey: q.fieldKey, answer: answers[q.fieldKey] ?? null }));
 
   const missingRequiredIn = (questions: FormQuestion[]): string[] =>
-    questions.filter(q => q.isRequired && isAnswerEmpty(answers[q.fieldKey])).map(q => q.fieldKey);
+    questions.filter(q => q.isRequired && isQuestionAnswerMissing(q, answers[q.fieldKey])).map(q => q.fieldKey);
 
   const handleNextStep = () => {
     const missing = missingRequiredIn(currentSection?.questions ?? []);
@@ -567,7 +567,7 @@ export const PreCounsellingFormPage: React.FC = () => {
                 key={q.id}
                 question={q}
                 value={answers[q.fieldKey]}
-                onChange={v => setAnswer(q.fieldKey, v)}
+                onChange={v => setAnswer(q, v)}
                 hasError={errorFieldKeys.has(q.fieldKey)}
               />
             ))}

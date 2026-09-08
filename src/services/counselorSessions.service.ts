@@ -19,11 +19,16 @@ export interface CounselorSessionRow {
   projectName?: string;
   sessionNumber?: 'S1' | 'S2';
   sessionTitle: string;
+  scheduledDate: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
   dateTime: string; // ISO
   timeSlot: string;
   meetUrl?: string;
   isBooked: boolean;
   isCompleted: boolean;
+  counsellorJoinedAt: string | null;
+  counsellorNoShow: boolean;
 }
 
 export interface CounselorProjectSummary {
@@ -109,11 +114,16 @@ export const counselorSessionsService = {
           projectName: projectName(info?.projectId),
           sessionNumber: (s.sessionNumber === 'SESSION_1' ? 'S1' : 'S2') as 'S1' | 'S2',
           sessionTitle: `Session ${s.sessionNumber === 'SESSION_1' ? '1' : '2'}`,
+          scheduledDate: s.scheduledDate,
+          startTime: s.startTime,
+          endTime: s.endTime,
           dateTime: `${s.scheduledDate}T${s.startTime}:00`,
           timeSlot: `${s.startTime} - ${s.endTime}`,
           meetUrl: s.counsellor.meetingLink ?? undefined,
           isBooked: true,
           isCompleted: s.status === 'COMPLETED',
+          counsellorJoinedAt: s.counsellorJoinedAt,
+          counsellorNoShow: s.counsellorNoShow,
         };
       });
 
@@ -125,10 +135,15 @@ export const counselorSessionsService = {
         projectId: sl.projectId,
         projectName: projectName(sl.projectId),
         sessionTitle: 'Available Slot',
+        scheduledDate: sl.date,
+        startTime: sl.startTime,
+        endTime: sl.endTime,
         dateTime: `${sl.date}T${sl.startTime}:00`,
         timeSlot: `${sl.startTime} - ${sl.endTime}`,
         isBooked: false,
         isCompleted: false,
+        counsellorJoinedAt: null,
+        counsellorNoShow: false,
       }));
 
     const projectSummaries: CounselorProjectSummary[] = projects.map(p => {

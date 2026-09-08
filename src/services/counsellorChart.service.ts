@@ -22,6 +22,7 @@ import {
   CareerCompassItem,
   ReliabilityCardData,
   SCRIItemData,
+  MirrorPairSummaryItem,
 } from '@/mocks/studentFormChart.mock';
 
 export const counsellorChartService = {
@@ -74,17 +75,24 @@ export const counsellorChartService = {
 // changes. See counsellorChart.types.ts for why each field is shaped this way.
 // ---------------------------------------------------------------------------
 
+// Backend rating/enum answers come through as snake_case codes (e.g. "not_really") —
+// title-case them for display. Leave free-text strings (spaces, punctuation, digits
+// like "1 & 2") untouched since they're already human-written, not codes.
+const SNAKE_CASE_TOKEN = /^[a-zA-Z]+(_[a-zA-Z]+)+$/;
+const humanizeStringValue = (value: string): string =>
+  SNAKE_CASE_TOKEN.test(value) ? toTitleCase(value) : value;
+
 // Raw pre-counselling answers are `unknown` JSON on the backend (shape varies per
 // fieldKey — block/table/plain string) — render something readable rather than
 // requiring per-fieldKey narrowing for every one of the ~30 question types.
 const formatChartAnswer = (value: unknown): string => {
-  if (value === null || value === undefined || value === '') return 'NA';
-  if (typeof value === 'string') return value;
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'string') return humanizeStringValue(value);
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) {
-    if (value.length === 0) return 'NA';
+    if (value.length === 0) return '';
     if (value.every(v => typeof v === 'string' || typeof v === 'number')) {
-      return value.join(', ');
+      return value.map(v => (typeof v === 'string' ? humanizeStringValue(v) : String(v))).join(', ');
     }
     return value.map(formatChartAnswer).join('; ');
   }
@@ -92,10 +100,412 @@ const formatChartAnswer = (value: unknown): string => {
     const entries = Object.entries(value as Record<string, unknown>).filter(
       ([, v]) => v !== null && v !== undefined && v !== ''
     );
-    if (entries.length === 0) return 'NA';
+    if (entries.length === 0) return '';
+    // A single-key wrapper (e.g. { rating: "not_really" }) carries no extra meaning
+    // beyond its value — the outer key (e.g. the trait name) already labels it.
+    if (entries.length === 1) return formatChartAnswer(entries[0][1]);
     return entries.map(([k, v]) => `${toTitleCase(k)}: ${formatChartAnswer(v)}`).join(', ');
   }
   return String(value);
+};
+
+// Pre-counselling MCQ answers are stored as the option *code* (e.g. "b"), not its
+// label — the raw code has no meaning to a counsellor reading the chart. These mirror
+// the option lists seeded in PWC-backend prisma/seed-data/forms/preCounselling{Student,
+// Parent}.ts, so a code can be resolved to its label without the question template.
+const OPTION_LABELS: Record<string, Record<string, string>> = {
+  fav_subject_reason: {
+    a: 'I love solving problems and puzzles in this subject',
+    b: 'It allows me to be creative and come up with new ideas',
+    c: 'It connects to real life — I can see how it is actually used',
+    d: 'It just feels easy and natural to me — I simply enjoy it',
+  },
+  hard_subject_reason: {
+    a: "I don't understand the concepts — it feels like just memorising",
+    b: 'I get anxious during exams or tests for this subject',
+    c: 'The way it is taught is too theoretical and boring',
+    d: 'I am simply not interested in this topic',
+  },
+  strong_subject_reason: {
+    a: 'My child love solving problems and puzzles in this subject',
+    b: 'It allows my child to be creative and come up with new ideas',
+    c: 'It connects to real life, my child can see how it is actually used',
+    d: 'It just feels easy and natural to my child who simply enjoys it',
+  },
+  struggle_subject_reason: {
+    a: "My child doesn't understand the concepts, it feels like just memorising",
+    b: 'My child gets anxious during exams or tests for this subject',
+    c: 'The way it is taught is too theoretical and boring',
+    d: 'My child is simply not interested in this topic',
+  },
+  free_time_activities: {
+    sports: 'Sports or physical activities (cricket, football, gym, dance, etc.)',
+    gaming: 'Gaming — mobile, PC or console',
+    creative_hobbies: 'Creative hobbies — drawing, painting, music, writing, etc.',
+    socialising: 'Socialising — meeting friends or social media',
+    skill_building: 'Skill-building — coding, video editing, public speaking, etc.',
+    reading: 'Reading — books, articles, news, comics',
+    other: 'Other',
+  },
+  p_free_time_activities: {
+    a: 'Sports or physical activities',
+    b: 'Gaming — mobile, PC or console',
+    c: 'Creative hobbies — drawing, music, writing, crafts',
+    d: 'Socialising with friends or on social media',
+    e: 'Skill-building — coding, video editing, public speaking',
+    f: 'Reading — books, articles, news',
+    g: 'Any Other',
+    h: 'Not Sure',
+  },
+  interest_consistency: {
+    a: 'Very consistent — same interests have continued for a long time',
+    b: 'Mostly consistent — mostly interested but at times bored',
+    c: 'Frequently changing — new interests appear often, old ones fade',
+  },
+  p_interest_consistency: {
+    a: 'Very consistent — same interests have continued for a long time',
+    b: 'Mostly consistent — with some natural variation',
+    c: 'Frequently changing — new interests appear often and old ones fade',
+    d: 'Not Sure',
+  },
+  school_activities: {
+    assembly: 'Morning assembly — speeches, prayer, thought for the day',
+    sports_pe: 'Sports and physical education periods',
+    art_music: 'Art, music and creative periods',
+    clubs: 'Club activities — science club, quiz club, coding club, eco club, etc.',
+    competitions: 'Competitions — debates, elocutions, quizzes, house events',
+    field_trips: 'Field trips — company visits, factory visits, nature outings',
+    other: 'Any Other',
+  },
+  learning_style: {
+    a: 'Reading and understanding concepts from books or notes',
+    b: 'Doing experiments, projects or hands-on activities',
+    c: 'Drawing, designing or expressing ideas through creative work',
+    d: 'Solving exercises, case studies and working through problems',
+    e: 'Watching videos, listening to podcasts or visual content',
+  },
+  study_challenges: {
+    a: 'Too many distractions — phone, TV, noise',
+    b: "I don't have a good study method or plan",
+    c: 'I get very anxious before exams or fear of failing',
+    d: 'Pressure from parents or peers makes it stressful',
+    e: 'I keep postponing studying — procrastination',
+    f: 'Concepts are hard to understand — feels like memorising',
+    g: 'Any Other',
+  },
+  child_study_obstacle: {
+    a: 'Distraction — phone, TV, other activities pull attention away',
+    b: 'No clear study strategy or method',
+    c: 'Exam anxiety or fear of failure',
+    d: 'Pressure from peers or from us as parents',
+    e: 'Procrastination — putting off studying',
+    f: 'Difficulty understanding concepts — relies on memorisation',
+    g: 'Any Other',
+    h: 'Not Sure',
+  },
+  energy_type: {
+    a: 'Introvert — I prefer working alone and feel recharged after time by myself',
+    b: 'Extrovert — I love being around people and feel energised in groups',
+    c: 'Ambivert — I am a mix of both depending on the situation',
+  },
+  child_personality: {
+    a: 'Confident and a natural leader — takes charge in situations',
+    b: 'Reserved and reflective — prefers to observe before acting',
+    c: 'Social and outgoing — energised by people and interactions',
+    d: 'Independent — prefers working alone and self-directed',
+    e: 'Practical and hands-on — prefers doing over discussing',
+    f: 'Creative and imaginative — always thinking of new things',
+    g: 'Not Sure',
+  },
+  child_interaction_style: {
+    a: 'Collaborative and friendly — gets along with most people easily',
+    b: 'Reserved or formal — keeps appropriate distance with teachers and seniors',
+    c: 'Easily influenced by peer pressure — tends to follow the group',
+    d: 'More confident online than in person',
+    e: 'Any Other',
+    f: 'Not Sure',
+  },
+  decision_style: {
+    a: 'I list out the pros and cons and weigh them carefully',
+    b: 'I go with what feels right and is also practical',
+    c: 'I ask someone I trust — a parent, teacher or friend',
+    d: 'I think about how this choice will affect my future',
+    e: 'I just try it and see what happens — I learn by doing',
+    f: 'Any Other',
+  },
+  child_decision_style: {
+    a: 'Thinks carefully about pros and cons before deciding',
+    b: 'Goes with what feels right and is practical',
+    c: 'Seeks guidance from a trusted person',
+    d: 'Thinks about long-term consequences',
+    e: 'Just tries it out and learns from what happens',
+    f: 'Any Other',
+    g: 'Not Sure',
+  },
+  failure_response: {
+    a: 'I explain or justify why it happened',
+    b: 'I lose confidence and feel demotivated for a while',
+    c: 'I ignore the feedback and move on',
+    d: 'I compare myself with others and feel bad',
+    e: 'I accept it, think about what went wrong and try to improve',
+    f: 'Any Other',
+  },
+  child_failure_response: {
+    a: 'Gives justifications or reasons — deflects responsibility',
+    b: 'Becomes visibly demotivated or loses confidence for some time',
+    c: 'Brushes it off and moves on without reflecting',
+    d: 'Compares with others — becomes competitive or envious',
+    e: 'Accepts it, reflects, and genuinely tries to improve',
+    f: 'Any Other',
+    g: 'Not Sure',
+  },
+  career_interest_reason: {
+    a: 'I genuinely love and am passionate about this field',
+    b: 'It pays well — I want financial security',
+    c: 'It is a safe, stable and respected career',
+    d: 'I want recognition or fame in this field',
+    e: 'It gives me freedom and flexibility in how I work',
+    f: 'I want to help people or make a difference in society',
+    g: 'Any Other',
+    h: 'Not Applicable',
+  },
+  career_pref_reason: {
+    a: 'I believe my child is genuinely passionate about this field',
+    b: 'It offers strong earning potential',
+    c: 'It is a stable and respected career path',
+    d: 'It brings recognition or social prestige',
+    e: 'It offers independence and flexibility in work',
+    f: 'It allows my child to contribute to society',
+    g: 'Any Other',
+    h: 'I have no specific preference',
+  },
+  career_influence: {
+    a: 'My parent(s)',
+    b: 'A teacher or mentor',
+    c: 'Friends or classmates',
+    d: 'A relative or family friend',
+    e: 'A book, movie or documentary I watched',
+    f: 'Social media or the internet',
+    g: 'My own thinking and self-discovery',
+    h: 'Any Other',
+  },
+  parent_understanding: {
+    a: 'Very well — they fully understand and support my direction',
+    b: 'Fairly well — they get it but have some concerns or doubts',
+    c: 'Partially — they know what I like but push me towards something else',
+    d: 'Not well — there is a big gap between what I want and what they expect',
+    e: 'We have not really discussed it yet',
+  },
+  open_to_unconventional: {
+    a: 'Yes — I am open to whatever the counsellor recommends',
+    b: 'Open but with reservations — I would want to understand it fully first',
+    c: 'No — I have a clear plan and prefer to stick to it',
+  },
+  financial_constraints: {
+    a: 'No significant constraints — we are open to most options',
+    b: 'Moderate constraints — we prefer affordable domestic options',
+    c: 'Significant constraints — budget is a key decision factor',
+  },
+  study_away_openness: {
+    open: 'Open to it',
+    not_open: 'Not Open',
+  },
+  final_decision_maker: {
+    a: 'Primarily us as parents',
+    b: 'Primarily my child',
+    c: 'We decide together as a family',
+  },
+  child_involvement: {
+    a: 'Always — every major decision is discussed with them',
+    b: 'Sometimes — for some decisions',
+    c: 'Rarely — we prefer to decide on their behalf',
+  },
+  biggest_concern: {
+    a: 'My child is confused about what to do',
+    b: 'Academic performance is below expectations',
+    c: 'My child lacks focus and direction',
+    d: 'Peer pressure is a negative influence',
+    e: 'I am worried they will make a wrong career choice',
+    f: 'Any Other',
+  },
+  programme_expectations: {
+    a: 'Help in choosing the right stream (Science / Commerce / Humanities)',
+    b: 'Clarity on what career to aim for and a roadmap to get there',
+    c: 'More confidence in myself and my choices',
+    d: 'A better understanding of my own personality and strengths',
+    e: 'Any Other',
+  },
+  programme_hopes: {
+    a: 'Clarity on which stream to choose (Science / Commerce / Humanities)',
+    b: 'A clear career direction with a roadmap',
+    c: 'More confidence in themselves and their choices',
+    d: 'Better self-awareness — understanding their own personality and strengths',
+    e: 'Alignment between what my child wants and what we as parents expect',
+    f: 'Any Other',
+  },
+};
+
+// Resolves a single MCQ_SINGLE answer — a bare code string, or an { value, other }
+// wrapper when the question allows a free-text "Any Other" answer — to its label.
+const resolveMcqSingle = (raw: unknown, optionMap: Record<string, string>): string => {
+  if (raw === null || raw === undefined || raw === '') return '';
+  if (typeof raw === 'string') return optionMap[raw] ?? formatChartAnswer(raw);
+  if (typeof raw === 'object') {
+    const { value, other } = raw as Record<string, unknown>;
+    const label = typeof value === 'string' ? optionMap[value] ?? formatChartAnswer(value) : '';
+    const otherText = typeof other === 'string' ? other.trim() : '';
+    if (otherText) return otherText;
+    return label;
+  }
+  return formatChartAnswer(raw);
+};
+
+// Resolves an MCQ_MULTI answer — an array of codes, or a { selected, other } wrapper —
+// to a comma-joined list of labels.
+const resolveMcqMulti = (raw: unknown, optionMap: Record<string, string>): string => {
+  if (raw === null || raw === undefined) return '';
+  const codes = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'object' && Array.isArray((raw as Record<string, unknown>).selected)
+      ? ((raw as Record<string, unknown>).selected as unknown[])
+      : [];
+  const labels = codes
+    .filter((c): c is string => typeof c === 'string')
+    .map(c => optionMap[c] ?? formatChartAnswer(c));
+  const otherText =
+    typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>).other
+      : undefined;
+  if (typeof otherText === 'string' && otherText.trim()) labels.push(otherText.trim());
+  return labels.filter(Boolean).join(', ');
+};
+
+// Subject-preference questions (A1.1/A1.2) are a MATRIX block of {subject, reason,
+// reason_other} fields; the generic key: value dump reads as noisy field-key labels.
+// Render just "Subject" then "Reason" on their own lines, the way a person would say it,
+// resolving the reason's MCQ code to its full label via `reasonOptionMap`.
+const formatSubjectBlock = (raw: unknown, reasonOptionMap: Record<string, string>): string => {
+  if (!raw || typeof raw !== 'object') return '';
+  const entries = Object.entries(raw as Record<string, unknown>).filter(
+    ([, v]) => v !== null && v !== undefined && v !== ''
+  );
+  if (entries.length === 0) return '';
+
+  const subjectEntry = entries.find(([k]) => /subject/i.test(k) && !/reason/i.test(k));
+  const reasonEntry = entries.find(([k]) => /reason/i.test(k));
+
+  const subject = subjectEntry ? formatChartAnswer(subjectEntry[1]) : '';
+  const reason = reasonEntry ? resolveMcqSingle(reasonEntry[1], reasonOptionMap) : '';
+  return [subject, reason].filter(Boolean).join('\n');
+};
+
+// study_away_table is a single MATRIX shared by both C3.3 ("another_city" row) and C3.4
+// ("abroad" row) — pick just the one row this parameter card is about.
+const formatStudyAwayRow = (raw: unknown, rowKey: 'another_city' | 'abroad'): string => {
+  if (!raw || typeof raw !== 'object') return '';
+  const row = (raw as Record<string, unknown>)[rowKey];
+  if (!row || typeof row !== 'object') return '';
+  return resolveMcqSingle((row as Record<string, unknown>).openness, OPTION_LABELS.study_away_openness);
+};
+
+// hobbies_table is a single MATRIX shared by both A2.2 (row "hobby_1") and A2.3 (row
+// "hobby_2") — pick just the one row this parameter card is about, as "Name - N hours".
+const formatHobbyRow = (raw: unknown, rowKey: 'hobby_1' | 'hobby_2'): string => {
+  if (!raw || typeof raw !== 'object') return '';
+  const row = (raw as Record<string, unknown>)[rowKey];
+  if (!row || typeof row !== 'object') return '';
+  const { name, hours } = row as Record<string, unknown>;
+  if (name === null || name === undefined || name === '') return '';
+  return hours !== null && hours !== undefined && hours !== ''
+    ? `${formatChartAnswer(name)} - ${formatChartAnswer(hours)} hours`
+    : formatChartAnswer(name);
+};
+
+// strengths_table / p_strengths_table is a single MATRIX shared by both B1.1
+// ("Definitely me" / "Clearly see this") and B1.2 ("Somewhat me" / "Sometimes") — pick
+// only the rows whose rating falls in this parameter's bucket, as a bullet list of traits.
+const DEFINITELY_RATING_TOKENS = ['definitely', 'clearly'];
+const SOMEWHAT_RATING_TOKENS = ['somewhat', 'sometimes'];
+
+const formatStrengthsBucket = (raw: unknown, ratingTokens: string[]): string => {
+  if (!raw || typeof raw !== 'object') return '';
+  const matched: string[] = [];
+  Object.entries(raw as Record<string, unknown>).forEach(([key, cell]) => {
+    if (!cell || typeof cell !== 'object') return;
+    const rating = (cell as Record<string, unknown>).rating;
+    if (typeof rating !== 'string') return;
+    if (ratingTokens.some(token => rating.toLowerCase().includes(token))) {
+      matched.push(toTitleCase(key));
+    }
+  });
+  if (matched.length === 0) return '';
+  return matched.map(trait => `• ${trait}`).join('\n');
+};
+
+const CHART_PARAM_FORMATTERS: Record<
+  string,
+  { student?: (raw: unknown) => string; parent?: (raw: unknown) => string }
+> = {
+  'A1.1': {
+    student: raw => formatSubjectBlock(raw, OPTION_LABELS.fav_subject_reason),
+    parent: raw => formatSubjectBlock(raw, OPTION_LABELS.strong_subject_reason),
+  },
+  'A1.2': {
+    student: raw => formatSubjectBlock(raw, OPTION_LABELS.hard_subject_reason),
+    parent: raw => formatSubjectBlock(raw, OPTION_LABELS.struggle_subject_reason),
+  },
+  'A2.1': {
+    student: raw => resolveMcqMulti(raw, OPTION_LABELS.free_time_activities),
+    parent: raw => resolveMcqMulti(raw, OPTION_LABELS.p_free_time_activities),
+  },
+  'A2.2': { student: raw => formatHobbyRow(raw, 'hobby_1') },
+  'A2.3': { student: raw => formatHobbyRow(raw, 'hobby_2') },
+  'A2.4': { student: raw => resolveMcqMulti(raw, OPTION_LABELS.school_activities) },
+  'A2.5': { student: raw => resolveMcqSingle(raw, OPTION_LABELS.learning_style) },
+  'B1.1': {
+    student: raw => formatStrengthsBucket(raw, DEFINITELY_RATING_TOKENS),
+    parent: raw => formatStrengthsBucket(raw, DEFINITELY_RATING_TOKENS),
+  },
+  'B1.2': {
+    student: raw => formatStrengthsBucket(raw, SOMEWHAT_RATING_TOKENS),
+    parent: raw => formatStrengthsBucket(raw, SOMEWHAT_RATING_TOKENS),
+  },
+  'B1.4': {
+    student: raw => resolveMcqSingle(raw, OPTION_LABELS.interest_consistency),
+    parent: raw => resolveMcqSingle(raw, OPTION_LABELS.p_interest_consistency),
+  },
+  'B2.1': { student: raw => resolveMcqSingle(raw, OPTION_LABELS.energy_type) },
+  'B2.2': { parent: raw => resolveMcqSingle(raw, OPTION_LABELS.child_personality) },
+  'B2.3': { parent: raw => resolveMcqSingle(raw, OPTION_LABELS.child_interaction_style) },
+  'B2.4': {
+    student: raw => resolveMcqSingle(raw, OPTION_LABELS.decision_style),
+    parent: raw => resolveMcqSingle(raw, OPTION_LABELS.child_decision_style),
+  },
+  'B3.1': {
+    student: raw => resolveMcqMulti(raw, OPTION_LABELS.study_challenges),
+    parent: raw => resolveMcqSingle(raw, OPTION_LABELS.child_study_obstacle),
+  },
+  'B3.2': {
+    student: raw => resolveMcqSingle(raw, OPTION_LABELS.failure_response),
+    parent: raw => resolveMcqSingle(raw, OPTION_LABELS.child_failure_response),
+  },
+  'C1.2': {
+    student: raw => resolveMcqSingle(raw, OPTION_LABELS.career_interest_reason),
+    parent: raw => resolveMcqSingle(raw, OPTION_LABELS.career_pref_reason),
+  },
+  'C2.1': { student: raw => resolveMcqSingle(raw, OPTION_LABELS.career_influence) },
+  'C2.2': { student: raw => resolveMcqSingle(raw, OPTION_LABELS.parent_understanding) },
+  'C3.1': { parent: raw => resolveMcqSingle(raw, OPTION_LABELS.open_to_unconventional) },
+  'C3.2': { parent: raw => resolveMcqSingle(raw, OPTION_LABELS.financial_constraints) },
+  'C3.3': { parent: raw => formatStudyAwayRow(raw, 'another_city') },
+  'C3.4': { parent: raw => formatStudyAwayRow(raw, 'abroad') },
+  'C3.5': { parent: raw => resolveMcqSingle(raw, OPTION_LABELS.final_decision_maker) },
+  'C3.6': { parent: raw => resolveMcqSingle(raw, OPTION_LABELS.child_involvement) },
+  'C3.7': { parent: raw => resolveMcqMulti(raw, OPTION_LABELS.biggest_concern) },
+  'D1.1': {
+    student: raw => resolveMcqMulti(raw, OPTION_LABELS.programme_expectations),
+    parent: raw => resolveMcqMulti(raw, OPTION_LABELS.programme_hopes),
+  },
 };
 
 const toComparisonGroups = (section?: ChartSection): ComparisonSubGroup[] => {
@@ -107,12 +517,13 @@ const toComparisonGroups = (section?: ChartSection): ComparisonSubGroup[] => {
       groups.set(p.group, []);
       order.push(p.group);
     }
+    const formatters = CHART_PARAM_FORMATTERS[p.code];
     groups.get(p.group)!.push({
       id: p.code,
       code: p.code,
       parameter: p.label,
-      studentResponse: formatChartAnswer(p.student),
-      parentResponse: formatChartAnswer(p.parent),
+      studentResponse: formatters?.student ? formatters.student(p.student) : formatChartAnswer(p.student),
+      parentResponse: formatters?.parent ? formatters.parent(p.parent) : formatChartAnswer(p.parent),
     });
   });
   return order.map((title, i) => ({ id: `${section.key}-grp-${i}`, title, items: groups.get(title)! }));
@@ -327,6 +738,22 @@ export const mapChartToFormData = (
     },
   ];
 
+  // Full 10-pair breakdown behind the EIM score, cross-referenced against the
+  // backend's flaggedMirrorPairs (severity "strong" only) so the counsellor sees
+  // exactly which contradictions warrant a follow-up or an amendment.
+  const flaggedMirrorPairCodes = new Set(chart.flaggedMirrorPairs.map(p => p.code));
+  const mirrorPairs: MirrorPairSummaryItem[] = (report?.reliability.rvs.pairs ?? []).map(p => ({
+    code: p.code,
+    questionA: p.a,
+    questionB: p.b,
+    responseA: p.responseA,
+    responseB: p.responseB,
+    gap: p.gap,
+    severity: p.severity,
+    penalty: p.penalty,
+    flagged: flaggedMirrorPairCodes.has(p.code),
+  }));
+
   const scri = chart.counsellor.scri;
   const scriItems: SCRIItemData[] = [
     { code: 'S1', name: 'Confidence', description: 'Comfort discussing career topics', rating: scri.confidence ?? 0 },
@@ -361,17 +788,40 @@ export const mapChartToFormData = (
       synthesisNotesPre: { B1: noteFor('B1'), B2: noteFor('B2'), B3: noteFor('B3'), B4: noteFor('B4'), B5: noteFor('B5') },
       traitsTable,
       summaryStrip: {
-        careerStyle: report?.dominantCareerStyle.style ?? 'Not yet assessed',
-        personalSignature: report?.dominantPersonalityStyle.style ?? 'Not yet assessed',
-        thinkingMode: thinkingModeTrait?.traitName ?? 'Not yet assessed',
+        careerStyle: report
+          ? {
+              code: report.dominantCareerStyle.code,
+              traits: report.dominantCareerStyle.traits.map(toTitleCase),
+              style: report.dominantCareerStyle.style,
+              description: report.dominantCareerStyle.description,
+              explanation: report.dominantCareerStyle.explanation,
+            }
+          : { code: '', traits: [], style: 'Not yet assessed', description: '', explanation: '' },
+        personalSignature: report
+          ? {
+              code: report.dominantPersonalityStyle.code,
+              style: report.dominantPersonalityStyle.style,
+              description: report.dominantPersonalityStyle.description,
+              explanation: report.dominantPersonalityStyle.explanation,
+            }
+          : { code: '', style: 'Not yet assessed', description: '', explanation: '' },
+        thinkingMode: thinkingModeTrait
+          ? {
+              traitName: thinkingModeTrait.traitName,
+              whatItMeasures: thinkingModeTrait.description,
+              percentage: thinkingModeTrait.score.toFixed(2),
+              level: thinkingModeTrait.level,
+              levelMeaning: thinkingModeTrait.levelMeaning,
+            }
+          : { traitName: 'Not yet assessed', whatItMeasures: '', level: '', levelMeaning: '' },
       },
       redFlags: {
-        riasec: report?.riasec.flags.join(', ') || 'No red flags detected',
-        bigFive: report?.bigFive.flags.join(', ') || 'No red flags detected',
-        cogDec: report?.cognitive.flags.join(', ') || 'No red flags detected',
-        aptitude: report?.aptitude.flags.join(', ') || 'No red flags detected',
+        riasec: report?.riasec.flags.join(', ') ?? '',
+        bigFive: report?.bigFive.flags.join(', ') ?? '',
+        cogDec: report?.cognitive.flags.join(', ') ?? '',
+        aptitude: report?.aptitude.flags.join(', ') ?? '',
       },
-      careerDnaNarrative: {
+      careerDnaNarrative: chart.counsellor.careerDnaNarrative ?? {
         dnaDefinition: '',
         careerStyleReveals: report?.dominantCareerStyle.explanation ?? '',
         personalityStyleReveals: report?.dominantPersonalityStyle.explanation ?? '',
@@ -383,25 +833,25 @@ export const mapChartToFormData = (
       comparisonGroups: toComparisonGroups(preByKey.get('compass')),
       synthesisNotesPre: { D1: noteFor('D1'), D2: noteFor('D2'), D3: noteFor('D3'), D4: noteFor('D4'), D5: noteFor('D5') },
       streamFitTable,
-      whyThisStream1: '',
+      whyThisStream1: chart.counsellor.whyThisStream?.whyThisStream1 ?? '',
       synthesisNotesE: { E1: noteFor('E1'), E2: noteFor('E2'), E3: noteFor('E3'), E4: noteFor('E4'), E5: noteFor('E5'), E6: noteFor('E6') },
       graduationTable,
-      whyThisStream2: '',
+      whyThisStream2: chart.counsellor.whyThisStream?.whyThisStream2 ?? '',
       // No backend field for a 3rd (graduation-fit) synthesis note group — F1-F3 is
       // reserved for the Reliability step (see Step4SectionD). Kept local-only.
       synthesisNotesF: emptyNotesFor(['F1', 'F2', 'F3', 'F4', 'F5', 'F6']),
-      entranceExamsTable: [],
-      collegesTable: [],
+      entranceExamsTable: chart.counsellor.entranceExamsTable ?? [],
+      collegesTable: chart.counsellor.collegesTable ?? [],
       careerCompassClusterTable,
       careerCompassTable,
     },
     sectionD: {
       indicators: reliabilityIndicators,
+      mirrorPairs,
       synthesisNotes: { F1: noteFor('F1'), F2: noteFor('F2'), F3: noteFor('F3') },
     },
     sectionE: {
-      // No backend field for the roadmap grid yet — starts blank, edits stay local-only.
-      roadmapGrid: {
+      roadmapGrid: chart.counsellor.roadmapGrid ?? {
         nowSkills: '', nowActivities: '', nowHabits: '',
         c11Stream: '', c11Exams: '', c11Electives: '',
         afterDegrees: '', afterCertifications: '', afterAbroad: '',
@@ -442,7 +892,11 @@ export const emptyFormData = (sessionId: string, studentId: string): CounsellorF
     comparisonGroups: [],
     synthesisNotesPre: emptyNotesFor(['B1', 'B2', 'B3', 'B4', 'B5']),
     traitsTable: [],
-    summaryStrip: { careerStyle: '', personalSignature: '', thinkingMode: '' },
+    summaryStrip: {
+      careerStyle: { code: '', traits: [], style: '', description: '', explanation: '' },
+      personalSignature: { code: '', style: '', description: '', explanation: '' },
+      thinkingMode: { traitName: '', whatItMeasures: '', level: '', levelMeaning: '' },
+    },
     redFlags: { riasec: '', bigFive: '', cogDec: '', aptitude: '' },
     careerDnaNarrative: {
       dnaDefinition: '', careerStyleReveals: '', personalityStyleReveals: '',
@@ -463,7 +917,7 @@ export const emptyFormData = (sessionId: string, studentId: string): CounsellorF
     careerCompassClusterTable: [],
     careerCompassTable: [],
   },
-  sectionD: { indicators: [], synthesisNotes: emptyNotesFor(['F1', 'F2', 'F3']) },
+  sectionD: { indicators: [], mirrorPairs: [], synthesisNotes: emptyNotesFor(['F1', 'F2', 'F3']) },
   sectionE: {
     roadmapGrid: {
       nowSkills: '', nowActivities: '', nowHabits: '',
@@ -477,10 +931,7 @@ export const emptyFormData = (sessionId: string, studentId: string): CounsellorF
   sectionF: { comparisonGroups: [], synthesisNotes: emptyNotesFor(['H1', 'H2', 'H3', 'H4']) },
 });
 
-// Gathers everything the current UI can actually persist back into one PUT body —
-// only fields the backend schema supports; anything else (roadmap grid, DNA
-// narrative, why-this-stream text, entrance exams/colleges tables) has no server
-// slot yet and stays session-local, same as before integration.
+// Gathers everything the current UI can persist back into one PUT body.
 export const buildSaveBody = (
   formData: CounsellorFormChartData,
   lastEditedBy?: string
@@ -513,6 +964,14 @@ export const buildSaveBody = (
     ...(Object.keys(scri).length > 0 ? { scri } : {}),
     academicTrend: trendToApi[formData.studentInfo.academicTrend],
     alignmentRating: alignmentToApi[formData.sectionE.academicCareerAlignment],
+    roadmapGrid: formData.sectionE.roadmapGrid,
+    careerDnaNarrative: formData.sectionB.careerDnaNarrative,
+    whyThisStream: {
+      whyThisStream1: formData.sectionC.whyThisStream1,
+      whyThisStream2: formData.sectionC.whyThisStream2,
+    },
+    entranceExamsTable: formData.sectionC.entranceExamsTable,
+    collegesTable: formData.sectionC.collegesTable,
     ...(lastEditedBy ? { lastEditedBy } : {}),
   };
 };

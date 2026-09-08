@@ -366,6 +366,18 @@ export const RescheduleButton = styled.button`
     background-color: ${({ theme }) => theme.colors.primaryHover};
     border-color: ${({ theme }) => theme.colors.primaryHover};
   }
+
+  &:disabled {
+    background-color: #E2E8F0;
+    border-color: #E2E8F0;
+    color: #94A3B8;
+    cursor: not-allowed;
+  }
+
+  &:disabled:hover {
+    background-color: #E2E8F0;
+    border-color: #E2E8F0;
+  }
 `;
 
 export const ActionIconButtonGroup = styled.div`

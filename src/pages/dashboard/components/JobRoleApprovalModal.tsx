@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   RiAddLine,
   RiCheckLine,
@@ -10,6 +10,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Checkbox } from '@/components/Checkbox';
 import { useToast } from '@/hooks';
+import { PendingRatification } from '@/types';
 import {
   ModalScrollContainer,
   SectionBox,
@@ -33,8 +34,7 @@ export interface JobRoleApprovalModalProps {
   onClose: () => void;
   onApprove: (data: any) => void;
   onReject: () => void;
-  initialItemName?: string;
-  initialCategory?: string;
+  selectedRequest?: PendingRatification | null;
 }
 
 const AI_RESILIENCE_COMMENTS: Record<string, string> = {
@@ -48,18 +48,18 @@ export const JobRoleApprovalModal: React.FC<JobRoleApprovalModalProps> = ({
   onClose,
   onApprove,
   onReject,
-  initialItemName = 'UI/UX Designer',
+  selectedRequest,
 }) => {
   const toast = useToast();
 
-  // Cluster / Industry / Domain Hierarchy
-  const [cluster, setCluster] = useState('Design & Creative Arts');
-  const [industry, setIndustry] = useState('User Experience & Digital Media');
-  const [domain, setDomain] = useState('UI/UX & Product Design');
+  // Cluster / Industry / Domain Hierarchy - use data from selectedRequest
+  const [cluster, setCluster] = useState(selectedRequest?.suggestedCategory || 'Design & Creative Arts');
+  const [industry, setIndustry] = useState(selectedRequest?.suggestedIndustry || 'User Experience & Digital Media');
+  const [domain, setDomain] = useState(selectedRequest?.suggestedDomain || 'UI/UX & Product Design');
 
-  // Job Role Core Details
-  const [title, setTitle] = useState(initialItemName);
-  const [shortDesc, setShortDesc] = useState('Designs intuitive and delightful user experiences across web and mobile platforms.');
+  // Job Role Core Details - use data from selectedRequest
+  const [title, setTitle] = useState(selectedRequest?.careerName || '');
+  const [shortDesc, setShortDesc] = useState(selectedRequest?.description || '');
   const [aiResilience, setAiResilience] = useState('High');
   const [resilienceComment, setResilienceComment] = useState(AI_RESILIENCE_COMMENTS.High);
   const [salaryIndia, setSalaryIndia] = useState('₹4–15 LPA');
@@ -71,6 +71,17 @@ export const JobRoleApprovalModal: React.FC<JobRoleApprovalModalProps> = ({
   const [keySkills, setKeySkills] = useState(
     'User Research & Usability Testing\nWireframing & Prototyping (Figma)\nDesign Systems & Typography\nInteraction & Visual Design'
   );
+
+  // Update form fields when selectedRequest changes
+  useEffect(() => {
+    if (selectedRequest) {
+      setTitle(selectedRequest.careerName || '');
+      setShortDesc(selectedRequest.description || '');
+      setCluster(selectedRequest.suggestedCategory || 'Design & Creative Arts');
+      setIndustry(selectedRequest.suggestedIndustry || 'User Experience & Digital Media');
+      setDomain(selectedRequest.suggestedDomain || 'UI/UX & Product Design');
+    }
+  }, [selectedRequest]);
 
   const handleAiResilienceChange = (val: string) => {
     setAiResilience(val);

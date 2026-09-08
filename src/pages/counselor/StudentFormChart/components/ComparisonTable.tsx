@@ -8,7 +8,6 @@ import {
   CompDataRow,
   CompParamCell,
   CompResponseCell,
-  NaBadge,
 } from '../StudentFormChartPage.styles';
 
 interface ComparisonTableProps {
@@ -32,12 +31,8 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({ groups }) => {
               <CompParamCell>
                 {item.code ? `${item.code} ${item.parameter}` : item.parameter}
               </CompParamCell>
-              <CompResponseCell $type="student">
-                {item.studentResponse ? item.studentResponse : <NaBadge>NA</NaBadge>}
-              </CompResponseCell>
-              <CompResponseCell $type="parent">
-                {item.parentResponse ? item.parentResponse : <NaBadge>NA</NaBadge>}
-              </CompResponseCell>
+              <CompResponseCell $type="student">{item.studentResponse}</CompResponseCell>
+              <CompResponseCell $type="parent">{item.parentResponse}</CompResponseCell>
             </CompDataRow>
           ))}
         </React.Fragment>

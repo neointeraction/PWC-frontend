@@ -130,6 +130,28 @@ export const StudentFormChartPage: React.FC = () => {
     },
   });
 
+  // Amending/reverting a mirror-pair answer re-scores the whole attempt server-side and
+  // returns just the AssessmentResultRow (not the full chart shape), so refetch the
+  // chart itself rather than trying to patch it — the existing effect above then
+  // re-seeds formData from the recomputed report.
+  const mirrorPairMutation = useMutation({
+    mutationFn: (action: { type: 'amend'; questionCode: string; amendedOption: number } | { type: 'revert'; questionCode: string }) =>
+      action.type === 'amend'
+        ? counsellorChartService.amendMirrorPair(studentId!, {
+            questionCode: action.questionCode,
+            amendedOption: action.amendedOption,
+            counsellorId: counselor?.id,
+          })
+        : counsellorChartService.revertMirrorPairAmendment(studentId!, action.questionCode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['counsellor-chart', studentId] });
+      toast.success('Updated', 'Mirror pair response updated and the assessment re-scored.');
+    },
+    onError: err => {
+      toast.error('Update Failed', getApiErrorMessage(err, 'Could not update the mirror pair response.'));
+    },
+  });
+
   const isLoading = isSessionLoading || isChartLoading;
   const isError = isSessionError || isChartError;
 
@@ -146,6 +168,15 @@ export const StudentFormChartPage: React.FC = () => {
           el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 100);
+    } else {
+      // The page scrolls inside DashboardLayout's <main> (overflow-y: auto), not the
+      // window, so window.scrollTo is a no-op here — scroll that container instead.
+      const scrollContainer = document.getElementById('dashboard-content-area');
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
@@ -264,15 +295,6 @@ export const StudentFormChartPage: React.FC = () => {
                 setFormData(prev => ({
                   ...prev,
                   sectionB: { ...prev.sectionB, traitsTable: traits },
-                }))
-              }
-              onChangeSummary={summary =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionB: {
-                    ...prev.sectionB,
-                    summaryStrip: { ...prev.sectionB.summaryStrip, ...summary },
-                  },
                 }))
               }
               onChangeDna={(field, val) =>
@@ -406,6 +428,13 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
+              onAmendMirrorPair={(questionCode, amendedOption) =>
+                mirrorPairMutation.mutate({ type: 'amend', questionCode, amendedOption })
+              }
+              onRevertMirrorPair={questionCode =>
+                mirrorPairMutation.mutate({ type: 'revert', questionCode })
+              }
+              mirrorPairActionPending={mirrorPairMutation.isPending}
             />
           )}
 

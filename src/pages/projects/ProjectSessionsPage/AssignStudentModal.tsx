@@ -82,6 +82,8 @@ export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
 }) => {
   const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [sessionType, setSessionType] = useState<'S1' | 'S2'>('S1');
+  // Display-only — the assign-slot endpoint has no field for it, so this just shows
+  // the selected student's number on record rather than implying it can be edited here.
   const [mobile, setMobile] = useState<string>('');
 
   // The dropdown is the project's own roster; the value is the student id the booking
@@ -161,11 +163,7 @@ export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
 
         <FieldGroup>
           <label>Student Contact Phone</label>
-          <Input
-            value={mobile}
-            onChange={e => setMobile(e.target.value)}
-            placeholder="Mobile number"
-          />
+          <Input value={mobile} disabled placeholder="No phone on record" />
         </FieldGroup>
 
         <FooterActions>

@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
-import { Badge } from '@/components/Badge';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { Loader } from '@/components/Loader';
 import { careerService } from '@/services/career.service';
 import { useNotificationStore } from '@/store';
-import { getApiErrorMessage } from '@/utils';
-import { PendingRatification } from '@/types';
-import { JobRoleApprovalModal } from './components';
+import { formatDateTime, getApiErrorMessage } from '@/utils';
+import { PendingRatification, Career } from '@/types';
+import { ROUTES } from '@/constants';
+import { JobRoleFormModal } from '../career-library/components/JobRoleFormModal';
 import {
   DashboardWrapper,
   ItemTitle,
@@ -21,9 +22,10 @@ import {
 export const SuperAdminDashboard: React.FC = () => {
   const addNotification = useNotificationStore(state => state.addNotification);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [selectedRequest, setSelectedRequest] = useState<PendingRatification | null>(null);
-  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [isJobRoleModalOpen, setIsJobRoleModalOpen] = useState(false);
 
   // Ratification requests raised by counsellors — pending first-class, plus the
   // already-reviewed ones the card title calls "recent".
@@ -32,15 +34,16 @@ export const SuperAdminDashboard: React.FC = () => {
     queryFn: () => careerService.getRatificationRequests(),
   });
 
-  const closeApprovalModal = () => {
-    setIsApprovalModalOpen(false);
+  const closeJobRoleModal = () => {
+    setIsJobRoleModalOpen(false);
     setSelectedRequest(null);
   };
 
   const reviewMutation = useMutation({
     mutationFn: ({ id, decision }: { id: string; decision: 'approve' | 'reject' }) =>
       decision === 'approve' ? careerService.ratify(id) : careerService.rejectRatification(id),
-    onSuccess: (_data, { decision }) => {
+    onSuccess: (_data, variables) => {
+      const { decision } = variables;
       queryClient.invalidateQueries({ queryKey: ['career-ratification-requests'] });
       addNotification({
         type: 'success',
@@ -50,7 +53,12 @@ export const SuperAdminDashboard: React.FC = () => {
             ? `"${selectedRequest?.careerName}" has been ratified and added to the career library.`
             : `"${selectedRequest?.careerName}" has been rejected.`,
       });
-      closeApprovalModal();
+      closeJobRoleModal();
+      
+      // Navigate to career library after successful approval
+      if (decision === 'approve') {
+        navigate(ROUTES.CAREER_LIBRARY);
+      }
     },
     onError: err => {
       addNotification({
@@ -61,12 +69,13 @@ export const SuperAdminDashboard: React.FC = () => {
     },
   });
 
-  const handleOpenApprovalModal = (req: PendingRatification) => {
+  const handleOpenJobRoleModal = (req: PendingRatification) => {
     setSelectedRequest(req);
-    setIsApprovalModalOpen(true);
+    setIsJobRoleModalOpen(true);
   };
 
-  const handleConfirmApproval = () => {
+  const handleJobRoleSaved = (saved: any, savedMode: 'add' | 'edit') => {
+    // Handle the successful save - this would be equivalent to approval
     if (!selectedRequest) return;
     reviewMutation.mutate({ id: selectedRequest.id, decision: 'approve' });
   };
@@ -83,37 +92,42 @@ export const SuperAdminDashboard: React.FC = () => {
       render: row => <ItemTitle>{row.careerName}</ItemTitle>,
     },
     {
-      key: 'type',
-      header: 'Type',
-      render: row => row.suggestedCategory,
+      key: 'domain',
+      header: 'Domain',
+      render: row => row.suggestedDomain || row.suggestedCategory,
     },
     {
       key: 'source',
-      header: 'Counsellors',
-      render: row => row.sourceTenant,
+      header: 'Counsellor',
+      render: row => {
+        const name = row.sourceTenant;
+        // Show em dash (—) as a proper dash for better readability
+        if (name === '\u2014' || !name) {
+          return '—';
+        }
+        return name;
+      },
+    },
+    {
+      key: 'project',
+      header: 'Project',
+      render: row => row.projectName || '—',
     },
     {
       key: 'date',
       header: 'Date',
-      render: row => row.submittedAt,
+      render: row => formatDateTime(row.submittedAt),
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: 'actions',
+      header: '',
       render: row => (
         <ActionButtonCell style={{ justifyContent: 'flex-end' }}>
-          {row.status === 'ratified' && <Badge variant="success">Approved</Badge>}
-          {row.status === 'rejected' && <Badge variant="danger">Rejected</Badge>}
-          {row.status === 'pending' && (
-            <>
-              <Badge variant="warning">Pending</Badge>
-              <Tooltip content="Approve request and publish to global library">
-                <ApproveButton onClick={() => handleOpenApprovalModal(row)}>
-                  APPROVE
-                </ApproveButton>
-              </Tooltip>
-            </>
-          )}
+          <Tooltip content="Review and confirm request to publish to global library">
+            <ApproveButton onClick={() => handleOpenJobRoleModal(row)}>
+              Review/Confirm
+            </ApproveButton>
+          </Tooltip>
         </ActionButtonCell>
       ),
     },
@@ -141,14 +155,40 @@ export const SuperAdminDashboard: React.FC = () => {
       </Card>
 
 
-      {/* Approval Confirmation Modal */}
-      <JobRoleApprovalModal
-        isOpen={isApprovalModalOpen}
-        onClose={closeApprovalModal}
-        onApprove={handleConfirmApproval}
-        onReject={handleReject}
-        initialItemName={selectedRequest?.careerName || 'UI/UX Designer'}
-        initialCategory={selectedRequest?.suggestedCategory}
+      {/* Job Role Detail Modal */}
+      <JobRoleFormModal
+        isOpen={isJobRoleModalOpen}
+        onClose={closeJobRoleModal}
+        onSaved={handleJobRoleSaved}
+        mode="edit"
+        entity={selectedRequest ? {
+          id: selectedRequest.id,
+          jobRole: selectedRequest.careerName,
+          careerCluster: selectedRequest.suggestedCategory || '',
+          industry: selectedRequest.suggestedIndustry || '',
+          domain: selectedRequest.suggestedDomain || '',
+          domainId: '',
+          aiResilienceGrading: 'Medium' as const,
+          aiResilienceComment: '',
+          oneLineDescription: selectedRequest.description,
+          topCompaniesRecruiting: [],
+          approxSalaryRangeIndia: '',
+          globalSalaryRange: '',
+          minQual10th12thRecommendedSubjects: '',
+          minQualGradRecommendedSubjects: '',
+          entranceExamsUG: '',
+          minQualPGRecommendedSubjects: '',
+          entranceExamsPG: '',
+          certificationsStudents: '',
+          certificationsUG: '',
+          topCoursesToStudy: '',
+          status: 'pending' as const,
+          lastUpdated: selectedRequest.submittedAt,
+        } : undefined}
+        domainId={selectedRequest?.suggestedDomain}
+        domainLabel={selectedRequest?.suggestedDomain}
+        clusterLabel={selectedRequest?.suggestedCategory}
+        industryLabel={selectedRequest?.suggestedIndustry}
       />
     </DashboardWrapper>
   );

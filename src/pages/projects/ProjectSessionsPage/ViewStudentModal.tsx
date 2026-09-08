@@ -176,7 +176,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
         </FieldItem>
 
         <FieldItem>
-          <FieldLabel>Grade / Class</FieldLabel>
+          <FieldLabel>Class / Division</FieldLabel>
           <FieldValue>
             <PurplePill>{student.grade || '—'}</PurplePill>
           </FieldValue>

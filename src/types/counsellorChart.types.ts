@@ -219,6 +219,56 @@ export type AlignmentRating =
   | 'MISALIGNED'
   | 'NOT_YET_ASSESSED';
 
+// Session-local-only fields (roadmap grid, DNA narrative, why-this-stream, entrance
+// exams/colleges) — now persisted as JSON columns on CounsellorChart (PWC-backend
+// prisma/migrations/20260908095437_counsellor_chart_session_local_fields).
+export interface RoadmapGridJson {
+  nowSkills: string;
+  nowActivities: string;
+  nowHabits: string;
+  c11Stream: string;
+  c11Exams: string;
+  c11Electives: string;
+  afterDegrees: string;
+  afterCertifications: string;
+  afterAbroad: string;
+}
+
+export interface CareerDnaNarrativeJson {
+  dnaDefinition: string;
+  careerStyleReveals: string;
+  personalityStyleReveals: string;
+  thinkingModeReveals: string;
+  aptitudeProfileReveals: string;
+}
+
+export interface WhyThisStreamJson {
+  whyThisStream1: string;
+  whyThisStream2: string;
+}
+
+export interface EntranceExamItemJson {
+  id: string;
+  fullName: string;
+  conductingBody: string;
+  level: string;
+  applicableFor: string;
+  subjectRequirements: string;
+  examMonth: string;
+  urlLink: string;
+}
+
+export interface CollegesAfterItemJson {
+  id: string;
+  collegeName: string;
+  location: string;
+  type: string;
+  course: string;
+  entranceExam: string;
+  ranking: string;
+  website: string;
+}
+
 export interface CounsellorChartResponse {
   studentId: string;
   ourChampion: {
@@ -256,6 +306,11 @@ export interface CounsellorChartResponse {
       bandLabel: string | null;
     };
     notes: Record<string, string>;
+    roadmapGrid: RoadmapGridJson | null;
+    careerDnaNarrative: CareerDnaNarrativeJson | null;
+    whyThisStream: WhyThisStreamJson | null;
+    entranceExamsTable: EntranceExamItemJson[] | null;
+    collegesTable: CollegesAfterItemJson[] | null;
     lastEditedBy: string | null;
     finalizedAt: string | null;
     updatedAt: string;
@@ -290,6 +345,11 @@ export interface PutCounsellorChartBody {
     decisionOwnership: number;
   }>;
   notes?: Array<{ code: string; body: string }>;
+  roadmapGrid?: RoadmapGridJson;
+  careerDnaNarrative?: CareerDnaNarrativeJson;
+  whyThisStream?: WhyThisStreamJson;
+  entranceExamsTable?: EntranceExamItemJson[];
+  collegesTable?: CollegesAfterItemJson[];
   lastEditedBy?: string;
 }
 

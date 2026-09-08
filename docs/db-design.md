@@ -197,9 +197,11 @@ Join table: which counsellors are assigned to which project. Unique on
 ### `CounsellorSlot`
 Discrete, individually-bookable slot — **not** a recurring weekly pattern. Fed into the
 system **once**, at project creation, from the institute's counsellor-availability
-Excel sheet (`Counsellor ID, Counsellor Name, Date, Day, Time Slot, Start Time, End
-Time`), one row per bookable instance. Never added to afterward (single upload, ever —
-see `docs/session-scheduling-use-cases.md` resolved decisions #1 and B). A slot moves
+Excel sheet — standard columns `Counsellor ID, Date, Start Time, End Time` (see
+`docs/sample-data/sample-counsellor-availability.xlsx`; no Counsellor Name column —
+matching is by ID alone against the counsellor directory), one row per bookable
+instance. Never added to afterward (single upload, ever — see
+`docs/session-scheduling-use-cases.md` resolved decisions #1 and B). A slot moves
 `OPEN → BOOKED` when a `Session` is created against it (`sessionId` set), and back to
 `OPEN` if that session is later cancelled or rescheduled off of it.
 

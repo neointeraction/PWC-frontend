@@ -143,6 +143,33 @@ export const isAnswerEmpty = (value: unknown): boolean => {
   return false;
 };
 
+// A MATRIX question's answer is a nested object (per-row or per-field) — isAnswerEmpty
+// alone only sees the top-level object, so it's satisfied as soon as a single row/field
+// is filled in. This checks every row (or, for a rows-less matrix, every field) actually
+// has a value before the question counts as answered.
+const isMatrixIncomplete = (options: MatrixOptions, value: unknown): boolean => {
+  const data = (value as Record<string, unknown> | undefined) ?? {};
+  const { rows, fields } = options;
+  if (!rows || rows.length === 0) {
+    return fields.some(f => isAnswerEmpty(data[f.key]));
+  }
+  return rows.some(row => {
+    const rowData = (data[row.key] as Record<string, unknown> | undefined) ?? {};
+    return fields.some(f => isAnswerEmpty(rowData[f.key]));
+  });
+};
+
+// Required-question completeness check used by both pre-counselling forms — routes MATRIX
+// questions through isMatrixIncomplete (per-row/field) and everything else through
+// isAnswerEmpty (top-level value).
+export const isQuestionAnswerMissing = (question: FormQuestion, value: unknown): boolean => {
+  if (isAnswerEmpty(value)) return true;
+  if (question.questionType === 'MATRIX') {
+    return isMatrixIncomplete(question.options as MatrixOptions, value);
+  }
+  return false;
+};
+
 // ---- Single-select (radio) control — used for top-level MCQ_SINGLE and MATRIX sub-fields ----
 const McqSingleControl: React.FC<{
   options: McqOption[];

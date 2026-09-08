@@ -113,6 +113,44 @@ export interface SCRIItemData {
   rating: number; // 1 to 4
 }
 
+// One of the 10 RIASEC/BIG FIVE/Cognitive mirror-pair consistency checks (Response
+// Validity Score). `flagged` mirrors the backend's flaggedMirrorPairs list (severity
+// "strong" only) — the pairs worth a counsellor's attention.
+export interface MirrorPairSummaryItem {
+  code: string;
+  questionA: string;
+  questionB: string;
+  responseA: number;
+  responseB: number;
+  gap: number;
+  severity: 'good' | 'acceptable' | 'mild' | 'strong';
+  penalty: number;
+  flagged: boolean;
+}
+
+export interface DominantCareerStyleSummary {
+  code: string;
+  traits: string[]; // rank-ordered trait names, e.g. Rank 1 -> Rank 3
+  style: string;
+  description: string;
+  explanation: string;
+}
+
+export interface DominantPersonalitySummary {
+  code: string;
+  style: string;
+  description: string;
+  explanation: string;
+}
+
+export interface DominantThinkingModeSummary {
+  traitName: string;
+  whatItMeasures: string;
+  percentage?: string;
+  level: string;
+  levelMeaning: string;
+}
+
 export interface RoadmapGridData {
   nowSkills: string;
   nowActivities: string;
@@ -152,9 +190,9 @@ export interface CounsellorFormChartData {
     synthesisNotesPre: Record<string, string>; // B1..B5
     traitsTable: TraitAssessmentItem[];
     summaryStrip: {
-      careerStyle: string;
-      personalSignature: string;
-      thinkingMode: string;
+      careerStyle: DominantCareerStyleSummary;
+      personalSignature: DominantPersonalitySummary;
+      thinkingMode: DominantThinkingModeSummary;
     };
     redFlags: Record<string, string>;
     careerDnaNarrative: {
@@ -183,6 +221,7 @@ export interface CounsellorFormChartData {
   // Step 4: Section D
   sectionD: {
     indicators: ReliabilityCardData[];
+    mirrorPairs: MirrorPairSummaryItem[];
     synthesisNotes: Record<string, string>; // G1..G5
   };
   // Step 5: Section E
