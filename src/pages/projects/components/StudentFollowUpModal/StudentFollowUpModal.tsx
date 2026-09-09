@@ -422,7 +422,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
         onConfirm={handleConfirmRetest}
         title="Retest Student"
         description="To do a retest, you need to delete this candidate and all their relevant details like pre-counselling form, assessment result etc. data will be deleted. You'll have to add the candidate again and restart the process from the start."
-        confirmLabel="Okay"
+        confirmLabel="Confirm"
         cancelLabel="Cancel"
         isDangerous
         isLoading={isRetesting}

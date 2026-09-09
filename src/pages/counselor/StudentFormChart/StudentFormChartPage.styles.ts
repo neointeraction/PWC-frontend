@@ -400,26 +400,38 @@ export const CompSubHeaderRow = styled.div`
   color: ${({ theme }) => theme.colors.primary};
 `;
 
-// A row-hover-only delete button — sits opacity:0 until its row is hovered, so an
-// editable table's extra "actions" column stays visually quiet the rest of the time.
+// Colors/sizing match ActionIconButton in Tenant Management for a uniform
+// icon-button style, but stays row-hover-only (opacity:0 until its row is
+// hovered) so an editable table's extra "actions" column stays visually quiet
+// the rest of the time.
 export const RowDeleteButton = styled.button`
-  width: 28px;
-  height: 28px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 4px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.textSecondary};
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s ease, border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+  transition: opacity 0.15s ease, border-color ${({ theme }) => theme.transition.fast}, color ${({ theme }) => theme.transition.fast}, background-color ${({ theme }) => theme.transition.fast};
 
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.danger || '#DC2626'};
-    color: ${({ theme }) => theme.colors.danger || '#DC2626'};
-    background-color: ${({ theme }) => theme.colors.dangerLight || '#FEE2E2'};
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+    background-color: ${({ theme }) => theme.colors.primaryLight};
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 `;
 
@@ -800,6 +812,36 @@ export const ScriBandBadge = styled.span<{ $band?: string }>`
 export const ScriGuidanceText = styled.p`
   font-size: 0.875rem;
   line-height: 1.6;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  margin: 0;
+`;
+
+export const ScriTipsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+`;
+
+export const ScriTipBlock = styled.div`
+  padding: 12px 14px;
+  background-color: ${({ theme }) => theme.colors.background};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+`;
+
+export const ScriTipTitle = styled.div`
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: ${({ theme }) => theme.colors.text};
+  margin-bottom: 6px;
+`;
+
+export const ScriTipText = styled.p`
+  font-size: 0.85rem;
+  line-height: 1.55;
   color: ${({ theme }) => theme.colors.textSecondary};
   margin: 0;
 `;

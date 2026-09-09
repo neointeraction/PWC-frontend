@@ -30,6 +30,12 @@ interface AddRowModalProps {
   title: string;
   fields: AddRowFieldConfig[];
   onSubmit: (values: Record<string, string>, isManualEntry: boolean) => void;
+  // 'view' renders every field as read-only, pre-filled from `initialValues`, with no
+  // Manual Entry checkbox and a single Close button — used to show an already-saved
+  // manual entry (e.g. from the Super Admin dashboard) without re-running the
+  // career-library Select/derived-field logic that only makes sense while adding.
+  mode?: 'add' | 'view';
+  initialValues?: Record<string, string>;
 }
 
 export const AddRowModal: React.FC<AddRowModalProps> = ({
@@ -38,17 +44,27 @@ export const AddRowModal: React.FC<AddRowModalProps> = ({
   title,
   fields,
   onSubmit,
+  mode = 'add',
+  initialValues,
 }) => {
+  const isView = mode === 'view';
   const hasDbFields = fields.some(f => f.dbSource);
   const [isManualEntry, setIsManualEntry] = useState(!hasDbFields);
   const [values, setValues] = useState<Record<string, string>>({});
+  // Tracks the raw option value picked for each dbSource field, kept separate from `values`
+  // because a field's onSelect often rewrites `values[key]` to a display string (e.g. a name)
+  // that no longer matches any option's `value` (an id) — that mismatch is what was making the
+  // dropdown appear empty/unselected after picking an option.
+  const [selectedIds, setSelectedIds] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (isOpen) {
-      setValues({});
+      setValues(isView ? initialValues || {} : {});
+      setSelectedIds({});
       setIsManualEntry(!hasDbFields);
     }
-  }, [isOpen, hasDbFields]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, hasDbFields, isView]);
 
   const setValue = (key: string, value: string) => setValues(prev => ({ ...prev, [key]: value }));
 
@@ -61,21 +77,29 @@ export const AddRowModal: React.FC<AddRowModalProps> = ({
       title={title}
       size="md"
       footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => onSubmit(values, isManualEntry)}
-            disabled={!canSubmit}
-          >
-            Add Row
-          </Button>
-        </div>
+        isView ? (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => onSubmit(values, isManualEntry)}
+              disabled={!canSubmit}
+            >
+              Add
+            </Button>
+          </div>
+        )
       }
     >
-      {hasDbFields && (
+      {!isView && hasDbFields && (
         <div style={{ marginBottom: 16 }}>
           <Checkbox
             label="Manual Entry — type free text instead of selecting from the career library"
@@ -86,8 +110,8 @@ export const AddRowModal: React.FC<AddRowModalProps> = ({
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {fields.map(field => {
-          const useSelect = Boolean(field.dbSource) && !isManualEntry;
-          const isDisabledDerived = field.derivedOnly && !isManualEntry;
+          const useSelect = !isView && Boolean(field.dbSource) && !isManualEntry;
+          const isDisabledDerived = isView || (field.derivedOnly && !isManualEntry);
 
           if (useSelect) {
             return (
@@ -95,10 +119,11 @@ export const AddRowModal: React.FC<AddRowModalProps> = ({
                 key={field.key}
                 label={field.label}
                 options={field.dbSource!.options}
-                value={values[field.key] || ''}
+                value={selectedIds[field.key] || ''}
                 placeholder={field.dbSource!.isLoading ? 'Loading…' : `Select ${field.label}`}
                 disabled={field.dbSource!.isLoading}
                 onChange={e => {
+                  setSelectedIds(prev => ({ ...prev, [field.key]: e.target.value }));
                   setValue(field.key, e.target.value);
                   field.dbSource?.onSelect?.(e.target.value, setValue);
                 }}
@@ -119,7 +144,11 @@ export const AddRowModal: React.FC<AddRowModalProps> = ({
                   disabled={isDisabledDerived}
                   onChange={e => setValue(field.key, e.target.value)}
                   placeholder={
-                    isDisabledDerived ? 'Auto-filled from the selected option above' : `Enter ${field.label.toLowerCase()}`
+                    isView
+                      ? '—'
+                      : isDisabledDerived
+                        ? 'Auto-filled from the selected option above'
+                        : `Enter ${field.label.toLowerCase()}`
                   }
                   style={{ width: '100%', minHeight: '60px' }}
                 />
@@ -135,7 +164,11 @@ export const AddRowModal: React.FC<AddRowModalProps> = ({
               disabled={isDisabledDerived}
               onChange={e => setValue(field.key, e.target.value)}
               placeholder={
-                isDisabledDerived ? 'Auto-filled from the selected option above' : `Enter ${field.label.toLowerCase()}`
+                isView
+                  ? '—'
+                  : isDisabledDerived
+                    ? 'Auto-filled from the selected option above'
+                    : `Enter ${field.label.toLowerCase()}`
               }
             />
           );

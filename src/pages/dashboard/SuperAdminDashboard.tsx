@@ -6,6 +6,7 @@ import { Card } from '@/components/Card';
 import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { Loader } from '@/components/Loader';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { careerService } from '@/services/career.service';
 import { counsellorChartService } from '@/services/counsellorChart.service';
 import { useNotificationStore } from '@/store';
@@ -14,12 +15,67 @@ import { PendingRatification, Career } from '@/types';
 import { ManualEntryRow } from '@/types/counsellorChart.types';
 import { ROUTES } from '@/constants';
 import { JobRoleFormModal } from '../career-library/components/JobRoleFormModal';
+import { AddRowModal } from '../counselor/StudentFormChart/components/AddRowModal';
+import { MANUAL_ENTRY_VIEW_FIELDS } from '../counselor/StudentFormChart/components/manualEntryViewFields';
 import {
   DashboardWrapper,
   ActionButtonCell,
   ApproveButton,
   CloseButton,
+  IdentityCell,
+  IdLine,
 } from './SuperAdminDashboard.styles';
+
+// The "Pending & Recent Requests" table shows two different kinds of rows side by
+// side: career-ratification proposals from counsellors, and counsellor-typed "Manual
+// Entry" rows on a student's Career Compass tables that need Super Admin review.
+type DashboardRow =
+  | { rowType: 'ratification'; id: string; data: PendingRatification }
+  | { rowType: 'manual-entry'; id: string; data: ManualEntryRow };
+
+// GET /counsellor-chart/manual-entries doesn't return sessionId/counsellorCode/
+// studentCode/projectName yet (see docs/compass-tables-manual-entry-backend-prompt.md)
+// — resolve them client-side from already-live endpoints, cached per studentId.
+const useManualEntryContext = (studentId: string) =>
+  useQuery({
+    queryKey: ['student-chart-context', studentId],
+    queryFn: () => counsellorChartService.resolveStudentChartContext(studentId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+const ManualEntryProjectCell: React.FC<{ studentId: string }> = ({ studentId }) => {
+  const { data } = useManualEntryContext(studentId);
+  return <>{data?.projectName || '—'}</>;
+};
+
+const ManualEntryCounsellorCell: React.FC<{ entry: ManualEntryRow }> = ({ entry }) => {
+  const { data } = useManualEntryContext(entry.studentId);
+  return (
+    <IdentityCell>
+      <span>{entry.addedBy || '—'}</span>
+      {data?.counsellorCode && <IdLine>Code: {data.counsellorCode}</IdLine>}
+    </IdentityCell>
+  );
+};
+
+const ManualEntryStudentCell: React.FC<{ entry: ManualEntryRow }> = ({ entry }) => {
+  const { data } = useManualEntryContext(entry.studentId);
+  return (
+    <IdentityCell>
+      <span>{entry.studentName || '—'}</span>
+      {data?.studentCode && <IdLine>Code: {data.studentCode}</IdLine>}
+    </IdentityCell>
+  );
+};
+
+const ManualEntryViewButton: React.FC<{ entry: ManualEntryRow; onView: (entry: ManualEntryRow) => void }> = ({
+  entry,
+  onView,
+}) => (
+  <Tooltip content="View this manual entry's details (read-only)">
+    <ApproveButton onClick={() => onView(entry)}>View</ApproveButton>
+  </Tooltip>
+);
 
 export const SuperAdminDashboard: React.FC = () => {
   const addNotification = useNotificationStore(state => state.addNotification);
@@ -28,10 +84,15 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const [selectedRequest, setSelectedRequest] = useState<PendingRatification | null>(null);
   const [isJobRoleModalOpen, setIsJobRoleModalOpen] = useState(false);
-  // Rows the admin has dismissed with "Close" — the backend has no dismiss endpoint for
-  // proposals (approve/reject are the only resolutions), so this only hides the row
-  // locally until the next refetch brings it back.
+  // Rows the admin has dismissed with "Close" — for ratification proposals the backend
+  // has no dismiss endpoint (approve/reject are the only resolutions), so this only
+  // hides the row locally until the next refetch brings it back. Manual-entry rows are
+  // actually deleted server-side (see deleteManualEntryMutation below).
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  // Row awaiting confirmation from the "Close" button.
+  const [rowPendingClose, setRowPendingClose] = useState<DashboardRow | null>(null);
+  // Manual-entry row currently shown in the read-only view modal.
+  const [viewingEntry, setViewingEntry] = useState<ManualEntryRow | null>(null);
 
   // Ratification requests raised by counsellors — pending first-class, plus the
   // already-reviewed ones the card title calls "recent".
@@ -39,8 +100,6 @@ export const SuperAdminDashboard: React.FC = () => {
     queryKey: ['career-ratification-requests'],
     queryFn: () => careerService.getRatificationRequests(),
   });
-
-  const visibleRequests = requestsList.filter(req => !dismissedIds.has(req.id));
 
   // Counsellor-typed "Manual Entry" rows across every student's Career Compass tables
   // (Step 3 of the counsellor chart) — backend endpoint not live yet, see
@@ -53,8 +112,45 @@ export const SuperAdminDashboard: React.FC = () => {
     throwOnError: false,
   });
 
-  const handleCloseRow = (id: string) => {
-    setDismissedIds(prev => new Set(prev).add(id));
+  const rows: DashboardRow[] = [
+    ...requestsList.map(
+      (req): DashboardRow => ({ rowType: 'ratification', id: `ratification:${req.id}`, data: req })
+    ),
+    ...manualEntries.map(
+      (entry): DashboardRow => ({ rowType: 'manual-entry', id: `manual-entry:${entry.id}`, data: entry })
+    ),
+  ];
+
+  const visibleRequests = rows.filter(row => !dismissedIds.has(row.id));
+
+  const deleteManualEntryMutation = useMutation({
+    mutationFn: (entryId: string) => counsellorChartService.deleteManualEntry(entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['counsellor-chart-manual-entries'] });
+      addNotification({
+        type: 'success',
+        title: 'Entry Removed',
+        message: 'The manual entry has been removed from the counsellor chart.',
+      });
+      setRowPendingClose(null);
+    },
+    onError: err => {
+      addNotification({
+        type: 'error',
+        title: 'Delete Failed',
+        message: getApiErrorMessage(err, 'Could not delete the manual entry. Please try again.'),
+      });
+    },
+  });
+
+  const handleConfirmClose = () => {
+    if (!rowPendingClose) return;
+    if (rowPendingClose.rowType === 'manual-entry') {
+      deleteManualEntryMutation.mutate(rowPendingClose.data.id);
+    } else {
+      setDismissedIds(prev => new Set(prev).add(rowPendingClose.id));
+      setRowPendingClose(null);
+    }
   };
 
   const closeJobRoleModal = () => {
@@ -108,17 +204,25 @@ export const SuperAdminDashboard: React.FC = () => {
     reviewMutation.mutate({ id: selectedRequest.id, decision: 'reject' });
   };
 
-  const columns: Column<PendingRatification>[] = [
+  const columns: Column<DashboardRow>[] = [
     {
       key: 'project',
       header: 'Project',
-      render: row => row.projectName || '—',
+      render: row =>
+        row.rowType === 'manual-entry' ? (
+          <ManualEntryProjectCell studentId={row.data.studentId} />
+        ) : (
+          row.data.projectName || '—'
+        ),
     },
     {
       key: 'source',
       header: 'Counsellor',
       render: row => {
-        const name = row.sourceTenant;
+        if (row.rowType === 'manual-entry') {
+          return <ManualEntryCounsellorCell entry={row.data} />;
+        }
+        const name = row.data.sourceTenant;
         // Show em dash (—) as a proper dash for better readability
         if (name === '\u2014' || !name) {
           return '—';
@@ -129,41 +233,35 @@ export const SuperAdminDashboard: React.FC = () => {
     {
       key: 'student',
       header: 'Student',
-      // Not yet returned by GET /career-library/proposals — placeholder until the
-      // backend adds a student field to the response.
-      render: () => '—',
+      render: row =>
+        // Ratification proposals don't carry a student field yet — not yet returned
+        // by GET /career-library/proposals — placeholder until the backend adds one.
+        row.rowType === 'manual-entry' ? <ManualEntryStudentCell entry={row.data} /> : '—',
     },
     {
       key: 'date',
       header: 'Date',
-      render: row => formatDateTime(row.submittedAt),
+      render: row =>
+        formatDateTime(row.rowType === 'ratification' ? row.data.submittedAt : row.data.addedAt),
     },
     {
       key: 'actions',
       header: '',
       render: row => (
         <ActionButtonCell style={{ justifyContent: 'flex-end' }}>
-          <Tooltip content="Review and confirm request to publish to global library">
-            <ApproveButton onClick={() => handleOpenJobRoleModal(row)}>View</ApproveButton>
-          </Tooltip>
+          {row.rowType === 'ratification' ? (
+            <Tooltip content="Review and confirm request to publish to global library">
+              <ApproveButton onClick={() => handleOpenJobRoleModal(row.data)}>View</ApproveButton>
+            </Tooltip>
+          ) : (
+            <ManualEntryViewButton entry={row.data} onView={setViewingEntry} />
+          )}
           <Tooltip content="Dismiss this request from the list">
-            <CloseButton onClick={() => handleCloseRow(row.id)}>Close</CloseButton>
+            <CloseButton onClick={() => setRowPendingClose(row)}>Close</CloseButton>
           </Tooltip>
         </ActionButtonCell>
       ),
     },
-  ];
-
-  const manualEntryColumns: Column<ManualEntryRow>[] = [
-    { key: 'studentName', header: 'Student', render: row => row.studentName || '—' },
-    { key: 'tableLabel', header: 'Table', render: row => row.tableLabel },
-    {
-      key: 'fields',
-      header: 'Entry',
-      render: row => Object.values(row.fields).filter(Boolean).join(' · ') || '—',
-    },
-    { key: 'addedBy', header: 'Added By', render: row => row.addedBy || '—' },
-    { key: 'addedAt', header: 'Date', render: row => formatDateTime(row.addedAt) },
   ];
 
   if (isLoading) return <Loader />;
@@ -187,15 +285,20 @@ export const SuperAdminDashboard: React.FC = () => {
         />
       </Card>
 
-      <Card title="Manual Entries — Career Compass Tables">
-        <Table
-          columns={manualEntryColumns}
-          data={manualEntries}
-          keyExtractor={row => row.id}
-          emptyMessage="No manual entries flagged for review."
-        />
-      </Card>
-
+      <ConfirmDialog
+        isOpen={rowPendingClose !== null}
+        onClose={() => setRowPendingClose(null)}
+        onConfirm={handleConfirmClose}
+        title={rowPendingClose?.rowType === 'manual-entry' ? 'Remove Manual Entry?' : 'Dismiss Request?'}
+        description={
+          rowPendingClose?.rowType === 'manual-entry'
+            ? `This permanently deletes "${rowPendingClose.data.tableLabel}" entry for ${rowPendingClose.data.studentName || 'this student'} from the counsellor chart. This cannot be undone.`
+            : 'This dismisses the request from this list. It will reappear on the next refresh unless approved or rejected.'
+        }
+        confirmLabel={rowPendingClose?.rowType === 'manual-entry' ? 'Delete' : 'Dismiss'}
+        isLoading={deleteManualEntryMutation.isPending}
+        isDangerous={rowPendingClose?.rowType === 'manual-entry'}
+      />
 
       {/* Job Role Detail Modal */}
       <JobRoleFormModal
@@ -232,6 +335,16 @@ export const SuperAdminDashboard: React.FC = () => {
         clusterLabel={selectedRequest?.suggestedCategory}
         industryLabel={selectedRequest?.suggestedIndustry}
         entityKind="proposal"
+      />
+
+      <AddRowModal
+        isOpen={viewingEntry !== null}
+        onClose={() => setViewingEntry(null)}
+        title={viewingEntry?.tableLabel ?? ''}
+        fields={viewingEntry ? MANUAL_ENTRY_VIEW_FIELDS[viewingEntry.tableLabel] || [] : []}
+        initialValues={viewingEntry?.fields}
+        mode="view"
+        onSubmit={() => {}}
       />
     </DashboardWrapper>
   );

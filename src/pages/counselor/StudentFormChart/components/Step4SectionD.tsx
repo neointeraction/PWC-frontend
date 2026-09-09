@@ -13,12 +13,6 @@ import {
   SectionBlock,
   SectionBlockTitle,
   SectionBlockSubtitle,
-  IndicatorBlock,
-  ReliabilityCardHeader,
-  IndicatorTitle,
-  IndicatorQuestion,
-  ReliabilityValueDisplay,
-  ReliabilityExplanationBox,
   TraitTableContainer,
   TraitTableHeaderRow,
   TraitTableHeaderCell,
@@ -46,6 +40,7 @@ const SEVERITY_BADGE_VARIANT: Record<MirrorPairSummaryItem['severity'], 'success
 };
 
 const MIRROR_PAIR_GRID = '1.55fr 1.55fr 130px';
+const RELIABILITY_ROW_GRID = '1.8fr 90px 150px 2.6fr';
 
 // 5-point scale used across RIASEC / Big Five / Cognitive & Decision Style
 // (see RESPONSE VALIDITY SCORE section of the assessment construct doc).
@@ -163,10 +158,6 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
     });
     return map;
   }, [questionBank]);
-  const eimIndicator = data.indicators.find(item => item.code === 'EIM');
-  const eimParts = eimIndicator?.valueStatus.split(' ') ?? [];
-  const eimScore = eimParts[0]?.includes('%') ? eimParts[0] : '';
-  const eimLevel = eimParts[0]?.includes('%') ? eimParts.slice(1).join(' ') : eimIndicator?.valueStatus ?? '';
 
   return (
     <>
@@ -183,30 +174,37 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
           const label = firstPartIsPercent ? parts.slice(1).join(' ') : item.valueStatus;
 
           return (
-            <IndicatorBlock
+            <div
               key={item.code}
               style={{
+                marginTop: '20px',
                 border: '1px solid #E2E8F0',
                 borderRadius: '4px',
-                padding: '16px 18px',
+                padding: '16px',
                 backgroundColor: '#FFFFFF',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
               }}
             >
-              <ReliabilityCardHeader>
-                <div>
-                  <IndicatorTitle>
-                    {item.code} — {item.name}
-                  </IndicatorTitle>
-                  <IndicatorQuestion>{item.guidingQuestion}</IndicatorQuestion>
-                </div>
-                <ReliabilityValueDisplay>
-                  {score && (
-                    <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0F172A' }}>
-                      {score}
-                    </span>
-                  )}
-                  <span
+              <CategoryBlockHeader>
+                <CategoryBlockTitle>
+                  {item.code} — {item.name}
+                </CategoryBlockTitle>
+              </CategoryBlockHeader>
+
+              <TraitTableContainer style={{ overflowX: 'auto' }}>
+                <TraitTableHeaderRow style={{ gridTemplateColumns: RELIABILITY_ROW_GRID, minWidth: '900px' }}>
+                  <TraitTableHeaderCell>Measure</TraitTableHeaderCell>
+                  <TraitTableHeaderCell $align="center">Score</TraitTableHeaderCell>
+                  <TraitTableHeaderCell $align="center">Status</TraitTableHeaderCell>
+                  <TraitTableHeaderCell>Explanation</TraitTableHeaderCell>
+                </TraitTableHeaderRow>
+
+                <TraitDataRow style={{ gridTemplateColumns: RELIABILITY_ROW_GRID, minWidth: '900px' }}>
+                  <TraitCell $secondary>{item.guidingQuestion}</TraitCell>
+                  <TraitCell $align="center" $bold>
+                    {score || '—'}
+                  </TraitCell>
+                  <TraitCell
+                    $align="center"
                     style={{
                       fontWeight: 600,
                       fontStyle: 'italic',
@@ -214,18 +212,14 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
                         label.toLowerCase().includes('high') || label.toLowerCase().includes('optimal')
                           ? '#16A34A'
                           : '#0F172A',
-                      fontSize: '0.95rem',
                     }}
                   >
                     {label}
-                  </span>
-                </ReliabilityValueDisplay>
-              </ReliabilityCardHeader>
-
-              <ReliabilityExplanationBox>
-                {item.explanationText}
-              </ReliabilityExplanationBox>
-            </IndicatorBlock>
+                  </TraitCell>
+                  <TraitCell $secondary>{item.explanationText}</TraitCell>
+                </TraitDataRow>
+              </TraitTableContainer>
+            </div>
           );
         })}
       </SectionBlock>
@@ -237,45 +231,6 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
           consistent responder rates each pair far apart; strong contradictions (gap = 0) are the
           ones that need a counsellor's attention.
         </SectionBlockSubtitle>
-
-        {eimIndicator && (
-          <IndicatorBlock
-            style={{
-              marginTop: '12px',
-              border: '1px solid #E2E8F0',
-              borderRadius: '4px',
-              padding: '16px 18px',
-              backgroundColor: '#FFFFFF',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
-            }}
-          >
-            <ReliabilityCardHeader>
-              <div>
-                <IndicatorTitle>Response Validity Score (RVS)</IndicatorTitle>
-                <IndicatorQuestion>{eimIndicator.guidingQuestion}</IndicatorQuestion>
-              </div>
-              <ReliabilityValueDisplay>
-                {eimScore && (
-                  <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0F172A' }}>
-                    {eimScore}
-                  </span>
-                )}
-                <span
-                  style={{
-                    fontWeight: 600,
-                    fontStyle: 'italic',
-                    color: eimLevel.toLowerCase().includes('highly consistent') ? '#16A34A' : '#0F172A',
-                    fontSize: '0.95rem',
-                  }}
-                >
-                  {eimLevel}
-                </span>
-              </ReliabilityValueDisplay>
-            </ReliabilityCardHeader>
-
-            <ReliabilityExplanationBox>{eimIndicator.explanationText}</ReliabilityExplanationBox>
-          </IndicatorBlock>
-        )}
 
         <div
           style={{

@@ -30,6 +30,8 @@ export interface TraitAssessmentItem {
   percentage?: string;
   grade: string;
   gradeMeaning: string;
+  studentQuality?: string; // real-life example, from AssessmentTraitDefinition
+  studentFriendlyExplanation?: string | null; // populated for Cognitive traits only, today
 }
 
 export interface StreamFitItem {
@@ -42,6 +44,9 @@ export interface StreamFitItem {
   streamRequirement?: string;
   gradingLevel?: string;
   meaning?: string;
+  // Only present on system-generated rows (from StreamFit.fitScore) — used to sort them
+  // before counsellor-added rows fill the remaining slots up to the table's max.
+  fitScore?: number;
   // A free-text row the counsellor typed in directly (vs. picked from the career
   // library) — flagged so Super Admin can review it against the taxonomy.
   isManualEntry?: boolean;
@@ -55,6 +60,9 @@ export interface GraduationItem {
   specialization: string;
   reasoning: string;
   keyExams: string;
+  // Only present on system-generated rows (from GraduationFit.fitScore) — used to sort
+  // them before counsellor-added rows fill the remaining slots up to the table's max.
+  fitScore?: number;
   isManualEntry?: boolean;
 }
 
@@ -90,6 +98,9 @@ export interface CareerCompassClusterItem {
   streamRequirement: string;
   gradingLevel: string;
   meaning: string;
+  // Only present on system-generated rows (from IndustryRollup.fitScore) — used to sort
+  // them before counsellor-added rows fill the remaining slots up to the table's max.
+  fitScore?: number;
   isManualEntry?: boolean;
 }
 
@@ -138,9 +149,14 @@ export interface MirrorPairSummaryItem {
   flagged: boolean;
 }
 
+export interface RankedTraitScore {
+  name: string;
+  percentage: string;
+}
+
 export interface DominantCareerStyleSummary {
   code: string;
-  traits: string[]; // rank-ordered trait names, e.g. Rank 1 -> Rank 3
+  traits: RankedTraitScore[]; // rank-ordered traits w/ score, e.g. Rank 1 -> Rank 3
   style: string;
   description: string;
   explanation: string;
@@ -148,17 +164,22 @@ export interface DominantCareerStyleSummary {
 
 export interface DominantPersonalitySummary {
   code: string;
+  traits: RankedTraitScore[]; // rank-ordered traits w/ score, e.g. Rank 1 -> Rank 2
   style: string;
   description: string;
   explanation: string;
 }
 
 export interface DominantThinkingModeSummary {
+  layer: string; // e.g. "Cognitive & Decision"
+  trait: string; // workbook label, e.g. "Learning Velocity"
   traitName: string;
   whatItMeasures: string;
+  studentQuality?: string; // real-life example, from AssessmentTraitDefinition
   percentage?: string;
   level: string;
   levelMeaning: string;
+  personalizedExplanation?: string; // AssessmentTraitDefinition.studentFriendlyExplanation
 }
 
 export interface RoadmapGridData {
@@ -227,6 +248,17 @@ export interface CounsellorFormChartData {
     collegesTable: CollegesAfterItem[];
     careerCompassClusterTable: CareerCompassClusterItem[];
     careerCompassTable: CareerCompassItem[];
+    // Assessment-derived fit scores keyed by natural key (see counsellorChart.service's
+    // `fitKey`), covering every stream/domain the assessment scored — not just the top
+    // N shown by default. Lets the counsellor-add-row flow score a new row the instant
+    // it's picked from the career library, matching the same fit score that would be
+    // re-attached on the next chart load.
+    fitScoreLookup: {
+      stream: Record<string, number | null>; // key: mainStream|subStream
+      graduation: Record<string, number | null>; // key: clusterHead|mainStream|subStream
+      domain: Record<string, number | null>; // key: domain
+      industry: Record<string, number | null>; // key: cluster|industry|domain
+    };
   };
   // Step 4: Section D
   sectionD: {

@@ -5,3 +5,4 @@ export * from './tenant-management.types';
 export * from './counselor.types';
 export * from './project.types';
 export * from './student.types';
+export * from './scriBandGuidance.types';

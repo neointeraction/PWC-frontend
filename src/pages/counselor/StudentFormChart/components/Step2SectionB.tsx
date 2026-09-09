@@ -34,6 +34,8 @@ interface Step2SectionBProps {
   onChangeRedFlags?: (key: string, value: string) => void;
 }
 
+const TRAIT_ROW_GRID = '48px 1.1fr 1.9fr 120px 1.9fr';
+
 const synthesisRowsPreDef = [
   {
     code: 'B1',
@@ -123,8 +125,8 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
         <CategoryCountBadge>{traits.length} {traits.length === 1 ? 'Trait' : 'Traits'}</CategoryCountBadge>
       </CategoryBlockHeader>
 
-      <TraitTableContainer>
-        <TraitTableHeaderRow>
+      <TraitTableContainer style={{ overflowX: 'auto' }}>
+        <TraitTableHeaderRow style={{ gridTemplateColumns: TRAIT_ROW_GRID, minWidth: '750px' }}>
           <TraitTableHeaderCell $align="center">No</TraitTableHeaderCell>
           <TraitTableHeaderCell>Trait Name</TraitTableHeaderCell>
           <TraitTableHeaderCell>What It Means</TraitTableHeaderCell>
@@ -142,7 +144,7 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
           traits.map((t, idx) => {
             const traitCode = t.layerTrait.split(' - ')[1] ?? '';
             return (
-              <TraitDataRow key={t.id}>
+              <TraitDataRow key={t.id} style={{ gridTemplateColumns: TRAIT_ROW_GRID, minWidth: '750px' }}>
                 <TraitCell $align="center" $bold style={{ color: '#64748B' }}>
                   {idx + 1}
                 </TraitCell>
@@ -195,13 +197,13 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
         <CategoryBlockTitle>{title}</CategoryBlockTitle>
       </CategoryBlockHeader>
 
-      <TraitTableContainer>
-        <TraitTableHeaderRow style={{ gridTemplateColumns: gridTemplate }}>
+      <TraitTableContainer style={{ overflowX: 'auto' }}>
+        <TraitTableHeaderRow style={{ gridTemplateColumns: gridTemplate, minWidth: '900px' }}>
           {headers.map(h => (
             <TraitTableHeaderCell key={h}>{h}</TraitTableHeaderCell>
           ))}
         </TraitTableHeaderRow>
-        <TraitDataRow style={{ gridTemplateColumns: gridTemplate }}>
+        <TraitDataRow style={{ gridTemplateColumns: gridTemplate, minWidth: '900px' }}>
           {cells.map((c, idx) => (
             <TraitCell key={idx} $secondary={idx > 0}>
               {c}
@@ -254,11 +256,13 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
             BIG FIVE 20 / COG&DEC combination tables computed by the assessment engine. */}
         {renderDominantTable(
           'CAREER STYLE (Top Trait of RIASEC 120)',
-          '90px 1.6fr 1.4fr 2.4fr 2.6fr',
+          '90px 2fr 1.4fr 2.4fr 2.6fr',
           ['Code', 'Rank Traits (1 → 2 → 3)', 'Dominant Career Style', 'Description', 'Explanation'],
           [
             data.summaryStrip.careerStyle.code,
-            data.summaryStrip.careerStyle.traits.join(' → '),
+            data.summaryStrip.careerStyle.traits
+              .map(t => `${t.name} (${t.percentage}%)`)
+              .join(' → '),
             <span style={{ fontWeight: 600 }}>{data.summaryStrip.careerStyle.style}</span>,
             data.summaryStrip.careerStyle.description,
             data.summaryStrip.careerStyle.explanation,
@@ -267,10 +271,13 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
 
         {renderDominantTable(
           'PERSONAL SIGNATURE (Top Trait of BIG FIVE 20)',
-          '90px 1.4fr 2.4fr 2.6fr',
-          ['Code', 'Personality Style', 'Description', 'Explanation'],
+          '90px 1.8fr 1.4fr 2.4fr 2.6fr',
+          ['Code', 'Rank Traits (1 → 2)', 'Personality Style', 'Description', 'Explanation'],
           [
             data.summaryStrip.personalSignature.code,
+            data.summaryStrip.personalSignature.traits
+              .map(t => `${t.name} (${t.percentage}%)`)
+              .join(' → '),
             <span style={{ fontWeight: 600 }}>{data.summaryStrip.personalSignature.style}</span>,
             data.summaryStrip.personalSignature.description,
             data.summaryStrip.personalSignature.explanation,
@@ -279,9 +286,18 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
 
         {renderDominantTable(
           'THINKING MODE (Top Trait of COG&DEC)',
-          '1.4fr 2.4fr 130px 2.6fr',
-          ['Trait Name', 'What It Means', 'Current Level', 'What It Means'],
+          '110px 1.2fr 1.2fr 2.2fr 110px 2.4fr',
           [
+            'Layer',
+            'Trait',
+            'Trait Name',
+            'Description',
+            'Current Level',
+            'Student Friendly Explanation',
+          ],
+          [
+            data.summaryStrip.thinkingMode.layer,
+            data.summaryStrip.thinkingMode.trait,
             <span style={{ fontWeight: 600 }}>{data.summaryStrip.thinkingMode.traitName}</span>,
             data.summaryStrip.thinkingMode.whatItMeasures,
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
@@ -292,7 +308,7 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
                 <TraitScoreBadge>{data.summaryStrip.thinkingMode.percentage}%</TraitScoreBadge>
               )}
             </div>,
-            data.summaryStrip.thinkingMode.levelMeaning,
+            data.summaryStrip.thinkingMode.personalizedExplanation || '—',
           ]
         )}
       </SectionBlock>

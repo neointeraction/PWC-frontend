@@ -1,5 +1,6 @@
 import { apiClient } from './api';
 import { toTitleCase } from '@/utils';
+import { sessionsService } from './sessions.service';
 import {
   CounsellorChartResponse,
   PutCounsellorChartBody,
@@ -10,6 +11,7 @@ import {
   EnrichedTraitScore,
   AssessmentLayer,
   ManualEntryRow,
+  TraitKey,
 } from '@/types/counsellorChart.types';
 import {
   CounsellorFormChartData,
@@ -24,7 +26,15 @@ import {
   ReliabilityCardData,
   SCRIItemData,
   MirrorPairSummaryItem,
+  RankedTraitScore,
 } from '@/mocks/studentFormChart.mock';
+
+// Normalizes natural-key parts so a row still matches its report row across incidental
+// casing/whitespace differences (e.g. a counsellor-typed label). Shared between the
+// re-hydration matching below and the live fit-score lookup counsellors trigger by
+// picking a career-library option in AddRowModal (see Step3SectionC).
+export const fitKey = (...parts: (string | null | undefined)[]): string =>
+  parts.map(p => (p ?? '').trim().toLowerCase()).join('|');
 
 export const counsellorChartService = {
   // GET /counsellor-chart/students/{studentId} — lazily creates an empty chart row
@@ -45,6 +55,51 @@ export const counsellorChartService = {
       '/counsellor-chart/manual-entries'
     );
     return Array.isArray(data) ? data : data.data;
+  },
+
+  // DELETE /counsellor-chart/manual-entries/{id} — removes one flagged row from its
+  // source table on the student's chart (Super Admin's "Close" action, after confirm).
+  // Backend endpoint not live yet — see docs/compass-tables-manual-entry-backend-prompt.md.
+  deleteManualEntry: async (id: string): Promise<void> => {
+    await apiClient.delete(`/counsellor-chart/manual-entries/${id}`);
+  },
+
+  // Fills in the fields GET /counsellor-chart/manual-entries doesn't return yet
+  // (sessionId, counsellorCode, studentCode, projectName — see the backend prompt doc)
+  // from already-live endpoints, so Super Admin's "View" button and code columns work
+  // today instead of waiting on that backend change. Picks the student's most recently
+  // scheduled session as "the" session/counsellor for this chart.
+  resolveStudentChartContext: async (
+    studentId: string
+  ): Promise<{
+    sessionId: string | null;
+    studentCode: string | null;
+    counsellorCode: string | null;
+    projectName: string | null;
+  }> => {
+    const [studentRes, sessions] = await Promise.all([
+      apiClient.get<{ studentCode?: string; project?: { id: string } }>(`/students/${studentId}`),
+      sessionsService.getStudentSessions(studentId).catch(() => []),
+    ]);
+
+    const projectId = studentRes.data.project?.id;
+    const projectName = projectId
+      ? await apiClient
+          .get<{ name: string }>(`/projects/${projectId}`)
+          .then(res => res.data.name)
+          .catch(() => null)
+      : null;
+
+    const latestSession = [...sessions].sort((a, b) =>
+      a.scheduledDate < b.scheduledDate ? 1 : -1
+    )[0];
+
+    return {
+      sessionId: latestSession?.id ?? null,
+      studentCode: studentRes.data.studentCode ?? latestSession?.student.studentCode ?? null,
+      counsellorCode: latestSession?.counsellor.counsellorCode ?? null,
+      projectName,
+    };
   },
 
   // PUT — partial save of counsellor-authored content. Returns the full chart again.
@@ -634,6 +689,8 @@ const toTraitRow = (s: EnrichedTraitScore, no: number): TraitAssessmentItem => (
   percentage: s.score.toFixed(2),
   grade: s.level,
   gradeMeaning: s.levelMeaning,
+  studentQuality: s.studentQuality,
+  studentFriendlyExplanation: s.studentFriendlyExplanation,
 });
 
 const emptyNotesFor = (codes: string[]): Record<string, string> =>
@@ -661,10 +718,33 @@ export const mapChartToFormData = (
   const topCognitiveTrait = report?.cognitive.ranking[0];
   const thinkingModeTrait = report?.cognitive.scores.find(s => s.trait === topCognitiveTrait);
 
+  const riasecScoreByTrait = new Map((report?.riasec.scores ?? []).map(s => [s.trait, s.score]));
+  const bigFiveScoreByTrait = new Map((report?.bigFive.scores ?? []).map(s => [s.trait, s.score]));
+  const toRankedTraitScores = (traits: TraitKey[], scoreByTrait: Map<TraitKey, number>): RankedTraitScore[] =>
+    traits.map(t => ({
+      name: toTitleCase(t),
+      percentage: (scoreByTrait.get(t) ?? 0).toFixed(2),
+    }));
+
   // Once a counsellor adds/removes a row, the whole edited array is persisted on the
   // chart (`chart.counsellor.<table>`) and becomes the permanent source of truth from
   // then on — otherwise fall back to freshly recomputing from the assessment report.
-  const streamFitTable: StreamFitItem[] =
+  // `fitScore` itself is never persisted (buildSaveBody strips it — the backend PUT
+  // contracts for these 4 tables don't declare it), so it's re-attached here from the
+  // report on every load by matching each persisted row back to its report row via a
+  // natural key; array index can't be used since add/delete change row order/length.
+  // Persisted `*ItemJson` types don't declare `fitScore` (buildSaveBody strips it before
+  // the PUT), so it's read via this loose cast rather than being a real field on them.
+  const readPersistedFitScore = (row: object): number | undefined =>
+    (row as { fitScore?: number }).fitScore;
+
+  // Matched against the full `ranked` list (every stream the assessment scored), not
+  // just `top3` — so a role/stream/domain a counsellor adds later via the career
+  // library still picks up a fit score even when it fell outside the top N.
+  const streamFitByKey = new Map(
+    (report?.streamFit.ranked ?? []).map(sf => [fitKey(sf.mainStream, sf.subStream), sf.fitScore])
+  );
+  const streamFitTable: StreamFitItem[] = (
     chart.counsellor.streamFitTable ??
     (report?.streamFit.top3 ?? []).map((sf, i) => ({
       id: `sf-${i}`,
@@ -675,9 +755,23 @@ export const mapChartToFormData = (
       explanation: sf.explanation ?? '',
       gradingLevel: sf.level,
       meaning: sf.meaning,
-    }));
+      fitScore: sf.fitScore ?? undefined,
+    }))
+  ).map(row => ({
+    ...row,
+    fitScore:
+      readPersistedFitScore(row) ??
+      streamFitByKey.get(fitKey(row.mainStream, row.subStream)) ??
+      undefined,
+  }));
 
-  const graduationTable: GraduationItem[] =
+  const graduationFitByKey = new Map(
+    (report?.graduationPathways.ranked ?? []).map(gf => [
+      fitKey(gf.clusterHead, gf.mainStream, gf.subStream),
+      gf.fitScore,
+    ])
+  );
+  const graduationTable: GraduationItem[] = (
     chart.counsellor.graduationTable ??
     (report?.graduationPathways.top3 ?? []).map((gf, i) => ({
       id: `gr-${i}`,
@@ -687,9 +781,23 @@ export const mapChartToFormData = (
       specialization: gf.specialisations ?? '',
       reasoning: gf.explanation ?? '',
       keyExams: gf.keyExams ?? '',
-    }));
+      fitScore: gf.fitScore ?? undefined,
+    }))
+  ).map(row => ({
+    ...row,
+    fitScore:
+      readPersistedFitScore(row) ??
+      graduationFitByKey.get(fitKey(row.cluster, row.mainStream, row.subStream)) ??
+      undefined,
+  }));
 
-  const careerCompassClusterTable: CareerCompassClusterItem[] =
+  const industryFitByKey = new Map(
+    (report?.careerFit?.top3Industries ?? []).map(ind => [
+      fitKey(ind.cluster, ind.industry, ind.domain),
+      ind.fitScore,
+    ])
+  );
+  const careerCompassClusterTable: CareerCompassClusterItem[] = (
     chart.counsellor.careerCompassClusterTable ??
     (report?.careerFit?.top3Industries ?? []).map((ind, i) => ({
       id: `ccc-${i}`,
@@ -699,9 +807,22 @@ export const mapChartToFormData = (
       streamRequirement: '',
       gradingLevel: ind.level,
       meaning: ind.meaning,
-    }));
+      fitScore: ind.fitScore ?? undefined,
+    }))
+  ).map(row => ({
+    ...row,
+    fitScore:
+      readPersistedFitScore(row) ??
+      industryFitByKey.get(fitKey(row.cluster, row.industry, row.domain)) ??
+      undefined,
+  }));
 
-  const careerCompassTable: CareerCompassItem[] =
+  // Matched against `rankedDomains` (every domain the assessment scored), not just
+  // `top6Domains` — same reasoning as streamFitByKey above.
+  const domainFitByKey = new Map(
+    (report?.careerFit?.rankedDomains ?? []).map(d => [fitKey(d.domain), d.fitScore])
+  );
+  const careerCompassTable: CareerCompassItem[] = (
     chart.counsellor.careerCompassTable ??
     (report?.careerFit?.top6Domains ?? []).map((d, i) => ({
       id: `cc-${i}`,
@@ -715,20 +836,40 @@ export const mapChartToFormData = (
       salaryIndia: d.representativeCareer?.salaryIndiaRangeText ?? '',
       salaryAbroad: d.representativeCareer?.salaryGlobalRangeText ?? '',
       fitScore: d.fitScore ?? undefined,
-    }));
+    }))
+  ).map(row => ({
+    ...row,
+    fitScore: readPersistedFitScore(row) ?? domainFitByKey.get(fitKey(row.domain)) ?? undefined,
+  }));
+
+  // `chart.reliabilityMeasures` (ReliabilityMeasureDefinition) carries the static
+  // code/name/guiding-question text; only the score/status/explanation below are
+  // computed per-attempt. Definition rows are keyed by the scoring engine's internal
+  // code (RVS/ARI/ACI/ORI), distinct from the counsellor-chart display code
+  // (EIM/ACI/AAI/HRS) used elsewhere in this UI.
+  const measureDefByCode = new Map(chart.reliabilityMeasures.map(m => [m.code, m]));
+  const reliabilityDef = (
+    engineCode: 'RVS' | 'ARI' | 'ACI' | 'ORI',
+    displayCode: string,
+    fallbackName: string,
+    fallbackQuestion: string
+  ) => {
+    const def = measureDefByCode.get(engineCode);
+    return {
+      code: displayCode,
+      name: def?.friendlyName ?? fallbackName,
+      guidingQuestion: def?.whatItMeasures ?? fallbackQuestion,
+    };
+  };
 
   const reliabilityIndicators: ReliabilityCardData[] = [
     {
-      code: 'EIM',
-      name: 'Engagement Integrity Measure',
-      guidingQuestion: 'How consistent were your personality answers?',
+      ...reliabilityDef('RVS', 'EIM', 'Engagement Integrity Measure', 'How consistent were your personality answers?'),
       valueStatus: report ? `${report.reliability.rvs.score}% ${report.reliability.rvs.level}` : 'Not yet assessed',
       explanationText: report?.reliability.rvs.meaning ?? 'Assessment not yet submitted.',
     },
     {
-      code: 'ACI',
-      name: 'Aptitude Test Coherence Index',
-      guidingQuestion: 'How logically did aptitude answers progress?',
+      ...reliabilityDef('ARI', 'ACI', 'Aptitude Test Coherence Index', 'How logically did aptitude answers progress?'),
       valueStatus: report
         ? report.reliability.ari.ari
           ? `${report.reliability.ari.ari.score}% ${report.reliability.ari.ari.level}`
@@ -739,18 +880,14 @@ export const mapChartToFormData = (
         'Full coherence score needs per-question timing data, not yet collected for this attempt.',
     },
     {
-      code: 'AAI',
-      name: 'Aptitude Accuracy Indicator',
-      guidingQuestion: "How many questions were marked 'Not Sure'?",
+      ...reliabilityDef('ACI', 'AAI', 'Aptitude Accuracy Indicator', "How many questions were marked 'Not Sure'?"),
       valueStatus: report
         ? `${(100 - report.reliability.aci.dkPercent).toFixed(0)}% ${report.reliability.aci.level}`
         : 'Not yet assessed',
       explanationText: report?.reliability.aci.meaning ?? 'Assessment not yet submitted.',
     },
     {
-      code: 'HRS',
-      name: 'Holistic Reliability Score',
-      guidingQuestion: 'Was the completion pace psychologically normal?',
+      ...reliabilityDef('ORI', 'HRS', 'Holistic Reliability Score', 'Was the completion pace psychologically normal?'),
       valueStatus: report
         ? `${report.reliability.ori.completionMinutes} min · ${report.reliability.ori.level}`
         : 'Not yet assessed',
@@ -811,7 +948,7 @@ export const mapChartToFormData = (
         careerStyle: report
           ? {
               code: report.dominantCareerStyle.code,
-              traits: report.dominantCareerStyle.traits.map(toTitleCase),
+              traits: toRankedTraitScores(report.dominantCareerStyle.traits, riasecScoreByTrait),
               style: report.dominantCareerStyle.style,
               description: report.dominantCareerStyle.description,
               explanation: report.dominantCareerStyle.explanation,
@@ -820,20 +957,28 @@ export const mapChartToFormData = (
         personalSignature: report
           ? {
               code: report.dominantPersonalityStyle.code,
+              // Dominant Personality Style is resolved from the top-2 ranked Big Five traits
+              // (see PWC-backend resolveDominantPersonalityStyle) — style/description/explanation
+              // don't carry the underlying trait keys, so re-derive them from the ranking here.
+              traits: toRankedTraitScores(report.bigFive.ranking.slice(0, 2), bigFiveScoreByTrait),
               style: report.dominantPersonalityStyle.style,
               description: report.dominantPersonalityStyle.description,
               explanation: report.dominantPersonalityStyle.explanation,
             }
-          : { code: '', style: 'Not yet assessed', description: '', explanation: '' },
+          : { code: '', traits: [], style: 'Not yet assessed', description: '', explanation: '' },
         thinkingMode: thinkingModeTrait
           ? {
+              layer: LAYER_LABEL[thinkingModeTrait.layer],
+              trait: toTitleCase(thinkingModeTrait.trait),
               traitName: thinkingModeTrait.traitName,
               whatItMeasures: thinkingModeTrait.description,
+              studentQuality: thinkingModeTrait.studentQuality,
               percentage: thinkingModeTrait.score.toFixed(2),
               level: thinkingModeTrait.level,
               levelMeaning: thinkingModeTrait.levelMeaning,
+              personalizedExplanation: thinkingModeTrait.studentFriendlyExplanation ?? undefined,
             }
-          : { traitName: 'Not yet assessed', whatItMeasures: '', level: '', levelMeaning: '' },
+          : { layer: '', trait: '', traitName: 'Not yet assessed', whatItMeasures: '', level: '', levelMeaning: '' },
       },
       redFlags: {
         riasec: report?.riasec.flags.join(', ') ?? '',
@@ -864,6 +1009,15 @@ export const mapChartToFormData = (
       collegesTable: chart.counsellor.collegesTable ?? [],
       careerCompassClusterTable,
       careerCompassTable,
+      // Lets the counsellor-add-row flow (Step3SectionC) score a new row the moment
+      // it's picked from the career library, without waiting for a save + reload —
+      // same natural-key lookup used above to re-hydrate persisted rows.
+      fitScoreLookup: {
+        stream: Object.fromEntries(streamFitByKey),
+        graduation: Object.fromEntries(graduationFitByKey),
+        domain: Object.fromEntries(domainFitByKey),
+        industry: Object.fromEntries(industryFitByKey),
+      },
     },
     sectionD: {
       indicators: reliabilityIndicators,
@@ -914,8 +1068,8 @@ export const emptyFormData = (sessionId: string, studentId: string): CounsellorF
     traitsTable: [],
     summaryStrip: {
       careerStyle: { code: '', traits: [], style: '', description: '', explanation: '' },
-      personalSignature: { code: '', style: '', description: '', explanation: '' },
-      thinkingMode: { traitName: '', whatItMeasures: '', level: '', levelMeaning: '' },
+      personalSignature: { code: '', traits: [], style: '', description: '', explanation: '' },
+      thinkingMode: { layer: '', trait: '', traitName: '', whatItMeasures: '', level: '', levelMeaning: '' },
     },
     redFlags: { riasec: '', bigFive: '', cogDec: '', aptitude: '' },
     careerDnaNarrative: {
@@ -936,6 +1090,7 @@ export const emptyFormData = (sessionId: string, studentId: string): CounsellorF
     collegesTable: [],
     careerCompassClusterTable: [],
     careerCompassTable: [],
+    fitScoreLookup: { stream: {}, graduation: {}, domain: {}, industry: {} },
   },
   sectionD: { indicators: [], mirrorPairs: [], synthesisNotes: emptyNotesFor(['F1', 'F2', 'F3']) },
   sectionE: {
@@ -950,6 +1105,11 @@ export const emptyFormData = (sessionId: string, studentId: string): CounsellorF
   },
   sectionF: { comparisonGroups: [], synthesisNotes: emptyNotesFor(['H1', 'H2', 'H3', 'H4']) },
 });
+
+const stripFitScore = <T extends { fitScore?: number }>(row: T): Omit<T, 'fitScore'> => {
+  const { fitScore: _fitScore, ...rest } = row;
+  return rest;
+};
 
 // Gathers everything the current UI can persist back into one PUT body.
 export const buildSaveBody = (
@@ -992,10 +1152,14 @@ export const buildSaveBody = (
     },
     entranceExamsTable: formData.sectionC.entranceExamsTable,
     collegesTable: formData.sectionC.collegesTable,
-    streamFitTable: formData.sectionC.streamFitTable,
-    graduationTable: formData.sectionC.graduationTable,
-    careerCompassClusterTable: formData.sectionC.careerCompassClusterTable,
-    careerCompassTable: formData.sectionC.careerCompassTable,
+    // `fitScore` is a UI-only display field seeded from the assessment report (see
+    // mapChartToFormData) — none of these 4 tables' backend contracts declare it, so
+    // strip it before sending; keeping it in the wire payload risks the backend
+    // rejecting or silently dropping the whole row on save.
+    streamFitTable: formData.sectionC.streamFitTable.map(stripFitScore),
+    graduationTable: formData.sectionC.graduationTable.map(stripFitScore),
+    careerCompassClusterTable: formData.sectionC.careerCompassClusterTable.map(stripFitScore),
+    careerCompassTable: formData.sectionC.careerCompassTable.map(stripFitScore),
     ...(lastEditedBy ? { lastEditedBy } : {}),
   };
 };

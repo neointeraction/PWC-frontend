@@ -41,6 +41,28 @@ export interface SaveAnswerInput {
   timeTakenMs?: number;
 }
 
+// Career Direction "Add Row" lookups (Counsellor Chart, Step 3 / Section C) — read-only
+// reference data the scoring engine already weights against.
+export interface StreamWeightRow {
+  id: string;
+  mainStream: string;
+  subStream: string;
+  coreSubjects: string | null;
+  electiveSubjects: string | null;
+  explanation: string | null;
+}
+
+export interface GraduateStreamWeightRow {
+  id: string;
+  clusterHead: string | null;
+  mainStream: string;
+  subStream: string;
+  specialisations: string | null;
+  eligibility: string | null;
+  keyExams: string | null;
+  explanation: string | null;
+}
+
 interface ApiAttempt {
   id: string;
   status: 'IN_PROGRESS' | 'SUBMITTED';
@@ -105,6 +127,22 @@ export const assessmentService = {
   // GET /api/v1/assessment/attempts/{id}/result — the computed report (404 until submitted).
   getResult: async (attemptId: string): Promise<unknown> => {
     const { data } = await apiClient.get(`/assessment/attempts/${attemptId}/result`);
+    return data;
+  },
+
+  // GET /api/v1/assessment/stream-weights — full StreamWeight reference list, sorted by
+  // mainStream/subStream. Backs the Stream Fit "Add Row" dropdown.
+  getStreamWeights: async (): Promise<StreamWeightRow[]> => {
+    const { data } = await apiClient.get<StreamWeightRow[]>('/assessment/stream-weights');
+    return data;
+  },
+
+  // GET /api/v1/assessment/graduate-stream-weights — full GraduateStreamWeight reference
+  // list, sorted by mainStream/subStream. Backs the Graduation Fit "Add Row" dropdown.
+  getGraduateStreamWeights: async (): Promise<GraduateStreamWeightRow[]> => {
+    const { data } = await apiClient.get<GraduateStreamWeightRow[]>(
+      '/assessment/graduate-stream-weights'
+    );
     return data;
   },
 };

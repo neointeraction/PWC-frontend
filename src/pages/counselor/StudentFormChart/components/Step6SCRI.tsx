@@ -1,5 +1,6 @@
 import React from 'react';
 import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
+import { ScriBandGuidance } from '@/types';
 import { Select } from '@/components/Select';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
@@ -20,10 +21,15 @@ import {
   ScriScoreValue,
   ScriBandBadge,
   ScriGuidanceText,
+  ScriTipsGrid,
+  ScriTipBlock,
+  ScriTipTitle,
+  ScriTipText,
 } from '../StudentFormChartPage.styles';
 
 interface Step6SCRIProps {
   data: CounsellorFormChartData['sectionE'];
+  bandGuidance?: ScriBandGuidance[];
   onChangeScriRating: (code: string, rating: number) => void;
   onChangeAlignment: (
     alignment: CounsellorFormChartData['sectionE']['academicCareerAlignment']
@@ -113,6 +119,7 @@ const scriDescriptors: Record<string, Record<number, string>> = {
 
 export const Step6SCRI: React.FC<Step6SCRIProps> = ({
   data,
+  bandGuidance,
   onChangeScriRating,
   onChangeAlignment,
   onChangeNotes,
@@ -156,6 +163,8 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
   };
 
   const currentBandInfo = getScriBandInfo(scriTotal);
+  const currentBandNumber = Number(currentBandInfo.band.replace('Band ', ''));
+  const currentBandDetail = bandGuidance?.find(b => b.band === currentBandNumber);
 
   return (
     <>
@@ -206,7 +215,23 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
               ( {currentBandInfo.band} : {currentBandInfo.label} )
             </ScriBandBadge>
           </ScriResultHeader>
-          <ScriGuidanceText>{currentBandInfo.guidance}</ScriGuidanceText>
+          <ScriGuidanceText>{currentBandDetail?.labelMeaning ?? currentBandInfo.guidance}</ScriGuidanceText>
+          {currentBandDetail && (
+            <ScriTipsGrid>
+              <ScriTipBlock>
+                <ScriTipTitle>For Students</ScriTipTitle>
+                <ScriTipText>{currentBandDetail.forStudents}</ScriTipText>
+              </ScriTipBlock>
+              <ScriTipBlock>
+                <ScriTipTitle>Tips for Students</ScriTipTitle>
+                <ScriTipText>{currentBandDetail.tipsForStudents}</ScriTipText>
+              </ScriTipBlock>
+              <ScriTipBlock>
+                <ScriTipTitle>Tips for Parent</ScriTipTitle>
+                <ScriTipText>{currentBandDetail.tipsForParent}</ScriTipText>
+              </ScriTipBlock>
+            </ScriTipsGrid>
+          )}
         </ScriResultCard>
       </SectionBlock>
 

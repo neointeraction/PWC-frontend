@@ -33,6 +33,11 @@ export interface EnrichedTraitScore {
   layer: AssessmentLayer;
   traitName: string;
   description: string;
+  // Not yet returned by the backend — see docs/thinking-mode-trait-definition-backend-prompt.md.
+  // AssessmentTraitDefinition.studentQuality ("Student Quality - Pre-Counselling", a real-life
+  // example) and .studentFriendlyExplanation (only populated for the 3 Cognitive traits today).
+  studentQuality?: string;
+  studentFriendlyExplanation?: string | null;
 }
 
 export interface LayerReport {
@@ -321,8 +326,21 @@ export interface CareerCompassItemJson {
   isManualEntry?: boolean;
 }
 
+// Static code/name/guiding-question text for the Reliability of the Assessment step's
+// EIM/ACI/AAI/HRS cards, sourced from the backend's ReliabilityMeasureDefinition table.
+// `code` here is the scoring engine's internal code (RVS/ARI/ACI/ORI) — distinct from
+// the counsellor-chart display code (EIM/ACI/AAI/HRS); map RVS→EIM, ARI→ACI, ACI→AAI,
+// ORI→HRS to pair each row with its `assessment.reliability.<key>` score.
+export interface ReliabilityMeasureDefinition {
+  code: 'RVS' | 'ARI' | 'ACI' | 'ORI';
+  measure: string;
+  friendlyName: string;
+  whatItMeasures: string;
+}
+
 export interface CounsellorChartResponse {
   studentId: string;
+  reliabilityMeasures: ReliabilityMeasureDefinition[];
   ourChampion: {
     name: string;
     currentAcademicYear: string;
@@ -423,6 +441,10 @@ export interface ManualEntryRow {
   id: string;
   studentId: string;
   studentName: string;
+  // The counselling session backing this student's chart — lets Super Admin's "View"
+  // action route straight to /counselor/student-chart/:sessionId?readOnly=1.
+  sessionId: string;
+  projectName: string | null;
   tableLabel: string;
   fields: Record<string, string>;
   addedBy: string | null;

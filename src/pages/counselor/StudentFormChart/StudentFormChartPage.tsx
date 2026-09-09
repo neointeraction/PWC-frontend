@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ROUTES } from '@/constants';
 import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
 import { sessionsService } from '@/services/sessions.service';
+import { scriBandGuidanceService } from '@/services/scriBandGuidance.service';
 import {
   counsellorChartService,
   mapChartToFormData,
@@ -105,6 +106,12 @@ export const StudentFormChartPage: React.FC = () => {
     enabled: !!studentId,
   });
 
+  const { data: scriBandGuidance } = useQuery({
+    queryKey: ['scri-band-guidance'],
+    queryFn: () => scriBandGuidanceService.list(),
+    staleTime: Infinity,
+  });
+
   const [formData, setFormData] = useState<CounsellorFormChartData>(() =>
     emptyFormData(sessionId || '', '')
   );
@@ -121,11 +128,14 @@ export const StudentFormChartPage: React.FC = () => {
   }, [chart, studentId, sessionId]);
 
   const saveMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (overrideData?: CounsellorFormChartData) => {
       const lastEditedBy = counselor
         ? formatFullName(counselor.user.firstName, counselor.user.lastName)
         : undefined;
-      return counsellorChartService.saveChart(studentId!, buildSaveBody(formData, lastEditedBy));
+      return counsellorChartService.saveChart(
+        studentId!,
+        buildSaveBody(overrideData ?? formData, lastEditedBy)
+      );
     },
     onSuccess: updated => {
       queryClient.setQueryData(['counsellor-chart', studentId], updated);
@@ -184,6 +194,18 @@ export const StudentFormChartPage: React.FC = () => {
       }
     }
   };
+
+  // Deep link from Super Admin's manual-entry "View" action (?section=sec-c-...) —
+  // jump straight to Step 3 / Section C and scroll to that table, once, after the
+  // chart has loaded (handleStepChange's scroll relies on the section being rendered).
+  useEffect(() => {
+    if (!hasLoadedOnce) return;
+    const sectionId = searchParams.get('section');
+    if (sectionId) {
+      handleStepChange(3, sectionId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasLoadedOnce]);
 
   const handleNextStep = () => {
     if (activeStep < STEP_LABELS.length - 1) {
@@ -357,12 +379,14 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
-              onChangeStreamTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, streamFitTable: table },
-                }))
-              }
+              onChangeStreamTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, streamFitTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
               onChangeWhyStream1={val =>
                 setFormData(prev => ({
                   ...prev,
@@ -378,12 +402,14 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
-              onChangeGraduationTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, graduationTable: table },
-                }))
-              }
+              onChangeGraduationTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, graduationTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
               onChangeNotesF={(code, val) =>
                 setFormData(prev => ({
                   ...prev,
@@ -393,30 +419,38 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
-              onChangeCompassTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, careerCompassTable: table },
-                }))
-              }
-              onChangeEntranceExamsTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, entranceExamsTable: table },
-                }))
-              }
-              onChangeCollegesTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, collegesTable: table },
-                }))
-              }
-              onChangeCompassClusterTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, careerCompassClusterTable: table },
-                }))
-              }
+              onChangeCompassTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, careerCompassTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
+              onChangeEntranceExamsTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, entranceExamsTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
+              onChangeCollegesTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, collegesTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
+              onChangeCompassClusterTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, careerCompassClusterTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
             />
           )}
 
@@ -471,6 +505,7 @@ export const StudentFormChartPage: React.FC = () => {
           {activeStep === 6 && (
             <Step6SCRI
               data={formData.sectionE}
+              bandGuidance={scriBandGuidance}
               onChangeScriRating={(code, rating) =>
                 setFormData(prev => ({
                   ...prev,

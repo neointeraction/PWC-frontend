@@ -938,12 +938,26 @@ export const careerService = {
   searchEntranceExams: async (search: string, level?: 'UG' | 'PG'): Promise<CareerLinkOption[]> => {
     const { data } = await apiClient.get<ApiNormalizedExam[] | { data: ApiNormalizedExam[] }>(
       '/career-library/entrance-exams',
-      { params: { search: search || undefined, level, limit: 20 } }
+      // Empty search is used to pre-load the full picker list, so cap high enough to cover
+      // the whole canonical table rather than truncating it to a handful of results.
+      { params: { search: search || undefined, level, limit: search ? 20 : 500 } }
     );
     return unwrapList(data).map(e => ({
       id: e.id,
       label: examOptionLabel(e),
       level: e.level === 'PG' ? 'PG' : 'UG',
+      record: {
+        name: e.name,
+        level: e.level === 'PG' ? 'PG' : 'UG',
+        fullForm: e.fullForm ?? undefined,
+        conductingBody: e.conductingBody ?? undefined,
+        officialWebsite: e.officialWebsite ?? undefined,
+        examMode: e.examMode ?? undefined,
+        frequency: e.frequency ?? undefined,
+        applicableFor: e.applicableFor ?? undefined,
+        subjectRequirements12th: e.subjectRequirements12th ?? undefined,
+        applicationWindow: e.applicationWindow ?? undefined,
+      },
     }));
   },
   searchCourses: async (search: string, level?: 'UG' | 'PG'): Promise<CareerLinkOption[]> => {
@@ -956,9 +970,24 @@ export const careerService = {
   searchInstitutions: async (search: string): Promise<CareerLinkOption[]> => {
     const { data } = await apiClient.get<ApiNormalizedInstitution[] | { data: ApiNormalizedInstitution[] }>(
       '/career-library/institutions',
-      { params: { search: search || undefined, limit: 20 } }
+      // Empty search is used to pre-load the full picker list, so cap high enough to cover
+      // the whole canonical table rather than truncating it to a handful of results.
+      { params: { search: search || undefined, limit: search ? 20 : 1000 } }
     );
-    return unwrapList(data).map(i => ({ id: i.id, label: institutionOptionLabel(i) }));
+    return unwrapList(data).map(i => ({
+      id: i.id,
+      label: institutionOptionLabel(i),
+      record: {
+        name: i.name,
+        city: i.city ?? undefined,
+        state: i.state ?? undefined,
+        type: i.type ?? undefined,
+        website: i.website ?? undefined,
+        entranceExamsRequired: i.entranceExamsRequired ?? undefined,
+        programmesOffered: i.programmesOffered ?? undefined,
+        ranking: i.ranking ?? undefined,
+      },
+    }));
   },
 
   // GET /api/v1/career-library/filters

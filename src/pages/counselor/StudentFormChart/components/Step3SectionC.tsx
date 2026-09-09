@@ -17,6 +17,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SelectOption } from '@/components/Select';
 import { useToast } from '@/hooks';
 import { careerService } from '@/services/career.service';
+import { assessmentService } from '@/services/assessment.service';
+import { fitKey } from '@/services/counsellorChart.service';
 
 import { ComparisonTable } from './ComparisonTable';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
@@ -191,6 +193,10 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   // Drives the Target Role dropdown, which is scoped to whichever Domain was picked
   // first in the same "Add Target Role" popup.
   const [targetRoleDomainId, setTargetRoleDomainId] = useState('');
+  // Scope the Stream Fit / Graduation Fit Sub-Stream dropdown to whichever Main Stream
+  // was picked first in the same popup (same two-level pattern as Domain → Target Role).
+  const [streamFitMainStream, setStreamFitMainStream] = useState('');
+  const [graduationMainStream, setGraduationMainStream] = useState('');
 
   const { data: clusters = [] } = useQuery({
     queryKey: ['career-clusters-all'],
@@ -202,21 +208,21 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
     queryFn: () => careerService.getDomains(),
     staleTime: 5 * 60 * 1000,
   });
-  const { data: institutions = [] } = useQuery({
-    queryKey: ['career-institutions-all'],
-    queryFn: () => careerService.searchInstitutions(''),
-    staleTime: 5 * 60 * 1000,
-  });
-  const { data: entranceExams = [] } = useQuery({
-    queryKey: ['career-entrance-exams-all'],
-    queryFn: () => careerService.searchEntranceExams(''),
-    staleTime: 5 * 60 * 1000,
-  });
   const { data: targetRoleOptions = [], isFetching: isLoadingTargetRoles } = useQuery({
     queryKey: ['career-job-roles', targetRoleDomainId],
     queryFn: () => careerService.getJobRoles(targetRoleDomainId),
     enabled: Boolean(targetRoleDomainId),
     staleTime: 60_000,
+  });
+  const { data: streamWeights = [] } = useQuery({
+    queryKey: ['assessment-stream-weights'],
+    queryFn: () => assessmentService.getStreamWeights(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: graduateStreamWeights = [] } = useQuery({
+    queryKey: ['assessment-graduate-stream-weights'],
+    queryFn: () => assessmentService.getGraduateStreamWeights(),
+    staleTime: 5 * 60 * 1000,
   });
 
   // Target Role's Domain picker is scoped to the industries the assessment already
@@ -234,26 +240,42 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
     label: `${d.name} (${d.industryName})`,
   }));
   const clusterSelectOptions: SelectOption[] = clusters.map(c => ({ value: c.name, label: c.name }));
-  const institutionSelectOptions: SelectOption[] = institutions.map(i => ({
-    value: i.label,
-    label: i.label,
-  }));
-  const entranceExamSelectOptions: SelectOption[] = entranceExams.map(e => ({
-    value: e.label,
-    label: e.label,
-  }));
+  const streamFitMainStreamOptions: SelectOption[] = Array.from(
+    new Set(streamWeights.map(s => s.mainStream))
+  ).map(m => ({ value: m, label: m }));
+  const streamFitSubStreamOptions: SelectOption[] = streamWeights
+    .filter(s => s.mainStream === streamFitMainStream)
+    .map(s => ({ value: s.id, label: s.subStream }));
+  const graduationMainStreamOptions: SelectOption[] = Array.from(
+    new Set(graduateStreamWeights.map(g => g.mainStream))
+  ).map(m => ({ value: m, label: m }));
+  const graduationSubStreamOptions: SelectOption[] = graduateStreamWeights
+    .filter(g => g.mainStream === graduationMainStream)
+    .map(g => ({ value: g.id, label: g.subStream }));
 
   const closeAddModal = () => {
     setActiveAddTable(null);
     setTargetRoleDomainId('');
+    setStreamFitMainStream('');
+    setGraduationMainStream('');
   };
 
   const handleAddRow = (values: Record<string, string>, isManualEntry: boolean) => {
     const table = activeAddTable;
     if (!table) return;
 
+    // Assessment-scored tables carry a natural-key lookup (`data.fitScoreLookup`) built
+    // from the full ranked assessment output — not just the top N shown by default —
+    // so a role/stream/domain picked from the career library gets scored immediately,
+    // the same score it would be re-attached with on the next chart load. A manual free-
+    // text entry (or one the assessment never scored) simply gets no match, and the
+    // table shows "—" for it, same as today.
+    const lookup = data.fitScoreLookup;
+
     switch (table) {
       case 'cluster': {
+        const fitScore =
+          lookup?.industry[fitKey(values.cluster, values.industry, values.domain)] ?? undefined;
         const row: CareerCompassClusterItem = {
           id: `ccc-${Date.now()}`,
           cluster: values.cluster || '',
@@ -262,12 +284,14 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           streamRequirement: values.streamRequirement || '',
           gradingLevel: values.gradingLevel || '',
           meaning: values.meaning || '',
+          fitScore: fitScore ?? undefined,
           isManualEntry,
         };
         onChangeCompassClusterTable([...(data.careerCompassClusterTable || []), row]);
         break;
       }
       case 'targetRole': {
+        const fitScore = lookup?.domain[fitKey(values.domain)] ?? undefined;
         const row: CareerCompassItem = {
           id: `cc-${Date.now()}`,
           domain: values.domain || '',
@@ -277,12 +301,14 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           aiResilience: values.aiResilience || '',
           salaryIndia: values.salaryIndia || '',
           salaryAbroad: values.salaryAbroad || '',
+          fitScore: fitScore ?? undefined,
           isManualEntry,
         };
         onChangeCompassTable([...data.careerCompassTable, row]);
         break;
       }
       case 'streamFit': {
+        const fitScore = lookup?.stream[fitKey(values.mainStream, values.subStream)] ?? undefined;
         const row: StreamFitItem = {
           id: `sf-${Date.now()}`,
           mainStream: values.mainStream || '',
@@ -290,12 +316,16 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           coreSubjects: values.coreSubjects || '',
           electives: values.electives || '',
           explanation: values.explanation || '',
+          fitScore: fitScore ?? undefined,
           isManualEntry,
         };
         onChangeStreamTable?.([...data.streamFitTable, row]);
         break;
       }
       case 'graduation': {
+        const fitScore =
+          lookup?.graduation[fitKey(values.cluster, values.mainStream, values.subStream)] ??
+          undefined;
         const row: GraduationItem = {
           id: `gr-${Date.now()}`,
           cluster: values.cluster || '',
@@ -304,6 +334,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           specialization: values.specialization || '',
           reasoning: values.reasoning || '',
           keyExams: values.keyExams || '',
+          fitScore: fitScore ?? undefined,
           isManualEntry,
         };
         onChangeGraduationTable([...data.graduationTable, row]);
@@ -424,48 +455,101 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         ];
       case 'streamFit':
         return [
-          { key: 'mainStream', label: 'Main Stream' },
-          { key: 'subStream', label: 'Sub-Streams' },
-          { key: 'coreSubjects', label: 'Core Subjects Usually Offered', multiline: true },
-          { key: 'electives', label: 'Optional / Elective Subjects', multiline: true },
-          { key: 'explanation', label: 'Student & Parent-Friendly Explanation', multiline: true },
+          {
+            key: 'mainStream',
+            label: 'Main Stream',
+            dbSource: {
+              options: streamFitMainStreamOptions,
+              onSelect: (value, setValue) => {
+                setStreamFitMainStream(value);
+                setValue('subStream', '');
+                setValue('coreSubjects', '');
+                setValue('electives', '');
+                setValue('explanation', '');
+              },
+            },
+          },
+          {
+            key: 'subStream',
+            label: 'Sub-Streams',
+            dbSource: {
+              options: streamFitSubStreamOptions,
+              onSelect: (value, setValue) => {
+                const row = streamWeights.find(s => s.id === value);
+                if (!row) return;
+                setValue('subStream', row.subStream);
+                setValue('coreSubjects', row.coreSubjects || '');
+                setValue('electives', row.electiveSubjects || '');
+                setValue('explanation', row.explanation || '');
+              },
+            },
+          },
+          { key: 'coreSubjects', label: 'Core Subjects Usually Offered', multiline: true, derivedOnly: true },
+          { key: 'electives', label: 'Optional / Elective Subjects', multiline: true, derivedOnly: true },
+          {
+            key: 'explanation',
+            label: 'Student & Parent-Friendly Explanation',
+            multiline: true,
+            derivedOnly: true,
+          },
         ];
       case 'graduation':
         return [
-          { key: 'cluster', label: 'Cluster', dbSource: { options: clusterSelectOptions } },
-          { key: 'mainStream', label: 'Main Stream' },
-          { key: 'subStream', label: 'Sub-Stream' },
-          { key: 'specialization', label: 'Specialization' },
-          { key: 'reasoning', label: 'Reasoning', multiline: true },
-          { key: 'keyExams', label: 'Key Exams', dbSource: { options: entranceExamSelectOptions } },
+          {
+            key: 'mainStream',
+            label: 'Main Stream',
+            dbSource: {
+              options: graduationMainStreamOptions,
+              onSelect: (value, setValue) => {
+                setGraduationMainStream(value);
+                setValue('subStream', '');
+                setValue('cluster', '');
+                setValue('specialization', '');
+                setValue('reasoning', '');
+                setValue('keyExams', '');
+              },
+            },
+          },
+          {
+            key: 'subStream',
+            label: 'Sub-Stream',
+            dbSource: {
+              options: graduationSubStreamOptions,
+              onSelect: (value, setValue) => {
+                const row = graduateStreamWeights.find(g => g.id === value);
+                if (!row) return;
+                setValue('subStream', row.subStream);
+                setValue('cluster', row.clusterHead || '');
+                setValue('specialization', row.specialisations || '');
+                setValue('reasoning', row.explanation || '');
+                setValue('keyExams', row.keyExams || '');
+              },
+            },
+          },
+          { key: 'cluster', label: 'Cluster', derivedOnly: true },
+          { key: 'specialization', label: 'Specialization', derivedOnly: true },
+          { key: 'reasoning', label: 'Reasoning', multiline: true, derivedOnly: true },
+          { key: 'keyExams', label: 'Key Exams', derivedOnly: true },
         ];
       case 'colleges':
+        // Colleges are always added as free-text manual entries now — the career-library
+        // typeahead was surfacing a stale/partial subset of the canonical institution list,
+        // so every add is treated as manual and flagged for Super Admin review instead.
         return [
-          { key: 'collegeName', label: 'College Name', dbSource: { options: institutionSelectOptions } },
+          { key: 'collegeName', label: 'College Name' },
           { key: 'location', label: 'Location' },
           { key: 'type', label: 'Type' },
           { key: 'course', label: 'Course' },
-          { key: 'entranceExam', label: 'Entrance Exam', dbSource: { options: entranceExamSelectOptions } },
+          { key: 'entranceExam', label: 'Entrance Exam' },
           { key: 'ranking', label: 'Ranking' },
           { key: 'website', label: 'Website' },
         ];
       case 'entranceExam':
+        // Same as Colleges above — always free-text manual entry, flagged for review.
         return [
-          {
-            key: 'fullName',
-            label: 'Exam Name',
-            dbSource: {
-              options: entranceExams.map(e => ({ value: e.id, label: e.label })),
-              onSelect: (value, setValue) => {
-                const exam = entranceExams.find(e => e.id === value);
-                if (!exam) return;
-                setValue('fullName', exam.label);
-                setValue('level', exam.level || '');
-              },
-            },
-          },
+          { key: 'fullName', label: 'Exam Name' },
           { key: 'conductingBody', label: 'Conducting Body' },
-          { key: 'level', label: 'Level', derivedOnly: true },
+          { key: 'level', label: 'Level' },
           { key: 'applicableFor', label: 'Applicable For' },
           { key: 'subjectRequirements', label: 'Subject Requirements', multiline: true },
           { key: 'examMonth', label: 'Exam Month' },
@@ -501,7 +585,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
     >
       <SectionBlockTitle style={{ marginBottom: 0 }}>{title}</SectionBlockTitle>
       {table && count < MAX_ROWS[table] && (
-        <Button size="sm" variant="secondary" leftIcon={<RiAddLine size={16} />} onClick={() => setActiveAddTable(table)}>
+        <Button leftIcon={<RiAddLine size={18} />} onClick={() => setActiveAddTable(table)}>
           Add
         </Button>
       )}
@@ -540,7 +624,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         <TableHeader title="Career Compass (Indicative Clusters)" count={clusterRows.length} />
         <CompTableContainer style={{ overflowX: 'auto' }}>
           <CompTableHeaderRow
-            style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr 40px', minWidth: '940px' }}
+            style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr 100px 40px', minWidth: '1040px' }}
           >
             <CompTableHeaderCell>Cluster</CompTableHeaderCell>
             <CompTableHeaderCell>Industry</CompTableHeaderCell>
@@ -548,13 +632,14 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
             <CompTableHeaderCell>Stream Requirement</CompTableHeaderCell>
             <CompTableHeaderCell>Grading Level</CompTableHeaderCell>
             <CompTableHeaderCell>Meaning</CompTableHeaderCell>
+            <CompTableHeaderCell>Fit Score</CompTableHeaderCell>
             <CompTableHeaderCell />
           </CompTableHeaderRow>
 
           {clusterRows.map(row => (
             <CompDataRow
               key={row.id}
-              style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr 40px', minWidth: '940px' }}
+              style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr 100px 40px', minWidth: '1040px' }}
             >
               <CompParamCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
                 <span>{row.cluster}</span>
@@ -565,6 +650,9 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.streamRequirement}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.gradingLevel}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.meaning}</CompResponseCell>
+              <CompResponseCell style={{ borderLeft: 'none' }}>
+                {row.fitScore !== undefined ? `${row.fitScore}%` : '—'}
+              </CompResponseCell>
               <RowActionsCell>
                 <Tooltip content="Delete Row">
                   <RowDeleteButton
@@ -654,19 +742,20 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
 
         {/* 1. Stream Fit Table */}
         <StreamFitTableContainer>
-          <StreamFitTableHeaderRow style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 3fr 40px' }}>
+          <StreamFitTableHeaderRow style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 3fr 100px 40px' }}>
             <StreamFitTableHeaderCell>Main Stream</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Sub-Streams</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Core Subjects Usually Offered</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Optional / Elective Subjects</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Student & Parent-Friendly Explanation</StreamFitTableHeaderCell>
+            <StreamFitTableHeaderCell>Fit Score</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell />
           </StreamFitTableHeaderRow>
 
           {streamFitRows.map(row => (
             <StreamFitDataRow
               key={row.id}
-              style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 3fr 40px' }}
+              style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 3fr 100px 40px' }}
             >
               <StreamFitCell $bold>
                 {row.mainStream}
@@ -682,6 +771,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <StreamFitCell $secondary>
                 {row.explanation || row.meaning || row.streamRequirement}
               </StreamFitCell>
+              <StreamFitCell>{row.fitScore !== undefined ? `${row.fitScore}%` : '—'}</StreamFitCell>
               <RowActionsCell>
                 <Tooltip content="Delete Row">
                   <RowDeleteButton
@@ -710,8 +800,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 40px',
-                minWidth: '940px',
+                gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 100px 40px',
+                minWidth: '1040px',
               }}
             >
               <CompTableHeaderCell>Cluster</CompTableHeaderCell>
@@ -720,6 +810,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompTableHeaderCell>Specialization</CompTableHeaderCell>
               <CompTableHeaderCell>Reasoning</CompTableHeaderCell>
               <CompTableHeaderCell>Key Exams</CompTableHeaderCell>
+              <CompTableHeaderCell>Fit Score</CompTableHeaderCell>
               <CompTableHeaderCell />
             </CompTableHeaderRow>
 
@@ -727,8 +818,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompDataRow
                 key={row.id}
                 style={{
-                  gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 40px',
-                  minWidth: '940px',
+                  gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 100px 40px',
+                  minWidth: '1040px',
                 }}
               >
                 <CompParamCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
@@ -740,6 +831,9 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.specialization}</CompResponseCell>
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.reasoning}</CompResponseCell>
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.keyExams}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>
+                  {row.fitScore !== undefined ? `${row.fitScore}%` : '—'}
+                </CompResponseCell>
                 <RowActionsCell>
                   <Tooltip content="Delete Row">
                     <RowDeleteButton

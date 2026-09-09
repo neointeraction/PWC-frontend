@@ -189,6 +189,17 @@ export const ApproveButton = styled.button`
   }
 `;
 
+export const IdentityCell = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+export const IdLine = styled.span`
+  font-size: 11px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
 export const CloseButton = styled.button`
   background-color: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
