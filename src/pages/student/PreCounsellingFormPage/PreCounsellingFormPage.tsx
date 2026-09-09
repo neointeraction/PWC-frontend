@@ -17,7 +17,6 @@ import {
   RiArrowLeftLine,
   RiArrowRightLine,
   RiCheckLine,
-  RiFlaskLine,
   // RiSaveLine, // unused while the "Save Draft" button is commented out
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
@@ -28,7 +27,7 @@ import { ROUTES } from '@/constants';
 import { useToast, useCurrentStudent } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion } from '@/services/forms.service';
 import { getApiErrorMessage } from '@/utils';
-import { QuestionRenderer, sectionHeading, isQuestionAnswerMissing, generateRandomAnswer } from './QuestionRenderer';
+import { QuestionRenderer, sectionHeading, isQuestionAnswerMissing } from './QuestionRenderer';
 import {
   FormPageContainer,
   HeroHeaderCard,
@@ -252,18 +251,6 @@ export const PreCounsellingFormPage: React.FC = () => {
   const handleConfirmCompletion = () => {
     setIsCompletionModalOpen(false);
     navigate(ROUTES.STUDENT_PORTAL);
-  };
-
-  // TEST-ONLY: fills every question with random data so the wizard can be clicked through
-  // without hand-typing answers. Remove this along with the button that calls it once QA
-  // no longer needs it.
-  const handleFillRandomData = () => {
-    const next: Record<string, unknown> = { ...answers };
-    (template?.questions ?? []).forEach(q => {
-      next[q.fieldKey] = generateRandomAnswer(q);
-    });
-    setAnswers(next);
-    setErrorFieldKeys(new Set());
   };
 
   // "Save Draft" — PUT the current answers without the required-field validation, so the
@@ -555,12 +542,6 @@ export const PreCounsellingFormPage: React.FC = () => {
       ) : (
         /* WIZARD VIEW — driven entirely by the fetched template's sections/questions */
         <WizardContainer>
-          {/* TEST-ONLY: remove along with handleFillRandomData once QA no longer needs it */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <Button type="button" variant="secondary" size="sm" leftIcon={<RiFlaskLine size={16} />} onClick={handleFillRandomData}>
-              Fill Random Data (Test)
-            </Button>
-          </div>
           <WizardStepBody>
             {currentSection?.questions.map(q => (
               <QuestionRenderer

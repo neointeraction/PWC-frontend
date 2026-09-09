@@ -222,6 +222,19 @@ export const StepLabelText = styled.span`
   font-size: 0.8rem;
 `;
 
+// Wraps the step content only (not the footer nav) so a read-only viewer (e.g. an
+// admin browsing a student's chart) can page through steps but can't edit any field.
+export const ReadOnlyStepContent = styled.div<{ $readOnly?: boolean }>`
+  display: contents;
+
+  ${({ $readOnly }) =>
+    $readOnly &&
+    `
+    pointer-events: none;
+    user-select: text;
+  `}
+`;
+
 // Main Content Panel
 export const MainContentPanel = styled.main`
   flex: 1;
@@ -387,11 +400,45 @@ export const CompSubHeaderRow = styled.div`
   color: ${({ theme }) => theme.colors.primary};
 `;
 
+// A row-hover-only delete button — sits opacity:0 until its row is hovered, so an
+// editable table's extra "actions" column stays visually quiet the rest of the time.
+export const RowDeleteButton = styled.button`
+  width: 28px;
+  height: 28px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.danger || '#DC2626'};
+    color: ${({ theme }) => theme.colors.danger || '#DC2626'};
+    background-color: ${({ theme }) => theme.colors.dangerLight || '#FEE2E2'};
+  }
+`;
+
+export const RowActionsCell = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+`;
+
 export const CompDataRow = styled.div`
   display: grid;
   grid-template-columns: 280px 1fr 1fr;
   align-items: flex-start;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+
+  &:hover ${RowDeleteButton} {
+    opacity: 1;
+  }
 
   &:last-child {
     border-bottom: none;
@@ -1103,6 +1150,10 @@ export const StreamFitDataRow = styled.div<{ $highlight?: boolean }>`
 
   &:hover {
     background-color: ${({ theme }) => theme.colors.surfaceHover || '#F8FAFC'};
+  }
+
+  &:hover ${RowDeleteButton} {
+    opacity: 1;
   }
 
   &:last-child {

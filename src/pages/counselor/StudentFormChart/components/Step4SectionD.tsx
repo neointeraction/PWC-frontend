@@ -1,7 +1,11 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { RiAlertLine } from 'react-icons/ri';
 import { CounsellorFormChartData, ReliabilityCardData, MirrorPairSummaryItem } from '@/mocks/studentFormChart.mock';
 import { Badge } from '@/components/Badge';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { cohortsService } from '@/services/cohorts.service';
+import { assessmentService } from '@/services/assessment.service';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
   StepHeaderCard,
@@ -41,7 +45,7 @@ const SEVERITY_BADGE_VARIANT: Record<MirrorPairSummaryItem['severity'], 'success
   strong: 'danger',
 };
 
-const MIRROR_PAIR_GRID = '80px 1.55fr 1.55fr 70px 130px 1.5fr';
+const MIRROR_PAIR_GRID = '1.55fr 1.55fr 130px';
 
 // 5-point scale used across RIASEC / Big Five / Cognitive & Decision Style
 // (see RESPONSE VALIDITY SCORE section of the assessment construct doc).
@@ -61,30 +65,32 @@ const synthesisRowsGDef = [
   { code: 'F3', placeholder: "Re-assessment Call : Based on the reliability picture, note whether a full re-assessment is warranted, or whether a supplementary conversation in-session is sufficient to firm up the profile." },
 ];
 
-// One side of a mirror pair: shows the question code + punched response, plus an
-// inline "amend" select and a "Revert" action wired to the backend's mirror-pair
-// amendment endpoints (POST/DELETE .../mirror-pair-amendments).
+// One side of a mirror pair: shows the question text + punched response, plus an
+// inline "amend" select wired to the backend's mirror-pair amendment endpoint
+// (POST .../mirror-pair-amendments). Amending overwrites the punched answer, so it's
+// gated behind a confirm dialog — there's no undo once it's applied.
 const QuestionAmendCell: React.FC<{
   questionCode: string;
+  questionText?: string;
   response: number;
   disabled: boolean;
   onAmend?: (questionCode: string, amendedOption: number) => void;
-  onRevert?: (questionCode: string) => void;
-}> = ({ questionCode, response, disabled, onAmend, onRevert }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-    <span>
-      <strong>{questionCode}</strong> — {RESPONSE_LABELS[response] ?? `response ${response}`} ({response})
-    </span>
-    {(onAmend || onRevert) && (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {onAmend && (
+}> = ({ questionCode, questionText, response, disabled, onAmend }) => {
+  const [pendingValue, setPendingValue] = React.useState<number | null>(null);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <span>{questionText ?? questionCode}</span>
+      <span style={{ color: '#475569' }}>{RESPONSE_LABELS[response] ?? `response ${response}`}</span>
+      {onAmend && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <select
             key={`${questionCode}-${response}`}
             defaultValue=""
             disabled={disabled}
             onChange={e => {
               const value = Number(e.target.value);
-              if (value) onAmend(questionCode, value);
+              if (value) setPendingValue(value);
               e.target.value = '';
             }}
             style={{
@@ -95,45 +101,68 @@ const QuestionAmendCell: React.FC<{
             }}
           >
             <option value="">Amend to…</option>
-            {[1, 2, 3, 4, 5].map(v => (
-              <option key={v} value={v} disabled={v === response}>
-                {v}
+            {Object.entries(RESPONSE_LABELS).map(([value, label]) => (
+              <option key={value} value={value} disabled={Number(value) === response}>
+                {label}
               </option>
             ))}
           </select>
-        )}
-        {onRevert && (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onRevert(questionCode)}
-            style={{
-              fontSize: '0.78rem',
-              color: '#2563EB',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: disabled ? 'default' : 'pointer',
-              textDecoration: 'underline',
-            }}
-          >
-            Revert
-          </button>
-        )}
-      </div>
-    )}
-  </div>
-);
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={pendingValue !== null}
+        onClose={() => setPendingValue(null)}
+        onConfirm={() => {
+          if (pendingValue != null) onAmend?.(questionCode, pendingValue);
+          setPendingValue(null);
+        }}
+        title="Amend Response"
+        description={`Change this response to "${pendingValue != null ? RESPONSE_LABELS[pendingValue] : ''}" and re-score the assessment? This cannot be undone.`}
+        confirmLabel="Amend"
+        isDangerous
+      />
+    </div>
+  );
+};
 
 export const Step4SectionD: React.FC<Step4SectionDProps> = ({
   data,
   onChangeNotes,
   onAmendMirrorPair,
-  onRevertMirrorPair,
   mirrorPairActionPending,
 }) => {
   const strongPairs = data.mirrorPairs.filter(p => p.severity === 'strong');
   const flaggedCount = strongPairs.filter(p => p.flagged).length;
+  // Good/acceptable pairs are consistent by definition — only mild and strong
+  // contradictions need a counsellor's eyes.
+  const visiblePairs = data.mirrorPairs.filter(p => p.severity === 'mild' || p.severity === 'strong');
+
+  // Mirror-pair codes (e.g. "Q33") only ever come back from the RVS scoring result —
+  // the full question wording lives in the assessment question bank, keyed by cohort.
+  // There's currently a single system-wide active cohort (see backend
+  // students.service.ts getStudentByUserId), so the first entry from /cohorts is it.
+  const { data: cohorts } = useQuery({
+    queryKey: ['cohorts'],
+    queryFn: cohortsService.list,
+    staleTime: Infinity,
+  });
+  const cohortCode = cohorts?.[0]?.code;
+
+  const { data: questionBank } = useQuery({
+    queryKey: ['assessment-question-bank', cohortCode],
+    queryFn: () => assessmentService.getQuestions(cohortCode!),
+    enabled: !!cohortCode,
+    staleTime: Infinity,
+  });
+
+  const questionTextByCode = React.useMemo(() => {
+    const map = new Map<string, string>();
+    questionBank?.forEach(q => {
+      if (q.questionCode) map.set(q.questionCode, q.questionText);
+    });
+    return map;
+  }, [questionBank]);
   const eimIndicator = data.indicators.find(item => item.code === 'EIM');
   const eimParts = eimIndicator?.valueStatus.split(' ') ?? [];
   const eimScore = eimParts[0]?.includes('%') ? eimParts[0] : '';
@@ -205,8 +234,8 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
         <SectionBlockTitle>Mirror Pair Consistency Check</SectionBlockTitle>
         <SectionBlockSubtitle>
           The 10 opposite-construct question pairs behind the Response Validity Score (RVS). A
-          consistent responder rates each pair far apart; only strong contradictions (gap = 0) are
-          shown below — they are the ones that need a counsellor's attention.
+          consistent responder rates each pair far apart; strong contradictions (gap = 0) are the
+          ones that need a counsellor's attention.
         </SectionBlockSubtitle>
 
         {eimIndicator && (
@@ -258,65 +287,51 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
           }}
         >
           <CategoryBlockHeader>
-            <CategoryBlockTitle>Flagged Mirror Pairs (Strong Contradictions)</CategoryBlockTitle>
+            <CategoryBlockTitle>Mirror Pairs</CategoryBlockTitle>
           </CategoryBlockHeader>
 
           {data.mirrorPairs.length === 0 ? (
             <div style={{ padding: '16px', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
               No mirror-pair data available — assessment not yet submitted.
             </div>
-          ) : strongPairs.length === 0 ? (
+          ) : visiblePairs.length === 0 ? (
             <div style={{ padding: '16px', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
-              No strong contradictions detected — all mirror pairs are consistent.
+              No mild or strong contradictions detected — all mirror pairs are consistent.
             </div>
           ) : (
             <TraitTableContainer>
               <TraitTableHeaderRow style={{ gridTemplateColumns: MIRROR_PAIR_GRID }}>
-                <TraitTableHeaderCell>Pair</TraitTableHeaderCell>
                 <TraitTableHeaderCell>Question A</TraitTableHeaderCell>
                 <TraitTableHeaderCell>Question B</TraitTableHeaderCell>
-                <TraitTableHeaderCell $align="center">Gap</TraitTableHeaderCell>
                 <TraitTableHeaderCell $align="center">Severity</TraitTableHeaderCell>
-                <TraitTableHeaderCell>Status</TraitTableHeaderCell>
               </TraitTableHeaderRow>
 
-              {strongPairs.map(pair => (
+              {visiblePairs.map(pair => (
                 <TraitDataRow
                   key={pair.code}
                   $highlight={pair.flagged}
                   style={{ gridTemplateColumns: MIRROR_PAIR_GRID }}
                 >
-                  <TraitCell $bold>{pair.code}</TraitCell>
                   <TraitCell>
                     <QuestionAmendCell
                       questionCode={pair.questionA}
+                      questionText={questionTextByCode.get(pair.questionA)}
                       response={pair.responseA}
                       disabled={!!mirrorPairActionPending}
                       onAmend={onAmendMirrorPair}
-                      onRevert={onRevertMirrorPair}
                     />
                   </TraitCell>
                   <TraitCell>
                     <QuestionAmendCell
                       questionCode={pair.questionB}
+                      questionText={questionTextByCode.get(pair.questionB)}
                       response={pair.responseB}
                       disabled={!!mirrorPairActionPending}
                       onAmend={onAmendMirrorPair}
-                      onRevert={onRevertMirrorPair}
                     />
-                  </TraitCell>
-                  <TraitCell $align="center" $bold>
-                    {pair.gap}
                   </TraitCell>
                   <TraitCell $align="center">
                     <Badge variant={SEVERITY_BADGE_VARIANT[pair.severity]}>{pair.severity}</Badge>
-                  </TraitCell>
-                  <TraitCell $secondary>
-                    {pair.flagged
-                      ? 'Needs counsellor review'
-                      : pair.severity === 'mild'
-                        ? 'Minor — monitor'
-                        : 'Consistent'}
                   </TraitCell>
                 </TraitDataRow>
               ))}

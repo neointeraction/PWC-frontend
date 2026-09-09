@@ -631,6 +631,7 @@ export const projectService = {
     const mapSess = (sess: ApiSession | undefined, num: 1 | 2): StudentSessionDetail =>
       sess
         ? {
+            id: sess.id,
             sessionNumber: num,
             status: SESSION_STATUS[sess.status] ?? 'pending',
             date: sess.scheduledDate ? parseApiDate(sess.scheduledDate) : '',

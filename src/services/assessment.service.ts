@@ -13,6 +13,9 @@ export interface AssessmentOption {
 export interface AssessmentQuestion {
   id: string;
   fieldKey: string;
+  // The "Q4"/"Q33" style code the scoring engine (and mirror-pair results) key by —
+  // distinct from `fieldKey`. Not used when saving answers, only for looking up text.
+  questionCode: string;
   section: AssessmentSection;
   order: number;
   format: string;

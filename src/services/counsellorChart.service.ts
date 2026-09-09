@@ -9,6 +9,7 @@ import {
   ChartSection,
   EnrichedTraitScore,
   AssessmentLayer,
+  ManualEntryRow,
 } from '@/types/counsellorChart.types';
 import {
   CounsellorFormChartData,
@@ -33,6 +34,17 @@ export const counsellorChartService = {
       `/counsellor-chart/students/${studentId}`
     );
     return data;
+  },
+
+  // GET /counsellor-chart/manual-entries — aggregates every counsellor-typed "Manual
+  // Entry" row (not picked from the career library) across all students' charts, for
+  // Super Admin review. Backend endpoint not live yet — see
+  // docs/compass-tables-manual-entry-backend-prompt.md.
+  listManualEntries: async (): Promise<ManualEntryRow[]> => {
+    const { data } = await apiClient.get<ManualEntryRow[] | { data: ManualEntryRow[] }>(
+      '/counsellor-chart/manual-entries'
+    );
+    return Array.isArray(data) ? data : data.data;
   },
 
   // PUT — partial save of counsellor-authored content. Returns the full chart again.
@@ -649,41 +661,49 @@ export const mapChartToFormData = (
   const topCognitiveTrait = report?.cognitive.ranking[0];
   const thinkingModeTrait = report?.cognitive.scores.find(s => s.trait === topCognitiveTrait);
 
-  const streamFitTable: StreamFitItem[] = (report?.streamFit.top3 ?? []).map((sf, i) => ({
-    id: `sf-${i}`,
-    mainStream: sf.mainStream,
-    subStream: sf.subStream,
-    coreSubjects: sf.coreSubjects ?? '',
-    electives: sf.electiveSubjects ?? '',
-    explanation: sf.explanation ?? '',
-    gradingLevel: sf.level,
-    meaning: sf.meaning,
-  }));
+  // Once a counsellor adds/removes a row, the whole edited array is persisted on the
+  // chart (`chart.counsellor.<table>`) and becomes the permanent source of truth from
+  // then on — otherwise fall back to freshly recomputing from the assessment report.
+  const streamFitTable: StreamFitItem[] =
+    chart.counsellor.streamFitTable ??
+    (report?.streamFit.top3 ?? []).map((sf, i) => ({
+      id: `sf-${i}`,
+      mainStream: sf.mainStream,
+      subStream: sf.subStream,
+      coreSubjects: sf.coreSubjects ?? '',
+      electives: sf.electiveSubjects ?? '',
+      explanation: sf.explanation ?? '',
+      gradingLevel: sf.level,
+      meaning: sf.meaning,
+    }));
 
-  const graduationTable: GraduationItem[] = (report?.graduationPathways.top3 ?? []).map((gf, i) => ({
-    id: `gr-${i}`,
-    cluster: gf.clusterHead ?? '',
-    mainStream: gf.mainStream,
-    subStream: gf.subStream,
-    specialization: gf.specialisations ?? '',
-    reasoning: gf.explanation ?? '',
-    keyExams: gf.keyExams ?? '',
-  }));
+  const graduationTable: GraduationItem[] =
+    chart.counsellor.graduationTable ??
+    (report?.graduationPathways.top3 ?? []).map((gf, i) => ({
+      id: `gr-${i}`,
+      cluster: gf.clusterHead ?? '',
+      mainStream: gf.mainStream,
+      subStream: gf.subStream,
+      specialization: gf.specialisations ?? '',
+      reasoning: gf.explanation ?? '',
+      keyExams: gf.keyExams ?? '',
+    }));
 
-  const careerCompassClusterTable: CareerCompassClusterItem[] = (
-    report?.careerFit?.top3Industries ?? []
-  ).map((ind, i) => ({
-    id: `ccc-${i}`,
-    cluster: ind.cluster,
-    industry: ind.industry,
-    domain: ind.domain,
-    streamRequirement: '',
-    gradingLevel: ind.level,
-    meaning: ind.meaning,
-  }));
+  const careerCompassClusterTable: CareerCompassClusterItem[] =
+    chart.counsellor.careerCompassClusterTable ??
+    (report?.careerFit?.top3Industries ?? []).map((ind, i) => ({
+      id: `ccc-${i}`,
+      cluster: ind.cluster,
+      industry: ind.industry,
+      domain: ind.domain,
+      streamRequirement: '',
+      gradingLevel: ind.level,
+      meaning: ind.meaning,
+    }));
 
-  const careerCompassTable: CareerCompassItem[] = (report?.careerFit?.top6Domains ?? []).map(
-    (d, i) => ({
+  const careerCompassTable: CareerCompassItem[] =
+    chart.counsellor.careerCompassTable ??
+    (report?.careerFit?.top6Domains ?? []).map((d, i) => ({
       id: `cc-${i}`,
       domain: d.domain,
       role: d.representativeCareer?.jobRole ?? '',
@@ -695,8 +715,7 @@ export const mapChartToFormData = (
       salaryIndia: d.representativeCareer?.salaryIndiaRangeText ?? '',
       salaryAbroad: d.representativeCareer?.salaryGlobalRangeText ?? '',
       fitScore: d.fitScore ?? undefined,
-    })
-  );
+    }));
 
   const reliabilityIndicators: ReliabilityCardData[] = [
     {
@@ -973,6 +992,10 @@ export const buildSaveBody = (
     },
     entranceExamsTable: formData.sectionC.entranceExamsTable,
     collegesTable: formData.sectionC.collegesTable,
+    streamFitTable: formData.sectionC.streamFitTable,
+    graduationTable: formData.sectionC.graduationTable,
+    careerCompassClusterTable: formData.sectionC.careerCompassClusterTable,
+    careerCompassTable: formData.sectionC.careerCompassTable,
     ...(lastEditedBy ? { lastEditedBy } : {}),
   };
 };

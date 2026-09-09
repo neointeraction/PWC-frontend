@@ -8,6 +8,7 @@ import {
   // RiFileExcel2Line,
   RiUserAddLine,
   RiCalendarLine,
+  RiEyeLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -302,6 +303,32 @@ export const ProjectStudentsPage: React.FC = () => {
               </Tooltip>
             )}
           </DateCellWrapper>
+        );
+      },
+    },
+    {
+      key: 'counsellorChart',
+      header: '',
+      width: '140px',
+      render: row => {
+        // A chart only exists once a counselor has actually been assigned to a session.
+        const assignedSession = row.session1?.counselorName ? row.session1 : row.session2;
+        if (!assignedSession?.id) return null;
+        return (
+          <Tooltip content="View this student's Counsellor Chart (read-only)">
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<RiEyeLine size={14} />}
+              onClick={() =>
+                navigate(
+                  `${ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', assignedSession.id!)}?readOnly=1`
+                )
+              }
+            >
+              View Chart
+            </Button>
+          </Tooltip>
         );
       },
     },

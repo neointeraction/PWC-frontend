@@ -138,6 +138,7 @@ export interface ProjectSlot {
 }
 
 export interface StudentSessionDetail {
+  id?: string;
   sessionNumber: 1 | 2;
   status: 'completed' | 'scheduled' | 'pending';
   date: string;

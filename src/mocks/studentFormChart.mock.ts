@@ -42,6 +42,9 @@ export interface StreamFitItem {
   streamRequirement?: string;
   gradingLevel?: string;
   meaning?: string;
+  // A free-text row the counsellor typed in directly (vs. picked from the career
+  // library) — flagged so Super Admin can review it against the taxonomy.
+  isManualEntry?: boolean;
 }
 
 export interface GraduationItem {
@@ -52,6 +55,7 @@ export interface GraduationItem {
   specialization: string;
   reasoning: string;
   keyExams: string;
+  isManualEntry?: boolean;
 }
 
 export interface EntranceExamItem {
@@ -63,6 +67,7 @@ export interface EntranceExamItem {
   subjectRequirements: string;
   examMonth: string;
   urlLink: string;
+  isManualEntry?: boolean;
 }
 
 export interface CollegesAfterItem {
@@ -74,6 +79,7 @@ export interface CollegesAfterItem {
   entranceExam: string;
   ranking: string;
   website: string;
+  isManualEntry?: boolean;
 }
 
 export interface CareerCompassClusterItem {
@@ -84,6 +90,7 @@ export interface CareerCompassClusterItem {
   streamRequirement: string;
   gradingLevel: string;
   meaning: string;
+  isManualEntry?: boolean;
 }
 
 export interface CareerCompassItem {
@@ -95,10 +102,10 @@ export interface CareerCompassItem {
   aiResilience: string;
   salaryIndia: string;
   salaryAbroad: string;
-  approvalStatus?: 'Approved' | 'Pending Admin Approval';
-  // Only present on system-generated rows (from DomainFit.fitScore) — used to pick which
-  // one gets bumped when a counsellor-added role pushes the table past 6 rows.
+  // Only present on system-generated rows (from DomainFit.fitScore) — used to sort them
+  // before counsellor-added rows fill the remaining slots up to the table's max.
   fitScore?: number;
+  isManualEntry?: boolean;
 }
 
 export interface ReliabilityCardData {

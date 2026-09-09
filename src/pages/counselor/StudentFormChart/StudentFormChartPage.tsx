@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiArrowLeftLine,
@@ -38,6 +38,7 @@ import {
   LayoutWrapper,
   MainContentPanel,
   StickyFooterNav,
+  ReadOnlyStepContent,
 } from './StudentFormChartPage.styles';
 
 const STEP_LABELS = [
@@ -50,11 +51,11 @@ const STEP_LABELS = [
     shortLabel: 'C',
     sublinks: [
       { id: 'sec-c-pre-counselling', label: 'Pre-Counselling View' },
+      { id: 'sec-c-target-roles', label: 'Target Roles & Compass' },
       { id: 'sec-c-stream-fit', label: 'Stream Fit & Pathways' },
       { id: 'sec-c-graduation-fit', label: 'Graduation Fit' },
       { id: 'sec-c-colleges', label: 'Colleges After Class 11&12' },
       { id: 'sec-c-entrance-exams', label: 'Entrance Exams' },
-      { id: 'sec-c-target-roles', label: 'Target Roles & Compass' },
     ],
   },
   { index: 4, label: 'Reliability of Assessment', shortLabel: 'D' },
@@ -65,6 +66,11 @@ const STEP_LABELS = [
 
 export const StudentFormChartPage: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const [searchParams] = useSearchParams();
+  // Admins browse a student's chart read-only from Project Students — the page's save
+  // and mirror-pair mutations assume a counselor identity (see useCurrentCounselor),
+  // so this just blocks input interaction rather than reusing the counselor flow.
+  const isReadOnly = searchParams.get('readOnly') === '1';
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -123,7 +129,6 @@ export const StudentFormChartPage: React.FC = () => {
     },
     onSuccess: updated => {
       queryClient.setQueryData(['counsellor-chart', studentId], updated);
-      setIsSuccessModalOpen(true);
     },
     onError: err => {
       toast.error('Save Failed', getApiErrorMessage(err, 'Could not save the counsellor chart.'));
@@ -189,13 +194,21 @@ export const StudentFormChartPage: React.FC = () => {
   const handlePrevStep = () => {
     if (activeStep > 0) {
       handleStepChange(activeStep - 1);
+    } else if (isReadOnly) {
+      navigate(-1);
     } else {
       navigate(ROUTES.UPCOMING_SESSIONS);
     }
   };
 
   const handleSaveFormChart = () => {
-    saveMutation.mutate();
+    saveMutation.mutate(undefined, { onSuccess: () => setIsSuccessModalOpen(true) });
+  };
+
+  const handleSaveChanges = () => {
+    saveMutation.mutate(undefined, {
+      onSuccess: () => toast.success('Saved', 'Your changes have been saved.'),
+    });
   };
 
   // Construct step definitions for sidebar
@@ -217,8 +230,10 @@ export const StudentFormChartPage: React.FC = () => {
       <Container>
         <PageHeader
           title="Counsellor Form Chart"
-          breadcrumbs={[{ label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS }]}
-          onBack={() => navigate(ROUTES.UPCOMING_SESSIONS)}
+          breadcrumbs={
+            isReadOnly ? undefined : [{ label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS }]
+          }
+          onBack={() => (isReadOnly ? navigate(-1) : navigate(ROUTES.UPCOMING_SESSIONS))}
         />
         <EmptyState
           title="Couldn't load this chart"
@@ -231,12 +246,16 @@ export const StudentFormChartPage: React.FC = () => {
   return (
     <Container>
       <PageHeader
-        title={`Counsellor Form Chart — ${formData.studentInfo.studentName}`}
-        breadcrumbs={[
-          { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
-          { label: `Chart (${formData.studentInfo.studentName})` },
-        ]}
-        onBack={() => navigate(ROUTES.UPCOMING_SESSIONS)}
+        title={`Counsellor Form Chart — ${formData.studentInfo.studentName}${isReadOnly ? ' (Read-only)' : ''}`}
+        breadcrumbs={
+          isReadOnly
+            ? [{ label: `Chart (${formData.studentInfo.studentName})` }]
+            : [
+                { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
+                { label: `Chart (${formData.studentInfo.studentName})` },
+              ]
+        }
+        onBack={() => (isReadOnly ? navigate(-1) : navigate(ROUTES.UPCOMING_SESSIONS))}
       />
 
       <LayoutWrapper>
@@ -250,6 +269,7 @@ export const StudentFormChartPage: React.FC = () => {
 
         {/* Main Step Content Panel */}
         <MainContentPanel>
+        <ReadOnlyStepContent $readOnly={isReadOnly}>
           {activeStep === 0 && (
             <Step0StudentInfo
               data={formData.studentInfo}
@@ -362,12 +382,6 @@ export const StudentFormChartPage: React.FC = () => {
                 setFormData(prev => ({
                   ...prev,
                   sectionC: { ...prev.sectionC, graduationTable: table },
-                }))
-              }
-              onChangeWhyStream2={val =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, whyThisStream2: val },
                 }))
               }
               onChangeNotesF={(code, val) =>
@@ -500,6 +514,7 @@ export const StudentFormChartPage: React.FC = () => {
               }
             />
           )}
+        </ReadOnlyStepContent>
 
           {/* Sticky Bottom Navigation Footer */}
           <StickyFooterNav>
@@ -508,7 +523,7 @@ export const StudentFormChartPage: React.FC = () => {
               leftIcon={<RiArrowLeftLine size={16} />}
               onClick={handlePrevStep}
             >
-              {activeStep === 0 ? 'Back to Sessions' : 'Back'}
+              {activeStep === 0 ? (isReadOnly ? 'Back' : 'Back to Sessions') : 'Back'}
             </Button>
 
             <span style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: 500 }}>
@@ -516,12 +531,27 @@ export const StudentFormChartPage: React.FC = () => {
             </span>
 
             {activeStep < STEP_LABELS.length - 1 ? (
-              <Button
-                variant="primary"
-                rightIcon={<RiArrowRightLine size={16} />}
-                onClick={handleNextStep}
-              >
-                Next Step
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {!isReadOnly && (
+                  <Button
+                    variant="secondary"
+                    onClick={handleSaveChanges}
+                    isLoading={saveMutation.isPending}
+                  >
+                    Save Changes
+                  </Button>
+                )}
+                <Button
+                  variant="primary"
+                  rightIcon={<RiArrowRightLine size={16} />}
+                  onClick={handleNextStep}
+                >
+                  Next Step
+                </Button>
+              </div>
+            ) : isReadOnly ? (
+              <Button variant="secondary" leftIcon={<RiCheckDoubleLine size={16} />} disabled>
+                Read-only
               </Button>
             ) : (
               <Button

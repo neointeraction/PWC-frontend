@@ -257,6 +257,9 @@ export interface EntranceExamItemJson {
   subjectRequirements: string;
   examMonth: string;
   urlLink: string;
+  // Free-text row a counsellor typed in directly instead of picking a career-library
+  // record — surfaced to Super Admin for review since it isn't backed by a vetted entry.
+  isManualEntry?: boolean;
 }
 
 export interface CollegesAfterItemJson {
@@ -268,6 +271,54 @@ export interface CollegesAfterItemJson {
   entranceExam: string;
   ranking: string;
   website: string;
+  isManualEntry?: boolean;
+}
+
+export interface StreamFitItemJson {
+  id: string;
+  mainStream: string;
+  subStream: string;
+  coreSubjects: string;
+  electives: string;
+  explanation?: string;
+  streamRequirement?: string;
+  gradingLevel?: string;
+  meaning?: string;
+  isManualEntry?: boolean;
+}
+
+export interface GraduationItemJson {
+  id: string;
+  cluster: string;
+  mainStream: string;
+  subStream: string;
+  specialization: string;
+  reasoning: string;
+  keyExams: string;
+  isManualEntry?: boolean;
+}
+
+export interface CareerCompassClusterItemJson {
+  id: string;
+  cluster: string;
+  industry: string;
+  domain: string;
+  streamRequirement: string;
+  gradingLevel: string;
+  meaning: string;
+  isManualEntry?: boolean;
+}
+
+export interface CareerCompassItemJson {
+  id: string;
+  domain: string;
+  role: string;
+  whyItFits: string;
+  topEmployers: string;
+  aiResilience: string;
+  salaryIndia: string;
+  salaryAbroad: string;
+  isManualEntry?: boolean;
 }
 
 export interface CounsellorChartResponse {
@@ -312,6 +363,13 @@ export interface CounsellorChartResponse {
     whyThisStream: WhyThisStreamJson | null;
     entranceExamsTable: EntranceExamItemJson[] | null;
     collegesTable: CollegesAfterItemJson[] | null;
+    // Counsellor-edited overrides for the assessment-derived Career Compass tables — null
+    // until the counsellor adds/removes a row for the first time, at which point the
+    // whole edited array becomes the source of truth instead of the report-computed one.
+    streamFitTable: StreamFitItemJson[] | null;
+    graduationTable: GraduationItemJson[] | null;
+    careerCompassClusterTable: CareerCompassClusterItemJson[] | null;
+    careerCompassTable: CareerCompassItemJson[] | null;
     lastEditedBy: string | null;
     finalizedAt: string | null;
     updatedAt: string;
@@ -351,7 +409,24 @@ export interface PutCounsellorChartBody {
   whyThisStream?: WhyThisStreamJson;
   entranceExamsTable?: EntranceExamItemJson[];
   collegesTable?: CollegesAfterItemJson[];
+  streamFitTable?: StreamFitItemJson[];
+  graduationTable?: GraduationItemJson[];
+  careerCompassClusterTable?: CareerCompassClusterItemJson[];
+  careerCompassTable?: CareerCompassItemJson[];
   lastEditedBy?: string;
+}
+
+// One flagged "Manual Entry" row from any of the 6 Career Compass tables on Step 3
+// (Setting the Compass), surfaced across every student for Super Admin review. See
+// docs/compass-tables-manual-entry-backend-prompt.md for the endpoint this backs.
+export interface ManualEntryRow {
+  id: string;
+  studentId: string;
+  studentName: string;
+  tableLabel: string;
+  fields: Record<string, string>;
+  addedBy: string | null;
+  addedAt: string;
 }
 
 export interface AmendMirrorPairBody {

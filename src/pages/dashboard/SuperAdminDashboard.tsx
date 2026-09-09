@@ -7,16 +7,18 @@ import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { Loader } from '@/components/Loader';
 import { careerService } from '@/services/career.service';
+import { counsellorChartService } from '@/services/counsellorChart.service';
 import { useNotificationStore } from '@/store';
 import { formatDateTime, getApiErrorMessage } from '@/utils';
 import { PendingRatification, Career } from '@/types';
+import { ManualEntryRow } from '@/types/counsellorChart.types';
 import { ROUTES } from '@/constants';
 import { JobRoleFormModal } from '../career-library/components/JobRoleFormModal';
 import {
   DashboardWrapper,
-  ItemTitle,
   ActionButtonCell,
   ApproveButton,
+  CloseButton,
 } from './SuperAdminDashboard.styles';
 
 export const SuperAdminDashboard: React.FC = () => {
@@ -26,6 +28,10 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const [selectedRequest, setSelectedRequest] = useState<PendingRatification | null>(null);
   const [isJobRoleModalOpen, setIsJobRoleModalOpen] = useState(false);
+  // Rows the admin has dismissed with "Close" — the backend has no dismiss endpoint for
+  // proposals (approve/reject are the only resolutions), so this only hides the row
+  // locally until the next refetch brings it back.
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   // Ratification requests raised by counsellors — pending first-class, plus the
   // already-reviewed ones the card title calls "recent".
@@ -33,6 +39,23 @@ export const SuperAdminDashboard: React.FC = () => {
     queryKey: ['career-ratification-requests'],
     queryFn: () => careerService.getRatificationRequests(),
   });
+
+  const visibleRequests = requestsList.filter(req => !dismissedIds.has(req.id));
+
+  // Counsellor-typed "Manual Entry" rows across every student's Career Compass tables
+  // (Step 3 of the counsellor chart) — backend endpoint not live yet, see
+  // docs/compass-tables-manual-entry-backend-prompt.md. Fails soft to an empty list
+  // until it ships, rather than surfacing a query error banner.
+  const { data: manualEntries = [] } = useQuery({
+    queryKey: ['counsellor-chart-manual-entries'],
+    queryFn: () => counsellorChartService.listManualEntries(),
+    retry: false,
+    throwOnError: false,
+  });
+
+  const handleCloseRow = (id: string) => {
+    setDismissedIds(prev => new Set(prev).add(id));
+  };
 
   const closeJobRoleModal = () => {
     setIsJobRoleModalOpen(false);
@@ -87,14 +110,9 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const columns: Column<PendingRatification>[] = [
     {
-      key: 'itemRequested',
-      header: 'Item Requested',
-      render: row => <ItemTitle>{row.careerName}</ItemTitle>,
-    },
-    {
-      key: 'domain',
-      header: 'Domain',
-      render: row => row.suggestedDomain || row.suggestedCategory,
+      key: 'project',
+      header: 'Project',
+      render: row => row.projectName || '—',
     },
     {
       key: 'source',
@@ -109,9 +127,11 @@ export const SuperAdminDashboard: React.FC = () => {
       },
     },
     {
-      key: 'project',
-      header: 'Project',
-      render: row => row.projectName || '—',
+      key: 'student',
+      header: 'Student',
+      // Not yet returned by GET /career-library/proposals — placeholder until the
+      // backend adds a student field to the response.
+      render: () => '—',
     },
     {
       key: 'date',
@@ -124,13 +144,26 @@ export const SuperAdminDashboard: React.FC = () => {
       render: row => (
         <ActionButtonCell style={{ justifyContent: 'flex-end' }}>
           <Tooltip content="Review and confirm request to publish to global library">
-            <ApproveButton onClick={() => handleOpenJobRoleModal(row)}>
-              Review/Confirm
-            </ApproveButton>
+            <ApproveButton onClick={() => handleOpenJobRoleModal(row)}>View</ApproveButton>
+          </Tooltip>
+          <Tooltip content="Dismiss this request from the list">
+            <CloseButton onClick={() => handleCloseRow(row.id)}>Close</CloseButton>
           </Tooltip>
         </ActionButtonCell>
       ),
     },
+  ];
+
+  const manualEntryColumns: Column<ManualEntryRow>[] = [
+    { key: 'studentName', header: 'Student', render: row => row.studentName || '—' },
+    { key: 'tableLabel', header: 'Table', render: row => row.tableLabel },
+    {
+      key: 'fields',
+      header: 'Entry',
+      render: row => Object.values(row.fields).filter(Boolean).join(' · ') || '—',
+    },
+    { key: 'addedBy', header: 'Added By', render: row => row.addedBy || '—' },
+    { key: 'addedAt', header: 'Date', render: row => formatDateTime(row.addedAt) },
   ];
 
   if (isLoading) return <Loader />;
@@ -148,9 +181,18 @@ export const SuperAdminDashboard: React.FC = () => {
       <Card title="Pending & Recent Requests">
         <Table
           columns={columns}
-          data={requestsList}
+          data={visibleRequests}
           keyExtractor={row => row.id}
           emptyMessage="No pending requests found."
+        />
+      </Card>
+
+      <Card title="Manual Entries — Career Compass Tables">
+        <Table
+          columns={manualEntryColumns}
+          data={manualEntries}
+          keyExtractor={row => row.id}
+          emptyMessage="No manual entries flagged for review."
         />
       </Card>
 

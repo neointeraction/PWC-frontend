@@ -261,13 +261,13 @@ export const ProjectDashboardPage: React.FC = () => {
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
       id: '',
-      studentId: `ST${100 + students.length + 1}`,
+      studentId: '',
       name: '',
       email: '',
       mobile: '',
       grade: 'Grade 11',
-      counselorId: 'COU-01',
-      counselorName: 'Dr. Rajeshwari Menon',
+      counselorId: '',
+      counselorName: '',
       stage: 'Login Activated',
       stageCompletedDate: new Date().toISOString().slice(0, 10),
       daysInStage: 0,
@@ -322,7 +322,7 @@ export const ProjectDashboardPage: React.FC = () => {
     csvContent += `STUDENT-LEVEL DETAIL LIST\n`;
     csvContent += `Student ID,Student Name,Grade / Class,Counselor ID,Counselor Name,Current Stage,Stage Date,Days In Stage,Follow-up Flag (>2 Days)\n`;
     filteredStudents.forEach(s => {
-      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || 'COU-01'}","${s.counselorName || s.session1?.counselorName || 'Dr. Rajeshwari Menon'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
+      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || '—'}","${s.counselorName || s.session1?.counselorName || '—'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
     });
 
     downloadCsv(csvContent, 'Student_Details_Report');
@@ -404,8 +404,22 @@ export const ProjectDashboardPage: React.FC = () => {
       ),
     },
     {
-      key: 'stage',
-      header: 'Stage',
+      key: 'counselor',
+      header: 'Counselor',
+      width: '230px',
+      render: row =>
+        row.counselorId || row.counselorName || row.session1?.counselorName ? (
+          <CounselorWrapper>
+            {row.counselorId && <CounselorIdBadge>{row.counselorId}</CounselorIdBadge>}
+            <span>{row.counselorName || row.session1?.counselorName}</span>
+          </CounselorWrapper>
+        ) : (
+          <span>—</span>
+        ),
+    },
+    {
+      key: 'currentStage',
+      header: 'Current Stage',
       width: '240px',
       render: row => (
         <StageCellWrapper>
@@ -425,27 +439,6 @@ export const ProjectDashboardPage: React.FC = () => {
               </span>
             </Tooltip>
           )}
-        </StageCellWrapper>
-      ),
-    },
-    {
-      key: 'counselor',
-      header: 'Counselor',
-      width: '230px',
-      render: row => (
-        <CounselorWrapper>
-          <CounselorIdBadge>{row.counselorId || 'COU-01'}</CounselorIdBadge>
-          <span>{row.counselorName || row.session1?.counselorName || 'Dr. Rajeshwari Menon'}</span>
-        </CounselorWrapper>
-      ),
-    },
-    {
-      key: 'stage',
-      header: 'Current Stage',
-      width: '240px',
-      render: row => (
-        <StageCellWrapper>
-          <span>{row.stage || 'Login Activated'}</span>
         </StageCellWrapper>
       ),
     },
