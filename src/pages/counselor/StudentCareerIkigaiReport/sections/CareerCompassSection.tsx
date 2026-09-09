@@ -37,13 +37,30 @@ export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ card
       <CareerCompassGrid>
         {cards.map((card, idx) => (
           <CareerCompassCard key={card.id}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <CareerCardTitle>
+            {card.addedByCounsellor && (
+              <Badge variant="primary" wrap>
+                Added by your counsellor
+              </Badge>
+            )}
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+              <CareerCardTitle style={{ minWidth: 0, flex: '1 1 140px' }}>
                 #{idx + 1} · {card.role}
               </CareerCardTitle>
-              <Badge variant="success">
-                {card.aiResilience}
-              </Badge>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-end' }}>
+                {card.fitScore !== null ? (
+                  <Badge variant="info" wrap>
+                    {card.level} — {card.fitScore}%
+                  </Badge>
+                ) : (
+                  <Badge variant="info" wrap>
+                    {card.level}
+                  </Badge>
+                )}
+                <Badge variant="success" wrap>
+                  {card.aiResilience}
+                </Badge>
+              </div>
             </div>
 
             <CareerMetaTagGroup>

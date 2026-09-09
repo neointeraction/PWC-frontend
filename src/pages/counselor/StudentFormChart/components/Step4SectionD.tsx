@@ -43,6 +43,16 @@ const SEVERITY_BADGE_VARIANT: Record<MirrorPairSummaryItem['severity'], 'success
 
 const MIRROR_PAIR_GRID = '80px 1.55fr 1.55fr 70px 130px 1.5fr';
 
+// 5-point scale used across RIASEC / Big Five / Cognitive & Decision Style
+// (see RESPONSE VALIDITY SCORE section of the assessment construct doc).
+const RESPONSE_LABELS: Record<number, string> = {
+  1: 'Strongly Disagree',
+  2: 'Disagree',
+  3: 'Neutral',
+  4: 'Agree',
+  5: 'Strongly Agree',
+};
+
 // F1-F3 (not G1-G3 — those codes belong to the SCRI step's synthesis notes on the
 // backend; reusing them here would silently collide with Step6SCRI's saved notes).
 const synthesisRowsGDef = [
@@ -63,7 +73,7 @@ const QuestionAmendCell: React.FC<{
 }> = ({ questionCode, response, disabled, onAmend, onRevert }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
     <span>
-      <strong>{questionCode}</strong> — response {response}
+      <strong>{questionCode}</strong> — {RESPONSE_LABELS[response] ?? `response ${response}`} ({response})
     </span>
     {(onAmend || onRevert) && (
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -122,7 +132,12 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
   onRevertMirrorPair,
   mirrorPairActionPending,
 }) => {
-  const flaggedCount = data.mirrorPairs.filter(p => p.flagged).length;
+  const strongPairs = data.mirrorPairs.filter(p => p.severity === 'strong');
+  const flaggedCount = strongPairs.filter(p => p.flagged).length;
+  const eimIndicator = data.indicators.find(item => item.code === 'EIM');
+  const eimParts = eimIndicator?.valueStatus.split(' ') ?? [];
+  const eimScore = eimParts[0]?.includes('%') ? eimParts[0] : '';
+  const eimLevel = eimParts[0]?.includes('%') ? eimParts.slice(1).join(' ') : eimIndicator?.valueStatus ?? '';
 
   return (
     <>
@@ -189,9 +204,49 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
       <SectionBlock>
         <SectionBlockTitle>Mirror Pair Consistency Check</SectionBlockTitle>
         <SectionBlockSubtitle>
-          The 10 opposite-construct question pairs behind the EIM score above. A consistent
-          responder rates each pair far apart; contradictions (gap ≤ 1) are flagged.
+          The 10 opposite-construct question pairs behind the Response Validity Score (RVS). A
+          consistent responder rates each pair far apart; only strong contradictions (gap = 0) are
+          shown below — they are the ones that need a counsellor's attention.
         </SectionBlockSubtitle>
+
+        {eimIndicator && (
+          <IndicatorBlock
+            style={{
+              marginTop: '12px',
+              border: '1px solid #E2E8F0',
+              borderRadius: '4px',
+              padding: '16px 18px',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
+            }}
+          >
+            <ReliabilityCardHeader>
+              <div>
+                <IndicatorTitle>Response Validity Score (RVS)</IndicatorTitle>
+                <IndicatorQuestion>{eimIndicator.guidingQuestion}</IndicatorQuestion>
+              </div>
+              <ReliabilityValueDisplay>
+                {eimScore && (
+                  <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0F172A' }}>
+                    {eimScore}
+                  </span>
+                )}
+                <span
+                  style={{
+                    fontWeight: 600,
+                    fontStyle: 'italic',
+                    color: eimLevel.toLowerCase().includes('highly consistent') ? '#16A34A' : '#0F172A',
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  {eimLevel}
+                </span>
+              </ReliabilityValueDisplay>
+            </ReliabilityCardHeader>
+
+            <ReliabilityExplanationBox>{eimIndicator.explanationText}</ReliabilityExplanationBox>
+          </IndicatorBlock>
+        )}
 
         <div
           style={{
@@ -203,12 +258,16 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
           }}
         >
           <CategoryBlockHeader>
-            <CategoryBlockTitle>Mirror Pairs</CategoryBlockTitle>
+            <CategoryBlockTitle>Flagged Mirror Pairs (Strong Contradictions)</CategoryBlockTitle>
           </CategoryBlockHeader>
 
           {data.mirrorPairs.length === 0 ? (
             <div style={{ padding: '16px', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
               No mirror-pair data available — assessment not yet submitted.
+            </div>
+          ) : strongPairs.length === 0 ? (
+            <div style={{ padding: '16px', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
+              No strong contradictions detected — all mirror pairs are consistent.
             </div>
           ) : (
             <TraitTableContainer>
@@ -221,7 +280,7 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
                 <TraitTableHeaderCell>Status</TraitTableHeaderCell>
               </TraitTableHeaderRow>
 
-              {data.mirrorPairs.map(pair => (
+              {strongPairs.map(pair => (
                 <TraitDataRow
                   key={pair.code}
                   $highlight={pair.flagged}

@@ -113,6 +113,7 @@ export const StudentPortalPage: React.FC = () => {
   const wf = me ? deriveStudentProgress(me.workflowStatus) : null;
   const session1 = sessions?.find(s => s.sessionNumber === 'SESSION_1' && s.status !== 'CANCELLED');
   const session2 = sessions?.find(s => s.sessionNumber === 'SESSION_2' && s.status !== 'CANCELLED');
+  const assignedCounsellor = session1?.counsellor ?? session2?.counsellor;
 
   const isProfileCompleted = wf?.profileCompleted ?? false;
   const isPreCounsellingSubmitted = formsStatus?.preCounsellingStudent ?? wf?.preCounsellingSubmitted ?? false;
@@ -184,7 +185,18 @@ export const StudentPortalPage: React.FC = () => {
   };
 
   const handleCopyParentFeedbackLink = () => {
-    const parentFeedbackLink = `${window.location.origin}${ROUTES.PARENT_FEEDBACK_FORM}/${me?.id ?? ''}`;
+    // The parent form has no login, so it can't look up the student/counsellor names
+    // itself (there's no public GET /students/{id}). Carry the real names we already
+    // have here as query params instead of showing placeholder text on that page.
+    const studentName = me ? `${me.name}${me.studentCode ? ` (${me.studentCode})` : ''}` : '';
+    const counsellorName = assignedCounsellor
+      ? `${assignedCounsellor.user.firstName} ${assignedCounsellor.user.lastName}`
+      : '';
+    const params = new URLSearchParams();
+    if (studentName) params.set('student', studentName);
+    if (counsellorName) params.set('counsellor', counsellorName);
+    const query = params.toString();
+    const parentFeedbackLink = `${window.location.origin}${ROUTES.PARENT_FEEDBACK_FORM}/${me?.id ?? ''}${query ? `?${query}` : ''}`;
     navigator.clipboard.writeText(parentFeedbackLink);
     toast.success('Parent Feedback Link Copied!', 'Parent Feedback Form link copied to clipboard.');
   };
@@ -398,7 +410,7 @@ export const StudentPortalPage: React.FC = () => {
                 Complete Student Feedback
               </Button>
             )}
-            {isSession2Completed && (
+            {isSession2Completed && !isParentFeedbackSubmitted && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -661,7 +673,7 @@ export const StudentPortalPage: React.FC = () => {
       {/* SEPARATE kREATE COMPASS REPORT WIDGET BLOCK */}
       {(() => {
         const isViewable = isAssessmentSubmitted || isSession1Completed;
-        const isDownloadable = isStudentFeedbackSubmitted;
+        const isDownloadable = isStudentFeedbackSubmitted && isParentFeedbackSubmitted;
 
         return (
           <TestWidgetCard style={{ borderLeftColor: isViewable ? '#16A34A' : '#9CA3AF' }}>
@@ -689,7 +701,7 @@ export const StudentPortalPage: React.FC = () => {
                   {!isViewable
                     ? 'Complete Career Profiling to unlock your kREATE Compass report.'
                     : !isDownloadable
-                      ? 'Your kREATE Compass report is viewable online. Download will be unlocked after completing the Feedback step.'
+                      ? 'Your kREATE Compass report is viewable online. Download will be unlocked after both the Student and Parent Feedback forms are completed.'
                       : 'Your comprehensive kREATE Compass report is complete and ready to view or download.'}
                 </TestWidgetDesc>
               </TestWidgetInfo>
@@ -720,14 +732,14 @@ export const StudentPortalPage: React.FC = () => {
                     Download PDF
                   </Button>
                 ) : (
-                  <Tooltip content="Download is unlocked after completing the Feedback step">
+                  <Tooltip content="Download is unlocked after both Student and Parent Feedback are completed">
                     <div>
                       <Button
                         variant="secondary"
                         size="md"
                         leftIcon={<RiPrinterLine size={18} />}
                         disabled
-                        title="Download is unlocked after completing the Feedback step"
+                        title="Download is unlocked after both Student and Parent Feedback are completed"
                       >
                         Download (Locked)
                       </Button>

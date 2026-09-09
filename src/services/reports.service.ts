@@ -21,6 +21,7 @@ import {
   StreamFitItem,
   GraduationPathwayItem,
   CareerRecommendationCard,
+  IndustryChoiceItem,
 } from '@/types/studentIkigaiReport.types';
 
 // GET /api/v1/reports/students/{studentId}/assessment response shape — see
@@ -80,11 +81,18 @@ const toTraitRow = (s: EnrichedTraitScore, no: number): TraitMapItem => ({
   gradeMeaning: s.levelMeaning,
 });
 
+// Top-ranked trait of a layer, for the Champion's Profile 3-column summary table.
+const topTraitOf = (layer: LayerReport) => {
+  const topKey = layer.ranking[0];
+  return layer.scores.find(s => s.trait === topKey) ?? layer.scores[0];
+};
+
 const mapReport = (
   api: ApiStudentAssessmentReport,
   counselorName: string
 ): StudentCareerIkigaiReportData => {
   const { dominantCareerStyle: dcs, dominantPersonalityStyle: dps } = api.championProfile;
+  const topCognitiveTrait = topTraitOf(api.traitMap.cognitive);
 
   const traitMap: TraitMapItem[] = [
     ...api.traitMap.riasec.scores,
@@ -134,6 +142,9 @@ const mapReport = (
     subStream: sf.subStream,
     coreSubjects: sf.coreSubjects ?? '',
     electives: sf.electiveSubjects ?? '',
+    requirement: `${sf.fitScore}%`,
+    gradingLevel: sf.level,
+    meaning: sf.meaning,
   }));
   const whyTheseStreams =
     api.streamFit.top3
@@ -147,7 +158,20 @@ const mapReport = (
     degree: gf.subStream,
     specialisations: gf.specialisations ?? '',
     keyExams: gf.keyExams ?? '',
+    reasoning: gf.explanation ?? '',
   }));
+
+  const industryChoice: IndustryChoiceItem[] = (api.careerCompass?.top3Industries ?? []).map(
+    (ir, i) => ({
+      id: `ic-${i}`,
+      cluster: ir.cluster,
+      industry: ir.industry,
+      domain: ir.domain,
+      requirement: `${ir.fitScore}%`,
+      gradingLevel: ir.level,
+      meaning: ir.meaning,
+    })
+  );
 
   const careerCompass: CareerRecommendationCard[] = (api.careerCompass?.top6Domains ?? [])
     .filter(d => d.representativeCareer)
@@ -164,6 +188,9 @@ const mapReport = (
         aiResilience: `${toTitleCase(rc.aiResilienceGrade)} — ${rc.aiResilienceComment}`,
         salaryIndia: rc.salaryIndiaRangeText ?? 'Not available',
         salaryAbroad: rc.salaryGlobalRangeText ?? 'Not available',
+        fitScore: d.fitScore,
+        level: d.level,
+        addedByCounsellor: d.addedByCounsellor,
       };
     });
 
@@ -181,12 +208,16 @@ const mapReport = (
       snapshotSummary: `${dcs.explanation} ${dps.explanation}`.trim(),
       coreStrengths: api.counsellorNarrative?.strengths ?? [],
       hobbies: api.counsellorNarrative?.hobbies ?? [],
+      careerStyle: { name: dcs.style, description: dcs.description },
+      personalSignature: { name: dps.style, description: dps.description },
+      thinkingMode: { name: topCognitiveTrait.traitName, description: topCognitiveTrait.description },
     },
     traitMap,
     reliability,
     streamFit: { table: streamFitTable, whyTheseStreams },
     graduation: { pathways },
     careerCompass,
+    industryChoice,
   };
 };
 
@@ -200,5 +231,15 @@ export const reportsService = {
       `/reports/students/${studentId}/assessment`
     );
     return mapReport(data, counselorName);
+  },
+
+  // POST /reports/students/{studentId}/accept — not yet built on the backend (see
+  // docs/pending-items.md CO-7); the student/parent accepts the finalized report after
+  // Session 2, so the counsellor knows to move them to the Feedback step.
+  acceptReport: async (studentId: string): Promise<{ acceptedAt: string }> => {
+    const { data } = await apiClient.post<{ acceptedAt: string }>(
+      `/reports/students/${studentId}/accept`
+    );
+    return data;
   },
 };

@@ -64,6 +64,51 @@ interface CareerLibraryListResponse {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
+// A still-pending counsellor proposal (GET/PATCH /career-library/proposals/*), fetched
+// for the Career Compass "propose a role" flow — same editorial fields as ApiCareerEntry,
+// but never has status/createdBy/updatedBy (it hasn't been materialized into a real
+// CareerLibraryEntry yet) and carries `submittedBy` instead. Named apart from the
+// lighter-weight `ApiCareerEntryProposal` below (the Super Admin ratification queue only
+// needs a handful of fields) since TypeScript would otherwise merge the two interface
+// declarations into one with conflicting field types.
+interface ApiCareerCompassProposal {
+  id: string;
+  domain: ApiCareerDomainChain;
+  jobRole: string;
+  aiResilienceGrade: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+  aiResilienceComment: string;
+  oneLineDescription: string;
+  roleOverview: string | null;
+  keySkills: string[];
+  topCompanies: string[];
+  salaryIndiaRangeText: string | null;
+  salaryIndiaMinLPA: number | null;
+  salaryIndiaMaxLPA: number | null;
+  salaryGlobalRangeText: string | null;
+  salaryGlobalMinUSD: number | null;
+  salaryGlobalMaxUSD: number | null;
+  submittedBy: string;
+  studentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CareerCompassProposalListResponse {
+  data: ApiCareerCompassProposal[];
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+}
+
+// GET /career-library/proposals/{id} — same linked-record shape as a real entry's detail
+// response (backend's hydrateProposal shares the exact same Prisma selects), so the
+// Career Compass edit form can pre-fill Entrance Exams / Courses / Institutions /
+// Education Path for a still-pending proposal exactly like it does for a live entry.
+interface CareerCompassProposalDetailResponse extends ApiCareerCompassProposal {
+  linkedEntranceExams?: ApiNormalizedExam[];
+  linkedCourses?: ApiNormalizedCourse[];
+  linkedInstitutions?: ApiNormalizedInstitution[];
+  linkedEducationEntries?: DomainEducationEntry[];
+}
+
 interface CareerLibraryFiltersResponse {
   clusters: string[];
   industries: string[];
@@ -265,6 +310,10 @@ export interface CareerLinkOption {
 
 export interface CareerEntryPayload {
   domainId: string;
+  // Which student's Counsellor Chart this role is being proposed from — the backend uses
+  // it to tie a counsellor's proposal to that student (and re-list it there once
+  // approved). Omitted on the standalone Career Library admin screen.
+  studentId?: string;
   jobRole: string;
   aiResilienceGrade: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
   aiResilienceComment: string;
@@ -349,6 +398,47 @@ const mapCareerEntry = (entry: ApiCareerEntry): Career => ({
   sourceTenant: entry.createdBy,
 });
 
+// Same shape as mapCareerEntry, minus the fields a proposal doesn't have yet (status,
+// qualifications, certifications, linked exams/courses — none of those are collected on
+// the Career Compass "propose a role" flow, so they're simply blank until an admin's
+// approve materializes the full entry).
+const mapProposalEntry = (entry: ApiCareerCompassProposal): Career => ({
+  id: entry.id,
+  jobRole: entry.jobRole,
+  careerCluster: entry.domain.industry.cluster.name,
+  industry: entry.domain.industry.name,
+  domain: entry.domain.name,
+  domainId: entry.domain.id,
+  aiResilienceGrading: AI_GRADE_MAP[entry.aiResilienceGrade] || 'High',
+  aiResilienceComment: entry.aiResilienceComment,
+  oneLineDescription: entry.oneLineDescription,
+  roleOverview: entry.roleOverview || undefined,
+  keySkills: entry.keySkills || [],
+  topCompaniesRecruiting: entry.topCompanies || [],
+  approxSalaryRangeIndia:
+    entry.salaryIndiaMinLPA != null && entry.salaryIndiaMaxLPA != null
+      ? `₹${entry.salaryIndiaMinLPA}–${entry.salaryIndiaMaxLPA} LPA`
+      : entry.salaryIndiaRangeText || '',
+  globalSalaryRange:
+    entry.salaryGlobalMinUSD != null && entry.salaryGlobalMaxUSD != null
+      ? `$${entry.salaryGlobalMinUSD}–${entry.salaryGlobalMaxUSD}`
+      : entry.salaryGlobalRangeText || '',
+  minQual10th12thRecommendedSubjects: '',
+  minQualGradRecommendedSubjects: '',
+  entranceExamsUG: '',
+  minQualPGRecommendedSubjects: '',
+  entranceExamsPG: '',
+  certificationsStudents: '',
+  certificationsUG: '',
+  topCoursesToStudy: '',
+  title: entry.jobRole,
+  category: entry.domain.industry.cluster.name,
+  description: entry.oneLineDescription,
+  status: 'pending',
+  lastUpdated: (entry.updatedAt || entry.createdAt || '').slice(0, 10),
+  sourceTenant: entry.submittedBy,
+});
+
 const mapInstitution = (inst: ApiNormalizedInstitution): InstitutionDetail => ({
   id: inst.id,
   badge: inst.type || 'Institution',
@@ -397,6 +487,77 @@ const mapExam = (exam: ApiNormalizedExam): EntranceExam => ({
   requirement12th: exam.subjectRequirements12th || '—',
   website: exam.officialWebsite || '',
   datesText: exam.applicationWindow || undefined,
+});
+
+// Shared by getById and getProposalDetail — both responses carry the same
+// linkedEntranceExams/linkedCourses/linkedInstitutions/linkedEducationEntries shape
+// (the backend hydrates a proposal off the exact same Prisma selects as a real entry),
+// so the edit form's tick-lists pre-fill identically either way.
+const mapLinkedRecords = (data: {
+  linkedEntranceExams?: ApiNormalizedExam[];
+  linkedCourses?: ApiNormalizedCourse[];
+  linkedInstitutions?: ApiNormalizedInstitution[];
+  linkedEducationEntries?: DomainEducationEntry[];
+}): {
+  entranceExams: EntranceExam[];
+  courses: CourseDetail[];
+  institutions: InstitutionDetail[];
+  linkedEntranceExams: CareerLinkOption[];
+  linkedCourses: CareerLinkOption[];
+  linkedInstitutions: CareerLinkOption[];
+  linkedEducationEntries: DomainEducationEntry[];
+} => ({
+  entranceExams: (data.linkedEntranceExams || []).map(mapExam),
+  courses: (data.linkedCourses || []).map(mapCourse),
+  institutions: (data.linkedInstitutions || []).map(mapInstitution),
+  linkedEntranceExams: (data.linkedEntranceExams || []).map(e => ({
+    id: e.id,
+    label: examOptionLabel(e),
+    level: e.level === 'PG' ? 'PG' : 'UG',
+    record: {
+      name: e.name,
+      level: e.level === 'PG' ? 'PG' : 'UG',
+      fullForm: e.fullForm ?? undefined,
+      conductingBody: e.conductingBody ?? undefined,
+      officialWebsite: e.officialWebsite ?? undefined,
+      examMode: e.examMode ?? undefined,
+      frequency: e.frequency ?? undefined,
+      applicableFor: e.applicableFor ?? undefined,
+      subjectRequirements12th: e.subjectRequirements12th ?? undefined,
+      applicationWindow: e.applicationWindow ?? undefined,
+    },
+  })),
+  linkedCourses: (data.linkedCourses || []).map(c => ({
+    id: c.id,
+    label: courseOptionLabel(c),
+    // CourseSubform has no level field, so it's left off the record here too.
+    record: {
+      name: c.name,
+      fullForm: c.fullForm ?? undefined,
+      stream12thRequirements: c.stream12thRequirements ?? undefined,
+      relevantEntranceExams: c.relevantEntranceExams ?? undefined,
+      programmesOffered: c.programmesOffered ?? undefined,
+      topColleges: c.topColleges ?? undefined,
+      furtherStudyOptions: c.furtherStudyOptions ?? undefined,
+    },
+  })),
+  linkedInstitutions: (data.linkedInstitutions || []).map(i => ({
+    id: i.id,
+    label: institutionOptionLabel(i),
+    // The read shape doesn't carry `shortName` back (write-only), so an edit here
+    // starts with the abbreviation field blank — the admin retypes it if needed.
+    record: {
+      name: i.name,
+      city: i.city ?? undefined,
+      state: i.state ?? undefined,
+      type: i.type ?? undefined,
+      website: i.website ?? undefined,
+      entranceExamsRequired: i.entranceExamsRequired ?? undefined,
+      programmesOffered: i.programmesOffered ?? undefined,
+      ranking: i.ranking ?? undefined,
+    },
+  })),
+  linkedEducationEntries: data.linkedEducationEntries || [],
 });
 
 // ---- Full-dataset cache: derives cluster/industry/domain browsing client-side
@@ -506,8 +667,12 @@ interface ApiCareerEntryProposal {
   jobRole: string;
   oneLineDescription: string;
   submittedBy: string;
+  submittedByName: string;
   createdAt: string;
   domain: ApiCareerDomainChain | null;
+  projectId: string | null;
+  projectName: string | null;
+  session2Completed: boolean | null;
 }
 
 interface ApiCareerEntryProposalListResponse {
@@ -515,28 +680,10 @@ interface ApiCareerEntryProposalListResponse {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
-// A proposal row carries only `submittedBy` (a counsellor's User id), so the requester's
-// name comes from the counsellor directory. A failure there must not blank the whole list.
-const getCounsellorNames = async (): Promise<Map<string, string>> => {
-  try {
-    const { data } = await apiClient.get<
-      { id: string; user?: { firstName: string; lastName: string } }[]
-    >('/counsellors');
-    return new Map(
-      data.map(c => [c.id, `${c.user?.firstName ?? ''} ${c.user?.lastName ?? ''}`.trim()])
-    );
-  } catch {
-    return new Map();
-  }
-};
-
-const mapCareerProposal = (
-  p: ApiCareerEntryProposal,
-  names: Map<string, string>
-): PendingRatification => ({
+const mapCareerProposal = (p: ApiCareerEntryProposal): PendingRatification => ({
   id: p.id,
   careerName: p.jobRole,
-  sourceTenant: names.get(p.submittedBy) || '\u2014',
+  sourceTenant: p.submittedByName || '\u2014',
   suggestedCategory: p.domain?.industry?.cluster?.name ?? '\u2014',
   description: p.oneLineDescription,
   submittedAt: p.createdAt,
@@ -544,7 +691,9 @@ const mapCareerProposal = (
   status: 'pending',
   suggestedIndustry: p.domain?.industry?.name,
   suggestedDomain: p.domain?.name,
+  projectName: p.projectName ?? undefined,
   resultingEntryId: null,
+  session2Completed: p.session2Completed,
 });
 
 // `status` no longer maps to anything server-side (resolved proposals don't exist as
@@ -553,11 +702,10 @@ const listRatificationRequests = async (
   status?: PendingRatification['status']
 ): Promise<PendingRatification[]> => {
   if (status === 'ratified' || status === 'rejected') return [];
-  const [{ data }, names] = await Promise.all([
-    apiClient.get<ApiCareerEntryProposalListResponse>('/career-library/proposals'),
-    getCounsellorNames(),
-  ]);
-  return data.data.map(p => mapCareerProposal(p, names));
+  const { data } = await apiClient.get<ApiCareerEntryProposalListResponse>(
+    '/career-library/proposals'
+  );
+  return data.data.map(mapCareerProposal);
 };
 
 export const careerService = {
@@ -676,67 +824,41 @@ export const careerService = {
     linkedEducationEntries: DomainEducationEntry[];
   }> => {
     const { data } = await apiClient.get<CareerLibraryDetailResponse>(`/career-library/${id}`);
-    const courses = (data.linkedCourses || []).map(mapCourse);
-    const linkedCourseTitles = new Set(courses.map(c => c.title.toLowerCase()));
+    const linked = mapLinkedRecords(data);
+    const linkedCourseTitles = new Set(linked.courses.map(c => c.title.toLowerCase()));
     return {
       career: mapCareerEntry(data),
+      ...linked,
       // The detail tabs show only what's actually linked to this entry — not the API's
       // legacy `related*` view, which broad-matches by domain/cluster name and so showed
       // the same institutions/courses on every role in an industry regardless of links.
-      entranceExams: (data.linkedEntranceExams || []).map(mapExam),
-      courses,
-      institutions: (data.linkedInstitutions || []).map(mapInstitution),
       relatedCourses: (data.relatedCourses || [])
         .map(mapRelatedCourse)
         .filter(c => !linkedCourseTitles.has(c.title.toLowerCase())),
-      linkedEntranceExams: (data.linkedEntranceExams || []).map(e => ({
-        id: e.id,
-        label: examOptionLabel(e),
-        level: e.level === 'PG' ? 'PG' : 'UG',
-        record: {
-          name: e.name,
-          level: e.level === 'PG' ? 'PG' : 'UG',
-          fullForm: e.fullForm ?? undefined,
-          conductingBody: e.conductingBody ?? undefined,
-          officialWebsite: e.officialWebsite ?? undefined,
-          examMode: e.examMode ?? undefined,
-          frequency: e.frequency ?? undefined,
-          applicableFor: e.applicableFor ?? undefined,
-          subjectRequirements12th: e.subjectRequirements12th ?? undefined,
-          applicationWindow: e.applicationWindow ?? undefined,
-        },
-      })),
-      linkedCourses: (data.linkedCourses || []).map(c => ({
-        id: c.id,
-        label: courseOptionLabel(c),
-        // CourseSubform has no level field, so it's left off the record here too.
-        record: {
-          name: c.name,
-          fullForm: c.fullForm ?? undefined,
-          stream12thRequirements: c.stream12thRequirements ?? undefined,
-          relevantEntranceExams: c.relevantEntranceExams ?? undefined,
-          programmesOffered: c.programmesOffered ?? undefined,
-          topColleges: c.topColleges ?? undefined,
-          furtherStudyOptions: c.furtherStudyOptions ?? undefined,
-        },
-      })),
-      linkedInstitutions: (data.linkedInstitutions || []).map(i => ({
-        id: i.id,
-        label: institutionOptionLabel(i),
-        // The read shape doesn't carry `shortName` back (write-only), so an edit here
-        // starts with the abbreviation field blank — the admin retypes it if needed.
-        record: {
-          name: i.name,
-          city: i.city ?? undefined,
-          state: i.state ?? undefined,
-          type: i.type ?? undefined,
-          website: i.website ?? undefined,
-          entranceExamsRequired: i.entranceExamsRequired ?? undefined,
-          programmesOffered: i.programmesOffered ?? undefined,
-          ranking: i.ranking ?? undefined,
-        },
-      })),
-      linkedEducationEntries: data.linkedEducationEntries || [],
+    };
+  },
+
+  // GET /career-library/proposals/{id} — same shape as getById minus relatedCourses (the
+  // legacy cluster-wide view isn't meaningful for a not-yet-published role), so the Career
+  // Compass edit form can reuse it to pre-fill a counsellor's own still-pending proposal.
+  getProposalDetail: async (
+    id: string
+  ): Promise<{
+    career: Career;
+    entranceExams: EntranceExam[];
+    courses: CourseDetail[];
+    institutions: InstitutionDetail[];
+    linkedEntranceExams: CareerLinkOption[];
+    linkedCourses: CareerLinkOption[];
+    linkedInstitutions: CareerLinkOption[];
+    linkedEducationEntries: DomainEducationEntry[];
+  }> => {
+    const { data } = await apiClient.get<CareerCompassProposalDetailResponse>(
+      `/career-library/proposals/${id}`
+    );
+    return {
+      career: mapProposalEntry(data),
+      ...mapLinkedRecords(data),
     };
   },
 
@@ -921,6 +1043,54 @@ export const careerService = {
   // (it was staged with the full entry payload) and deletes the proposal; reject just
   // deletes it. Neither returns a proposal-shaped object, so both resolve void.
 
+  // ---- Career Compass "propose a role" (counsellor, scoped to one student) ----
+  // A counsellor's proposal is staged as a CareerLibraryEntryProposal (studentId set from
+  // the chart it was submitted from) until Super Admin approval promotes it to a real,
+  // ACTIVE CareerLibraryEntry — which keeps the same studentId, so this pair of calls
+  // covers both "still pending" and "already approved" roles for one student's report.
+  listProposalsForStudent: async (studentId: string): Promise<Career[]> => {
+    const { data } = await apiClient.get<CareerCompassProposalListResponse>(
+      '/career-library/proposals',
+      { params: { studentId, pageSize: 100 } }
+    );
+    return data.data.map(mapProposalEntry);
+  },
+  listApprovedForStudent: async (studentId: string): Promise<Career[]> => {
+    const { data } = await apiClient.get<CareerLibraryListResponse>('/career-library', {
+      params: { studentId, pageSize: 100 },
+    });
+    return data.data.map(mapCareerEntry);
+  },
+  // Stages a counsellor's Career Compass "propose a role" submission as a
+  // CareerLibraryEntryProposal (studentId required) rather than a live entry — it only
+  // becomes a real CareerLibraryEntry once Super Admin approves it via ratify(). No
+  // `status` field: a proposal is always implicitly pending until approved or rejected.
+  createEntryProposal: async (payload: Omit<CareerEntryPayload, 'status'>): Promise<Career> => {
+    const { data } = await apiClient.post<ApiCareerCompassProposal>(
+      '/career-library/proposals',
+      payload
+    );
+    invalidateCareerCaches();
+    return mapProposalEntry(data);
+  },
+  // The submitting counsellor may edit their own still-pending proposal (or Super Admin,
+  // any of them) — same PATCH-merges-in shape as updateEntry, just a different endpoint
+  // since a proposal isn't a real CareerLibraryEntry yet.
+  updateEntryProposal: async (id: string, payload: Partial<CareerEntryPayload>): Promise<Career> => {
+    const { data } = await apiClient.patch<ApiCareerCompassProposal>(
+      `/career-library/proposals/${id}`,
+      payload
+    );
+    invalidateCareerCaches();
+    return mapProposalEntry(data);
+  },
+  // Withdraws a still-pending proposal outright (as opposed to reject, which is the
+  // Super Admin's review decision).
+  deleteEntryProposal: async (id: string): Promise<void> => {
+    await apiClient.delete(`/career-library/proposals/${id}`);
+    invalidateCareerCaches();
+  },
+
   getRatificationRequests: listRatificationRequests,
 
   getPendingRatifications: (): Promise<PendingRatification[]> =>
@@ -928,6 +1098,7 @@ export const careerService = {
 
   ratify: async (id: string): Promise<void> => {
     await apiClient.post(`/career-library/proposals/${id}/approve`);
+    invalidateCareerCaches();
   },
 
   rejectRatification: async (id: string): Promise<void> => {

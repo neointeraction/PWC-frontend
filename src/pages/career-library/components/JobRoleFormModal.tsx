@@ -854,6 +854,20 @@ interface JobRoleFormModalProps {
   domainLabel?: string;
   clusterLabel?: string;
   industryLabel?: string;
+  // Ties a new proposal to the student's Counsellor Chart it was submitted from (see
+  // career.service.ts's Career Compass calls). Ignored in edit mode — the chart a
+  // proposal belongs to doesn't change after submission.
+  studentId?: string;
+  // Skips this modal's own "Job Role Created/Updated" success toast — for a caller (like
+  // the Career Compass "propose a role" flow) that shows its own, more specific message
+  // (e.g. "submitted for Super Admin approval") on `onSaved` instead of stacking both.
+  suppressSuccessToast?: boolean;
+  // In edit mode, whether `entity` is a real, published CareerLibraryEntry (the Career
+  // Library admin screen — default) or a counsellor's still-pending
+  // CareerLibraryEntryProposal (the Career Compass "propose a role" flow). Switches which
+  // detail-fetch and save endpoints this form hits — a proposal isn't a real entry yet,
+  // so it has its own GET/PATCH /career-library/proposals/{id} pair.
+  entityKind?: 'entry' | 'proposal';
 }
 
 export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
@@ -866,6 +880,9 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
   domainLabel,
   clusterLabel,
   industryLabel,
+  studentId,
+  suppressSuccessToast,
+  entityKind = 'entry',
 }) => {
   const toast = useToast();
 
@@ -918,15 +935,23 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
   const cluster = mode === 'edit' ? entity?.careerCluster : clusterLabel;
   const industry = mode === 'edit' ? entity?.industry : industryLabel;
   const domain = mode === 'edit' ? entity?.domain : domainLabel;
-  const effectiveDomainId = mode === 'edit' ? entity?.domainId : domainId;
 
-  // On edit, pull the entry's currently-linked canonical records to pre-tick the lists.
+  // On edit, pull the entry's currently-linked canonical records to pre-tick the lists —
+  // a real entry and a still-pending proposal have their own separate detail endpoints.
   const { data: detail } = useQuery({
-    queryKey: ['career-entry-detail', entity?.id],
-    queryFn: () => careerService.getById(entity!.id),
+    queryKey: ['career-entry-detail', entityKind, entity?.id],
+    queryFn: () =>
+      entityKind === 'proposal'
+        ? careerService.getProposalDetail(entity!.id)
+        : careerService.getById(entity!.id),
     enabled: isOpen && mode === 'edit' && !!entity?.id,
     staleTime: 30_000,
   });
+
+  // The list-row `entity` passed into this modal often omits `domainId` (e.g. pending
+  // proposal summaries) even though its plain-text `domain` label is present; fall back
+  // to the detail fetch's career record, which always carries it.
+  const effectiveDomainId = mode === 'edit' ? entity?.domainId ?? detail?.career.domainId : domainId;
 
   // Prefill values for a role. `entity` comes from the list; once the detail fetch lands
   // we re-apply from it (see below) so nothing the list response trimmed is lost.
@@ -1108,28 +1133,36 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         educationEntries: linkField(Array.from(educationIds).map(id => ({ id }))),
       };
       if (mode === 'add') {
-        // No Status field on the form — a role added by a super admin goes live at once.
-        return careerService.createEntry({
+        const addPayload = {
           ...base,
           domainId: domainId!,
-          status: 'ACTIVE',
+          ...(studentId ? { studentId } : {}),
           qualification10th12th: optText(programmesAt('CLASS_10_PLUS_2')) || undefined,
           qualification10th12thExplanation: optText(notesAt('CLASS_10_PLUS_2')),
           qualificationGraduation: optText(programmesAt('GRADUATE')),
           qualificationGraduationDefined: optText(notesAt('GRADUATE')),
           qualificationPG: optText(programmesAt('POST_GRADUATE')),
           qualificationPGDefined: optText(notesAt('POST_GRADUATE')),
-        });
+        };
+        // A counsellor proposing a role for a student stages a pending proposal for
+        // Super Admin review; a direct admin add (no studentId) goes live at once.
+        return studentId
+          ? careerService.createEntryProposal(addPayload)
+          : careerService.createEntry({ ...addPayload, status: 'ACTIVE' });
       }
       // Edit deliberately omits them: PATCH leaves an omitted scalar alone, and the
       // imported roles carry descriptive prose a comma-joined list would destroy.
-      return careerService.updateEntry(entity!.id, base);
+      return entityKind === 'proposal'
+        ? careerService.updateEntryProposal(entity!.id, base)
+        : careerService.updateEntry(entity!.id, base);
     },
     onSuccess: saved => {
-      toast.success(
-        `Job Role ${mode === 'add' ? 'Created' : 'Updated'}`,
-        `${saved.jobRole} was saved successfully.`
-      );
+      if (!suppressSuccessToast) {
+        toast.success(
+          `Job Role ${mode === 'add' ? 'Created' : 'Updated'}`,
+          `${saved.jobRole} was saved successfully.`
+        );
+      }
       onSaved(saved, mode);
       onClose();
     },

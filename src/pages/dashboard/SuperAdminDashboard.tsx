@@ -189,6 +189,7 @@ export const SuperAdminDashboard: React.FC = () => {
         domainLabel={selectedRequest?.suggestedDomain}
         clusterLabel={selectedRequest?.suggestedCategory}
         industryLabel={selectedRequest?.suggestedIndustry}
+        entityKind="proposal"
       />
     </DashboardWrapper>
   );

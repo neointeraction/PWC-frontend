@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import {
   RiCheckLine,
   RiEmotionHappyLine,
+  RiUser3Line,
   RiUserHeartLine,
   RiCompass3Line,
   RiAwardLine,
@@ -25,12 +26,17 @@ import {
   DocumentHeaderRow,
   DocTitle,
   DocNote,
+  StudentMetaGrid,
+  MetaItem,
+  MetaLabel,
+  MetaValue,
   SectionBlock,
   SectionHeader,
   SectionHeaderIcon,
   SectionTitleText,
   QuestionCard,
   QuestionTitle,
+  QuestionErrorText,
   RatingOptionsGroup,
   RatingOptionButton,
   OptionScoreBadge,
@@ -48,8 +54,7 @@ import {
 // ─────────────────────────────────────────────────────────────
 // Every question, its section grouping, and its rating-scale options come from the real
 // GET /forms/FEEDBACK_PARENT template — nothing here is hardcoded per-question. Section
-// icons/order are a fixed 1:1 mapping onto the template's 6 sections, and the default
-// ratings mirror what this page always pre-selected, keyed by position.
+// icons/order are a fixed 1:1 mapping onto the template's 6 sections.
 //
 // Parents have no login — the link they're sent carries the studentId directly
 // (/parent-feedback-form/:studentId), and the form-write endpoints are public but
@@ -70,16 +75,6 @@ const SECTION_ICONS = [
   RiChat3Line,
 ];
 
-// Defaults this page has always pre-selected, by section position then question position.
-const SECTION_DEFAULTS: Array<Array<number | ''>> = [
-  [5, 5, 5],
-  [5, 5, 5, 5],
-  [4, 5, 5],
-  [5, 5],
-  [5],
-  ['', ''],
-];
-
 const cleanSectionLabel = (label: string): string =>
   label
     .replace(/^Section\s*\d+\s*[—-]\s*/i, '')
@@ -92,6 +87,12 @@ const scaleOptions = (q: FormQuestion): McqOption[] =>
 export const ParentFeedbackFormPage: React.FC = () => {
   const toast = useToast();
   const { studentId } = useParams<{ studentId: string }>();
+  // Carried on the link itself — this page has no login, so it can't look these up
+  // (there's no public GET /students/{id}); the student generates the link with them
+  // already filled in (see StudentPortalPage's handleCopyParentFeedbackLink).
+  const [searchParams] = useSearchParams();
+  const studentName = searchParams.get('student');
+  const counsellorName = searchParams.get('counsellor');
 
   const { data: template, isLoading: isTemplateLoading } = useQuery({
     queryKey: ['form-template', 'FEEDBACK_PARENT', COHORT],
@@ -126,23 +127,10 @@ export const ParentFeedbackFormPage: React.FC = () => {
   }, [template]);
 
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
-  const defaultsAppliedRef = useRef(false);
+  const [errorFieldKeys, setErrorFieldKeys] = useState<Set<string>>(new Set());
+  const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Pre-select the same defaults this page always opened with (by position), once.
-  useEffect(() => {
-    if (defaultsAppliedRef.current || sections.length === 0) return;
-    defaultsAppliedRef.current = true;
-    const defaults: Record<string, unknown> = {};
-    sections.forEach((section, sIdx) => {
-      section.questions.forEach((q, qIdx) => {
-        const value = SECTION_DEFAULTS[sIdx]?.[qIdx];
-        if (value !== undefined) defaults[q.fieldKey] = value === '' ? '' : value;
-      });
-    });
-    setAnswers(prev => ({ ...defaults, ...prev }));
-  }, [sections]);
-
-  // Prefill from a previously saved submission (overrides the defaults above).
+  // Prefill from a previously saved submission, if one exists.
   useEffect(() => {
     if (!existingSubmission) return;
     setAnswers(prev => ({
@@ -154,6 +142,12 @@ export const ParentFeedbackFormPage: React.FC = () => {
   const setAnswer = (fieldKey: string, value: unknown) => {
     setAnswers(prev => ({ ...prev, [fieldKey]: value }));
     setSubmitErrorMessage(null);
+    setErrorFieldKeys(prev => {
+      if (!prev.has(fieldKey)) return prev;
+      const next = new Set(prev);
+      next.delete(fieldKey);
+      return next;
+    });
   };
 
   const buildAnswers = (): FormAnswerItem[] =>
@@ -165,6 +159,7 @@ export const ParentFeedbackFormPage: React.FC = () => {
   );
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [linkExpiredMessage, setLinkExpiredMessage] = useState<string | null>(null);
   // A failed submit shown as a prominent centered banner (not just a corner toast, which a
   // parent on an unfamiliar public form can easily miss) — cleared as soon as they edit an answer.
@@ -212,19 +207,27 @@ export const ParentFeedbackFormPage: React.FC = () => {
       const message = `Please answer the following before submitting: ${missing
         .map(q => q.questionText)
         .join(', ')}`;
+      setErrorFieldKeys(new Set(missing.map(q => q.fieldKey)));
       setSubmitErrorMessage(message);
       toast.error('Some answers are missing', message);
+      questionRefs.current[missing[0].fieldKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    setErrorFieldKeys(new Set());
     setSubmitErrorMessage(null);
     submitMutation.mutate();
   };
 
-  // Parents have no login/portal to return to — Close attempts to close the tab (only works
-  // if the browser opened it via script; otherwise this just dismisses the modal) so they
-  // can't accidentally submit again.
+  // Parents have no login/portal to return to. `window.close()` only works if the browser
+  // opened this tab via script — for a link tapped from WhatsApp/email/SMS (the normal
+  // case here) it's silently blocked, so relying on it alone leaves the modal looking
+  // stuck. Try it as a best effort, but always also dismiss the modal in favour of the
+  // "already submitted" screen below, which tells them it's safe to close the tab
+  // themselves — that way Close always visibly does something.
   const handleConfirmCompletion = useCallback(() => {
     window.close();
+    setIsCompletionModalOpen(false);
+    setHasSubmitted(true);
   }, []);
 
   if (!studentId) {
@@ -261,8 +264,9 @@ export const ParentFeedbackFormPage: React.FC = () => {
     );
   }
 
-  // The parent already submitted this feedback on a previous visit — don't let them resubmit.
-  if (existingSubmission?.submittedAt) {
+  // The parent already submitted this feedback — either just now (hasSubmitted) or on a
+  // previous visit (existingSubmission) — don't let them resubmit.
+  if (hasSubmitted || existingSubmission?.submittedAt) {
     return (
       <FormPageContainer>
         <HeroHeaderCard>
@@ -291,6 +295,23 @@ export const ParentFeedbackFormPage: React.FC = () => {
                 Thank you for partnering with us in your child&apos;s career discovery journey. Please provide your candid feedback to help us refine our guidance services.
               </DocNote>
             </DocumentHeaderRow>
+
+            {(studentName || counsellorName) && (
+              <StudentMetaGrid>
+                <MetaItem>
+                  <MetaLabel>Counsellor Name</MetaLabel>
+                  <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <RiUserHeartLine size={16} /> {counsellorName || '—'}
+                  </MetaValue>
+                </MetaItem>
+                <MetaItem>
+                  <MetaLabel>Student Name</MetaLabel>
+                  <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <RiUser3Line size={16} /> {studentName || '—'}
+                  </MetaValue>
+                </MetaItem>
+              </StudentMetaGrid>
+            )}
 
             {submitErrorMessage && (
               <p
@@ -321,9 +342,16 @@ export const ParentFeedbackFormPage: React.FC = () => {
                   <SectionTitleText>{section.label}</SectionTitleText>
                 </SectionHeader>
 
-                {section.questions.map((q, idx) =>
-                  q.questionType === 'OPEN_TEXT' ? (
-                    <QuestionCard key={q.id}>
+                {section.questions.map((q, idx) => {
+                  const hasError = errorFieldKeys.has(q.fieldKey);
+                  return q.questionType === 'OPEN_TEXT' ? (
+                    <QuestionCard
+                      key={q.id}
+                      ref={el => {
+                        questionRefs.current[q.fieldKey] = el;
+                      }}
+                      $hasError={hasError}
+                    >
                       <QuestionTitle>
                         {idx + 1}. {q.questionText}
                       </QuestionTitle>
@@ -336,9 +364,16 @@ export const ParentFeedbackFormPage: React.FC = () => {
                         value={(answers[q.fieldKey] as string) ?? ''}
                         onChange={e => setAnswer(q.fieldKey, e.target.value)}
                       />
+                      {hasError && <QuestionErrorText>This question is required.</QuestionErrorText>}
                     </QuestionCard>
                   ) : (
-                    <QuestionCard key={q.id}>
+                    <QuestionCard
+                      key={q.id}
+                      ref={el => {
+                        questionRefs.current[q.fieldKey] = el;
+                      }}
+                      $hasError={hasError}
+                    >
                       <QuestionTitle>
                         {idx + 1}. {q.questionText}
                       </QuestionTitle>
@@ -359,9 +394,10 @@ export const ParentFeedbackFormPage: React.FC = () => {
                           );
                         })}
                       </RatingOptionsGroup>
+                      {hasError && <QuestionErrorText>This question is required.</QuestionErrorText>}
                     </QuestionCard>
-                  )
-                )}
+                  );
+                })}
               </SectionBlock>
             ))}
 

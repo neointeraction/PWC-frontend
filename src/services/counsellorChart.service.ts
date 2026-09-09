@@ -694,6 +694,7 @@ export const mapChartToFormData = (
         : '',
       salaryIndia: d.representativeCareer?.salaryIndiaRangeText ?? '',
       salaryAbroad: d.representativeCareer?.salaryGlobalRangeText ?? '',
+      fitScore: d.fitScore ?? undefined,
     })
   );
 

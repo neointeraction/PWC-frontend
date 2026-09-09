@@ -96,6 +96,9 @@ export interface CareerCompassItem {
   salaryIndia: string;
   salaryAbroad: string;
   approvalStatus?: 'Approved' | 'Pending Admin Approval';
+  // Only present on system-generated rows (from DomainFit.fitScore) — used to pick which
+  // one gets bumped when a counsellor-added role pushes the table past 6 rows.
+  fitScore?: number;
 }
 
 export interface ReliabilityCardData {

@@ -11,6 +11,14 @@ export const ReportContainer = styled.div`
   }
 `;
 
+// Wraps the on-screen PageHeader (title/breadcrumbs/actions) so it doesn't print — the
+// print/"Download as PDF" output (PrintReportContent) has its own cover page instead.
+export const ScreenOnlyHeader = styled.div`
+  @media print {
+    display: none;
+  }
+`;
+
 // Top Header / Action Bar
 export const ReportTopBar = styled.div`
   display: flex;
@@ -74,6 +82,12 @@ export const ReportBodyLayout = styled.div`
 
   @media (max-width: 900px) {
     flex-direction: column;
+  }
+
+  /* The print/"Download as PDF" output is a separate tree (see PrintReportContent) styled to
+     match the reference kREATE Compass PDF — the on-screen dashboard doesn't print. */
+  @media print {
+    display: none;
   }
 `;
 
@@ -339,6 +353,9 @@ export const TraitCell = styled.div`
   display: flex;
   align-items: center;
   color: ${({ theme }) => theme.colors.text};
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 `;
 
 // Reliability Dashboard Metrics

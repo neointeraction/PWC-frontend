@@ -45,16 +45,29 @@ export const downloadXlsx = (
   XLSX.writeFile(wb, `${filename}.xlsx`);
 };
 
-// Renders a single form answer (free-form JSON on the backend) as a flat cell value.
+// Turns an object key like "mostHelpfulPart" or "most_helpful_part" into "Most Helpful Part".
+const toReadableLabel = (key: string): string =>
+  key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1));
+
+// Renders a single form answer (free-form JSON on the backend) as a flat, human-readable
+// cell value — never raw JSON, so counsellors see labelled text instead of `{"a":1}`.
 export const formatAnswerValue = (answer: unknown): string | number => {
   if (answer === null || answer === undefined || answer === '') return '—';
   if (typeof answer === 'string' || typeof answer === 'number') return answer;
+  if (typeof answer === 'boolean') return answer ? 'Yes' : 'No';
   if (Array.isArray(answer)) return answer.map(formatAnswerValue).join('; ');
   if (typeof answer === 'object') {
     const obj = answer as Record<string, unknown>;
     if ('label' in obj) return String(obj.label);
     if ('value' in obj) return String(obj.value);
-    return JSON.stringify(obj);
+    return Object.entries(obj)
+      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+      .map(([k, v]) => `${toReadableLabel(k)}: ${formatAnswerValue(v)}`)
+      .join(', ');
   }
   return String(answer);
 };

@@ -326,6 +326,7 @@ export const StudentFormChartPage: React.FC = () => {
 
           {activeStep === 3 && (
             <Step3SectionC
+              studentId={formData.studentId}
               data={formData.sectionC}
               onChangeNotesPre={(code, val) =>
                 setFormData(prev => ({

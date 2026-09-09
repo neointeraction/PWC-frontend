@@ -1,8 +1,9 @@
 // View-model types for the kREATE Compass Report page, assembled from
-// GET /api/v1/reports/students/{studentId}/assessment (docs/api-list.md "Reports").
-// A few sections of the original mock (Introduction copy, Roadmap phases, entrance
-// exams, shortlisted colleges) have no backend equivalent and were dropped rather than
-// bound to fabricated data — see src/services/reports.service.ts.
+// GET /api/v1/reports/students/{studentId}/assessment (docs/api-list.md "Reports"). The
+// printed/PDF-exported version of the report additionally reads counsellor-authored
+// session-local fields (roadmap grid, colleges/exams, notes) straight off the
+// GET /counsellor-chart/students/{studentId} response already fetched by
+// StudentCareerIkigaiReportPage.tsx — see sections/print/PrintReportContent.tsx.
 
 export interface TraitMapItem {
   no: number;
@@ -27,6 +28,9 @@ export interface StreamFitItem {
   subStream: string;
   coreSubjects: string;
   electives: string;
+  requirement: string;
+  gradingLevel: string;
+  meaning: string;
 }
 
 export interface GraduationPathwayItem {
@@ -35,6 +39,22 @@ export interface GraduationPathwayItem {
   degree: string;
   specialisations: string;
   keyExams: string;
+  reasoning: string;
+}
+
+export interface IndustryChoiceItem {
+  id: string;
+  cluster: string;
+  industry: string;
+  domain: string;
+  requirement: string;
+  gradingLevel: string;
+  meaning: string;
+}
+
+export interface ChampionTrait {
+  name: string;
+  description: string;
 }
 
 export interface CareerRecommendationCard {
@@ -48,6 +68,9 @@ export interface CareerRecommendationCard {
   aiResilience: string;
   salaryIndia: string;
   salaryAbroad: string;
+  fitScore: number | null;
+  level: string;
+  addedByCounsellor: boolean;
 }
 
 export interface StudentCareerIkigaiReportData {
@@ -64,6 +87,9 @@ export interface StudentCareerIkigaiReportData {
     snapshotSummary: string;
     coreStrengths: string[];
     hobbies: string[];
+    careerStyle: ChampionTrait;
+    personalSignature: ChampionTrait;
+    thinkingMode: ChampionTrait;
   };
   traitMap: TraitMapItem[];
   reliability: ReliabilityMetric[];
@@ -75,4 +101,5 @@ export interface StudentCareerIkigaiReportData {
     pathways: GraduationPathwayItem[];
   };
   careerCompass: CareerRecommendationCard[];
+  industryChoice: IndustryChoiceItem[];
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   RiAddLine,
   RiDeleteBinLine,
@@ -18,6 +18,7 @@ import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
 import { Badge } from '@/components/Badge';
 import { Select, SelectOption } from '@/components/Select';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks';
 import { careerService } from '@/services/career.service';
 import { Career } from '@/types/career.types';
@@ -39,7 +40,6 @@ import {
   CompDataRow,
   CompParamCell,
   CompResponseCell,
-  FormInput,
   FormTextarea,
   TableActionButton,
   StreamFitTableContainer,
@@ -50,6 +50,7 @@ import {
 } from '../StudentFormChartPage.styles';
 
 interface Step3SectionCProps {
+  studentId: string;
   data: CounsellorFormChartData['sectionC'];
   onChangeNotesPre: (code: string, value: string) => void;
   onChangeStreamTable?: (table: StreamFitItem[]) => void;
@@ -161,23 +162,30 @@ const synthesisRowsFDef = [
   },
 ];
 
-const AI_RESILIENCE_OPTIONS: SelectOption[] = [
-  { value: 'Low', label: 'Low' },
-  { value: 'Medium', label: 'Medium' },
-  { value: 'High', label: 'High' },
-  { value: 'Very High', label: 'Very High' },
-];
+// A counsellor-proposed/approved role fetched from the backend, reshaped to the same row
+// type the assessment-derived table uses so both render through one table.
+const toCompassItem = (career: Career, approvalStatus?: CareerCompassItem['approvalStatus']): CareerCompassItem => ({
+  id: career.id,
+  domain: career.domain,
+  role: career.jobRole,
+  whyItFits: career.oneLineDescription,
+  topEmployers: (career.topCompaniesRecruiting || []).join(', '),
+  aiResilience: career.aiResilienceGrading,
+  salaryIndia: career.approxSalaryRangeIndia || '',
+  salaryAbroad: career.globalSalaryRange || '',
+  approvalStatus,
+});
 
 export const Step3SectionC: React.FC<Step3SectionCProps> = ({
+  studentId,
   data,
   onChangeNotesPre,
   onChangeNotesE,
   onChangeWhyStream2,
   onChangeNotesF,
-  onChangeEntranceExamsTable,
-  onChangeCompassTable,
 }) => {
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   // "Load from CL" is disabled for now alongside the rest of the Career Compass editing
   // — kept here (commented) in case it's re-enabled later.
@@ -190,19 +198,22 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   //   );
   // };
 
-  // Counsellors can't edit the Career Compass tables directly — the only action left is
-  // proposing a brand-new job role. That reuses the same "Add Job Role" popup the Career
-  // Library admin screen uses; submitted by a counsellor, POST /career-library stages it
-  // as a CareerLibraryEntryProposal (pending Super Admin review) instead of a live entry
-  // — see PWC-backend career-library.service.ts `createCareerEntry`. The role is also
-  // appended to this candidate's own Career Compass table below, purely locally, so it
-  // shows up in this report right away.
+  // Counsellors can't edit the assessment-derived Career Compass rows directly — the only
+  // action left there is proposing a brand-new job role. That reuses the same "Add Job
+  // Role" popup the Career Library admin screen uses; submitted by a counsellor, POST
+  // /career-library stages it as a CareerLibraryEntryProposal (pending Super Admin
+  // review) tied to this student (studentId on the payload), instead of a live entry —
+  // see PWC-backend career-library.service.ts `createCareerEntry`. Once a Super Admin
+  // approves it, the same studentId carries over onto the real CareerLibraryEntry, so
+  // both queries below are what makes a counsellor's own added role show up here again
+  // (still pending, or now live) every time this chart is reopened.
   const [isRequestRoleOpen, setIsRequestRoleOpen] = useState(false);
   const [requestDomainId, setRequestDomainId] = useState('');
-  // A counsellor-proposed role (approvalStatus === 'Pending Admin Approval') can be edited
-  // or removed inline, purely in this table's local state — same as every other counsellor
-  // edit on this step, it's persisted by the normal step/form save, not a separate API call.
+  // Editing a still-pending proposal reopens the same JobRoleFormModal, pointed at that
+  // proposal (entityKind="proposal" switches it to the proposal detail/PATCH endpoints —
+  // see JobRoleFormModal). Deleting asks for confirmation first.
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
 
   const { data: domains = [] } = useQuery({
     queryKey: ['career-domains-all'],
@@ -216,28 +227,66 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   }));
   const selectedDomain = domains.find(d => d.id === requestDomainId);
 
-  const handleRoleProposed = (saved: Career) => {
-    onChangeCompassTable([
-      ...data.careerCompassTable,
-      {
-        id: `cc-${Date.now()}`,
-        domain: saved.domain,
-        role: saved.jobRole,
-        whyItFits: saved.oneLineDescription,
-        topEmployers: (saved.topCompaniesRecruiting || []).join(', '),
-        aiResilience: saved.aiResilienceGrading,
-        salaryIndia: saved.approxSalaryRangeIndia || '',
-        salaryAbroad: saved.globalSalaryRange || '',
-        approvalStatus: 'Pending Admin Approval',
-      },
-    ]);
+  const proposalsQueryKey = ['career-proposals', 'student', studentId];
+  const approvedQueryKey = ['career-approved', 'student', studentId];
+
+  const { data: myProposals = [] } = useQuery({
+    queryKey: proposalsQueryKey,
+    queryFn: () => careerService.listProposalsForStudent(studentId),
+    enabled: Boolean(studentId),
+    staleTime: 30_000,
+  });
+  const { data: myApprovedRoles = [] } = useQuery({
+    queryKey: approvedQueryKey,
+    queryFn: () => careerService.listApprovedForStudent(studentId),
+    enabled: Boolean(studentId),
+    staleTime: 30_000,
+  });
+
+  // The table always shows 6 roles total. Counsellor-added roles (pending or approved)
+  // always make the cut; system-generated ones fill the remaining slots, highest
+  // fitScore first — so a 7th added role bumps the lowest-scored system role, keeping
+  // the total at 6.
+  const MAX_COMPASS_ROLES = 6;
+  const addedRows: CareerCompassItem[] = [
+    ...myProposals.map(p => toCompassItem(p, 'Pending Admin Approval')),
+    ...myApprovedRoles.map(r => toCompassItem(r)),
+  ];
+  const systemSlots = Math.max(0, MAX_COMPASS_ROLES - addedRows.length);
+  const systemRows = [...data.careerCompassTable]
+    .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0))
+    .slice(0, systemSlots);
+  const compassRows: CareerCompassItem[] = [...systemRows, ...addedRows];
+
+  const handleRoleProposed = () => {
+    queryClient.invalidateQueries({ queryKey: proposalsQueryKey });
     toast.success(
       'Job Role Requested',
-      `"${saved.jobRole}" was submitted for Super Admin approval and added to this report.`
+      'Submitted for Super Admin approval and added to this report.'
     );
     setIsRequestRoleOpen(false);
     setRequestDomainId('');
   };
+
+  const editingRole = myProposals.find(p => p.id === editingRoleId);
+
+  const handleRoleEdited = () => {
+    queryClient.invalidateQueries({ queryKey: proposalsQueryKey });
+    toast.success('Job Role Updated', 'Your proposed role was updated.');
+    setEditingRoleId(null);
+  };
+
+  const deleteProposalMutation = useMutation({
+    mutationFn: (id: string) => careerService.deleteEntryProposal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: proposalsQueryKey });
+      toast.success('Job Role Removed', 'Your proposed role was withdrawn.');
+      setDeletingRoleId(null);
+    },
+    onError: () => {
+      toast.error('Could Not Remove', 'Failed to withdraw the proposed job role.');
+    },
+  });
 
   return (
     <>
@@ -428,173 +477,41 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         {/* Entrance Exams Section */}
         <div id="sec-c-entrance-exams" style={{ marginTop: '20px' }}>
           <SectionBlockTitle style={{ marginBottom: '12px' }}>Entrance Exams</SectionBlockTitle>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '16px',
-            }}
-          >
-            {(data.entranceExamsTable || []).map((exam, idx) => (
-              <div
+          <CompTableContainer style={{ overflowX: 'auto' }}>
+            <CompTableHeaderRow
+              style={{
+                gridTemplateColumns: '1fr 160px 120px 140px 140px 120px 160px',
+                minWidth: '1000px',
+              }}
+            >
+              <CompTableHeaderCell>Exam Name</CompTableHeaderCell>
+              <CompTableHeaderCell>Conducting Body</CompTableHeaderCell>
+              <CompTableHeaderCell>Level</CompTableHeaderCell>
+              <CompTableHeaderCell>Applicable For</CompTableHeaderCell>
+              <CompTableHeaderCell>Subject Requirements</CompTableHeaderCell>
+              <CompTableHeaderCell>Exam Month</CompTableHeaderCell>
+              <CompTableHeaderCell>Website</CompTableHeaderCell>
+            </CompTableHeaderRow>
+
+            {(data.entranceExamsTable || []).map(exam => (
+              <CompDataRow
                 key={exam.id}
                 style={{
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '4px',
-                  padding: '16px',
-                  backgroundColor: '#FFFFFF',
+                  gridTemplateColumns: '1fr 160px 120px 140px 140px 120px 160px',
+                  minWidth: '1000px',
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '12px',
-                  }}
-                >
-                  <h4 style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>
-                    Exam {idx + 1}: {exam.fullName || '[Exam Name]'}
-                  </h4>
-                  <Tooltip content="Delete Exam">
-                    <TableActionButton
-                      type="button"
-                      onClick={() =>
-                        onChangeEntranceExamsTable(
-                          data.entranceExamsTable.filter(e => e.id !== exam.id)
-                        )
-                      }
-                    >
-                      <RiDeleteBinLine size={16} />
-                    </TableActionButton>
-                  </Tooltip>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4B5563' }}>
-                      Full Name
-                    </span>
-                    <FormInput
-                      value={exam.fullName}
-                      onChange={e =>
-                        onChangeEntranceExamsTable(
-                          data.entranceExamsTable.map(item =>
-                            item.id === exam.id ? { ...item, fullName: e.target.value } : item
-                          )
-                        )
-                      }
-                      placeholder="[Full name of the exam]"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4B5563' }}>
-                      Conducting Body
-                    </span>
-                    <FormInput
-                      value={exam.conductingBody}
-                      onChange={e =>
-                        onChangeEntranceExamsTable(
-                          data.entranceExamsTable.map(item =>
-                            item.id === exam.id ? { ...item, conductingBody: e.target.value } : item
-                          )
-                        )
-                      }
-                      placeholder="[Conducting organisation]"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4B5563' }}>
-                      Level
-                    </span>
-                    <FormInput
-                      value={exam.level}
-                      onChange={e =>
-                        onChangeEntranceExamsTable(
-                          data.entranceExamsTable.map(item =>
-                            item.id === exam.id ? { ...item, level: e.target.value } : item
-                          )
-                        )
-                      }
-                      placeholder="[National / State / Institute]"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4B5563' }}>
-                      Applicable For
-                    </span>
-                    <FormInput
-                      value={exam.applicableFor}
-                      onChange={e =>
-                        onChangeEntranceExamsTable(
-                          data.entranceExamsTable.map(item =>
-                            item.id === exam.id ? { ...item, applicableFor: e.target.value } : item
-                          )
-                        )
-                      }
-                      placeholder="[Degree / Programme]"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4B5563' }}>
-                      Subject Requirements
-                    </span>
-                    <FormInput
-                      value={exam.subjectRequirements}
-                      onChange={e =>
-                        onChangeEntranceExamsTable(
-                          data.entranceExamsTable.map(item =>
-                            item.id === exam.id
-                              ? { ...item, subjectRequirements: e.target.value }
-                              : item
-                          )
-                        )
-                      }
-                      placeholder="[12th]"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4B5563' }}>
-                      Exam Month
-                    </span>
-                    <FormInput
-                      value={exam.examMonth}
-                      onChange={e =>
-                        onChangeEntranceExamsTable(
-                          data.entranceExamsTable.map(item =>
-                            item.id === exam.id ? { ...item, examMonth: e.target.value } : item
-                          )
-                        )
-                      }
-                      placeholder="[Approx]"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4B5563' }}>
-                      URL Link
-                    </span>
-                    <FormInput
-                      value={exam.urlLink}
-                      onChange={e =>
-                        onChangeEntranceExamsTable(
-                          data.entranceExamsTable.map(item =>
-                            item.id === exam.id ? { ...item, urlLink: e.target.value } : item
-                          )
-                        )
-                      }
-                      placeholder="[Paste the URL link]"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-              </div>
+                <CompParamCell>{exam.fullName}</CompParamCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{exam.conductingBody}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{exam.level}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{exam.applicableFor}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{exam.subjectRequirements}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{exam.examMonth}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{exam.urlLink}</CompResponseCell>
+              </CompDataRow>
             ))}
-          </div>
+          </CompTableContainer>
+          {/* Add Entrance Exam Card button is commented out to show table view
           <div style={{ marginTop: '12px' }}>
             <Button
               size="sm"
@@ -619,6 +536,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               Add Entrance Exam Card
             </Button>
           </div>
+          */}
         </div>
 
         {/* Why Stream 2 Textarea */}
@@ -722,8 +640,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '180px 160px 1fr 180px 220px 120px 120px',
-                minWidth: '1100px',
+                gridTemplateColumns: '220px 160px 1fr 180px 220px 120px 120px',
+                minWidth: '1140px',
               }}
             >
               <CompTableHeaderCell>Domain</CompTableHeaderCell>
@@ -735,53 +653,52 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompTableHeaderCell>Salary (Abroad)</CompTableHeaderCell>
             </CompTableHeaderRow>
 
-            {data.careerCompassTable.map(row => {
-              const isCounsellorAdded = row.approvalStatus === 'Pending Admin Approval';
-              const isEditing = isCounsellorAdded && editingRoleId === row.id;
-              const updateRow = (patch: Partial<CareerCompassItem>) =>
-                onChangeCompassTable(
-                  data.careerCompassTable.map(item =>
-                    item.id === row.id ? { ...item, ...patch } : item
-                  )
-                );
+            {compassRows.map(row => {
+              // Only a still-pending proposal (this counsellor's own) can be edited or
+              // withdrawn here — once a Super Admin approves it, it's a real
+              // CareerLibraryEntry and behaves like any other read-only compass row.
+              const isPending = row.approvalStatus === 'Pending Admin Approval';
+              const isDeleting = deleteProposalMutation.isPending && deleteProposalMutation.variables === row.id;
 
               return (
                 <CompDataRow
                   key={row.id}
                   style={{
-                    gridTemplateColumns: '180px 160px 1fr 180px 220px 120px 120px',
-                    minWidth: '1100px',
+                    gridTemplateColumns: '220px 160px 1fr 180px 220px 120px 120px',
+                    minWidth: '1140px',
                   }}
                 >
-                  <CompParamCell>
-                    {row.domain}
-                    {isCounsellorAdded && (
+                  <CompParamCell
+                    style={{
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      minWidth: 0,
+                      maxWidth: '100%',
+                    }}
+                  >
+                    <span>{row.domain}</span>
+                    {isPending && (
                       <span
                         style={{
-                          marginLeft: '6px',
-                          display: 'inline-flex',
+                          display: 'flex',
                           alignItems: 'center',
-                          gap: '4px',
+                          flexWrap: 'wrap',
+                          gap: '6px',
+                          maxWidth: '100%',
                         }}
                       >
                         <Badge variant="warning">Pending Approval</Badge>
-                        <Tooltip content={isEditing ? 'Done Editing' : 'Edit Job Role'}>
-                          <TableActionButton
-                            type="button"
-                            onClick={() => setEditingRoleId(isEditing ? null : row.id)}
-                          >
+                        <Tooltip content="Edit Job Role">
+                          <TableActionButton type="button" onClick={() => setEditingRoleId(row.id)}>
                             <RiPencilLine size={14} />
                           </TableActionButton>
                         </Tooltip>
                         <Tooltip content="Delete Job Role">
                           <TableActionButton
                             type="button"
-                            onClick={() => {
-                              onChangeCompassTable(
-                                data.careerCompassTable.filter(item => item.id !== row.id)
-                              );
-                              if (editingRoleId === row.id) setEditingRoleId(null);
-                            }}
+                            disabled={isDeleting}
+                            onClick={() => setDeletingRoleId(row.id)}
                           >
                             <RiDeleteBinLine size={14} />
                           </TableActionButton>
@@ -789,62 +706,12 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
                       </span>
                     )}
                   </CompParamCell>
-                  {isEditing ? (
-                    <>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>
-                        <FormInput
-                          value={row.role}
-                          onChange={e => updateRow({ role: e.target.value })}
-                          style={{ width: '100%' }}
-                        />
-                      </CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>
-                        <FormInput
-                          value={row.whyItFits}
-                          onChange={e => updateRow({ whyItFits: e.target.value })}
-                          style={{ width: '100%' }}
-                        />
-                      </CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>
-                        <FormInput
-                          value={row.topEmployers}
-                          onChange={e => updateRow({ topEmployers: e.target.value })}
-                          style={{ width: '100%' }}
-                        />
-                      </CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>
-                        <Select
-                          value={row.aiResilience}
-                          options={AI_RESILIENCE_OPTIONS}
-                          onChange={e => updateRow({ aiResilience: e.target.value })}
-                          fullWidth
-                        />
-                      </CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>
-                        <FormInput
-                          value={row.salaryIndia}
-                          onChange={e => updateRow({ salaryIndia: e.target.value })}
-                          style={{ width: '100%' }}
-                        />
-                      </CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>
-                        <FormInput
-                          value={row.salaryAbroad}
-                          onChange={e => updateRow({ salaryAbroad: e.target.value })}
-                          style={{ width: '100%' }}
-                        />
-                      </CompResponseCell>
-                    </>
-                  ) : (
-                    <>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.role}</CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.whyItFits}</CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.topEmployers}</CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.aiResilience}</CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryIndia}</CompResponseCell>
-                      <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryAbroad}</CompResponseCell>
-                    </>
-                  )}
+                  <CompResponseCell style={{ borderLeft: 'none' }}>{row.role}</CompResponseCell>
+                  <CompResponseCell style={{ borderLeft: 'none' }}>{row.whyItFits}</CompResponseCell>
+                  <CompResponseCell style={{ borderLeft: 'none' }}>{row.topEmployers}</CompResponseCell>
+                  <CompResponseCell style={{ borderLeft: 'none' }}>{row.aiResilience}</CompResponseCell>
+                  <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryIndia}</CompResponseCell>
+                  <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryAbroad}</CompResponseCell>
                 </CompDataRow>
               );
             })}
@@ -886,25 +753,35 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           </div>
           */}
 
-          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ minWidth: '260px' }}>
-              <Select
-                value={requestDomainId}
-                options={domainOptions}
-                onChange={e => setRequestDomainId(e.target.value)}
-                placeholder="Select a domain to propose a role in"
-                fullWidth
-              />
+          <div style={{ marginTop: '20px' }}>
+            <h4 style={{ 
+              fontSize: '0.875rem', 
+              fontWeight: 600, 
+              color: '#374151', 
+              marginBottom: '8px' 
+            }}>
+              Want to add a Job Role ?
+            </h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: '260px' }}>
+                <Select
+                  value={requestDomainId}
+                  options={domainOptions}
+                  onChange={e => setRequestDomainId(e.target.value)}
+                  placeholder="Select a domain to propose a role in"
+                  fullWidth
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                leftIcon={<RiAddLine size={16} />}
+                disabled={!requestDomainId}
+                onClick={() => setIsRequestRoleOpen(true)}
+              >
+                Request New Job Role
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="primary"
-              leftIcon={<RiAddLine size={16} />}
-              disabled={!requestDomainId}
-              onClick={() => setIsRequestRoleOpen(true)}
-            >
-              Request New Job Role
-            </Button>
           </div>
         </div>
       </SectionBlock>
@@ -914,10 +791,35 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         onClose={() => setIsRequestRoleOpen(false)}
         onSaved={handleRoleProposed}
         mode="add"
+        suppressSuccessToast
+        studentId={studentId}
         domainId={selectedDomain?.id}
         domainLabel={selectedDomain?.name}
         industryLabel={selectedDomain?.industryName}
         clusterLabel={selectedDomain?.clusterName}
+      />
+
+      <JobRoleFormModal
+        isOpen={Boolean(editingRoleId)}
+        onClose={() => setEditingRoleId(null)}
+        onSaved={handleRoleEdited}
+        mode="edit"
+        entityKind="proposal"
+        suppressSuccessToast
+        entity={editingRole}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingRoleId)}
+        onClose={() => setDeletingRoleId(null)}
+        onConfirm={() => {
+          if (deletingRoleId) deleteProposalMutation.mutate(deletingRoleId);
+        }}
+        title="Delete Job Role"
+        description="This will withdraw the proposed job role from Super Admin review and remove it from this report. This cannot be undone."
+        confirmLabel="Delete"
+        isDangerous
+        isLoading={deleteProposalMutation.isPending}
       />
 
       {/* Load-from-Career-Library is disabled for now — kept commented for easy

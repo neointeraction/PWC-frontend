@@ -5,11 +5,19 @@ sees it. Each item names the exact file(s) and, where one exists, the backend en
 should replace the mock. Tick items off as they land.
 
 - Branch: `integration`
-- Last updated: 2026-08-30
-- Backend reference: `docs/api-list.md` (last updated 2026-08-11)
+- Last updated: 2026-09-08 (full re-audit against source — see note below)
+- Backend reference: `docs/api-list.md` — **this file does not exist in the repo.** Drop this
+  reference; whatever it once was, it isn't checked in. `docs/frontend-integration-guide.md` is
+  the closest thing to a live backend reference now.
 
-**Current focus: Super Admin (§1) and App Admin (§2).** Counsellor (§3) and Student/Parent (§4)
-are parked until those two are closed.
+**2026-09-08 re-audit note:** most items below had drifted from reality — several marked ☐
+(open) turned out to already be fully bound to real endpoints, most notably almost all of
+**Counsellor (§3)** and **Student/Parent (§4)**, which this doc's "parked" note (below) had
+written off as still mock. Verify against source before trusting any single line here; this
+doc has a track record of lagging the actual code by several sessions.
+
+**Current focus: Super Admin (§1) and App Admin (§2)** — this is now stale as a scoping
+statement: §3/§4 are mostly done already (see below), not parked.
 
 Priority: **P1** = the page is visibly broken/empty or writes silently go nowhere ·
 **P2** = works, but on mock data · **P3** = cleanup / dead code.
@@ -27,15 +35,15 @@ Nav surface: Dashboard · Tenant Management · Career Library · Settings.
 | SA-3 | ✅ | P1 | ~~**Ratification service is mock-only.**~~ `ratificationsDb` and `mockPendingRatifications` are gone; `getRatificationRequests` / `getPendingRatifications` / `ratify` / `rejectRatification` call the real endpoints and map onto `PendingRatification`. Requester names are resolved from `GET /counsellors` (the request row only carries `requestedById`), failing soft to `—`. Was: `careerService.getPendingRatifications` / `ratify` / `rejectRatification` operate on an in-memory `ratificationsDb` seeded from `mockPendingRatifications`. The comment above them ("no backend endpoint exists yet") is stale — the endpoints are documented in `docs/api-list.md` → "Ratification requests". `src/services/career.service.ts:441,678-699` |
 | SA-4 | ☐ | P2 | **`PendingRatificationsPage` is orphaned.** It is exported from `src/pages/career-library/index.ts` but has no route in `src/app/routes.tsx` and no nav entry, so it is unreachable. Decide: route it (as the full review screen) or delete it and keep the dashboard table as the only surface. `src/pages/career-library/PendingRatifications/PendingRatifications.tsx` |
 | SA-5 | ✅ | P2 | ~~**`dashboardService.getSummary` is mock.**~~ It was a 300 ms artificial delay gating the whole page while rendering nothing. Call removed and `src/services/dashboard.service.ts` deleted. If the dashboard later wants real counts, build them from `GET /projects` / `GET /students` / `GET /career-library/requests`. |
-| SA-10 | ☐ | P1 | **Approving a request does not create the library entry.** `JobRoleApprovalModal` collects a full job-role form and hands it to `onApprove(data)`, but the dashboard ignores that payload — the request flips to `APPROVED` with no `resultingEntryId` and nothing lands in the career library, despite the toast saying it did. Blocker: the modal's cluster/industry/domain are free-text with hardcoded defaults, while `POST /career-library` needs a real `domainId`. Needs the modal switched to the taxonomy pickers (`careerService.getClusters/Industries/Domains`), then create-entry → approve-with-`resultingEntryId`. `src/pages/dashboard/components/JobRoleApprovalModal.tsx:31-58` |
+| SA-10 | ✅ | P1 | ~~**Approving a request does not create the library entry.**~~ Already fixed by the time this was picked up: `SuperAdminDashboard` opens the real `JobRoleFormModal` (`entityKind="proposal"`) instead of the dead `JobRoleApprovalModal`, which PATCHes `/career-library/proposals/{id}` with real taxonomy-backed fields and then `ratify()` POSTs `/career-library/proposals/{id}/approve`, which the backend promotes straight into a real `CareerLibraryEntry` from the proposal's own data. `JobRoleApprovalModal.tsx`/`.styles.ts` (hardcoded cluster/industry/domain defaults, never wired to `onApprove`) were dead code — only self-referenced in the barrel export — and have been deleted. `src/pages/dashboard/SuperAdminDashboard.tsx` |
 | SA-6 | ☐ | P2 | **Tenant Management: only the kREATE tab works.** The "Institution" and "Counselor" category tabs are `disabled: true, comingSoon: true`. The kREATE tab is fully bound to `/admins`. Confirm whether the other two are in scope; if yes, they need their own backing lists. `src/pages/tenant-management/TenantManagementPage.tsx:235-251` |
 | SA-7 | ✅ | P2 | ~~**Career library: education path is unbound.**~~ Bound against the live routes: `GET /career-library/education?domainId=` fills the tick-list, `?search=` backs a typeahead over the global library, `POST /career-library/education` creates a new row (APPROVED at once for an admin), and the ticked ids go out as `educationEntries` on the entry's create/update. New roles start with the domain's whole path ticked; an edit re-seeds from `linkedEducationEntries` and merges in any entry linked from outside the domain. `src/pages/career-library/components/JobRoleFormModal.tsx` |
 | SA-11 | ✅ | P2 | ~~**The free-text qualification fields still sit under the same Education Path heading.**~~ Removed from the form. Since `qualification10th12th` is still NOT NULL on the backend and the career detail's Education Path tab renders these columns, a **new** role now derives them from the ticked path: programmes join into the recommended-subjects line, their descriptions into the explanation/defined-pathway note. Creating without a ticked 10+2 entry is blocked client-side with a clear message rather than a raw 400. |
 | SA-12 | ☐ | P2 | **Editing a role's education ticks no longer updates its free-text qualification columns.** Edit deliberately omits them (PATCH leaves an omitted scalar alone), because the 1318 imported roles carry descriptive prose that a comma-joined list would destroy. Consequence: the career detail's Education Path tab still renders the old prose after a tick change. The proper fix is for that tab to render `linkedEducationEntries` instead of the legacy columns. `src/pages/career-library/tabs/EducationPathTab.tsx:160-176` |
 | SA-13 | ☐ | P2 | **Education entries can be added but not corrected, removed or reviewed.** The live backend exposes `PATCH` / `DELETE /career-library/education/{entryId}` (admin) plus an `approve` / `reject` / `restore` review flow — a counsellor-proposed entry lands `PENDING` and never reaches the pickers until an admin approves it. None of that is surfaced anywhere in the frontend, so there is no queue for those proposals. |
-| CC-4 | ☐ | P2 | **`docs/api-list.md` is stale on the education path.** It documents `GET/POST /career-taxonomy/domains/{id}/education` and `PATCH/DELETE /career-taxonomy/education/{entryId}`; those routes no longer exist. Education entries are now **global canonical rows** under `/career-library/education` (`search`, `level`, `status` defaulting to `APPROVED`, `domainId` to scope to a domain, `limit`), find-or-created and shared by every role that names them. Its "Last updated" line still reads 2026-08-11 — worth a refresh before the next module is bound. |
+| CC-4 | ✅ | P2 | ~~**`docs/api-list.md` is stale on the education path.**~~ Moot — `docs/api-list.md` doesn't exist in this repo at all (confirmed by `ls`), so there's nothing to refresh. The frontend already calls the current route (`/career-library/education`, `src/services/career.service.ts:894,915,929`), never the old `/career-taxonomy/domains/{id}/education` path this item warned about. |
 | SA-8 | ☐ | P3 | **Career taxonomy restore is unbound.** Cluster/industry/domain delete is a soft-delete on the backend and `POST /career-taxonomy/{level}/{id}/restore` exists, but the frontend has no restore path — a mistaken delete is unrecoverable from the UI. `src/services/career.service.ts:616-656` |
-| SA-9 | ☐ | P3 | **`settings.service.ts` is dead mock code.** `settingsService` is not imported anywhere; both settings screens use `authService.changePassword` and the theme store directly. Delete the service and the settings mocks it pulls in. `src/services/settings.service.ts`, `src/mocks/settings.mock.ts` |
+| SA-9 | ✅ | P3 | ~~**`settings.service.ts` is dead mock code.**~~ Already gone by the time this was picked up — `src/services/settings.service.ts` and `src/mocks/settings.mock.ts` no longer exist in the tree. |
 
 ## 2. App Admin
 
@@ -58,53 +66,63 @@ upload, career library entry CRUD + taxonomy CRUD, project students list, projec
 | AA-3e | ☐ | P2 | **"Copy meet link" fabricates a URL.** `handleCopyMeetLink` builds `https://meet.google.com/pwc-{counselorId}` and copies it to the clipboard — a link that goes nowhere and could be pasted to a parent. Real links are per **session** (`Session.meetingLink`, set via `PATCH /sessions/{id}/meeting-link`), while the button sits on the **counsellor** card, so there's no single link to copy. Needs a product decision: move it to the session row, or drop it. Left as-is rather than redesigning. `src/pages/projects/ProjectSessionsPage/ProjectSessionsPage.tsx` |
 | AA-3f | ☐ | P2 | **"Add Counselors" can only assign counsellors that already exist.** AA-3d/AA-4 made the matched path real (`POST /counsellors/{id}/projects`), but a row that isn't in the directory is reported as unassignable rather than created — `POST /counsellors` needs an `instituteId` and a temp-password flow the modal doesn't have. Decide whether this screen should create counsellors or only assign existing ones. |
 | AA-4 | ✅ | P2 | ~~**Counsellor match check uses mock emails.**~~ Done as a prerequisite for AA-3f: `validateCounselors` now matches against `getCounsellorDirectory()` (`GET /counsellors`) and carries the matched `directoryId` and `counsellorCode` through, which is what the project-assignment endpoint needs. |
-| AA-5 | ☐ | P2 | **Reports page is mock and unreachable.** The whole table comes from a hardcoded `mockReportData` keyed by `proj-001`, and `/reports` has no sidebar entry or in-app link. Real sources: `GET /students?projectId=`, `GET /sessions?projectId=`, `GET /reports/students/{id}/assessment`. Decide whether this page ships. `src/pages/reports/ReportsPage.tsx:50,138` |
+| AA-5 | ☐ | P2 | **Reports page is still mock; the "unreachable" half is now stale.** `ReportsPage.tsx:50,138` still hardcodes `mockReportData` keyed by `proj-001`, metric cards, and the export/download buttons (they just fire a toast). But `ROUTES.REPORTS` now has a real route in `src/app/routes.tsx` — it's reachable by URL — there's just still no sidebar/nav entry pointing at it (`src/components/Sidebar/Sidebar.tsx`). Real sources: `GET /students?projectId=`, `GET /sessions?projectId=`, `GET /reports/students/{id}/assessment`. Decide whether this page ships. `src/pages/reports/ReportsPage.tsx:50,138` |
 | AA-6 | ✅ | P2 | ~~**`proj-001` fallbacks.**~~ Cleared on all three project pages — every query is now `enabled: Boolean(projectId)`. |
 | AA-9 | ☐ | P2 | **Project banner still shows two hardcoded values.** The institute code badge is a literal `INS001`, and the location falls back to `'Mumbai, Maharashtra'` when absent — which is always, because `GET /projects/{id}` includes only `institute: {id, name}` (see `projectInclude` in the backend's `projects.service.ts`). Needs the institute's code/address added to that include, or a second `GET /institutes/{id}` call. Left as-is rather than changing the banner design. `src/pages/projects/ProjectDashboardPage/ProjectDashboardPage.tsx` |
-| AA-7 | ☐ | P3 | **`AdminDashboard` is dead code.** `Dashboard.tsx` redirects `admin` straight to Projects, so `AdminDashboard.tsx` and its three widgets (`ProjectStudentStatsWidget`, `ProjectCounselorStatsWidget`, `DataPurgingLogWidget`) never render — they are the only consumers of `DASHBOARD_MOCKS`. Delete them, or route them if an admin dashboard is actually wanted. `src/pages/dashboard/AdminDashboard.tsx`, `src/pages/dashboard/components/`, `src/mocks/dashboard.mock.ts` |
+| AA-7 | ✅ | P3 | ~~**`AdminDashboard` is dead code.**~~ `AdminDashboard.tsx` and the three widget `.tsx` files were already gone; their orphaned `.styles.ts` files (`AdminDashboard.styles.ts`, `ProjectStudentStatsWidget.styles.ts`, `ProjectCounselorStatsWidget.styles.ts`, `DataPurgingLogWidget.styles.ts`) and the now-unreferenced `src/mocks/dashboard.mock.ts` (`DASHBOARD_MOCKS`) have been deleted. |
 | AA-11 | ✅ | P1 | ~~**The four overview metric cards on the project dashboard are hardcoded.**~~ Counsellors and Total Students now read the project's `_count` (`counselorCount` / `studentCount`); Total Days and Remaining Days are computed from `validFrom`/`validTo`, pinned to UTC midnight so no day is gained or lost to the local timezone, and render `—` when the window is missing or inverted. Saving a student also invalidates `['project', projectId]` so the student card follows. |
-| AA-12 | ☐ | P2 | **The Add/Edit Student form has no Parent Email field, but `POST /students` requires `parentEmail`.** Creates currently fall back to the student's own email (the same fallback the import wizard uses), so a real parent address can never be entered from this screen. Adding the input is a form change — needs a design call. `src/pages/projects/ProjectStudentsPage/EditStudentModal.tsx` |
-| AA-13 | ☐ | P2 | **The modal's Email field can't be saved on edit.** `PATCH /students/{id}` has no `email` field — the login address lives on the `User` row and no admin endpoint changes it — yet the modal exposes an editable Email input plus a "Send new welcome email to updated address" checkbox that dispatches nothing. AA-2 makes the failure visible (a warning toast saying the email was not changed) rather than silently dropping it, but the real fix is either a backend endpoint or making the field read-only on edit. Design call. |
+| AA-12 | ✅ | P2 | ~~**The Add/Edit Student form has no Parent Email field.**~~ `EditStudentModal.tsx:233-237` now has a "Parent Email Address" input bound to `formData.parentEmail` with its own validation (lines 111-112). A real address can be entered. |
+| AA-13 | ☐ | P2 | **The modal's Email field can't be saved on edit.** `PATCH /students/{id}` has no `email` field — the login address lives on the `User` row and no admin endpoint changes it — yet the modal (`EditStudentModal.tsx:181-192`) exposes an editable Email input plus a "Send new welcome email to updated address" checkbox that still dispatches nothing (no PATCH call anywhere in the file sends `email`). AA-2 makes the failure visible (a warning toast saying the email was not changed) rather than silently dropping it, but the real fix is either a backend endpoint or making the field read-only on edit. Design call. |
 | AA-14 | ☐ | P3 | **The student-view modal on the sessions page no longer fabricates data**, but counsellor cards show a blank phone for anyone not in `GET /counsellors?projectId`. Minor; verify once real counsellors exist in the dev DB. |
-| AA-10 | ☐ | P3 | **`src/mocks/projects.mock.ts`, `src/mocks/projectStudents.mock.ts` and `src/mocks/counselors.mock.ts` are now unused** — AA-1, AA-2 and AA-3/AA-4 removed their last consumers. (`projectSessions.mock.ts` was deleted outright, as its type no longer compiled.) Delete them in the same pass as AA-7/SA-9. |
-| AA-8 | ☐ | P3 | **`AddToExistingJobRoleModal` is unreferenced** outside its own barrel export. Confirm it is obsolete and delete. `src/pages/dashboard/components/AddToExistingJobRoleModal.tsx` |
+| AA-10 | ✅ | P3 | ~~**`projects.mock.ts` / `projectStudents.mock.ts` / `counselors.mock.ts` unused.**~~ Already gone by the time this was picked up — none exist in `src/mocks/` any more. |
+| AA-8 | ✅ | P3 | ~~**`AddToExistingJobRoleModal` is unreferenced.**~~ Confirmed obsolete (only self-referenced in its own file and the barrel export) and deleted, along with its barrel export in `src/pages/dashboard/components/index.ts`. |
 
-## 3. Counsellor — parked
+## 3. Counsellor
 
-| # | Status | P | Item |
-|---|---|---|---|
-| CO-1 | ☐ | P1 | Counsellor Form Chart runs entirely on `studentFormChart.mock.ts` across ~12 step components. Backend: `GET/PUT /counsellor-chart/students/{id}` + mirror-pair amendment endpoints. |
-| CO-2 | ☐ | P1 | Student Ikigai / assessment report runs on `studentIkigaiReport.mock.ts` across 8 sections. Backend: `GET /reports/students/{id}/assessment`. |
-| CO-3 | ☐ | P1 | Upcoming Sessions and All Sessions use `getMockUpcomingSessions`. Backend: `GET /sessions/counsellors/{id}`, `GET /sessions/counsellors/{id}/my-students`. |
-| CO-4 | ☐ | P2 | `studentService.getStudentsByCounselor` / `getPreCounsellingForm` return module-level mock arrays. `src/services/student.service.ts:120,150,245,252` |
-| CO-5 | ☐ | P2 | `CounselorDashboard.tsx` is dead code — the counsellor role redirects to Upcoming Sessions. |
-| CO-6 | ☐ | P2 | Counsellor satisfaction score is not surfaced anywhere. Backend: `GET /feedback/counsellors/{id}/score`, `GET /feedback/students/{id}/score`. |
-
-## 4. Student / Parent — parked
+Was marked "parked" as of 2026-08-30; the 2026-09-08 re-audit found almost all of it already
+bound to real endpoints. No longer parked — CO-6 is the only real gap left.
 
 | # | Status | P | Item |
 |---|---|---|---|
-| ST-1 | ☐ | P2 | `StudentPortalPage` navigates to the report with a hardcoded `'sess-counselor-1'` session id. `src/pages/student/StudentPortalPage/StudentPortalPage.tsx:749,760` |
-| ST-2 | ☐ | P2 | Report view for students depends on CO-2 landing first. |
+| CO-1 | ✅ | P1 | ~~**Counsellor Form Chart runs entirely on `studentFormChart.mock.ts`.**~~ `StudentFormChartPage.tsx` and its ~12 step components call `counsellorChartService.getChart/saveChart/amendMirrorPair/revertMirrorPairAmendment` — real `GET/PUT /counsellor-chart/students/{id}` plus the mirror-pair amendment endpoints (`src/services/counsellorChart.service.ts:29-50`). `studentFormChart.mock.ts` still exists but now holds only TypeScript interfaces (18 `export interface`s, no data), imported purely for types. |
+| CO-2 | ✅ | P1 | ~~**Student Ikigai / assessment report runs on `studentIkigaiReport.mock.ts`.**~~ `studentIkigaiReport.mock.ts` doesn't exist any more. `StudentCareerIkigaiReportPage` and all 7 section components call real `reportsService`/`counsellorChartService`/`sessionsService`, backed by `GET /reports/students/{id}/assessment`. |
+| CO-3 | ✅ | P1 | ~~**Upcoming Sessions and All Sessions use `getMockUpcomingSessions`.**~~ That function no longer exists anywhere in the repo (zero grep hits). |
+| CO-4 | ✅ | P2 | ~~**`studentService.getStudentsByCounselor` / `getPreCounsellingForm` return module-level mock arrays.**~~ Neither function name exists anywhere in `src` any more — refactored away. |
+| CO-5 | ✅ | P2 | ~~**`CounselorDashboard.tsx` is dead code.**~~ The file has been deleted outright, not just left unrouted. |
+| CO-6 | ☐ | P2 | Counsellor satisfaction score is not surfaced anywhere. Backend: `GET /feedback/counsellors/{id}/score`, `GET /feedback/students/{id}/score`. Confirmed still open — no scoring UI anywhere; the only related hit is an unrelated "Overall Satisfaction" field on `StudentFeedbackFormPage.tsx`. |
+| CO-7 | ☐(backend) | P2 | **Frontend is fully wired; the backend endpoint is the only gap.** `StudentCareerIkigaiReportPage.tsx:115-119,249` calls `acceptReportMutation` → `reportsService.acceptReport(studentId)` → `POST /reports/students/{id}/accept` (`src/services/reports.service.ts:208-210`), and the accepted state is meant to persist via an acceptance field on the GET response. The service's own comment (lines 205-208) confirms the backend route doesn't exist yet, so the accepted state still only lives in local component state and resets on reload. This is a backend ticket now, not frontend work. |
+
+## 4. Student / Parent
+
+Was marked "parked"; both items here are resolved now that CO-2 landed.
+
+| # | Status | P | Item |
+|---|---|---|---|
+| ST-1 | ✅ | P2 | ~~**`StudentPortalPage` navigates to the report with a hardcoded `'sess-counselor-1'` session id.**~~ Gone — navigation now uses `ROUTES.GENERATE_REPORT.replace(':sessionId', session1?.id ?? '')` with `session1` resolved from the student's real session data (`StudentPortalPage.tsx:114,705,716`). |
+| ST-2 | ✅ | P2 | ~~**Report view for students depends on CO-2 landing first.**~~ CO-2 landed. There's no separate student-facing report page — `/counselor/report/:sessionId` (`GENERATE_REPORT`, `src/app/routes.tsx:194`) routes to the same real `StudentCareerIkigaiReportPage`, on real data regardless of which role reaches it. |
 
 ## 5. Cross-cutting
 
 | # | Status | P | Item |
 |---|---|---|---|
 | CC-1 | ☐ | P3 | `CLAUDE.md` still says the Projects soft-delete/restore model is a mock-only `master` invention that must be resolved against `integration`. No longer true — the backend has `DELETE /projects/{id}` (soft-delete) and `PATCH /projects/{id}/restore`, and `project.service.ts:190,194` already binds both. Remove that paragraph. |
-| CC-2 | ☐ | P3 | Stale comment in `src/services/career.service.ts:678` claiming the career library is read-only with no ratification endpoints. Fix when SA-3 lands. |
-| CC-3 | ☐ | P3 | No frontend binding for `GET /languages`, `GET /cohorts`, or the Email module. Confirm none of the admin screens need them. |
+| CC-2 | ✅ | P3 | ~~**Stale comment claiming the career library is read-only with no ratification endpoints.**~~ Gone — the comment near `career.service.ts:656-663` now correctly describes the real proposal/ratification flow (`/career-library/proposals`, renamed from `/career-library/requests`), and calls out that it's `docs/api-list.md` that's stale on the naming, not the frontend. |
+| CC-3 | ☐ | P3 | No frontend binding for `GET /languages` or `GET /cohorts` — confirmed zero hits in `src/services` for either. Email module not independently re-checked this pass. Confirm none of the admin screens need them. |
 
 ---
 
 ## Suggested order
 
-1. ~~SA-1 → SA-2 → SA-3 → SA-5 (the super admin dashboard becomes real).~~ **Done.**
-1a. SA-10 — approving must actually create the library entry (found while doing SA-2).
-2. ~~AA-1 + AA-1b (project dashboard shows, closes and deletes the right project).~~ **Done.**
-3. ~~AA-2 (student add/edit persists).~~ **Done.**
-4. AA-3 (session changes persist).
-5. ~~AA-11 (project dashboard metrics).~~ **Done.**
-6. ~~AA-3a–d + AA-4 + AA-6 (project sessions page).~~ **Done.**
-7. AA-3e / AA-3f / AA-12 / AA-13 — all four need a product or design call, not code.
-6. SA-4/SA-5/SA-6 and the P3 cleanups, once the above are verified.
+Everything through AA-11 below is **done**. What's actually left, in rough priority:
+
+1. **CO-6** — counsellor satisfaction score isn't surfaced anywhere (only real P1/P2 gap left in Counsellor).
+2. **AA-9 / AA-13 / AA-3e / AA-3f / AA-12(done)** — remaining App Admin gaps; AA-3e/3f/AA-13 need a product or design call, not just code. (AA-12 is now done.)
+3. **SA-4 / SA-6 / SA-8 / SA-12 / SA-13** — Super Admin P2/P3 items, all confirmed still open.
+4. **AA-5** — decide whether the Reports page ships; if yes, bind it for real and add the nav entry (it's reachable by URL now, just not linked).
+5. **AA-8** — delete `AddToExistingJobRoleModal.tsx` (confirmed unreferenced dead code).
+6. **CO-7** — needs a backend endpoint (`POST /reports/students/{id}/accept` + an acceptance flag on the assessment GET); frontend side is already done.
+7. **CC-1** — remove the stale Projects soft-delete paragraph from `CLAUDE.md` (still present as of this audit).
+8. **CC-3** — confirm `/languages`, `/cohorts`, and the Email module aren't needed anywhere.
+
+~~SA-1 → SA-2 → SA-3 → SA-5, SA-9, SA-10, SA-11~~ · ~~AA-1/1b/2/2b/3a-d/4/6/7/10/11/12~~ ·
+~~CO-1/2/3/4/5~~ · ~~ST-1/2~~ · ~~CC-2/CC-4~~ — all confirmed done as of the 2026-09-08 re-audit.

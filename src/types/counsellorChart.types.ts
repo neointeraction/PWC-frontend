@@ -108,11 +108,12 @@ export interface DomainFit {
   cluster: string;
   industry: string;
   domain: string;
-  fitScore: number;
+  fitScore: number | null;
   level: string;
   meaning: string;
   bestAiResilienceRank: number;
   representativeCareer: RepresentativeCareer | null;
+  addedByCounsellor: boolean;
 }
 
 export interface IndustryRollup {

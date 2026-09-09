@@ -79,6 +79,8 @@ export interface PendingRatification {
   justification?: string;
   referenceLinks?: string[];
   resultingEntryId?: string | null;
+  // null when the proposal has no linked student.
+  session2Completed?: boolean | null;
 }
 
 export interface CareerFilters {

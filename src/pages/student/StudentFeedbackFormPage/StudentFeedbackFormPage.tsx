@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-import { RiSaveLine } from 'react-icons/ri';
 import {
   RiArrowLeftLine,
   RiCheckLine,
@@ -20,6 +19,7 @@ import { ROUTES } from '@/constants';
 import { SuccessModal } from '@/components';
 import { useToast, useCurrentStudent } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion, McqOption } from '@/services/forms.service';
+import { sessionsService } from '@/services/sessions.service';
 import { getApiErrorMessage } from '@/utils';
 import { isAnswerEmpty } from '../PreCounsellingFormPage/QuestionRenderer';
 import {
@@ -40,6 +40,7 @@ import {
   SectionTitleText,
   QuestionCard,
   QuestionTitle,
+  QuestionErrorText,
   RatingOptionsGroup,
   RatingOptionButton,
   OptionScoreBadge,
@@ -52,23 +53,12 @@ import {
 // Every question, its section grouping, and its rating-scale options come from the real
 // GET /forms/FEEDBACK_STUDENT template — nothing here is hardcoded per-question. Section
 // icons/order are a fixed 1:1 mapping onto the template's 5 sections (Session Experience,
-// Clarity & Decision Confidence, Outcome Quality, Overall Satisfaction, Open Feedback), and
-// the default ratings mirror what this page always pre-selected, keyed by position rather
-// than a hardcoded fieldKey so the visual behaviour is unchanged.
+// Clarity & Decision Confidence, Outcome Quality, Overall Satisfaction, Open Feedback).
 // ─────────────────────────────────────────────────────────────
 
 const COHORT = 'CLASS_9_10';
 
 const SECTION_ICONS = [RiEmotionHappyLine, RiCompass3Line, RiAwardLine, RiStarLine, RiChat3Line];
-
-// Defaults this page has always pre-selected, by section position then question position.
-const SECTION_DEFAULTS: Array<Array<number | ''>> = [
-  [5, 5, 5, 5],
-  [4, 5, 4, 5],
-  [5, 4, 5],
-  [5, 5],
-  ['', ''],
-];
 
 const cleanSectionLabel = (label: string): string =>
   label
@@ -99,6 +89,15 @@ export const StudentFeedbackFormPage: React.FC = () => {
     staleTime: 30_000,
   });
 
+  const { data: sessions } = useQuery({
+    queryKey: ['student-sessions', me?.id],
+    queryFn: () => sessionsService.getStudentSessions(me!.id),
+    enabled: !!me?.id,
+    staleTime: 60_000,
+  });
+
+  const assignedCounsellor = sessions?.find(s => s.status !== 'CANCELLED')?.counsellor;
+
   const sections = useMemo(() => {
     const questions = [...(template?.questions ?? [])].sort((a, b) => a.order - b.order);
     const bySection = new Map<string, FormQuestion[]>();
@@ -119,23 +118,10 @@ export const StudentFeedbackFormPage: React.FC = () => {
   }, [template]);
 
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
-  const defaultsAppliedRef = useRef(false);
+  const [errorFieldKeys, setErrorFieldKeys] = useState<Set<string>>(new Set());
+  const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Pre-select the same defaults this page always opened with (by position), once.
-  useEffect(() => {
-    if (defaultsAppliedRef.current || sections.length === 0) return;
-    defaultsAppliedRef.current = true;
-    const defaults: Record<string, unknown> = {};
-    sections.forEach((section, sIdx) => {
-      section.questions.forEach((q, qIdx) => {
-        const value = SECTION_DEFAULTS[sIdx]?.[qIdx];
-        if (value !== undefined) defaults[q.fieldKey] = value === '' ? '' : value;
-      });
-    });
-    setAnswers(prev => ({ ...defaults, ...prev }));
-  }, [sections]);
-
-  // Prefill from a previously saved submission (overrides the defaults above).
+  // Prefill from a previously saved submission, if one exists.
   useEffect(() => {
     if (!existingSubmission) return;
     setAnswers(prev => ({
@@ -146,6 +132,12 @@ export const StudentFeedbackFormPage: React.FC = () => {
 
   const setAnswer = (fieldKey: string, value: unknown) => {
     setAnswers(prev => ({ ...prev, [fieldKey]: value }));
+    setErrorFieldKeys(prev => {
+      if (!prev.has(fieldKey)) return prev;
+      const next = new Set(prev);
+      next.delete(fieldKey);
+      return next;
+    });
   };
 
   const buildAnswers = (): FormAnswerItem[] =>
@@ -170,15 +162,6 @@ export const StudentFeedbackFormPage: React.FC = () => {
     },
   });
 
-  const saveDraftMutation = useMutation({
-    mutationFn: () => formsService.saveDraft('FEEDBACK_STUDENT', me!.id, { cohort, answers: buildAnswers() }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['form-submission', 'FEEDBACK_STUDENT', me?.id, cohort] });
-      toast.success('Draft Saved', 'Your feedback has been saved — you can come back and finish later.');
-    },
-    onError: (err: unknown) => toast.error('Error', getApiErrorMessage(err, 'Failed to save your draft.')),
-  });
-
   const onSubmit = () => {
     if (!me?.id) {
       localStorage.setItem('pwc_student_feedback_submitted', 'true');
@@ -189,21 +172,16 @@ export const StudentFeedbackFormPage: React.FC = () => {
       q => q.isRequired && isAnswerEmpty(answers[q.fieldKey])
     );
     if (missing.length > 0) {
+      setErrorFieldKeys(new Set(missing.map(q => q.fieldKey)));
       toast.error(
         'Some answers are missing',
         `Please answer all required questions before submitting (${missing.length} remaining).`
       );
+      questionRefs.current[missing[0].fieldKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    setErrorFieldKeys(new Set());
     submitMutation.mutate();
-  };
-
-  const handleSaveDraft = () => {
-    if (!me?.id) {
-      toast.info('Please wait', 'Your student record is still loading — try again in a moment.');
-      return;
-    }
-    saveDraftMutation.mutate();
   };
 
   const handleConfirmCompletion = useCallback(() => {
@@ -255,7 +233,10 @@ export const StudentFeedbackFormPage: React.FC = () => {
               <MetaItem>
                 <MetaLabel>Counsellor</MetaLabel>
                 <MetaValue style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <RiUserHeartLine size={16} /> Dr. Rajeshwari Menon (M.Sc Psych)
+                  <RiUserHeartLine size={16} />{' '}
+                  {assignedCounsellor
+                    ? `${assignedCounsellor.user.firstName} ${assignedCounsellor.user.lastName}`
+                    : '—'}
                 </MetaValue>
               </MetaItem>
             </StudentMetaGrid>
@@ -270,9 +251,16 @@ export const StudentFeedbackFormPage: React.FC = () => {
                   <SectionTitleText>{section.label}</SectionTitleText>
                 </SectionHeader>
 
-                {section.questions.map((q, idx) =>
-                  q.questionType === 'OPEN_TEXT' ? (
-                    <QuestionCard key={q.id}>
+                {section.questions.map((q, idx) => {
+                  const hasError = errorFieldKeys.has(q.fieldKey);
+                  return q.questionType === 'OPEN_TEXT' ? (
+                    <QuestionCard
+                      key={q.id}
+                      ref={el => {
+                        questionRefs.current[q.fieldKey] = el;
+                      }}
+                      $hasError={hasError}
+                    >
                       <QuestionTitle>
                         {idx + 1}. {q.questionText}
                       </QuestionTitle>
@@ -285,9 +273,16 @@ export const StudentFeedbackFormPage: React.FC = () => {
                         value={(answers[q.fieldKey] as string) ?? ''}
                         onChange={e => setAnswer(q.fieldKey, e.target.value)}
                       />
+                      {hasError && <QuestionErrorText>This question is required.</QuestionErrorText>}
                     </QuestionCard>
                   ) : (
-                    <QuestionCard key={q.id}>
+                    <QuestionCard
+                      key={q.id}
+                      ref={el => {
+                        questionRefs.current[q.fieldKey] = el;
+                      }}
+                      $hasError={hasError}
+                    >
                       <QuestionTitle>
                         {idx + 1}. {q.questionText}
                       </QuestionTitle>
@@ -308,9 +303,10 @@ export const StudentFeedbackFormPage: React.FC = () => {
                           );
                         })}
                       </RatingOptionsGroup>
+                      {hasError && <QuestionErrorText>This question is required.</QuestionErrorText>}
                     </QuestionCard>
-                  )
-                )}
+                  );
+                })}
               </SectionBlock>
             ))}
 
@@ -323,15 +319,6 @@ export const StudentFeedbackFormPage: React.FC = () => {
                 onClick={() => navigate(ROUTES.STUDENT_PORTAL)}
               >
                 Back to Dashboard
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                leftIcon={<RiSaveLine size={16} />}
-                isLoading={saveDraftMutation.isPending}
-                onClick={handleSaveDraft}
-              >
-                Save Draft
               </Button>
               <Button
                 type="submit"

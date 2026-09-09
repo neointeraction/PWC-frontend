@@ -118,6 +118,7 @@ export const AllSessionsPage: React.FC = () => {
   const sortedAndFilteredSessions = useMemo(() => {
     return [...sessions]
       .filter(s => {
+        if (selectedProjectId && s.projectId !== selectedProjectId) return false;
         if (!dateFilter) return true;
         const sessionDate = dayjs(s.dateTime).format('YYYY-MM-DD');
         return sessionDate === dateFilter;
@@ -127,7 +128,7 @@ export const AllSessionsPage: React.FC = () => {
         const timeB = new Date(b.dateTime).getTime();
         return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
       });
-  }, [sessions, dateFilter, sortOrder]);
+  }, [sessions, selectedProjectId, dateFilter, sortOrder]);
 
   const handleToggleDateSort = () => {
     setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
