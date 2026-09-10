@@ -11,7 +11,7 @@ import { careerService } from '@/services/career.service';
 import { counsellorChartService } from '@/services/counsellorChart.service';
 import { useNotificationStore } from '@/store';
 import { formatDateTime, getApiErrorMessage } from '@/utils';
-import { PendingRatification, Career } from '@/types';
+import { PendingRatification } from '@/types';
 import { ManualEntryRow } from '@/types/counsellorChart.types';
 import { StudentWorkflowStatus } from '@/types/student.types';
 import { ROUTES } from '@/constants';
@@ -235,15 +235,10 @@ export const SuperAdminDashboard: React.FC = () => {
     setIsJobRoleModalOpen(true);
   };
 
-  const handleJobRoleSaved = (saved: any, savedMode: 'add' | 'edit') => {
+  const handleJobRoleSaved = () => {
     // Handle the successful save - this would be equivalent to approval
     if (!selectedRequest) return;
     reviewMutation.mutate({ id: selectedRequest.id, decision: 'approve' });
-  };
-
-  const handleReject = () => {
-    if (!selectedRequest) return;
-    reviewMutation.mutate({ id: selectedRequest.id, decision: 'reject' });
   };
 
   const columns: Column<DashboardRow>[] = [

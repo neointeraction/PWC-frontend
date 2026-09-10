@@ -52,6 +52,7 @@ interface ApiCounsellorDir {
   id: string;
   counsellorCode: string;
   mobile: string;
+  meetingLink?: string | null;
   user?: { firstName: string; lastName: string; email: string };
 }
 
@@ -604,6 +605,7 @@ export const projectService = {
       counselorName: v.name,
       counselorEmail: v.email || contact?.user?.email || '',
       counselorPhone: contact?.mobile ?? '',
+      counselorMeetingLink: contact?.meetingLink ?? undefined,
       timeSlots: v.timeSlots,
       slots: v.slots.sort((a, b) =>
         a.slotDate === b.slotDate

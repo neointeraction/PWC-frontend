@@ -2,6 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { Card } from '@/components/Card';
 import { Career } from '@/types';
+import { DomainEducationEntry } from '@/services/career.service';
 
 const Container = styled.div`
   display: flex;
@@ -132,6 +133,10 @@ const CertPill = styled.span`
 
 interface EducationPathTabProps {
   role: Career;
+  // Structured education-path ticks (SA-12): once a role has entries for a level, they
+  // take over that step from the legacy free-text columns, which an edit no longer
+  // keeps in sync (see docs/pending-items.md SA-12).
+  linkedEducationEntries?: DomainEducationEntry[];
 }
 
 // Certifications arrive as a '; '-joined string from the mapper — split back to pills.
@@ -141,7 +146,19 @@ const toList = (value?: string): string[] =>
     .map(item => item.trim())
     .filter(Boolean);
 
-export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
+const byLevel = (entries: DomainEducationEntry[], level: DomainEducationEntry['level']) =>
+  entries.filter(e => e.level === level);
+
+export const EducationPathTab: React.FC<EducationPathTabProps> = ({
+  role,
+  linkedEducationEntries = [],
+}) => {
+  const class10Plus2 = byLevel(linkedEducationEntries, 'CLASS_10_PLUS_2');
+  const graduate = byLevel(linkedEducationEntries, 'GRADUATE');
+  const postGraduate = byLevel(linkedEducationEntries, 'POST_GRADUATE');
+  const studentCertEntries = byLevel(linkedEducationEntries, 'CERTIFICATION_STUDENT');
+  const ugCertEntries = byLevel(linkedEducationEntries, 'CERTIFICATION_UG');
+
   const studentCerts = toList(role.certificationsStudents);
   const ugCerts = toList(role.certificationsUG);
 
@@ -157,25 +174,58 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
         <StepGrid>
           <StepCard>
             <StepLabel>10+2</StepLabel>
-            <StepTitle>{role.minQual10th12thRecommendedSubjects || '—'}</StepTitle>
-            {role.qualification10th12thExplanation && (
-              <StepSubtitle>{role.qualification10th12thExplanation}</StepSubtitle>
+            {class10Plus2.length > 0 ? (
+              class10Plus2.map(entry => (
+                <React.Fragment key={entry.id}>
+                  <StepTitle>{entry.programme}</StepTitle>
+                  {entry.description && <StepSubtitle>{entry.description}</StepSubtitle>}
+                </React.Fragment>
+              ))
+            ) : (
+              <>
+                <StepTitle>{role.minQual10th12thRecommendedSubjects || '—'}</StepTitle>
+                {role.qualification10th12thExplanation && (
+                  <StepSubtitle>{role.qualification10th12thExplanation}</StepSubtitle>
+                )}
+              </>
             )}
           </StepCard>
 
           <StepCard>
             <StepLabel>GRADUATE</StepLabel>
-            <StepTitle>{role.minQualGradRecommendedSubjects || '—'}</StepTitle>
-            {role.qualificationGraduationDefined && (
-              <StepSubtitle>{role.qualificationGraduationDefined}</StepSubtitle>
+            {graduate.length > 0 ? (
+              graduate.map(entry => (
+                <React.Fragment key={entry.id}>
+                  <StepTitle>{entry.programme}</StepTitle>
+                  {entry.description && <StepSubtitle>{entry.description}</StepSubtitle>}
+                </React.Fragment>
+              ))
+            ) : (
+              <>
+                <StepTitle>{role.minQualGradRecommendedSubjects || '—'}</StepTitle>
+                {role.qualificationGraduationDefined && (
+                  <StepSubtitle>{role.qualificationGraduationDefined}</StepSubtitle>
+                )}
+              </>
             )}
           </StepCard>
 
           <StepCard>
             <StepLabel>POST-GRADUATE</StepLabel>
-            <StepTitle>{role.minQualPGRecommendedSubjects || '—'}</StepTitle>
-            {role.qualificationPGDefined && (
-              <StepSubtitle>{role.qualificationPGDefined}</StepSubtitle>
+            {postGraduate.length > 0 ? (
+              postGraduate.map(entry => (
+                <React.Fragment key={entry.id}>
+                  <StepTitle>{entry.programme}</StepTitle>
+                  {entry.description && <StepSubtitle>{entry.description}</StepSubtitle>}
+                </React.Fragment>
+              ))
+            ) : (
+              <>
+                <StepTitle>{role.minQualPGRecommendedSubjects || '—'}</StepTitle>
+                {role.qualificationPGDefined && (
+                  <StepSubtitle>{role.qualificationPGDefined}</StepSubtitle>
+                )}
+              </>
             )}
           </StepCard>
         </StepGrid>
@@ -185,7 +235,9 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
         <CertCard>
           <CertTitle>Certifications — Student Level</CertTitle>
           <PillGroup>
-            {studentCerts.length > 0 ? (
+            {studentCertEntries.length > 0 ? (
+              studentCertEntries.map(entry => <CertPill key={entry.id}>{entry.programme}</CertPill>)
+            ) : studentCerts.length > 0 ? (
               studentCerts.map((cert, i) => <CertPill key={i}>{cert}</CertPill>)
             ) : (
               <StepSubtitle>No certifications listed.</StepSubtitle>
@@ -196,7 +248,9 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
         <CertCard>
           <CertTitle>Certifications — Undergraduate Level</CertTitle>
           <PillGroup>
-            {ugCerts.length > 0 ? (
+            {ugCertEntries.length > 0 ? (
+              ugCertEntries.map(entry => <CertPill key={entry.id}>{entry.programme}</CertPill>)
+            ) : ugCerts.length > 0 ? (
               ugCerts.map((cert, i) => <CertPill key={i}>{cert}</CertPill>)
             ) : (
               <StepSubtitle>No certifications listed.</StepSubtitle>

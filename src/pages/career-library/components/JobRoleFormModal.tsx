@@ -403,11 +403,15 @@ const EducationPathSection: React.FC<{
         <>
           {ordered.length > 0 && (
             <>
-              <S.FieldLabel>Included with this role (tick / untick):</S.FieldLabel>
+              <S.FieldLabel>Included with this role — untick to delete:</S.FieldLabel>
               <S.ExistingEntriesList>
                 {ordered.map(entry => (
                   <S.EducationEntryRow key={entry.id}>
-                    <Checkbox checked={checkedIds.has(entry.id)} onChange={() => onToggle(entry.id)} />
+                    <Checkbox
+                      checked={checkedIds.has(entry.id)}
+                      onChange={() => onToggle(entry.id)}
+                      label={checkedIds.has(entry.id) ? 'No Delete' : 'Delete'}
+                    />
                     <S.EducationEntryText>
                       <S.EducationLevelName>
                         {EDUCATION_LEVEL_LABEL[entry.level]}:

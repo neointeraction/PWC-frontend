@@ -15,6 +15,7 @@ import {
   RiEditLine,
 } from 'react-icons/ri';
 import { EducationPathTab } from '../tabs/EducationPathTab';
+import { DomainEducationEntry } from '@/services/career.service';
 import { EntranceExamsTab } from '../tabs/EntranceExamsTab';
 import { CoursesTab } from '../tabs/CoursesTab';
 import { InstitutionsTab } from '../tabs/InstitutionsTab';
@@ -251,6 +252,7 @@ interface JobRoleDetailViewProps {
   courses: CourseDetail[];
   relatedCourses?: CourseDetail[];
   institutions: InstitutionDetail[];
+  linkedEducationEntries?: DomainEducationEntry[];
   onEditRole?: (role: Career) => void;
 }
 
@@ -262,6 +264,7 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
   courses,
   relatedCourses,
   institutions,
+  linkedEducationEntries,
   onEditRole,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -391,7 +394,9 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
             </SectionGrid>
           )}
 
-          {activeTab === 'education' && <EducationPathTab role={role} />}
+          {activeTab === 'education' && (
+            <EducationPathTab role={role} linkedEducationEntries={linkedEducationEntries} />
+          )}
 
           {activeTab === 'exams' && <EntranceExamsTab exams={entranceExams} />}
 

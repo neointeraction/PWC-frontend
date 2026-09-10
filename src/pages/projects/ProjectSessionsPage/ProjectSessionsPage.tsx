@@ -245,8 +245,14 @@ export const ProjectSessionsPage: React.FC = () => {
   };
 
   const handleCopyMeetLink = (session: CounselorSession) => {
-    const link = `https://meet.google.com/pwc-${session.counselorId.toLowerCase()}`;
-    navigator.clipboard.writeText(link);
+    if (!session.counselorMeetingLink) {
+      toast.error(
+        'No Meet Link',
+        `${session.counselorName} has no meeting link on file. Add one from Counselors List.`
+      );
+      return;
+    }
+    navigator.clipboard.writeText(session.counselorMeetingLink);
     toast.success(
       'Link Copied',
       `Google Meet link for ${session.counselorName} copied to clipboard.`

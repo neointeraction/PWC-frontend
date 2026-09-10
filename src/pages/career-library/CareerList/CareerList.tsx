@@ -19,7 +19,7 @@ import { DomainsView } from '../views/DomainsView';
 import { JobRolesView } from '../views/JobRolesView';
 import { JobRoleDetailView } from '../views/JobRoleDetailView';
 import { SimpleView } from '../views/SimpleView';
-import { RiLayoutGridLine, RiListCheck2, RiAddLine } from 'react-icons/ri';
+import { RiLayoutGridLine, RiListCheck2, RiAddLine, RiArrowGoBackLine } from 'react-icons/ri';
 
 type TaxonomyModalState = {
   level: TaxonomyLevel;
@@ -74,6 +74,33 @@ const ContentCard = styled.div`
   padding: ${({ theme }) => theme.spacing.xl};
 `;
 
+const UndoBanner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
+  background-color: ${({ theme }) => theme.colors.primaryLight};
+  border: 1px solid ${({ theme }) => theme.colors.primary}33;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const UndoButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.colors.primary};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  cursor: pointer;
+  padding: 0;
+`;
+
 type LevelType = 'clusters' | 'industries' | 'domains' | 'roles' | 'detail';
 
 export const CareerListPage: React.FC = () => {
@@ -95,6 +122,10 @@ export const CareerListPage: React.FC = () => {
   const [taxonomyModal, setTaxonomyModal] = useState<TaxonomyModalState | null>(null);
   const [roleModal, setRoleModal] = useState<{ mode: 'add' | 'edit'; entity?: Career } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  // Taxonomy delete is a soft-delete on the backend — offer an immediate undo instead of
+  // leaving a mistaken delete unrecoverable from the UI (SA-8). Only cluster/industry/
+  // domain are restorable; a job-role entry delete is hard.
+  const [lastDeleted, setLastDeleted] = useState<DeleteTarget | null>(null);
 
   // A taxonomy/entry write can change any level, so refresh every career query.
   // `refetchType: 'all'` matters: most of these queries are gated by `enabled` (level /
@@ -151,11 +182,33 @@ export const CareerListPage: React.FC = () => {
         setLevel('roles');
         setSelectedRole(null);
       }
+      setLastDeleted(target.kind === 'role' ? null : target);
       setDeleteTarget(null);
     },
     onError: (err: unknown) => {
       toast.error('Error', getApiErrorMessage(err, 'Failed to delete. It may be in use.'));
       setDeleteTarget(null);
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (target: DeleteTarget) => {
+      switch (target.kind) {
+        case 'cluster':
+          return careerService.restoreCluster(target.id);
+        case 'industry':
+          return careerService.restoreIndustry(target.id);
+        default:
+          return careerService.restoreDomain(target.id);
+      }
+    },
+    onSuccess: (_data, target) => {
+      invalidateCareer();
+      toast.success('Restored', `"${target.name}" was restored.`);
+      setLastDeleted(null);
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to restore.'));
     },
   });
 
@@ -349,6 +402,22 @@ export const CareerListPage: React.FC = () => {
         }
       />
 
+      {lastDeleted && (
+        <UndoBanner>
+          <span>
+            "{lastDeleted.name}" ({lastDeleted.kind}) was deleted.
+          </span>
+          <UndoButton
+            type="button"
+            onClick={() => restoreMutation.mutate(lastDeleted)}
+            disabled={restoreMutation.isPending}
+          >
+            <RiArrowGoBackLine size={14} />
+            {restoreMutation.isPending ? 'Restoring…' : 'Undo'}
+          </UndoButton>
+        </UndoBanner>
+      )}
+
       {viewMode === 'simple' ? (
         <SimpleView
           clusters={allClusters}
@@ -526,6 +595,7 @@ export const CareerListPage: React.FC = () => {
               courses={roleDetail.courses}
               relatedCourses={roleDetail.relatedCourses}
               institutions={roleDetail.institutions}
+              linkedEducationEntries={roleDetail.linkedEducationEntries}
               onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}
             />
           )}

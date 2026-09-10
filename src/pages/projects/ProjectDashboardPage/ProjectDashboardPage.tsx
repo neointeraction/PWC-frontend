@@ -485,14 +485,18 @@ export const ProjectDashboardPage: React.FC = () => {
           <ProjectIdentity>
             <ProjectTitleRow>
               <ProjectInstituteTitle>{project?.instituteName}</ProjectInstituteTitle>
-              <InstCodeBadge>INS001</InstCodeBadge>
+              {project?.code && <InstCodeBadge>{project.code}</InstCodeBadge>}
               <StatusPill $isClosed={isProjectClosed}>
                 {isProjectClosed ? 'Completed' : 'Ongoing'}
               </StatusPill>
             </ProjectTitleRow>
             <LocationAndPeriod>
-              <span>{project?.location || 'Mumbai, Maharashtra'}</span>
-              <span>•</span>
+              {project?.location && (
+                <>
+                  <span>{project.location}</span>
+                  <span>•</span>
+                </>
+              )}
               <PeriodText>
                 Period : {formatBannerDate(project?.validFrom)} –{' '}
                 {formatBannerDate(project?.validTo)}

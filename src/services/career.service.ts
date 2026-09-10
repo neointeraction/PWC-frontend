@@ -1016,6 +1016,11 @@ export const careerService = {
     await apiClient.delete(`/career-taxonomy/clusters/${id}`);
     invalidateCareerCaches();
   },
+  // Delete is a soft-delete on the backend; this undoes it (SA-8).
+  restoreCluster: async (id: string): Promise<void> => {
+    await apiClient.post(`/career-taxonomy/clusters/${id}/restore`, {});
+    invalidateCareerCaches();
+  },
 
   createIndustry: async (clusterId: string, name: string): Promise<void> => {
     await apiClient.post('/career-taxonomy/industries', { clusterId, name });
@@ -1032,6 +1037,10 @@ export const careerService = {
     await apiClient.delete(`/career-taxonomy/industries/${id}`);
     invalidateCareerCaches();
   },
+  restoreIndustry: async (id: string): Promise<void> => {
+    await apiClient.post(`/career-taxonomy/industries/${id}/restore`, {});
+    invalidateCareerCaches();
+  },
 
   createDomain: async (industryId: string, name: string): Promise<void> => {
     await apiClient.post('/career-taxonomy/domains', { industryId, name });
@@ -1046,6 +1055,10 @@ export const careerService = {
   },
   deleteDomain: async (id: string): Promise<void> => {
     await apiClient.delete(`/career-taxonomy/domains/${id}`);
+    invalidateCareerCaches();
+  },
+  restoreDomain: async (id: string): Promise<void> => {
+    await apiClient.post(`/career-taxonomy/domains/${id}/restore`, {});
     invalidateCareerCaches();
   },
 

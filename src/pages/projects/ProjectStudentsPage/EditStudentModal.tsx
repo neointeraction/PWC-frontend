@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { RiInformationLine } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { Checkbox } from '@/components/Checkbox';
 import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { isValidEmail, isValidPhone } from '@/utils';
@@ -44,19 +42,6 @@ const FormGrid = styled.div`
   }
 `;
 
-const EmailNoticeCard = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  background-color: ${({ theme }) => theme.colors.primaryLight};
-  border: 1px solid ${({ theme }) => theme.colors.primary}33;
-  border-radius: 4px;
-  font-size: ${({ theme }) => theme.fontSize.xs};
-  color: ${({ theme }) => theme.colors.primary};
-  line-height: 1.4;
-`;
-
 interface EditStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -74,24 +59,18 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
 }) => {
   const toast = useToast();
   const [formData, setFormData] = useState<ProjectStudentDetail | null>(null);
-  const [originalEmail, setOriginalEmail] = useState<string>('');
-  const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const isEditing = Boolean(student?.id);
 
   useEffect(() => {
     if (student) {
       const copy = JSON.parse(JSON.stringify(student)) as ProjectStudentDetail;
       setFormData(copy);
-      setOriginalEmail(copy.email || '');
-      setSendWelcomeEmail(true);
       setErrors({});
     }
   }, [student]);
 
   if (!formData) return null;
-
-  const isEmailChanged =
-    originalEmail.trim() !== '' && formData.email.trim() !== originalEmail.trim();
 
   const validate = (): boolean => {
     const nextErrors: Record<string, string> = {};
@@ -131,13 +110,6 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
         : formData.grade,
     };
 
-    if (isEmailChanged && sendWelcomeEmail) {
-      toast.info(
-        'Welcome Email Sent',
-        `A new welcome email with login credentials has been sent to ${formData.email}.`
-      );
-    }
-
     onSave(updated);
   };
 
@@ -175,25 +147,16 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               error={errors.name}
             />
-            <div>
-              <Input
-                label="Email Address *"
-                type="email"
-                value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                error={errors.email}
-              />
-              {isEmailChanged && (
-                <div style={{ marginTop: '6px' }}>
-                  <Checkbox
-                    id="send-welcome-email-checkbox"
-                    checked={sendWelcomeEmail}
-                    onChange={e => setSendWelcomeEmail(e.target.checked)}
-                    label="Send new welcome email to updated address"
-                  />
-                </div>
-              )}
-            </div>
+            <Input
+              label="Email Address *"
+              type="email"
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+              error={errors.email}
+              readOnly={isEditing}
+              disabled={isEditing}
+              hint={isEditing ? 'Login email cannot be changed here.' : undefined}
+            />
 
             <Input
               label="Mobile Number *"
@@ -244,17 +207,6 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
               error={errors.parentMobile}
             />
           </FormGrid>
-
-          {isEmailChanged && (
-            <EmailNoticeCard>
-              <RiInformationLine size={18} style={{ flexShrink: 0, marginTop: 1 }} />
-              <div>
-                <strong>Email Address Modified:</strong> If the email is changed, a new welcome
-                email with updated login instructions will automatically be dispatched to{' '}
-                <em>{formData.email}</em>.
-              </div>
-            </EmailNoticeCard>
-          )}
         </SectionBox>
       </FormContainer>
     </Modal>

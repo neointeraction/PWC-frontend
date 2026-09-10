@@ -99,6 +99,7 @@ export interface CounselorSession {
   counselorName: string;
   counselorEmail: string;
   counselorPhone: string;
+  counselorMeetingLink?: string;
   timeSlots: TimeSlot[];
   slots: ProjectSlot[];
   assignedStudents: ProjectStudent[];
