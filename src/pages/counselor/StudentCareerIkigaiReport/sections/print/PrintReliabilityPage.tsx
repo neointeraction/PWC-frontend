@@ -34,9 +34,8 @@ export const PrintReliabilityPage: React.FC<PrintReliabilityPageProps> = ({
     <PrintTable>
       <thead>
         <tr>
-          <th style={{ width: '20%' }}>Measure</th>
-          <th style={{ width: '14%' }}>Score</th>
-          <th style={{ width: '16%' }}>Grading Label</th>
+          <th style={{ width: '26%' }}>Measure</th>
+          <th style={{ width: '18%' }}>Grading Label</th>
           <th>Grading Meaning</th>
         </tr>
       </thead>
@@ -44,7 +43,6 @@ export const PrintReliabilityPage: React.FC<PrintReliabilityPageProps> = ({
         {metrics.map(item => (
           <tr key={item.code}>
             <td>{item.name}</td>
-            <td>{item.score}</td>
             <td>{item.status}</td>
             <td>{item.guidance}</td>
           </tr>

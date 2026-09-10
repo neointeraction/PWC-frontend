@@ -155,7 +155,8 @@ const mapReport = (
   const pathways: GraduationPathwayItem[] = api.graduationPathways.top3.map((gf, i) => ({
     id: `gp-${i}`,
     cluster: gf.clusterHead ?? gf.mainStream,
-    degree: gf.subStream,
+    mainStream: gf.mainStream,
+    subStream: gf.subStream,
     specialisations: gf.specialisations ?? '',
     keyExams: gf.keyExams ?? '',
     reasoning: gf.explanation ?? '',

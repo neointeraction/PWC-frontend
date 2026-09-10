@@ -265,6 +265,11 @@ export interface EntranceExamItemJson {
   // Free-text row a counsellor typed in directly instead of picking a career-library
   // record — surfaced to Super Admin for review since it isn't backed by a vetted entry.
   isManualEntry?: boolean;
+  // Set when this row was auto-suggested from a Career Compass target role's linked
+  // entrance exams (see careerCompassTable[].roleId) rather than added by hand — lets
+  // the frontend drop it again if that target role is later removed, without touching
+  // rows the counsellor added or edited themselves.
+  sourceRoleId?: string;
 }
 
 export interface CollegesAfterItemJson {
@@ -277,6 +282,8 @@ export interface CollegesAfterItemJson {
   ranking: string;
   website: string;
   isManualEntry?: boolean;
+  // See EntranceExamItemJson.sourceRoleId — same auto-suggestion provenance tag.
+  sourceRoleId?: string;
 }
 
 export interface StreamFitItemJson {
@@ -316,14 +323,20 @@ export interface CareerCompassClusterItemJson {
 
 export interface CareerCompassItemJson {
   id: string;
+  cluster: string;
+  industry: string;
   domain: string;
   role: string;
   whyItFits: string;
   topEmployers: string;
-  aiResilience: string;
   salaryIndia: string;
   salaryAbroad: string;
   isManualEntry?: boolean;
+  // Career-library id of the picked Target Role (absent for manual entries) — lets the
+  // frontend re-derive the role's linked colleges/entrance exams for the Colleges After
+  // Class 11&12 / Entrance Exams auto-suggestion sync (see CollegesAfterItemJson /
+  // EntranceExamItemJson.sourceRoleId).
+  roleId?: string;
 }
 
 // Static code/name/guiding-question text for the Reliability of the Assessment step's

@@ -8,8 +8,9 @@ import {
   RiShieldCheckLine,
   RiGitBranchLine,
   RiGraduationCapLine,
+  RiRoadMapLine,
   RiCompassLine,
-  RiChat3Line,
+  RiRocketLine,
   RiRefreshLine,
   RiCheckLine,
 } from 'react-icons/ri';
@@ -21,6 +22,7 @@ import { ROUTES } from '@/constants';
 import { sessionsService } from '@/services/sessions.service';
 import { reportsService } from '@/services/reports.service';
 import { counsellorChartService } from '@/services/counsellorChart.service';
+import { studentService } from '@/services/student.service';
 import { getApiErrorMessage, getApiErrorStatus, formatFullName } from '@/utils';
 import { useToast } from '@/hooks';
 
@@ -29,8 +31,9 @@ import { MyTraitMapSection } from './sections/MyTraitMapSection';
 import { ReliabilityDashboardSection } from './sections/ReliabilityDashboardSection';
 import { MyStreamFitSection } from './sections/MyStreamFitSection';
 import { GraduationPathwaysSection } from './sections/GraduationPathwaysSection';
+import { EducationPathwaysSection } from './sections/EducationPathwaysSection';
 import { CareerCompassSection } from './sections/CareerCompassSection';
-import { CounselorCommentsSection } from './sections/CounselorCommentsSection';
+import { KreateBlueprintSection } from './sections/KreateBlueprintSection';
 import { PrintReportContent } from './sections/print/PrintReportContent';
 
 import { Badge } from '@/components/Badge';
@@ -52,12 +55,13 @@ import {
 
 const TOC_SECTIONS = [
   { id: 'student-profile', label: "Champion's Profile", icon: <RiUser3Line size={16} /> },
-  { id: 'trait-map', label: 'My Trait Map', icon: <RiTableLine size={16} /> },
+  { id: 'trait-map', label: 'My 4 Dimensional Strength Meter', icon: <RiTableLine size={16} /> },
   { id: 'reliability-dashboard', label: 'Reliability Dashboard', icon: <RiShieldCheckLine size={16} /> },
   { id: 'stream-fit', label: 'My Stream Fit Class 11 & 12', icon: <RiGitBranchLine size={16} /> },
   { id: 'graduation-pathways', label: 'Graduation Pathways', icon: <RiGraduationCapLine size={16} /> },
+  { id: 'education-pathways', label: 'Education Pathways', icon: <RiRoadMapLine size={16} /> },
   { id: 'career-compass', label: 'My Career Compass', icon: <RiCompassLine size={16} /> },
-  { id: 'counselor-comments', label: "Counsellor's Comments", icon: <RiChat3Line size={16} /> },
+  { id: 'kreate-blueprint', label: 'My kREATE Blueprint', icon: <RiRocketLine size={16} /> },
 ];
 
 export const StudentCareerIkigaiReportPage: React.FC = () => {
@@ -125,11 +129,25 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
     },
   });
 
-  const isRefreshing = isSessionFetching || isReportFetching || isChartFetching;
+  // Download is locked until the student AND parent have both submitted their post-session
+  // feedback forms — mirrors the same gate shown on the student's own portal.
+  const {
+    data: formsStatus,
+    refetch: refetchFormsStatus,
+    isFetching: isFormsStatusFetching,
+  } = useQuery({
+    queryKey: ['student-forms-status', studentId],
+    queryFn: () => studentService.getFormsStatus(studentId!),
+    enabled: !!studentId,
+  });
+  const isDownloadUnlocked = formsStatus?.feedbackComplete ?? false;
+
+  const isRefreshing = isSessionFetching || isReportFetching || isChartFetching || isFormsStatusFetching;
   const handleRefresh = () => {
     refetchSession();
     refetchReport();
     refetchChart();
+    refetchFormsStatus();
   };
 
   // Shown once the counsellor has finalized the chart after Session 2 — the student is
@@ -257,7 +275,7 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
               </Button>
             )}
 
-            {localStorage.getItem('pwc_student_feedback_submitted') === 'true' ? (
+            {isDownloadUnlocked ? (
               <Button
                 variant="primary"
                 leftIcon={<RiPrinterLine size={18} />}
@@ -266,13 +284,13 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
                 Download as PDF
               </Button>
             ) : (
-              <Tooltip content="Download is unlocked after completing the Feedback step">
+              <Tooltip content="Download is unlocked after the student and parent complete the Feedback step">
                 <div>
                   <Button
                     variant="secondary"
                     leftIcon={<RiPrinterLine size={18} />}
                     disabled
-                    title="Download is unlocked after completing the Feedback step"
+                    title="Download is unlocked after the student and parent complete the Feedback step"
                   >
                     Download as PDF (Locked)
                   </Button>
@@ -322,13 +340,33 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
 
         {/* Scrollable Right Main Content Area */}
         <ReportMainContent id="report-main-content">
-          <StudentProfileSection data={reportData.studentProfile} />
+          <StudentProfileSection
+            data={reportData.studentProfile}
+            notes={counsellorChart?.counsellor.notes ?? {}}
+          />
           <MyTraitMapSection traits={reportData.traitMap} />
-          <ReliabilityDashboardSection metrics={reportData.reliability} />
+          <ReliabilityDashboardSection
+            metrics={reportData.reliability}
+            notes={counsellorChart?.counsellor.notes ?? {}}
+          />
           <MyStreamFitSection data={reportData.streamFit} />
           <GraduationPathwaysSection data={reportData.graduation} />
-          <CareerCompassSection cards={reportData.careerCompass} />
-          <CounselorCommentsSection notes={counsellorChart?.counsellor.notes ?? {}} />
+          <EducationPathwaysSection
+            colleges={counsellorChart?.counsellor.collegesTable}
+            exams={counsellorChart?.counsellor.entranceExamsTable}
+            notes={counsellorChart?.counsellor.notes ?? {}}
+          />
+          <CareerCompassSection
+            cards={reportData.careerCompass}
+            notes={counsellorChart?.counsellor.notes ?? {}}
+          />
+          <KreateBlueprintSection
+            roadmapGrid={counsellorChart?.counsellor.roadmapGrid}
+            scri={counsellorChart?.counsellor.scri}
+            academicTrend={counsellorChart?.counsellor.academicTrend}
+            alignmentRating={counsellorChart?.counsellor.alignmentRating}
+            notes={counsellorChart?.counsellor.notes ?? {}}
+          />
         </ReportMainContent>
       </ReportBodyLayout>
 

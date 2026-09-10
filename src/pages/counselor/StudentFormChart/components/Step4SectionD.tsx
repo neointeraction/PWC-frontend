@@ -187,6 +187,7 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
               <CategoryBlockHeader>
                 <CategoryBlockTitle>
                   {item.code} — {item.name}
+                  {item.measure && <i> ({item.measure})</i>}
                 </CategoryBlockTitle>
               </CategoryBlockHeader>
 

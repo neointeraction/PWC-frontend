@@ -18,14 +18,18 @@ import {
   RadioCustom,
   ScriResultCard,
   ScriResultHeader,
-  ScriScoreValue,
+  ScriScoreLabel,
+  ScriScoreNumber,
   ScriBandBadge,
   ScriGuidanceText,
-  ScriTipsGrid,
-  ScriTipBlock,
-  ScriTipTitle,
-  ScriTipText,
+  TraitTableContainer,
+  TraitTableHeaderRow,
+  TraitTableHeaderCell,
+  TraitDataRow,
+  TraitCell,
 } from '../StudentFormChartPage.styles';
+
+const SCRI_GUIDANCE_GRID = '1fr 1fr 1fr';
 
 interface Step6SCRIProps {
   data: CounsellorFormChartData['sectionE'];
@@ -210,27 +214,26 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
         {/* Dynamic Auto-populated SCRI Summary Output */}
         <ScriResultCard>
           <ScriResultHeader>
-            <ScriScoreValue>{scriTotal}</ScriScoreValue>
             <ScriBandBadge $band={currentBandInfo.band}>
-              ( {currentBandInfo.band} : {currentBandInfo.label} )
+              <ScriScoreLabel>Score - </ScriScoreLabel>
+              <ScriScoreNumber>{scriTotal}</ScriScoreNumber>
+              <ScriScoreLabel> out of 24 </ScriScoreLabel>( {currentBandInfo.band} : {currentBandInfo.label} )
             </ScriBandBadge>
           </ScriResultHeader>
           <ScriGuidanceText>{currentBandDetail?.labelMeaning ?? currentBandInfo.guidance}</ScriGuidanceText>
           {currentBandDetail && (
-            <ScriTipsGrid>
-              <ScriTipBlock>
-                <ScriTipTitle>For Students</ScriTipTitle>
-                <ScriTipText>{currentBandDetail.forStudents}</ScriTipText>
-              </ScriTipBlock>
-              <ScriTipBlock>
-                <ScriTipTitle>Tips for Students</ScriTipTitle>
-                <ScriTipText>{currentBandDetail.tipsForStudents}</ScriTipText>
-              </ScriTipBlock>
-              <ScriTipBlock>
-                <ScriTipTitle>Tips for Parent</ScriTipTitle>
-                <ScriTipText>{currentBandDetail.tipsForParent}</ScriTipText>
-              </ScriTipBlock>
-            </ScriTipsGrid>
+            <TraitTableContainer style={{ marginTop: '12px', overflowX: 'auto' }}>
+              <TraitTableHeaderRow style={{ gridTemplateColumns: SCRI_GUIDANCE_GRID, minWidth: '600px' }}>
+                <TraitTableHeaderCell>For Students</TraitTableHeaderCell>
+                <TraitTableHeaderCell>Tips for Students</TraitTableHeaderCell>
+                <TraitTableHeaderCell>Tips for Parent</TraitTableHeaderCell>
+              </TraitTableHeaderRow>
+              <TraitDataRow style={{ gridTemplateColumns: SCRI_GUIDANCE_GRID, minWidth: '600px' }}>
+                <TraitCell $secondary>{currentBandDetail.forStudents}</TraitCell>
+                <TraitCell $secondary>{currentBandDetail.tipsForStudents}</TraitCell>
+                <TraitCell $secondary>{currentBandDetail.tipsForParent}</TraitCell>
+              </TraitDataRow>
+            </TraitTableContainer>
           )}
         </ScriResultCard>
       </SectionBlock>

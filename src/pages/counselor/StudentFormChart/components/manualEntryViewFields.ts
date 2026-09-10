@@ -15,11 +15,12 @@ export const MANUAL_ENTRY_VIEW_FIELDS: Record<string, AddRowFieldConfig[]> = {
     { key: 'meaning', label: 'Meaning', multiline: true },
   ],
   'Career Compass (Target Roles & Compensation)': [
+    { key: 'cluster', label: 'Cluster' },
+    { key: 'industry', label: 'Industry' },
     { key: 'domain', label: 'Domain' },
     { key: 'role', label: 'Target Role' },
     { key: 'whyItFits', label: 'Why It Fits', multiline: true },
     { key: 'topEmployers', label: 'Top Employers' },
-    { key: 'aiResilience', label: 'AI Resilience' },
     { key: 'salaryIndia', label: 'Salary (India)' },
     { key: 'salaryAbroad', label: 'Salary (Abroad)' },
   ],

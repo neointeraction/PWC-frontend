@@ -195,13 +195,14 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
     const selectedCareers = careers.filter(c => selectedIds.includes(c.id));
     const itemsToAdd: CareerCompassItem[] = selectedCareers.map(career => ({
       id: `cc-cl-${career.id}-${Date.now()}`,
+      cluster: career.careerCluster || '',
+      industry: career.industry || '',
       domain: career.domain || career.careerCluster || 'General Domain',
       role: career.jobRole || career.title || 'Career Specialist',
       whyItFits: career.oneLineDescription || career.aiResilienceComment || 'Selected from Career Library',
       topEmployers: Array.isArray(career.topCompaniesRecruiting)
         ? career.topCompaniesRecruiting.join(', ')
         : career.topCompaniesRecruiting || 'Top Enterprises',
-      aiResilience: career.aiResilienceGrading || 'High',
       salaryIndia: career.approxSalaryRangeIndia || '₹6–15 LPA',
       salaryAbroad: career.globalSalaryRange || '$70k–120k',
       approvalStatus: 'Approved',

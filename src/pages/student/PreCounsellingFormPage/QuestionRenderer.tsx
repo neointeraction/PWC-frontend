@@ -146,17 +146,21 @@ export const isAnswerEmpty = (value: unknown): boolean => {
 // A MATRIX question's answer is a nested object (per-row or per-field) — isAnswerEmpty
 // alone only sees the top-level object, so it's satisfied as soon as a single row/field
 // is filled in. This checks every row (or, for a rows-less matrix, every field) actually
-// has a value before the question counts as answered.
+// has a value before the question counts as answered. A labelEditable row (e.g. "Other
+// subject") is a free-form extra the student may not have — it stays optional even when
+// the question itself is required.
 const isMatrixIncomplete = (options: MatrixOptions, value: unknown): boolean => {
   const data = (value as Record<string, unknown> | undefined) ?? {};
   const { rows, fields } = options;
   if (!rows || rows.length === 0) {
     return fields.some(f => isAnswerEmpty(data[f.key]));
   }
-  return rows.some(row => {
-    const rowData = (data[row.key] as Record<string, unknown> | undefined) ?? {};
-    return fields.some(f => isAnswerEmpty(rowData[f.key]));
-  });
+  return rows
+    .filter(row => !row.labelEditable)
+    .some(row => {
+      const rowData = (data[row.key] as Record<string, unknown> | undefined) ?? {};
+      return fields.some(f => isAnswerEmpty(rowData[f.key]));
+    });
 };
 
 // Required-question completeness check used by both pre-counselling forms — routes MATRIX

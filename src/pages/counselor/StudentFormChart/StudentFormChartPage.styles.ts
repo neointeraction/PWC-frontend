@@ -507,24 +507,24 @@ export const CompResponseCell = styled.div<{ $type?: 'student' | 'parent' }>`
 `;
 
 // Full-Width Synthesis Notes Panel
-export const SynthesisPanel = styled.div`
-  background-color: ${({ theme }) => theme.colors.noteBackground};
-  border: 1px solid ${({ theme }) => theme.colors.warning};
-  border-left: 4px solid ${({ theme }) => theme.colors.warning};
+export const SynthesisPanel = styled.div<{ $readOnly?: boolean }>`
+  background-color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.background : theme.colors.noteBackground)};
+  border: 1px solid ${({ theme, $readOnly }) => ($readOnly ? theme.colors.border : theme.colors.warning)};
+  border-left: 4px solid ${({ theme, $readOnly }) => ($readOnly ? theme.colors.border : theme.colors.warning)};
   border-radius: 4px;
   overflow: hidden;
   width: 100%;
   margin-top: 16px;
 `;
 
-export const SynthesisPanelHeader = styled.div`
+export const SynthesisPanelHeader = styled.div<{ $readOnly?: boolean }>`
   padding: 10px 16px;
-  background-color: ${({ theme }) => theme.colors.warningLight};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.warning}40;
+  background-color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.background : theme.colors.warningLight)};
+  border-bottom: 1px solid ${({ theme, $readOnly }) => ($readOnly ? theme.colors.border : `${theme.colors.warning}40`)};
   font-size: 0.85rem;
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: ${({ theme }) => theme.colors.warning};
+  color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.textSecondary : theme.colors.warning)};
   display: flex;
   align-items: center;
   gap: 8px;
@@ -547,7 +547,7 @@ export const SynthesisRow = styled.div`
   }
 `;
 
-export const SynthesisCodeLabel = styled.div`
+export const SynthesisCodeLabel = styled.div<{ $readOnly?: boolean }>`
   width: 42px;
   min-width: 42px;
   height: 28px;
@@ -555,7 +555,7 @@ export const SynthesisCodeLabel = styled.div`
   align-items: center;
   justify-content: center;
   margin-top: 10px;
-  background-color: ${({ theme }) => theme.colors.warning};
+  background-color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.textSecondary : theme.colors.warning)};
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -563,13 +563,17 @@ export const SynthesisCodeLabel = styled.div`
   letter-spacing: 0.5px;
   text-transform: uppercase;
   flex-shrink: 0;
-  cursor: pointer;
+  cursor: ${({ $readOnly }) => ($readOnly ? 'default' : 'pointer')};
   transition: all 0.15s ease;
 
+  ${({ $readOnly }) =>
+    !$readOnly &&
+    `
   &:hover {
     opacity: 0.9;
     transform: scale(1.05);
   }
+  `}
 
   @media (max-width: 600px) {
     width: 100%;
@@ -797,6 +801,17 @@ export const ScriScoreValue = styled.span`
   color: ${({ theme }) => theme.colors.text};
 `;
 
+export const ScriScoreLabel = styled.span`
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const ScriScoreNumber = styled.span`
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-style: normal;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
 export const ScriBandBadge = styled.span<{ $band?: string }>`
   font-size: 1.1rem;
   font-weight: 700;
@@ -812,36 +827,6 @@ export const ScriBandBadge = styled.span<{ $band?: string }>`
 export const ScriGuidanceText = styled.p`
   font-size: 0.875rem;
   line-height: 1.6;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  margin: 0;
-`;
-
-export const ScriTipsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-`;
-
-export const ScriTipBlock = styled.div`
-  padding: 12px 14px;
-  background-color: ${({ theme }) => theme.colors.background};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 4px;
-`;
-
-export const ScriTipTitle = styled.div`
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: ${({ theme }) => theme.colors.text};
-  margin-bottom: 6px;
-`;
-
-export const ScriTipText = styled.p`
-  font-size: 0.85rem;
-  line-height: 1.55;
   color: ${({ theme }) => theme.colors.textSecondary};
   margin: 0;
 `;

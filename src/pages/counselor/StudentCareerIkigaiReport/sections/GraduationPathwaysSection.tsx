@@ -22,27 +22,36 @@ export const GraduationPathwaysSection: React.FC<GraduationPathwaysSectionProps>
       <SectionHeaderGroup>
         <SectionTitle>
           <RiGraduationCapLine size={24} />
-          Graduation & Education Pathways
+          Graduation Pathways
         </SectionTitle>
         <SectionSubtitle>
           Higher education degrees and specialisations matched to student aptitude, with the
-          key entrance exams for each pathway.
+          reasoning behind each recommended pathway.
         </SectionSubtitle>
       </SectionHeaderGroup>
 
       <TraitMapTableContainer>
-        <TraitMapHeaderRow style={{ gridTemplateColumns: '220px 160px 1fr 220px' }}>
+        <TraitMapHeaderRow
+          style={{ gridTemplateColumns: '150px 180px 180px 180px 1fr 200px', minWidth: '1300px' }}
+        >
           <TraitCell>Cluster</TraitCell>
-          <TraitCell>Degree</TraitCell>
-          <TraitCell>Specialisations</TraitCell>
-          <TraitCell>Key Entrance Exams</TraitCell>
+          <TraitCell>Main Stream</TraitCell>
+          <TraitCell>Sub-Stream</TraitCell>
+          <TraitCell>Specialisation</TraitCell>
+          <TraitCell>Reasoning</TraitCell>
+          <TraitCell>Key Exams</TraitCell>
         </TraitMapHeaderRow>
 
         {data.pathways.map(row => (
-          <TraitMapDataRow key={row.id} style={{ gridTemplateColumns: '220px 160px 1fr 220px' }}>
+          <TraitMapDataRow
+            key={row.id}
+            style={{ gridTemplateColumns: '150px 180px 180px 180px 1fr 200px', minWidth: '1300px' }}
+          >
             <TraitCell style={{ fontWeight: 700, color: '#4F46E5' }}>{row.cluster}</TraitCell>
-            <TraitCell style={{ fontWeight: 700 }}>{row.degree}</TraitCell>
+            <TraitCell style={{ fontWeight: 600 }}>{row.mainStream}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>{row.subStream}</TraitCell>
             <TraitCell style={{ fontWeight: 500 }}>{row.specialisations}</TraitCell>
+            <TraitCell style={{ fontWeight: 400 }}>{row.reasoning}</TraitCell>
             <TraitCell style={{ fontWeight: 600 }}>{row.keyExams}</TraitCell>
           </TraitMapDataRow>
         ))}

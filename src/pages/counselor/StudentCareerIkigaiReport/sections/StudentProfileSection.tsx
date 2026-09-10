@@ -1,7 +1,7 @@
 import React from 'react';
-import { RiUser3Line, RiAwardLine, RiCheckLine, RiHeartsLine } from 'react-icons/ri';
+import { RiUser3Line, RiCheckLine, RiHeartsLine } from 'react-icons/ri';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
-import { Badge } from '@/components/Badge';
+import { CounsellorInsightsCard } from './CounsellorInsightsCard';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,
@@ -9,15 +9,37 @@ import {
   SectionSubtitle,
   TextCard,
   TextCardTitle,
-  TextCardBody,
   BulletList,
+  TraitMapTableContainer,
+  TraitMapHeaderRow,
+  TraitMapDataRow,
+  TraitCell,
 } from '../StudentCareerIkigaiReportPage.styles';
 
 interface StudentProfileSectionProps {
   data: StudentCareerIkigaiReportData['studentProfile'];
+  notes?: Record<string, string>;
 }
 
-export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ data }) => {
+// The three "quick lenses" columns (Career Style / Personal Signature / Thinking Mode) map
+// to the top RIASEC, BIG FIVE, and COG&DEC traits respectively — already assembled onto
+// data.careerStyle / personalSignature / thinkingMode by reports.service.ts.
+const LENS_COLUMNS = [
+  { key: 'careerStyle', label: 'Career Style' },
+  { key: 'personalSignature', label: 'Personal Signature' },
+  { key: 'thinkingMode', label: 'Thinking Mode' },
+] as const;
+
+// Counsellor's Insights groups the same synthesis notes shown in "Counsellor's Comments"
+// (see CounselorCommentsSection.tsx), filtered down to the three codes the Champion's
+// Profile template calls out — A (learning/engagement), B (strengths), C (standout notes).
+const INSIGHT_GROUPS = [
+  { prefix: 'A', title: 'How You Learn and Engage' },
+  { prefix: 'B', title: 'Your Strengths in Action' },
+  { prefix: 'C', title: 'What Stood Out About You' },
+] as const;
+
+export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ data, notes = {} }) => {
   return (
     <ReportSectionBlock id="student-profile">
       <SectionHeaderGroup>
@@ -28,7 +50,28 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
         <SectionSubtitle>Career · Personality</SectionSubtitle>
       </SectionHeaderGroup>
 
-      {/* Career Personality Snapshot */}
+      {/* Three quick lenses: Career Style / Personal Signature / Thinking Mode */}
+      <TraitMapTableContainer>
+        <TraitMapHeaderRow style={{ gridTemplateColumns: '1fr 1fr 1fr', minWidth: 0 }}>
+          {LENS_COLUMNS.map(col => (
+            <TraitCell key={col.key}>{col.label}</TraitCell>
+          ))}
+        </TraitMapHeaderRow>
+        <TraitMapDataRow style={{ gridTemplateColumns: '1fr 1fr 1fr', minWidth: 0 }}>
+          {LENS_COLUMNS.map(col => (
+            <TraitCell key={col.key} style={{ alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontWeight: 800, color: '#4F46E5', marginBottom: '4px' }}>
+                  {data[col.key].name}
+                </div>
+                <div style={{ fontWeight: 400 }}>{data[col.key].description}</div>
+              </div>
+            </TraitCell>
+          ))}
+        </TraitMapDataRow>
+      </TraitMapTableContainer>
+
+      {/* Career Personality Snapshot — commented out for now, per request
       <TextCard
         style={{ backgroundColor: 'rgba(79, 70, 229, 0.04)', borderLeft: '4px solid #4F46E5' }}
       >
@@ -49,6 +92,7 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
         </div>
         <TextCardBody style={{ marginTop: '8px' }}>{data.snapshotSummary}</TextCardBody>
       </TextCard>
+      */}
 
       {/* Core Strengths — from the counsellor-authored chart, if finalized */}
       {data.coreStrengths.length > 0 && (
@@ -83,6 +127,8 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
           </BulletList>
         </TextCard>
       )}
+
+      <CounsellorInsightsCard notes={notes} groups={INSIGHT_GROUPS} />
     </ReportSectionBlock>
   );
 };

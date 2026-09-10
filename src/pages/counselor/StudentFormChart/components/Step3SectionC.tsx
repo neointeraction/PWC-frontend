@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RiAddLine, RiDeleteBinLine } from 'react-icons/ri';
 import {
@@ -23,6 +23,7 @@ import { fitKey } from '@/services/counsellorChart.service';
 import { ComparisonTable } from './ComparisonTable';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import { AddRowModal, AddRowFieldConfig } from './AddRowModal';
+import { useIsReadOnly } from '../ReadOnlyContext';
 import {
   StepHeaderCard,
   StepHeaderTitle,
@@ -54,6 +55,10 @@ interface Step3SectionCProps {
   onChangeNotesF: (code: string, value: string) => void;
   onChangeEntranceExamsTable: (table: EntranceExamItem[]) => void;
   onChangeCollegesTable: (table: CollegesAfterItem[]) => void;
+  // Sets both tables in one state update/save — used by the Target Role auto-suggestion
+  // sync below, which otherwise needs to change both at once (calling the two setters
+  // above back-to-back would race on the parent's stale `formData` closure).
+  onChangeCollegesAndExamsTable: (colleges: CollegesAfterItem[], exams: EntranceExamItem[]) => void;
   onChangeCompassClusterTable: (table: CareerCompassClusterItem[]) => void;
   onChangeCompassTable: (table: CareerCompassItem[]) => void;
 }
@@ -173,6 +178,9 @@ const MAX_ROWS: Record<TableKey, number> = {
 
 const ManualBadge: React.FC = () => <Badge variant="warning">Manual Entry</Badge>;
 
+const sameIds = (a: { id: string }[], b: { id: string }[]) =>
+  a.length === b.length && a.every((row, i) => row.id === b[i].id);
+
 export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   studentId: _studentId,
   data,
@@ -183,15 +191,20 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   onChangeNotesF,
   onChangeEntranceExamsTable,
   onChangeCollegesTable,
+  onChangeCollegesAndExamsTable,
   onChangeCompassClusterTable,
   onChangeCompassTable,
 }) => {
   const toast = useToast();
+  const isReadOnly = useIsReadOnly();
 
   const [activeAddTable, setActiveAddTable] = useState<TableKey | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ table: TableKey; id: string } | null>(null);
-  // Drives the Target Role dropdown, which is scoped to whichever Domain was picked
-  // first in the same "Add Target Role" popup.
+  // Target Role's Add popup is a 3-level cascade — Cluster → Industry → Domain — each
+  // scoping the next dropdown's options, before the final Target Role dropdown (scoped
+  // to Domain, as before).
+  const [targetRoleClusterId, setTargetRoleClusterId] = useState('');
+  const [targetRoleIndustryId, setTargetRoleIndustryId] = useState('');
   const [targetRoleDomainId, setTargetRoleDomainId] = useState('');
   // Scope the Stream Fit / Graduation Fit Sub-Stream dropdown to whichever Main Stream
   // was picked first in the same popup (same two-level pattern as Domain → Target Role).
@@ -203,10 +216,17 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
     queryFn: () => careerService.getClusters(),
     staleTime: 5 * 60 * 1000,
   });
-  const { data: domains = [] } = useQuery({
-    queryKey: ['career-domains-all'],
-    queryFn: () => careerService.getDomains(),
-    staleTime: 5 * 60 * 1000,
+  const { data: industriesForCluster = [], isFetching: isLoadingIndustries } = useQuery({
+    queryKey: ['career-industries', targetRoleClusterId],
+    queryFn: () => careerService.getIndustries(targetRoleClusterId),
+    enabled: Boolean(targetRoleClusterId),
+    staleTime: 60_000,
+  });
+  const { data: domainsForIndustry = [], isFetching: isLoadingDomains } = useQuery({
+    queryKey: ['career-domains', targetRoleIndustryId],
+    queryFn: () => careerService.getDomains(targetRoleIndustryId),
+    enabled: Boolean(targetRoleIndustryId),
+    staleTime: 60_000,
   });
   const { data: targetRoleOptions = [], isFetching: isLoadingTargetRoles } = useQuery({
     queryKey: ['career-job-roles', targetRoleDomainId],
@@ -225,21 +245,19 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
     staleTime: 5 * 60 * 1000,
   });
 
-  // Target Role's Domain picker is scoped to the industries the assessment already
-  // surfaced in the Career Compass (Indicative Clusters) table above — falls back to
-  // the full domain list if that table is empty so the picker never bricks.
-  const compassClusterIndustries = new Set(
-    (data.careerCompassClusterTable || []).map(r => r.industry).filter(Boolean)
-  );
-  const domainsForTargetRole =
-    compassClusterIndustries.size > 0
-      ? domains.filter(d => compassClusterIndustries.has(d.industryName))
-      : domains;
-  const domainSelectOptions: SelectOption[] = domainsForTargetRole.map(d => ({
-    value: d.id,
-    label: `${d.name} (${d.industryName})`,
-  }));
   const clusterSelectOptions: SelectOption[] = clusters.map(c => ({ value: c.name, label: c.name }));
+  const targetRoleClusterOptions: SelectOption[] = clusters.map(c => ({
+    value: c.id,
+    label: c.name,
+  }));
+  const targetRoleIndustryOptions: SelectOption[] = industriesForCluster.map(i => ({
+    value: i.id,
+    label: i.name,
+  }));
+  const targetRoleDomainOptions: SelectOption[] = domainsForIndustry.map(d => ({
+    value: d.id,
+    label: d.name,
+  }));
   const streamFitMainStreamOptions: SelectOption[] = Array.from(
     new Set(streamWeights.map(s => s.mainStream))
   ).map(m => ({ value: m, label: m }));
@@ -255,6 +273,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
 
   const closeAddModal = () => {
     setActiveAddTable(null);
+    setTargetRoleClusterId('');
+    setTargetRoleIndustryId('');
     setTargetRoleDomainId('');
     setStreamFitMainStream('');
     setGraduationMainStream('');
@@ -294,15 +314,17 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         const fitScore = lookup?.domain[fitKey(values.domain)] ?? undefined;
         const row: CareerCompassItem = {
           id: `cc-${Date.now()}`,
+          cluster: values.cluster || '',
+          industry: values.industry || '',
           domain: values.domain || '',
           role: values.role || '',
           whyItFits: values.whyItFits || '',
           topEmployers: values.topEmployers || '',
-          aiResilience: values.aiResilience || '',
           salaryIndia: values.salaryIndia || '',
           salaryAbroad: values.salaryAbroad || '',
           fitScore: fitScore ?? undefined,
           isManualEntry,
+          roleId: isManualEntry ? undefined : values.roleId || undefined,
         };
         onChangeCompassTable([...data.careerCompassTable, row]);
         break;
@@ -418,14 +440,61 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
       case 'targetRole':
         return [
           {
+            key: 'cluster',
+            label: 'Cluster',
+            dbSource: {
+              options: targetRoleClusterOptions,
+              onSelect: (value, setValue) => {
+                setTargetRoleClusterId(value);
+                setTargetRoleIndustryId('');
+                setTargetRoleDomainId('');
+                const cluster = clusters.find(c => c.id === value);
+                setValue('cluster', cluster?.name || '');
+                setValue('industry', '');
+                setValue('domain', '');
+                setValue('role', '');
+                setValue('whyItFits', '');
+                setValue('topEmployers', '');
+                setValue('salaryIndia', '');
+                setValue('salaryAbroad', '');
+              },
+            },
+          },
+          {
+            key: 'industry',
+            label: 'Industry',
+            dbSource: {
+              options: targetRoleIndustryOptions,
+              isLoading: isLoadingIndustries,
+              onSelect: (value, setValue) => {
+                setTargetRoleIndustryId(value);
+                setTargetRoleDomainId('');
+                const industry = industriesForCluster.find(i => i.id === value);
+                setValue('industry', industry?.name || '');
+                setValue('domain', '');
+                setValue('role', '');
+                setValue('whyItFits', '');
+                setValue('topEmployers', '');
+                setValue('salaryIndia', '');
+                setValue('salaryAbroad', '');
+              },
+            },
+          },
+          {
             key: 'domain',
             label: 'Domain',
             dbSource: {
-              options: domainSelectOptions,
+              options: targetRoleDomainOptions,
+              isLoading: isLoadingDomains,
               onSelect: (value, setValue) => {
                 setTargetRoleDomainId(value);
-                const dom = domains.find(d => d.id === value);
-                if (dom) setValue('domain', dom.name);
+                const dom = domainsForIndustry.find(d => d.id === value);
+                setValue('domain', dom?.name || '');
+                setValue('role', '');
+                setValue('whyItFits', '');
+                setValue('topEmployers', '');
+                setValue('salaryIndia', '');
+                setValue('salaryAbroad', '');
               },
             },
           },
@@ -438,10 +507,10 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               onSelect: (value, setValue) => {
                 const role = targetRoleOptions.find(r => r.id === value);
                 if (!role) return;
+                setValue('roleId', role.id);
                 setValue('role', role.jobRole);
                 setValue('whyItFits', role.oneLineDescription || '');
                 setValue('topEmployers', (role.topCompaniesRecruiting || []).join(', '));
-                setValue('aiResilience', role.aiResilienceGrading || '');
                 setValue('salaryIndia', role.approxSalaryRangeIndia || '');
                 setValue('salaryAbroad', role.globalSalaryRange || '');
               },
@@ -449,7 +518,6 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           },
           { key: 'whyItFits', label: 'Why It Fits', multiline: true, derivedOnly: true },
           { key: 'topEmployers', label: 'Top Employers', derivedOnly: true },
-          { key: 'aiResilience', label: 'AI Resilience', derivedOnly: true },
           { key: 'salaryIndia', label: 'Salary (India)', derivedOnly: true },
           { key: 'salaryAbroad', label: 'Salary (Abroad)', derivedOnly: true },
         ];
@@ -585,19 +653,125 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
     >
       <SectionBlockTitle style={{ marginBottom: 0 }}>{title}</SectionBlockTitle>
       {table && count < MAX_ROWS[table] && (
-        <Button leftIcon={<RiAddLine size={18} />} onClick={() => setActiveAddTable(table)}>
+        <Button
+          leftIcon={<RiAddLine size={18} />}
+          onClick={() => setActiveAddTable(table)}
+          disabled={isReadOnly}
+        >
           Add
         </Button>
       )}
     </div>
   );
 
-  const clusterRows = (data.careerCompassClusterTable || []).slice(0, MAX_ROWS.cluster);
   const targetRoleRows = data.careerCompassTable;
   const streamFitRows = data.streamFitTable.slice(0, MAX_ROWS.streamFit);
   const graduationRows = data.graduationTable;
   const collegesRows = data.collegesTable || [];
   const entranceExamRows = data.entranceExamsTable || [];
+
+  // Colleges After Class 11&12 / Entrance Exams auto-suggestion sync: every time the
+  // set of career-library-backed Target Roles changes, re-derive each role's linked
+  // colleges/exams and merge them in — capped at the table's usual max, and always
+  // behind any row the counsellor added or edited by hand (tracked by the absence of
+  // `sourceRoleId`), which is never touched here. Manual (non-career-library) target
+  // roles have no `roleId` and so contribute nothing to the suggestion set.
+  const activeTargetRoleIds = Array.from(
+    new Set(targetRoleRows.filter(r => !r.isManualEntry && r.roleId).map(r => r.roleId as string))
+  ).sort();
+
+  const { data: linkedCareerDetails } = useQuery({
+    queryKey: ['career-linked-details', activeTargetRoleIds.join(',')],
+    queryFn: () => Promise.all(activeTargetRoleIds.map(id => careerService.getById(id))),
+    enabled: activeTargetRoleIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (activeTargetRoleIds.length === 0) {
+      const keptColleges = collegesRows.filter(r => !r.sourceRoleId);
+      const keptExams = entranceExamRows.filter(r => !r.sourceRoleId);
+      const collegesChanged = !sameIds(keptColleges, collegesRows);
+      const examsChanged = !sameIds(keptExams, entranceExamRows);
+      if (collegesChanged || examsChanged) {
+        onChangeCollegesAndExamsTable(
+          collegesChanged ? keptColleges : collegesRows,
+          examsChanged ? keptExams : entranceExamRows
+        );
+      }
+      return;
+    }
+    if (!linkedCareerDetails) return;
+
+    const suggestedColleges: CollegesAfterItem[] = [];
+    const seenColleges = new Set<string>();
+    const suggestedExams: EntranceExamItem[] = [];
+    const seenExams = new Set<string>();
+
+    activeTargetRoleIds.forEach((roleId, idx) => {
+      const detail = linkedCareerDetails[idx];
+      if (!detail) return;
+      detail.institutions.forEach(inst => {
+        const key = inst.name.toLowerCase();
+        if (seenColleges.has(key)) return;
+        seenColleges.add(key);
+        suggestedColleges.push({
+          id: `col-auto-${inst.id}`,
+          collegeName: inst.name,
+          location: inst.cityState,
+          type: inst.badge,
+          course: inst.programsOffered,
+          entranceExam: inst.entranceExam,
+          ranking: inst.ranking,
+          website: inst.website,
+          sourceRoleId: roleId,
+        });
+      });
+      detail.entranceExams.forEach(exam => {
+        const key = exam.name.toLowerCase();
+        if (seenExams.has(key)) return;
+        seenExams.add(key);
+        suggestedExams.push({
+          id: `ee-auto-${exam.id}`,
+          fullName: exam.fullTitle || exam.name,
+          conductingBody: exam.conductedBy,
+          level: exam.level,
+          applicableFor: exam.applicableFor,
+          subjectRequirements: exam.requirement12th,
+          examMonth: exam.datesText || '',
+          urlLink: exam.website,
+          sourceRoleId: roleId,
+        });
+      });
+    });
+
+    const priorityColleges = collegesRows.filter(r => !r.sourceRoleId);
+    const priorityCollegeNames = new Set(priorityColleges.map(r => r.collegeName.toLowerCase()));
+    const nextColleges = [
+      ...priorityColleges,
+      ...suggestedColleges.filter(r => !priorityCollegeNames.has(r.collegeName.toLowerCase())),
+    ].slice(0, MAX_ROWS.colleges);
+
+    const priorityExams = entranceExamRows.filter(r => !r.sourceRoleId);
+    const priorityExamNames = new Set(priorityExams.map(r => r.fullName.toLowerCase()));
+    const nextExams = [
+      ...priorityExams,
+      ...suggestedExams.filter(r => !priorityExamNames.has(r.fullName.toLowerCase())),
+    ].slice(0, MAX_ROWS.entranceExam);
+
+    const collegesChanged = !sameIds(nextColleges, collegesRows);
+    const examsChanged = !sameIds(nextExams, entranceExamRows);
+    if (collegesChanged || examsChanged) {
+      onChangeCollegesAndExamsTable(
+        collegesChanged ? nextColleges : collegesRows,
+        examsChanged ? nextExams : entranceExamRows
+      );
+    }
+    // Only re-run when the active target-role set (or its fetched details) changes —
+    // not on every unrelated Colleges/Entrance Exams edit, which would fight the
+    // counsellor's own manual add/delete/edit on those tables.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTargetRoleIds.join(','), linkedCareerDetails]);
 
   return (
     <>
@@ -618,55 +792,10 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         onChangeNote={onChangeNotesPre}
       />
 
-      {/* Career Compass Cluster Table — assessment-derived; no "+" here, but a
-          counsellor can still remove a row that doesn't fit. */}
-      <div style={{ marginTop: '20px' }}>
-        <TableHeader title="Career Compass (Indicative Clusters)" count={clusterRows.length} />
-        <CompTableContainer style={{ overflowX: 'auto' }}>
-          <CompTableHeaderRow
-            style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr 100px 40px', minWidth: '1040px' }}
-          >
-            <CompTableHeaderCell>Cluster</CompTableHeaderCell>
-            <CompTableHeaderCell>Industry</CompTableHeaderCell>
-            <CompTableHeaderCell>Domain</CompTableHeaderCell>
-            <CompTableHeaderCell>Stream Requirement</CompTableHeaderCell>
-            <CompTableHeaderCell>Grading Level</CompTableHeaderCell>
-            <CompTableHeaderCell>Meaning</CompTableHeaderCell>
-            <CompTableHeaderCell>Fit Score</CompTableHeaderCell>
-            <CompTableHeaderCell />
-          </CompTableHeaderRow>
-
-          {clusterRows.map(row => (
-            <CompDataRow
-              key={row.id}
-              style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 120px 1fr 100px 40px', minWidth: '1040px' }}
-            >
-              <CompParamCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
-                <span>{row.cluster}</span>
-                {row.isManualEntry && <ManualBadge />}
-              </CompParamCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>{row.industry}</CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>{row.domain}</CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>{row.streamRequirement}</CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>{row.gradingLevel}</CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>{row.meaning}</CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>
-                {row.fitScore !== undefined ? `${row.fitScore}%` : '—'}
-              </CompResponseCell>
-              <RowActionsCell>
-                <Tooltip content="Delete Row">
-                  <RowDeleteButton
-                    type="button"
-                    onClick={() => setDeleteTarget({ table: 'cluster', id: row.id })}
-                  >
-                    <RiDeleteBinLine size={14} />
-                  </RowDeleteButton>
-                </Tooltip>
-              </RowActionsCell>
-            </CompDataRow>
-          ))}
-        </CompTableContainer>
-      </div>
+      {/* Career Compass (Indicative Clusters) table is hidden from this step —
+          Target Roles & Compensation now carries Cluster/Industry directly. The
+          underlying `careerCompassClusterTable` add/delete plumbing is left in place
+          in case this table needs to reappear later. */}
 
       {/* Career Compass Job Roles Table */}
       <div id="sec-c-target-roles" style={{ marginTop: '20px' }}>
@@ -681,15 +810,16 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         <CompTableContainer style={{ overflowX: 'auto' }}>
           <CompTableHeaderRow
             style={{
-              gridTemplateColumns: '220px 160px 1fr 180px 220px 120px 120px 100px 40px',
-              minWidth: '1280px',
+              gridTemplateColumns: '150px 150px 180px 160px 1fr 180px 120px 120px 100px 40px',
+              minWidth: '1440px',
             }}
           >
+            <CompTableHeaderCell>Cluster</CompTableHeaderCell>
+            <CompTableHeaderCell>Industry</CompTableHeaderCell>
             <CompTableHeaderCell>Domain</CompTableHeaderCell>
             <CompTableHeaderCell>Target Role</CompTableHeaderCell>
             <CompTableHeaderCell>Why It Fits</CompTableHeaderCell>
             <CompTableHeaderCell>Top Employers</CompTableHeaderCell>
-            <CompTableHeaderCell>AI Resilience</CompTableHeaderCell>
             <CompTableHeaderCell>Salary (India)</CompTableHeaderCell>
             <CompTableHeaderCell>Salary (Abroad)</CompTableHeaderCell>
             <CompTableHeaderCell>Fit Score</CompTableHeaderCell>
@@ -700,18 +830,19 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
             <CompDataRow
               key={row.id}
               style={{
-                gridTemplateColumns: '220px 160px 1fr 180px 220px 120px 120px 100px 40px',
-                minWidth: '1280px',
+                gridTemplateColumns: '150px 150px 180px 160px 1fr 180px 120px 120px 100px 40px',
+                minWidth: '1440px',
               }}
             >
               <CompParamCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
-                <span>{row.domain}</span>
+                <span>{row.cluster}</span>
                 {row.isManualEntry && <ManualBadge />}
               </CompParamCell>
+              <CompResponseCell style={{ borderLeft: 'none' }}>{row.industry}</CompResponseCell>
+              <CompResponseCell style={{ borderLeft: 'none' }}>{row.domain}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.role}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.whyItFits}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.topEmployers}</CompResponseCell>
-              <CompResponseCell style={{ borderLeft: 'none' }}>{row.aiResilience}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryIndia}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryAbroad}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>
@@ -855,8 +986,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '1fr 140px 120px 120px 140px 100px 160px 40px',
-                minWidth: '940px',
+                gridTemplateColumns: '200px 140px 120px minmax(200px, 1fr) 160px 130px 160px 40px',
+                minWidth: '1150px',
               }}
             >
               <CompTableHeaderCell>College Name</CompTableHeaderCell>
@@ -873,8 +1004,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompDataRow
                 key={row.id}
                 style={{
-                  gridTemplateColumns: '1fr 140px 120px 120px 140px 100px 160px 40px',
-                  minWidth: '940px',
+                  gridTemplateColumns: '200px 140px 120px minmax(200px, 1fr) 160px 130px 160px 40px',
+                  minWidth: '1150px',
                 }}
               >
                 <CompParamCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>

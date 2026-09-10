@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -13,6 +13,7 @@ import { useNotificationStore } from '@/store';
 import { formatDateTime, getApiErrorMessage } from '@/utils';
 import { PendingRatification, Career } from '@/types';
 import { ManualEntryRow } from '@/types/counsellorChart.types';
+import { StudentWorkflowStatus } from '@/types/student.types';
 import { ROUTES } from '@/constants';
 import { JobRoleFormModal } from '../career-library/components/JobRoleFormModal';
 import { AddRowModal } from '../counselor/StudentFormChart/components/AddRowModal';
@@ -42,6 +43,29 @@ const useManualEntryContext = (studentId: string) =>
     queryFn: () => counsellorChartService.resolveStudentChartContext(studentId),
     staleTime: 5 * 60 * 1000,
   });
+
+// A manual entry stays hidden from Super Admin until the student it belongs to has
+// wrapped up Session 2 — before that the chart is still being actively worked on by
+// the counsellor, and the entry may still change. Ordinal comparison against the
+// backend's WorkflowStatus enum (types/student.types.ts) — any stage from
+// SESSION_2_COMPLETED onward counts as "done".
+const WORKFLOW_ORDER: StudentWorkflowStatus[] = [
+  'DRAFT',
+  'PROFILE_COMPLETED',
+  'PRE_COUNSELLING_FORMS_SUBMITTED',
+  'ASSESSMENT_PENDING',
+  'ASSESSMENT_COMPLETED',
+  'SESSION_SCHEDULED',
+  'SESSION_1_COMPLETED',
+  'COUNSELLOR_FEEDBACK_REPORT',
+  'SESSION_2_COMPLETED',
+  'COUNSELLOR_FEEDBACK',
+  'STUDENT_PARENT_FEEDBACK',
+  'CLOSED',
+];
+const SESSION_2_COMPLETED_INDEX = WORKFLOW_ORDER.indexOf('SESSION_2_COMPLETED');
+const hasFinishedSession2 = (status: StudentWorkflowStatus | null | undefined): boolean =>
+  status != null && WORKFLOW_ORDER.indexOf(status) >= SESSION_2_COMPLETED_INDEX;
 
 const ManualEntryProjectCell: React.FC<{ studentId: string }> = ({ studentId }) => {
   const { data } = useManualEntryContext(studentId);
@@ -112,11 +136,29 @@ export const SuperAdminDashboard: React.FC = () => {
     throwOnError: false,
   });
 
+  // Shares its cache key with useManualEntryContext (used by the table cells below) —
+  // resolves each distinct student's workflowStatus so entries can be gated on
+  // Session 2 completion before they're ever added to `rows`.
+  const distinctStudentIds = Array.from(new Set(manualEntries.map(entry => entry.studentId)));
+  const studentContextQueries = useQueries({
+    queries: distinctStudentIds.map(studentId => ({
+      queryKey: ['student-chart-context', studentId],
+      queryFn: () => counsellorChartService.resolveStudentChartContext(studentId),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+  const workflowStatusByStudentId = new Map(
+    distinctStudentIds.map((studentId, i) => [studentId, studentContextQueries[i]?.data?.workflowStatus])
+  );
+  const visibleManualEntries = manualEntries.filter(entry =>
+    hasFinishedSession2(workflowStatusByStudentId.get(entry.studentId))
+  );
+
   const rows: DashboardRow[] = [
     ...requestsList.map(
       (req): DashboardRow => ({ rowType: 'ratification', id: `ratification:${req.id}`, data: req })
     ),
-    ...manualEntries.map(
+    ...visibleManualEntries.map(
       (entry): DashboardRow => ({ rowType: 'manual-entry', id: `manual-entry:${entry.id}`, data: entry })
     ),
   ];
@@ -257,7 +299,7 @@ export const SuperAdminDashboard: React.FC = () => {
             <ManualEntryViewButton entry={row.data} onView={setViewingEntry} />
           )}
           <Tooltip content="Dismiss this request from the list">
-            <CloseButton onClick={() => setRowPendingClose(row)}>Close</CloseButton>
+            <CloseButton onClick={() => setRowPendingClose(row)}>Clear</CloseButton>
           </Tooltip>
         </ActionButtonCell>
       ),
@@ -295,7 +337,7 @@ export const SuperAdminDashboard: React.FC = () => {
             ? `This permanently deletes "${rowPendingClose.data.tableLabel}" entry for ${rowPendingClose.data.studentName || 'this student'} from the counsellor chart. This cannot be undone.`
             : 'This dismisses the request from this list. It will reappear on the next refresh unless approved or rejected.'
         }
-        confirmLabel={rowPendingClose?.rowType === 'manual-entry' ? 'Delete' : 'Dismiss'}
+        confirmLabel={rowPendingClose?.rowType === 'manual-entry' ? 'Clear' : 'Dismiss'}
         isLoading={deleteManualEntryMutation.isPending}
         isDangerous={rowPendingClose?.rowType === 'manual-entry'}
       />

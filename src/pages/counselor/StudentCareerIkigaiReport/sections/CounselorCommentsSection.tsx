@@ -16,16 +16,14 @@ interface CounselorCommentsSectionProps {
 }
 
 // Notes are keyed by the synthesis note code the counsellor filled in on the Counsellor
-// Chart (e.g. "A1", "D3"). The code's leading letter maps to the Chart section it was
-// written under; students only see the topic, never the internal code.
+// Chart. Per the Design Destiny "Career kREATE Report" template, every lettered code has
+// its own report section and is now shown inline there instead of here: A/B/C in
+// StudentProfileSection, D in CareerCompassSection, E in GraduationPathwaysSection, F in
+// ReliabilityDashboardSection (page.tsx excludes all of those from the `notes` passed to
+// this section). Only G ("My kREATE Blueprint" / Parting Notes) has no report section yet,
+// so it still lands here. There is no "H" code in the template.
 const SECTION_TOPICS: Record<string, string> = {
-  A: "Academics & Interests",
-  B: "Strengths & Personality",
-  D: "Career Direction",
-  E: "Stream Fit & Pathways",
-  F: "Assessment Reliability",
-  G: "Career Readiness",
-  H: "Counselling Goals",
+  G: "My kREATE Blueprint",
 };
 
 const topicForCode = (code: string): string => SECTION_TOPICS[code.charAt(0)] ?? "General Notes";

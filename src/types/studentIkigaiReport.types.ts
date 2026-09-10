@@ -36,7 +36,8 @@ export interface StreamFitItem {
 export interface GraduationPathwayItem {
   id: string;
   cluster: string;
-  degree: string;
+  mainStream: string;
+  subStream: string;
   specialisations: string;
   keyExams: string;
   reasoning: string;

@@ -672,7 +672,7 @@ export const StudentPortalPage: React.FC = () => {
 
       {/* SEPARATE kREATE COMPASS REPORT WIDGET BLOCK */}
       {(() => {
-        const isViewable = isAssessmentSubmitted || isSession1Completed;
+        const isViewable = !!session1?.id && (isAssessmentSubmitted || isSession1Completed);
         const isDownloadable = isStudentFeedbackSubmitted && isParentFeedbackSubmitted;
 
         return (

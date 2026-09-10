@@ -1,6 +1,7 @@
 import { apiClient } from './api';
 import { toTitleCase } from '@/utils';
 import { sessionsService } from './sessions.service';
+import { StudentWorkflowStatus } from '@/types/student.types';
 import {
   CounsellorChartResponse,
   PutCounsellorChartBody,
@@ -65,8 +66,9 @@ export const counsellorChartService = {
   },
 
   // Fills in the fields GET /counsellor-chart/manual-entries doesn't return yet
-  // (sessionId, counsellorCode, studentCode, projectName — see the backend prompt doc)
-  // from already-live endpoints, so Super Admin's "View" button and code columns work
+  // (sessionId, counsellorCode, studentCode, projectName, workflowStatus — see the
+  // backend prompt doc) from already-live endpoints, so Super Admin's "View" button,
+  // code columns, and the Session 2 visibility gate (see SuperAdminDashboard) work
   // today instead of waiting on that backend change. Picks the student's most recently
   // scheduled session as "the" session/counsellor for this chart.
   resolveStudentChartContext: async (
@@ -76,9 +78,14 @@ export const counsellorChartService = {
     studentCode: string | null;
     counsellorCode: string | null;
     projectName: string | null;
+    workflowStatus: StudentWorkflowStatus | null;
   }> => {
     const [studentRes, sessions] = await Promise.all([
-      apiClient.get<{ studentCode?: string; project?: { id: string } }>(`/students/${studentId}`),
+      apiClient.get<{
+        studentCode?: string;
+        project?: { id: string };
+        workflowStatus?: StudentWorkflowStatus;
+      }>(`/students/${studentId}`),
       sessionsService.getStudentSessions(studentId).catch(() => []),
     ]);
 
@@ -99,6 +106,7 @@ export const counsellorChartService = {
       studentCode: studentRes.data.studentCode ?? latestSession?.student.studentCode ?? null,
       counsellorCode: latestSession?.counsellor.counsellorCode ?? null,
       projectName,
+      workflowStatus: studentRes.data.workflowStatus ?? null,
     };
   },
 
@@ -822,23 +830,34 @@ export const mapChartToFormData = (
   const domainFitByKey = new Map(
     (report?.careerFit?.rankedDomains ?? []).map(d => [fitKey(d.domain), d.fitScore])
   );
+  // `cluster`/`industry` on Career Compass rows only exist on Career Compass table
+  // rows added after that redesign — a chart saved before it has persisted rows with
+  // neither field, so backfill them by domain name from the assessment report rather
+  // than showing a blank cell (or waiting on a backend data migration).
+  const domainInfoByKey = new Map(
+    (report?.careerFit?.rankedDomains ?? []).map(d => [
+      fitKey(d.domain),
+      { cluster: d.cluster, industry: d.industry },
+    ])
+  );
   const careerCompassTable: CareerCompassItem[] = (
     chart.counsellor.careerCompassTable ??
     (report?.careerFit?.top6Domains ?? []).map((d, i) => ({
       id: `cc-${i}`,
+      cluster: d.cluster,
+      industry: d.industry,
       domain: d.domain,
       role: d.representativeCareer?.jobRole ?? '',
       whyItFits: d.representativeCareer?.oneLineDescription ?? '',
       topEmployers: (d.representativeCareer?.topCompanies ?? []).join(', '),
-      aiResilience: d.representativeCareer
-        ? `${toTitleCase(d.representativeCareer.aiResilienceGrade)}. ${d.representativeCareer.aiResilienceComment}`
-        : '',
       salaryIndia: d.representativeCareer?.salaryIndiaRangeText ?? '',
       salaryAbroad: d.representativeCareer?.salaryGlobalRangeText ?? '',
       fitScore: d.fitScore ?? undefined,
     }))
   ).map(row => ({
     ...row,
+    cluster: row.cluster || domainInfoByKey.get(fitKey(row.domain))?.cluster || '',
+    industry: row.industry || domainInfoByKey.get(fitKey(row.domain))?.industry || '',
     fitScore: readPersistedFitScore(row) ?? domainFitByKey.get(fitKey(row.domain)) ?? undefined,
   }));
 
@@ -858,6 +877,7 @@ export const mapChartToFormData = (
     return {
       code: displayCode,
       name: def?.friendlyName ?? fallbackName,
+      measure: def?.measure ?? '',
       guidingQuestion: def?.whatItMeasures ?? fallbackQuestion,
     };
   };
@@ -1125,8 +1145,12 @@ export const buildSaveBody = (
     ...formData.sectionE.synthesisNotes,
     ...formData.sectionF.synthesisNotes,
   };
+  // Send every valid code's current value, including empty strings — a note the
+  // counsellor just cleared must overwrite the stale value already stored server-side,
+  // not get silently dropped from the payload (which would leave the old text in place
+  // and have it reappear on the next load).
   const notes = Object.entries(allNotes)
-    .filter(([code, body]) => VALID_SYNTHESIS_NOTE_CODES.has(code) && body.trim().length > 0)
+    .filter(([code]) => VALID_SYNTHESIS_NOTE_CODES.has(code))
     .map(([code, body]) => ({ code, body: body.slice(0, 5000) }));
 
   const scriRatings = formData.sectionE.scriItems;

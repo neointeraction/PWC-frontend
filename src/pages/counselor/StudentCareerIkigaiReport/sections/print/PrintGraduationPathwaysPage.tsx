@@ -32,18 +32,20 @@ export const PrintGraduationPathwaysPage: React.FC<PrintGraduationPathwaysPagePr
     <PrintTable>
       <thead>
         <tr>
-          <th style={{ width: '16%' }}>Cluster</th>
-          <th style={{ width: '16%' }}>Degree</th>
-          <th style={{ width: '18%' }}>Specialisations</th>
+          <th style={{ width: '12%' }}>Cluster</th>
+          <th style={{ width: '14%' }}>Main Stream</th>
+          <th style={{ width: '14%' }}>Sub-Stream</th>
+          <th style={{ width: '14%' }}>Specialisation</th>
           <th>Reasoning</th>
-          <th style={{ width: '16%' }}>Key Exams</th>
+          <th style={{ width: '14%' }}>Key Exams</th>
         </tr>
       </thead>
       <tbody>
         {data.pathways.map(row => (
           <tr key={row.id}>
             <td>{row.cluster}</td>
-            <td>{row.degree}</td>
+            <td>{row.mainStream}</td>
+            <td>{row.subStream}</td>
             <td>{row.specialisations}</td>
             <td>{row.reasoning}</td>
             <td>{row.keyExams}</td>

@@ -11,7 +11,11 @@ import { Button } from '@/components/Button';
 import { Loader } from '@/components/Loader';
 import { EmptyState } from '@/components/EmptyState';
 import { ROUTES } from '@/constants';
-import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
+import {
+  CounsellorFormChartData,
+  CollegesAfterItem,
+  EntranceExamItem,
+} from '@/mocks/studentFormChart.mock';
 import { sessionsService } from '@/services/sessions.service';
 import { scriBandGuidanceService } from '@/services/scriBandGuidance.service';
 import {
@@ -41,6 +45,7 @@ import {
   StickyFooterNav,
   ReadOnlyStepContent,
 } from './StudentFormChartPage.styles';
+import { ReadOnlyContext } from './ReadOnlyContext';
 
 const STEP_LABELS = [
   { index: 0, label: 'Our Champion', shortLabel: 'Info' },
@@ -292,6 +297,7 @@ export const StudentFormChartPage: React.FC = () => {
         {/* Main Step Content Panel */}
         <MainContentPanel>
         <ReadOnlyStepContent $readOnly={isReadOnly}>
+        <ReadOnlyContext.Provider value={isReadOnly}>
           {activeStep === 0 && (
             <Step0StudentInfo
               data={formData.studentInfo}
@@ -443,6 +449,18 @@ export const StudentFormChartPage: React.FC = () => {
                 setFormData(next);
                 saveMutation.mutate(next);
               }}
+              onChangeCollegesAndExamsTable={(colleges: CollegesAfterItem[], exams: EntranceExamItem[]) => {
+                // Both tables in one state update + one save — calling the two setters
+                // above back-to-back here would race (each captures the same stale
+                // `formData` closure, so the second call's save silently reverts the
+                // first's field back to its old value).
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, collegesTable: colleges, entranceExamsTable: exams },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
               onChangeCompassClusterTable={table => {
                 const next = {
                   ...formData,
@@ -549,6 +567,7 @@ export const StudentFormChartPage: React.FC = () => {
               }
             />
           )}
+        </ReadOnlyContext.Provider>
         </ReadOnlyStepContent>
 
           {/* Sticky Bottom Navigation Footer */}

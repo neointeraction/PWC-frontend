@@ -104,7 +104,11 @@ export const AddRowModal: React.FC<AddRowModalProps> = ({
           <Checkbox
             label="Manual Entry — type free text instead of selecting from the career library"
             checked={isManualEntry}
-            onChange={e => setIsManualEntry(e.target.checked)}
+            onChange={e => {
+              setIsManualEntry(e.target.checked);
+              setValues({});
+              setSelectedIds({});
+            }}
           />
         </div>
       )}

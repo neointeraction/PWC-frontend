@@ -34,19 +34,31 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
 
       {/* Stream Fit Table */}
       <TraitMapTableContainer>
-        <TraitMapHeaderRow style={{ gridTemplateColumns: '180px 220px 1fr 220px' }}>
+        <TraitMapHeaderRow
+          style={{ gridTemplateColumns: '150px 180px 220px 180px 130px 1fr', minWidth: '1100px' }}
+        >
           <TraitCell>Main Stream</TraitCell>
           <TraitCell>Sub-Stream</TraitCell>
           <TraitCell>Core Subjects</TraitCell>
-          <TraitCell>Recommended Electives</TraitCell>
+          <TraitCell>Electives</TraitCell>
+          <TraitCell>Grading Level</TraitCell>
+          <TraitCell>Meaning</TraitCell>
         </TraitMapHeaderRow>
 
         {data.table.map(row => (
-          <TraitMapDataRow key={row.id} style={{ gridTemplateColumns: '180px 220px 1fr 220px' }}>
+          <TraitMapDataRow
+            key={row.id}
+            style={{
+              gridTemplateColumns: '150px 180px 220px 180px 130px 1fr',
+              minWidth: '1100px',
+            }}
+          >
             <TraitCell style={{ fontWeight: 800, color: '#4F46E5' }}>{row.mainStream}</TraitCell>
             <TraitCell style={{ fontWeight: 700 }}>{row.subStream}</TraitCell>
             <TraitCell style={{ fontWeight: 500 }}>{row.coreSubjects}</TraitCell>
             <TraitCell style={{ fontWeight: 600 }}>{row.electives}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>{row.gradingLevel}</TraitCell>
+            <TraitCell style={{ fontWeight: 500 }}>{row.meaning}</TraitCell>
           </TraitMapDataRow>
         ))}
       </TraitMapTableContainer>

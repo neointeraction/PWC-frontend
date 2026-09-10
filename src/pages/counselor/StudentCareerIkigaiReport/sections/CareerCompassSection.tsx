@@ -2,6 +2,7 @@ import React from 'react';
 import { RiCompassLine, RiBuildingLine, RiMoneyDollarCircleLine } from 'react-icons/ri';
 import { CareerRecommendationCard as CardType } from '@/types/studentIkigaiReport.types';
 import { Badge } from '@/components/Badge';
+import { CounsellorInsightsCard } from './CounsellorInsightsCard';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,
@@ -19,9 +20,14 @@ import {
 
 interface CareerCompassSectionProps {
   cards: CardType[];
+  notes?: Record<string, string>;
 }
 
-export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ cards }) => {
+// "Where we see You Thriving" — D1 onwards, per the Design Destiny template's Career
+// Compass / Job Roles page.
+const INSIGHT_GROUPS = [{ prefix: 'D', title: 'Where we see You Thriving' }] as const;
+
+export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ cards, notes = {} }) => {
   return (
     <ReportSectionBlock id="career-compass">
       <SectionHeaderGroup>
@@ -104,6 +110,8 @@ export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ card
           </CareerCompassCard>
         ))}
       </CareerCompassGrid>
+
+      <CounsellorInsightsCard notes={notes} groups={INSIGHT_GROUPS} />
     </ReportSectionBlock>
   );
 };

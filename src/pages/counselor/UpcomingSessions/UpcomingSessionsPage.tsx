@@ -86,7 +86,13 @@ export const UpcomingSessionsPage: React.FC = () => {
   // Join is only enabled within 10 minutes of the session's start time, either side —
   // past that band it's treated as a no-show rather than a late join (see
   // sessions.service's isWithinJoinWindow/hasJoinWindowClosed for the shared rule).
-  const checkCanJoin = (row: CounselorSessionRow): boolean => isWithinJoinWindow(row);
+  // Once the counsellor has already joined (counsellorJoinedAt set), the window is
+  // treated as closed so the row doesn't invite a second join.
+  const checkCanJoin = (row: CounselorSessionRow): boolean =>
+    !row.counsellorJoinedAt && isWithinJoinWindow(row);
+
+  const checkJoinWindowClosed = (row: CounselorSessionRow): boolean =>
+    !!row.counsellorJoinedAt || hasJoinWindowClosed(row);
 
   const handleOpenStudentChart = (session: CounselorSessionRow) => {
     navigate(ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', session.id));
@@ -150,7 +156,7 @@ export const UpcomingSessionsPage: React.FC = () => {
         header: 'Time',
         cell: (row: CounselorSessionRow) => {
           const canJoin = row.isBooked ? checkCanJoin(row) : false;
-          const missedJoin = row.isBooked && !row.isCompleted && !canJoin && hasJoinWindowClosed(row);
+          const missedJoin = row.isBooked && !row.isCompleted && !canJoin && checkJoinWindowClosed(row);
           return (
             <TimeContainer>
               <TimeText>{row.timeSlot || dayjs(row.dateTime).format('HH:mm')}</TimeText>
@@ -227,14 +233,16 @@ export const UpcomingSessionsPage: React.FC = () => {
             );
           }
 
-          const missedJoin = !row.isCompleted && hasJoinWindowClosed(row);
+          const missedJoin = !row.isCompleted && checkJoinWindowClosed(row);
 
           return (
             <Tooltip
               content={
-                missedJoin
-                  ? 'Join window has closed — this session is now marked as a no-show'
-                  : 'Join button enables 10 minutes before session start time'
+                row.counsellorJoinedAt
+                  ? 'You have already joined this session'
+                  : missedJoin
+                    ? 'Join window has closed — this session is now marked as a no-show'
+                    : 'Join button enables 10 minutes before session start time'
               }
             >
               <Button

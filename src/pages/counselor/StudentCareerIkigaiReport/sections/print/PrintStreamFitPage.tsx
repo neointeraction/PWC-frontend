@@ -32,7 +32,6 @@ export const PrintStreamFitPage: React.FC<PrintStreamFitPageProps> = ({ gradeCla
           <th>Sub-Stream</th>
           <th>Core Subjects</th>
           <th>Electives</th>
-          <th>Fit Score</th>
           <th>Grading Level</th>
           <th>Meaning</th>
         </tr>
@@ -44,7 +43,6 @@ export const PrintStreamFitPage: React.FC<PrintStreamFitPageProps> = ({ gradeCla
             <td>{row.subStream}</td>
             <td>{row.coreSubjects}</td>
             <td>{row.electives}</td>
-            <td>{row.requirement}</td>
             <td>{row.gradingLevel}</td>
             <td>{row.meaning}</td>
           </tr>

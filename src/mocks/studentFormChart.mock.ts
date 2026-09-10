@@ -76,6 +76,11 @@ export interface EntranceExamItem {
   examMonth: string;
   urlLink: string;
   isManualEntry?: boolean;
+  // Set when this row was auto-suggested from a Career Compass target role's linked
+  // entrance exams (see CareerCompassItem.roleId), rather than added by hand — lets the
+  // suggestion sync drop it again if that target role is later removed, without
+  // touching rows the counsellor added or edited themselves.
+  sourceRoleId?: string;
 }
 
 export interface CollegesAfterItem {
@@ -88,6 +93,8 @@ export interface CollegesAfterItem {
   ranking: string;
   website: string;
   isManualEntry?: boolean;
+  // See EntranceExamItem.sourceRoleId — same auto-suggestion provenance tag.
+  sourceRoleId?: string;
 }
 
 export interface CareerCompassClusterItem {
@@ -106,22 +113,29 @@ export interface CareerCompassClusterItem {
 
 export interface CareerCompassItem {
   id: string;
+  cluster: string;
+  industry: string;
   domain: string;
   role: string;
   whyItFits: string;
   topEmployers: string;
-  aiResilience: string;
   salaryIndia: string;
   salaryAbroad: string;
   // Only present on system-generated rows (from DomainFit.fitScore) — used to sort them
   // before counsellor-added rows fill the remaining slots up to the table's max.
   fitScore?: number;
   isManualEntry?: boolean;
+  // Career-library id of the picked Target Role (absent for manual entries) — used to
+  // auto-suggest/sync this role's linked colleges & entrance exams into the Colleges
+  // After Class 11&12 / Entrance Exams tables. See EntranceExamItem/CollegesAfterItem
+  // .sourceRoleId.
+  roleId?: string;
 }
 
 export interface ReliabilityCardData {
   code: string;
   name: string;
+  measure: string;
   guidingQuestion: string;
   valueStatus: string;
   explanationText: string;

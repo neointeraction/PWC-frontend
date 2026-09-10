@@ -260,9 +260,15 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
           ['Code', 'Rank Traits (1 → 2 → 3)', 'Dominant Career Style', 'Description', 'Explanation'],
           [
             data.summaryStrip.careerStyle.code,
-            data.summaryStrip.careerStyle.traits
-              .map(t => `${t.name} (${t.percentage}%)`)
-              .join(' → '),
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+              {data.summaryStrip.careerStyle.traits.map((t, idx) => (
+                <React.Fragment key={idx}>
+                  {idx > 0 && <span>→</span>}
+                  <span>{t.name}</span>
+                  <TraitScoreBadge>{t.percentage}%</TraitScoreBadge>
+                </React.Fragment>
+              ))}
+            </div>,
             <span style={{ fontWeight: 600 }}>{data.summaryStrip.careerStyle.style}</span>,
             data.summaryStrip.careerStyle.description,
             data.summaryStrip.careerStyle.explanation,
@@ -275,9 +281,15 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
           ['Code', 'Rank Traits (1 → 2)', 'Personality Style', 'Description', 'Explanation'],
           [
             data.summaryStrip.personalSignature.code,
-            data.summaryStrip.personalSignature.traits
-              .map(t => `${t.name} (${t.percentage}%)`)
-              .join(' → '),
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+              {data.summaryStrip.personalSignature.traits.map((t, idx) => (
+                <React.Fragment key={idx}>
+                  {idx > 0 && <span>→</span>}
+                  <span>{t.name}</span>
+                  <TraitScoreBadge>{t.percentage}%</TraitScoreBadge>
+                </React.Fragment>
+              ))}
+            </div>,
             <span style={{ fontWeight: 600 }}>{data.summaryStrip.personalSignature.style}</span>,
             data.summaryStrip.personalSignature.description,
             data.summaryStrip.personalSignature.explanation,
@@ -286,28 +298,24 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
 
         {renderDominantTable(
           'THINKING MODE (Top Trait of COG&DEC)',
-          '110px 1.2fr 1.2fr 2.2fr 110px 2.4fr',
+          '110px 1.2fr 1.2fr 2.2fr 2.4fr',
           [
             'Layer',
             'Trait',
             'Trait Name',
             'Description',
-            'Current Level',
             'Student Friendly Explanation',
           ],
           [
             data.summaryStrip.thinkingMode.layer,
-            data.summaryStrip.thinkingMode.trait,
-            <span style={{ fontWeight: 600 }}>{data.summaryStrip.thinkingMode.traitName}</span>,
-            data.summaryStrip.thinkingMode.whatItMeasures,
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-              <TraitGradeTag $type={data.summaryStrip.thinkingMode.level}>
-                {data.summaryStrip.thinkingMode.level}
-              </TraitGradeTag>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+              <span>{data.summaryStrip.thinkingMode.trait}</span>
               {data.summaryStrip.thinkingMode.percentage && (
                 <TraitScoreBadge>{data.summaryStrip.thinkingMode.percentage}%</TraitScoreBadge>
               )}
             </div>,
+            <span style={{ fontWeight: 600 }}>{data.summaryStrip.thinkingMode.traitName}</span>,
+            data.summaryStrip.thinkingMode.whatItMeasures,
             data.summaryStrip.thinkingMode.personalizedExplanation || '—',
           ]
         )}

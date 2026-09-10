@@ -39,7 +39,6 @@ export const PrintCareerCompassPage: React.FC<PrintCareerCompassPageProps> = ({
           <th>Cluster</th>
           <th>Industry</th>
           <th>Domain</th>
-          <th>Fit Score</th>
           <th>Grading Level</th>
           <th>Meaning</th>
         </tr>
@@ -50,7 +49,6 @@ export const PrintCareerCompassPage: React.FC<PrintCareerCompassPageProps> = ({
             <td>{row.cluster}</td>
             <td>{row.industry}</td>
             <td>{row.domain}</td>
-            <td>{row.requirement}</td>
             <td>{row.gradingLevel}</td>
             <td>{row.meaning}</td>
           </tr>
@@ -84,7 +82,7 @@ export const PrintCareerCompassPage: React.FC<PrintCareerCompassPageProps> = ({
             </tr>
             <tr>
               <td>Fit Level</td>
-              <td>{card.fitScore !== null ? `${card.level} — ${card.fitScore}%` : card.level}</td>
+              <td>{card.level}</td>
             </tr>
             <tr>
               <td>Why It Fits</td>
