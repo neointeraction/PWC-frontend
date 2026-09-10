@@ -67,9 +67,29 @@ export const PrintCoverBody = styled.div`
   flex-direction: column;
   align-items: center;
   text-align: center;
-  min-height: 900px;
+  min-height: 620px;
   justify-content: center;
-  gap: 28px;
+  gap: 22px;
+`;
+
+export const PrintCoverLogo = styled.img`
+  width: 150px;
+  height: auto;
+  object-fit: contain;
+`;
+
+export const PrintCoverImagePlaceholder = styled.div`
+  width: 320px;
+  height: 190px;
+  border: 1px dashed ${PRINT_BORDER};
+  border-radius: 4px;
+  background: ${PRINT_PURPLE_LIGHT};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${PRINT_GREY_TEXT};
+  font-size: 11px;
+  font-style: italic;
 `;
 
 export const PrintCoverTitle = styled.h1`
@@ -114,7 +134,6 @@ export const PrintDisclaimer = styled.p`
   color: ${PRINT_GREY_TEXT};
   max-width: 620px;
   line-height: 1.5;
-  margin-top: auto;
 `;
 
 // Section heading block (used on every content page)

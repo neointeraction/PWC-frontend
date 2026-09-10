@@ -1,7 +1,10 @@
 import React from 'react';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
+import kreateLogo from '@/assets/logo.jpg';
 import {
   PrintCoverBody,
+  PrintCoverLogo,
+  PrintCoverImagePlaceholder,
   PrintCoverTitle,
   PrintCoverSubtitle,
   PrintCoverTable,
@@ -16,8 +19,10 @@ interface PrintCoverPageProps {
 export const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ studentInfo }) => (
   <PrintPageChrome gradeClass={studentInfo.gradeClass}>
     <PrintCoverBody>
+      <PrintCoverLogo src={kreateLogo} alt="Kreate Logo" />
       <PrintCoverTitle>Design Destiny</PrintCoverTitle>
       <PrintCoverSubtitle>kREATE Compass</PrintCoverSubtitle>
+      <PrintCoverImagePlaceholder>Cover Image Placeholder</PrintCoverImagePlaceholder>
 
       <PrintCoverTable>
         <tbody>

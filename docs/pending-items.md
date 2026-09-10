@@ -117,10 +117,11 @@ Everything except the items below is **done**. What's actually left:
 
 1. **AA-3f** — "Add Counselors" can only assign counsellors already in the directory; no create-a-counsellor path from this screen. Needs a product decision on whether this screen should create counsellors or only assign existing ones (confirmed still open, acknowledged 2026-09-10 — no change made).
 2. **SA-6** — Tenant Management's Institution/Counselor tabs are still `disabled`/`comingSoon`; confirm with product whether these ship or should be removed from the UI (acknowledged 2026-09-10 — no change made).
-3. **CO-7** — needs a backend endpoint (`POST /reports/students/{id}/accept` + an acceptance flag on the assessment GET); frontend side is already done.
-4. **CC-1** — remove the stale Projects soft-delete paragraph from `CLAUDE.md` (still present).
-5. **CC-3 (`/languages` only)** — deferred by design to the project-creation flow; assume defaults until that flow exists.
+3. **CO-7** — needs a backend endpoint (`POST /reports/students/{id}/accept` + an acceptance flag on the assessment GET); frontend side is already done. Handoff prompt: `docs/report-accept-and-counsellor-phone-backend-prompt.md`.
+4. **CC-3 (`/languages` only)** — deferred by design to the project-creation flow; assume defaults until that flow exists.
+
+Also still open, not a code task: **AA-14** (blank counsellor phone for anyone not in `GET /counsellors?projectId` — needs live dev-DB data to confirm; see the same handoff prompt above for the likely backend-side cause).
 
 ~~SA-1 → SA-2 → SA-3 → SA-4, SA-5, SA-8, SA-9, SA-10, SA-11, SA-12, SA-13~~ ·
 ~~AA-1/1b/2/2b/3a-d/3e/4/5/6/7/8/9/10/11/12/13~~ · ~~CO-1/2/3/4/5/6(descoped)~~ · ~~ST-1/2~~ ·
-~~CC-2/CC-3(cohorts)/CC-4~~ — done as of the 2026-09-10 pass (see the section rows above for what changed and why).
+~~CC-1/CC-2/CC-3(cohorts)/CC-4~~ — done as of the 2026-09-10 pass (see the section rows above for what changed and why).
