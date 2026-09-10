@@ -149,6 +149,23 @@ const toList = (value?: string): string[] =>
 const byLevel = (entries: DomainEducationEntry[], level: DomainEducationEntry['level']) =>
   entries.filter(e => e.level === level);
 
+// Multiple programmes at the same level (e.g. BDes / BFA / Relevant Degree) render as one
+// combined line instead of a separate title+description block per programme.
+const renderStepEntries = (entries: DomainEducationEntry[]) => {
+  const programmes = entries.map(entry => entry.programme).join(' / ');
+  const descriptions = Array.from(
+    new Set(entries.map(entry => entry.description).filter((d): d is string => Boolean(d)))
+  );
+  return (
+    <>
+      <StepTitle>{programmes}</StepTitle>
+      {descriptions.map((description, i) => (
+        <StepSubtitle key={i}>{description}</StepSubtitle>
+      ))}
+    </>
+  );
+};
+
 export const EducationPathTab: React.FC<EducationPathTabProps> = ({
   role,
   linkedEducationEntries = [],
@@ -175,12 +192,7 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
           <StepCard>
             <StepLabel>10+2</StepLabel>
             {class10Plus2.length > 0 ? (
-              class10Plus2.map(entry => (
-                <React.Fragment key={entry.id}>
-                  <StepTitle>{entry.programme}</StepTitle>
-                  {entry.description && <StepSubtitle>{entry.description}</StepSubtitle>}
-                </React.Fragment>
-              ))
+              renderStepEntries(class10Plus2)
             ) : (
               <>
                 <StepTitle>{role.minQual10th12thRecommendedSubjects || '—'}</StepTitle>
@@ -194,12 +206,7 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
           <StepCard>
             <StepLabel>GRADUATE</StepLabel>
             {graduate.length > 0 ? (
-              graduate.map(entry => (
-                <React.Fragment key={entry.id}>
-                  <StepTitle>{entry.programme}</StepTitle>
-                  {entry.description && <StepSubtitle>{entry.description}</StepSubtitle>}
-                </React.Fragment>
-              ))
+              renderStepEntries(graduate)
             ) : (
               <>
                 <StepTitle>{role.minQualGradRecommendedSubjects || '—'}</StepTitle>
@@ -213,12 +220,7 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
           <StepCard>
             <StepLabel>POST-GRADUATE</StepLabel>
             {postGraduate.length > 0 ? (
-              postGraduate.map(entry => (
-                <React.Fragment key={entry.id}>
-                  <StepTitle>{entry.programme}</StepTitle>
-                  {entry.description && <StepSubtitle>{entry.description}</StepSubtitle>}
-                </React.Fragment>
-              ))
+              renderStepEntries(postGraduate)
             ) : (
               <>
                 <StepTitle>{role.minQualPGRecommendedSubjects || '—'}</StepTitle>
