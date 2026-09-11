@@ -14,7 +14,6 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Button } from '@/components/Button';
 import { Checkbox } from '@/components/Checkbox';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
   careerService,
   CareerEntryPayload,
