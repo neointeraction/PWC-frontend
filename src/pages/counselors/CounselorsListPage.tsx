@@ -78,7 +78,7 @@ export const CounselorsListPage: React.FC = () => {
   // Query all counselors for stats calculation (without pagination)
   const { data: allCounselorsData } = useQuery({
     queryKey: ['counselors-stats'],
-    queryFn: () => counselorService.getAll({}), // Get all without filters
+    queryFn: () => counselorService.getAll({ limit: Number.MAX_SAFE_INTEGER }), // Get all without filters or pagination
   });
 
   // Calculate dynamic stats from all counselors
