@@ -107,6 +107,13 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
     enabled: !!studentId,
   });
 
+  // Seed acceptance state from the server so it survives a refresh/re-open instead of
+  // always starting at "not accepted" (the mutation below still flips it optimistically
+  // on accept, ahead of the next refetch).
+  useEffect(() => {
+    if (reportData) setIsAccepted(reportData.accepted);
+  }, [reportData]);
+
   // Counsellor's synthesis notes from the Counsellor Chart — surfaced here as
   // "Counsellor's Comments" so the student/parent can see them alongside the report.
   const {

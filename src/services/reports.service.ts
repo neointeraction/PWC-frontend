@@ -59,6 +59,8 @@ interface ApiStudentAssessmentReport {
     strengths: string[];
     hobbies: string[];
   } | null;
+  accepted: boolean;
+  acceptedAt: string | null;
   meta: {
     generatedAt: string;
   };
@@ -208,6 +210,8 @@ const mapReport = (
     streamFit: { table: streamFitTable, whyTheseStreams },
     graduation: { pathways },
     careerCompass,
+    accepted: api.accepted,
+    acceptedAt: api.acceptedAt,
   };
 };
 
@@ -223,9 +227,10 @@ export const reportsService = {
     return mapReport(data, counselorName);
   },
 
-  // POST /reports/students/{studentId}/accept — not yet built on the backend (see
-  // docs/pending-items.md CO-7); the student/parent accepts the finalized report after
-  // Session 2, so the counsellor knows to move them to the Feedback step.
+  // POST /reports/students/{studentId}/accept — the student/parent accepts the
+  // finalized report after Session 2, so the counsellor knows to move them to the
+  // Feedback step. Idempotent: calling it again after acceptance returns the original
+  // acceptedAt.
   acceptReport: async (studentId: string): Promise<{ acceptedAt: string }> => {
     const { data } = await apiClient.post<{ acceptedAt: string }>(
       `/reports/students/${studentId}/accept`

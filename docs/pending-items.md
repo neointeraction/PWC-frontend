@@ -5,7 +5,7 @@ sees it. Each item names the exact file(s) and, where one exists, the backend en
 should replace the mock. Tick items off as they land.
 
 - Branch: `integration`
-- Last updated: 2026-09-10 (product decisions applied on the remaining open items — see note below)
+- Last updated: 2026-09-11 (CO-7 closed — backend endpoints were already live, frontend now seeds acceptance state from them; see §3)
 - Backend reference: `docs/api-list.md` — **this file does not exist in the repo.** Drop this
   reference; whatever it once was, it isn't checked in. `docs/frontend-integration-guide.md` is
   the closest thing to a live backend reference now.
@@ -90,7 +90,7 @@ bound to real endpoints. No longer parked — CO-6 is the only real gap left.
 | CO-4 | ✅ | P2 | ~~**`studentService.getStudentsByCounselor` / `getPreCounsellingForm` return module-level mock arrays.**~~ Neither function name exists anywhere in `src` any more — refactored away. |
 | CO-5 | ✅ | P2 | ~~**`CounselorDashboard.tsx` is dead code.**~~ The file has been deleted outright, not just left unrouted. |
 | CO-6 | ➖ | — | ~~Counsellor satisfaction score is not surfaced anywhere.~~ **Descoped** (2026-09-10 product decision) — not needed. Backend endpoints (`GET /feedback/counsellors/{id}/score`, `GET /feedback/students/{id}/score`) remain unused by design. |
-| CO-7 | ☐(backend) | P2 | **Frontend is fully wired; the backend endpoint is the only gap.** `StudentCareerIkigaiReportPage.tsx:115-119,249` calls `acceptReportMutation` → `reportsService.acceptReport(studentId)` → `POST /reports/students/{id}/accept` (`src/services/reports.service.ts:208-210`), and the accepted state is meant to persist via an acceptance field on the GET response. The service's own comment (lines 205-208) confirms the backend route doesn't exist yet, so the accepted state still only lives in local component state and resets on reload. This is a backend ticket now, not frontend work. |
+| CO-7 | ✅ | P2 | ~~**Frontend is fully wired; the backend endpoint is the only gap.**~~ Backend already had `POST /reports/students/{id}/accept` and `accepted`/`acceptedAt` on the assessment GET (`PWC-backend/src/modules/reports/reports.service.ts` — both backed by the same idempotent `CounsellorChart.acceptedAt` stamp used by the counsellor-chart accept flow). This doc had drifted stale on that. The remaining frontend gap — `isAccepted` was hardcoded `useState(false)` and never seeded from the server, so acceptance didn't survive a refresh — is fixed: `accepted`/`acceptedAt` added to `ApiStudentAssessmentReport`/`StudentCareerIkigaiReportData` and threaded through `mapReport` (`src/services/reports.service.ts`), and `StudentCareerIkigaiReportPage.tsx` now seeds `isAccepted` from `reportData.accepted` via `useEffect`. |
 
 ## 4. Student / Parent
 
@@ -117,11 +117,10 @@ Everything except the items below is **done**. What's actually left:
 
 1. **AA-3f** — "Add Counselors" can only assign counsellors already in the directory; no create-a-counsellor path from this screen. Needs a product decision on whether this screen should create counsellors or only assign existing ones (confirmed still open, acknowledged 2026-09-10 — no change made).
 2. **SA-6** — Tenant Management's Institution/Counselor tabs are still `disabled`/`comingSoon`; confirm with product whether these ship or should be removed from the UI (acknowledged 2026-09-10 — no change made).
-3. **CO-7** — needs a backend endpoint (`POST /reports/students/{id}/accept` + an acceptance flag on the assessment GET); frontend side is already done. Handoff prompt: `docs/report-accept-and-counsellor-phone-backend-prompt.md`.
-4. **CC-3 (`/languages` only)** — deferred by design to the project-creation flow; assume defaults until that flow exists.
+3. **CC-3 (`/languages` only)** — deferred by design to the project-creation flow; assume defaults until that flow exists.
 
-Also still open, not a code task: **AA-14** (blank counsellor phone for anyone not in `GET /counsellors?projectId` — needs live dev-DB data to confirm; see the same handoff prompt above for the likely backend-side cause).
+Also still open, not a code task in this repo: **AA-14** (blank counsellor phone for anyone not in `GET /counsellors?projectId` — needs live dev-DB data to confirm; see `docs/report-accept-and-counsellor-phone-backend-prompt.md` for the likely backend-side cause, part 2 of that doc — part 1, CO-7, is now done).
 
 ~~SA-1 → SA-2 → SA-3 → SA-4, SA-5, SA-8, SA-9, SA-10, SA-11, SA-12, SA-13~~ ·
-~~AA-1/1b/2/2b/3a-d/3e/4/5/6/7/8/9/10/11/12/13~~ · ~~CO-1/2/3/4/5/6(descoped)~~ · ~~ST-1/2~~ ·
-~~CC-1/CC-2/CC-3(cohorts)/CC-4~~ — done as of the 2026-09-10 pass (see the section rows above for what changed and why).
+~~AA-1/1b/2/2b/3a-d/3e/4/5/6/7/8/9/10/11/12/13~~ · ~~CO-1/2/3/4/5/6(descoped)/7~~ · ~~ST-1/2~~ ·
+~~CC-1/CC-2/CC-3(cohorts)/CC-4~~ — done (see the section rows above for what changed and why).

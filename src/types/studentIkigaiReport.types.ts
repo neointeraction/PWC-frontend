@@ -96,4 +96,8 @@ export interface StudentCareerIkigaiReportData {
     pathways: GraduationPathwayItem[];
   };
   careerCompass: CareerRecommendationCard[];
+  // Student/parent's acknowledgement of the finalized report — backed by
+  // CounsellorChart.acceptedAt on the backend (see reports.service.ts).
+  accepted: boolean;
+  acceptedAt: string | null;
 }
