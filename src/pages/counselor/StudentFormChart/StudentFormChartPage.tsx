@@ -399,15 +399,6 @@ export const StudentFormChartPage: React.FC = () => {
                   sectionC: { ...prev.sectionC, whyThisStream1: val },
                 }))
               }
-              onChangeNotesE={(code, val) =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: {
-                    ...prev.sectionC,
-                    synthesisNotesE: { ...prev.sectionC.synthesisNotesE, [code]: val },
-                  },
-                }))
-              }
               onChangeGraduationTable={table => {
                 const next = {
                   ...formData,
@@ -416,12 +407,12 @@ export const StudentFormChartPage: React.FC = () => {
                 setFormData(next);
                 saveMutation.mutate(next);
               }}
-              onChangeNotesF={(code, val) =>
+              onChangeNotesE={(code, val) =>
                 setFormData(prev => ({
                   ...prev,
                   sectionC: {
                     ...prev.sectionC,
-                    synthesisNotesF: { ...prev.sectionC.synthesisNotesF, [code]: val },
+                    synthesisNotesE: { ...prev.sectionC.synthesisNotesE, [code]: val },
                   },
                 }))
               }

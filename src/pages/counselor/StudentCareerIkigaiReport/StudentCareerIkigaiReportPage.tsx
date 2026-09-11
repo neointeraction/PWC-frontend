@@ -22,6 +22,7 @@ import { ROUTES } from '@/constants';
 import { sessionsService } from '@/services/sessions.service';
 import { reportsService } from '@/services/reports.service';
 import { counsellorChartService } from '@/services/counsellorChart.service';
+import { scriBandGuidanceService } from '@/services/scriBandGuidance.service';
 import { studentService } from '@/services/student.service';
 import { getApiErrorMessage, getApiErrorStatus, formatFullName } from '@/utils';
 import { useToast } from '@/hooks';
@@ -118,6 +119,13 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
     enabled: !!studentId,
   });
 
+  // Static reference data for the SCRI band shown in "My Career Confidence Meter" —
+  // same source the counsellor chart's Step6SCRI uses, keyed by band number.
+  const { data: scriBandGuidance } = useQuery({
+    queryKey: ['scri-band-guidance'],
+    queryFn: () => scriBandGuidanceService.list(),
+  });
+
   const acceptReportMutation = useMutation({
     mutationFn: () => reportsService.acceptReport(studentId!),
     onSuccess: () => {
@@ -209,9 +217,9 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
   }, [reportData]);
 
   const getInitials = (name: string) => {
-    const parts = name.split(' ');
+    const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    return name.slice(0, 2).toUpperCase();
+    return (parts[0] ?? '').slice(0, 2).toUpperCase();
   };
 
   if (isLoading) {
@@ -363,7 +371,7 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
           <KreateBlueprintSection
             roadmapGrid={counsellorChart?.counsellor.roadmapGrid}
             scri={counsellorChart?.counsellor.scri}
-            academicTrend={counsellorChart?.counsellor.academicTrend}
+            bandGuidance={scriBandGuidance}
             alignmentRating={counsellorChart?.counsellor.alignmentRating}
             notes={counsellorChart?.counsellor.notes ?? {}}
           />
@@ -372,7 +380,11 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
 
       {/* Print/"Download as PDF"-only view, styled to match the reference kREATE Compass
           PDF. Hidden on screen (see PrintRoot) — everything above stays exactly as-is. */}
-      <PrintReportContent reportData={reportData} counsellorChart={counsellorChart} />
+      <PrintReportContent
+        reportData={reportData}
+        counsellorChart={counsellorChart}
+        scriBandGuidance={scriBandGuidance}
+      />
     </ReportContainer>
   );
 };

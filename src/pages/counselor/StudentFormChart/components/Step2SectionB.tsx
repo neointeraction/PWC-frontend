@@ -34,28 +34,28 @@ interface Step2SectionBProps {
   onChangeRedFlags?: (key: string, value: string) => void;
 }
 
-const TRAIT_ROW_GRID = '48px 1.1fr 1.9fr 120px 1.9fr';
+const TRAIT_ROW_GRID = '48px 1.1fr 1.9fr 150px 1.9fr';
 
 const synthesisRowsPreDef = [
   {
     code: 'B1',
     placeholder:
-      "Strength Alignment : Compare student self-rated strengths (1.1–1.2) with the parent's view and any special talent the parent alone noticed (1.3); flag strengths the student may be underselling or overselling.",
+      "Strength Alignment : Compare student self-rated strengths (B1.1–B1.2) with the parent's view and any special talent the parent alone noticed (B1.3); flag strengths the student may be underselling or overselling.",
   },
   {
     code: 'B2',
     placeholder:
-      "Personality Synthesis : Reconcile the student's perceived personality type (2.1) with the parent's character description (2.2/2.3); note if the two paint a consistent or conflicting picture. Cross check with BIG Five scores.",
+      "Personality Synthesis : Reconcile the student's perceived personality type (B2.1) with the parent's character description (B2.2/B2.3); note if the two paint a consistent or conflicting picture. Cross check with BIG Five scores.",
   },
   {
     code: 'B3',
     placeholder:
-      "Decision-making Style : Note whether the student's approach (2.4) is independent, consultative, or impulsive, and whether the parent's account (2.4 parent column) matches.",
+      "Decision-making Style : Note whether the student's approach (B2.4) is independent, consultative, or impulsive, and whether the parent's account (B2.4 parent column) matches.",
   },
   {
     code: 'B4',
     placeholder:
-      'Resilience Pattern : From 3.1–3.2, note how the student typically handles setbacks (reflective vs deflecting vs demotivated). This shapes how directly to deliver assessment feedback in-session.',
+      'Resilience Pattern : From B3.1–B3.2, note how the student typically handles setbacks (reflective vs deflecting vs demotivated). This shapes how directly to deliver assessment feedback in-session.',
   },
   {
     code: 'B5',
@@ -126,7 +126,7 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
       </CategoryBlockHeader>
 
       <TraitTableContainer style={{ overflowX: 'auto' }}>
-        <TraitTableHeaderRow style={{ gridTemplateColumns: TRAIT_ROW_GRID, minWidth: '750px' }}>
+        <TraitTableHeaderRow style={{ gridTemplateColumns: TRAIT_ROW_GRID, minWidth: '780px' }}>
           <TraitTableHeaderCell $align="center">No</TraitTableHeaderCell>
           <TraitTableHeaderCell>Trait Name</TraitTableHeaderCell>
           <TraitTableHeaderCell>What It Means</TraitTableHeaderCell>
@@ -144,7 +144,7 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
           traits.map((t, idx) => {
             const traitCode = t.layerTrait.split(' - ')[1] ?? '';
             return (
-              <TraitDataRow key={t.id} style={{ gridTemplateColumns: TRAIT_ROW_GRID, minWidth: '750px' }}>
+              <TraitDataRow key={t.id} style={{ gridTemplateColumns: TRAIT_ROW_GRID, minWidth: '780px' }}>
                 <TraitCell $align="center" $bold style={{ color: '#64748B' }}>
                   {idx + 1}
                 </TraitCell>
@@ -260,13 +260,13 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
           ['Code', 'Rank Traits (1 → 2 → 3)', 'Dominant Career Style', 'Description', 'Explanation'],
           [
             data.summaryStrip.careerStyle.code,
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
               {data.summaryStrip.careerStyle.traits.map((t, idx) => (
-                <React.Fragment key={idx}>
-                  {idx > 0 && <span>→</span>}
+                <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {idx > 0 && <span>↓</span>}
                   <span>{t.name}</span>
                   <TraitScoreBadge>{t.percentage}%</TraitScoreBadge>
-                </React.Fragment>
+                </span>
               ))}
             </div>,
             <span style={{ fontWeight: 600 }}>{data.summaryStrip.careerStyle.style}</span>,
@@ -281,13 +281,13 @@ export const Step2SectionB: React.FC<Step2SectionBProps> = ({
           ['Code', 'Rank Traits (1 → 2)', 'Personality Style', 'Description', 'Explanation'],
           [
             data.summaryStrip.personalSignature.code,
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
               {data.summaryStrip.personalSignature.traits.map((t, idx) => (
-                <React.Fragment key={idx}>
-                  {idx > 0 && <span>→</span>}
+                <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {idx > 0 && <span>↓</span>}
                   <span>{t.name}</span>
                   <TraitScoreBadge>{t.percentage}%</TraitScoreBadge>
-                </React.Fragment>
+                </span>
               ))}
             </div>,
             <span style={{ fontWeight: 600 }}>{data.summaryStrip.personalSignature.style}</span>,

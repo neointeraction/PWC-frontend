@@ -1,5 +1,7 @@
 import React from 'react';
-import { RoadmapGridJson, AcademicTrend, AlignmentRating } from '@/types/counsellorChart.types';
+import { RoadmapGridJson, AlignmentRating } from '@/types/counsellorChart.types';
+import { ScriBandGuidance } from '@/types';
+import { ALIGNMENT_MEANING } from '@/utils/academicAlignmentGuidance';
 import {
   PrintSectionTitle,
   PrintSectionSubtitle,
@@ -17,20 +19,6 @@ interface Scri {
   bandLabel: string | null;
 }
 
-const ACADEMIC_TREND_LABEL: Record<AcademicTrend, string> = {
-  IMPROVING: 'Improving',
-  STABLE: 'Stable',
-  DECLINING: 'Declining',
-  NOT_ASSESSED: 'Not Yet Assessed',
-};
-
-const ACADEMIC_TREND_MEANING: Record<AcademicTrend, string> = {
-  IMPROVING: "The student's academic performance has been trending upward.",
-  STABLE: "The student's academic performance has stayed consistent.",
-  DECLINING: "The student's academic performance has been trending downward.",
-  NOT_ASSESSED: 'Not enough academic history has been reviewed yet to gauge a trend.',
-};
-
 const ALIGNMENT_LABEL: Record<AlignmentRating, string> = {
   STRONGLY_ALIGNED: 'Strongly Aligned',
   PARTIALLY_ALIGNED: 'Partially Aligned',
@@ -38,18 +26,11 @@ const ALIGNMENT_LABEL: Record<AlignmentRating, string> = {
   NOT_YET_ASSESSED: 'Not Yet Assessed',
 };
 
-const ALIGNMENT_MEANING: Record<AlignmentRating, string> = {
-  STRONGLY_ALIGNED: 'Academic strengths and career interests point in the same direction.',
-  PARTIALLY_ALIGNED: 'Academic strengths and career interests overlap in some areas but not others.',
-  MISALIGNED: 'Academic strengths and career interests currently point in different directions.',
-  NOT_YET_ASSESSED: 'Alignment has not been assessed yet.',
-};
-
 interface PrintKreateBlueprintPageProps {
   gradeClass: string;
   roadmapGrid: RoadmapGridJson | null | undefined;
   scri: Scri | undefined;
-  academicTrend: AcademicTrend | null | undefined;
+  bandGuidance: ScriBandGuidance[] | undefined;
   alignmentRating: AlignmentRating | null | undefined;
   notesG: NoteEntry[] | undefined;
 }
@@ -58,11 +39,14 @@ export const PrintKreateBlueprintPage: React.FC<PrintKreateBlueprintPageProps> =
   gradeClass,
   roadmapGrid,
   scri,
-  academicTrend,
+  bandGuidance,
   alignmentRating,
   notesG,
-}) => (
-  <PrintPageChrome gradeClass={gradeClass}>
+}) => {
+  const currentBandDetail = bandGuidance?.find(b => b.band === scri?.band);
+
+  return (
+    <PrintPageChrome gradeClass={gradeClass}>
     <PrintSectionTitle>My kREATE Blueprint</PrintSectionTitle>
     <PrintSectionSubtitle>Now · Class 11–12 · After Class 12</PrintSectionSubtitle>
     <PrintSectionRule />
@@ -119,18 +103,39 @@ export const PrintKreateBlueprintPage: React.FC<PrintKreateBlueprintPageProps> =
       My Career Confidence Meter
     </PrintSectionTitle>
     {scri?.bandLabel ? (
-      <PrintKeyValueTable>
-        <tbody>
-          <tr>
-            <td>Label</td>
-            <td>{scri.bandLabel}</td>
-          </tr>
-          <tr>
-            <td>Score</td>
-            <td>{scri.total ?? '—'}</td>
-          </tr>
-        </tbody>
-      </PrintKeyValueTable>
+      <>
+        <PrintKeyValueTable>
+          <tbody>
+            <tr>
+              <td>Label</td>
+              <td>{scri.bandLabel}</td>
+            </tr>
+          </tbody>
+        </PrintKeyValueTable>
+        {currentBandDetail && (
+          <>
+            <PrintSectionSubtitle style={{ marginTop: '8px' }}>
+              {currentBandDetail.labelMeaning}
+            </PrintSectionSubtitle>
+            <PrintTable>
+              <thead>
+                <tr>
+                  <th>For Students</th>
+                  <th>Tips for Students</th>
+                  <th>Tips for Parent</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{currentBandDetail.forStudents}</td>
+                  <td>{currentBandDetail.tipsForStudents}</td>
+                  <td>{currentBandDetail.tipsForParent}</td>
+                </tr>
+              </tbody>
+            </PrintTable>
+          </>
+        )}
+      </>
     ) : (
       <PrintPlaceholderNote>
         The counsellor hasn&apos;t recorded a career confidence reading for this student yet.
@@ -143,13 +148,6 @@ export const PrintKreateBlueprintPage: React.FC<PrintKreateBlueprintPageProps> =
     <PrintKeyValueTable>
       <tbody>
         <tr>
-          <td>Academic Trend</td>
-          <td>
-            {ACADEMIC_TREND_LABEL[academicTrend ?? 'NOT_ASSESSED']} —{' '}
-            {ACADEMIC_TREND_MEANING[academicTrend ?? 'NOT_ASSESSED']}
-          </td>
-        </tr>
-        <tr>
           <td>Interest Alignment</td>
           <td>
             {ALIGNMENT_LABEL[alignmentRating ?? 'NOT_YET_ASSESSED']} —{' '}
@@ -160,5 +158,6 @@ export const PrintKreateBlueprintPage: React.FC<PrintKreateBlueprintPageProps> =
     </PrintKeyValueTable>
 
     <PrintInsightsSection groups={[{ heading: 'Parting Notes', notes: notesG }]} />
-  </PrintPageChrome>
-);
+    </PrintPageChrome>
+  );
+};

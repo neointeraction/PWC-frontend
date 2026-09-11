@@ -8,6 +8,10 @@ import {
   SectionTitle,
   SectionSubtitle,
   TraitMapTableContainer,
+  TraitMapHeaderRow,
+  TraitMapDataRow,
+  TraitCell,
+  TextCardTitle,
   TextCardBody,
 } from '../StudentCareerIkigaiReportPage.styles';
 
@@ -19,18 +23,17 @@ interface ReliabilityDashboardSectionProps {
 // "What this Tells Us" — F1 onwards, per the Design Destiny template's Reliability page.
 const INSIGHT_GROUPS = [{ prefix: 'F', title: 'What this Tells Us' }] as const;
 
-// Student-facing framing per code — the template deliberately hides the underlying
-// percentage/score from students and shows only the plain-language question, the grading
+// Student-facing guiding question per code — the template deliberately hides the underlying
+// percentage/score from students and shows only this plain-language question, the grading
 // label, and what that grading means.
-const METRIC_COPY: Record<string, { label: string; question: string }> = {
-  EIM: { label: 'Consistency Score', question: 'How consistent were your personality answers?' },
-  ACI: { label: 'Clear Thinking Score', question: 'How logically did aptitude answers progress?' },
-  AAI: { label: 'Skill Confidence Score', question: "How many questions were marked 'Not Sure'?" },
-  HRS: {
-    label: 'Natural Pace Score',
-    question: 'Whether you moved through the assessment at a comfortable, thoughtful pace?',
-  },
+const METRIC_QUESTION: Record<string, string> = {
+  EIM: 'How consistent were your personality answers?',
+  ACI: 'How logically did aptitude answers progress?',
+  AAI: "How many questions were marked 'Not Sure'?",
+  HRS: 'Whether you moved through the assessment at a comfortable, thoughtful pace?',
 };
+
+const RELIABILITY_GRID_COLUMNS = '1.8fr 130px 2.2fr';
 
 export const ReliabilityDashboardSection: React.FC<ReliabilityDashboardSectionProps> = ({
   metrics,
@@ -51,46 +54,25 @@ export const ReliabilityDashboardSection: React.FC<ReliabilityDashboardSectionPr
         your responses were.
       </TextCardBody>
 
-      <TraitMapTableContainer>
-        {metrics.map((item, idx) => {
-          const copy = METRIC_COPY[item.code] ?? { label: item.name, question: item.name };
-          return (
-            <div
-              key={item.code}
-              style={{
-                display: 'flex',
-                borderBottom: idx < metrics.length - 1 ? '1px solid #E5E7EB' : 'none',
-              }}
-            >
-              <div
-                style={{
-                  width: '180px',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  padding: '12px',
-                  borderRight: '1px solid #E5E7EB',
-                }}
-              >
-                {copy.label.toUpperCase()}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ padding: '10px 14px', fontStyle: 'italic', borderBottom: '1px solid #F1F1F4' }}>
-                  {copy.question}
-                </div>
-                <div style={{ padding: '10px 14px', fontWeight: 700, borderBottom: '1px solid #F1F1F4' }}>
-                  {item.status}
-                </div>
-                <div style={{ padding: '10px 14px' }}>{item.guidance}</div>
-              </div>
-            </div>
-          );
-        })}
-      </TraitMapTableContainer>
+      {metrics.map(item => (
+        <div key={item.code} style={{ marginBottom: '16px' }}>
+          <TextCardTitle style={{ fontSize: '0.95rem', marginBottom: '6px' }}>{item.name}</TextCardTitle>
+          <TraitMapTableContainer>
+            <TraitMapHeaderRow style={{ gridTemplateColumns: RELIABILITY_GRID_COLUMNS, minWidth: 0 }}>
+              <TraitCell>Measure</TraitCell>
+              <TraitCell>Status</TraitCell>
+              <TraitCell>Explanation</TraitCell>
+            </TraitMapHeaderRow>
+            <TraitMapDataRow style={{ gridTemplateColumns: RELIABILITY_GRID_COLUMNS, minWidth: 0 }}>
+              <TraitCell style={{ alignItems: 'flex-start', fontStyle: 'italic' }}>
+                {METRIC_QUESTION[item.code] ?? item.name}
+              </TraitCell>
+              <TraitCell style={{ alignItems: 'flex-start', fontWeight: 700 }}>{item.status}</TraitCell>
+              <TraitCell style={{ alignItems: 'flex-start' }}>{item.guidance}</TraitCell>
+            </TraitMapDataRow>
+          </TraitMapTableContainer>
+        </div>
+      ))}
 
       <CounsellorInsightsCard notes={notes} groups={INSIGHT_GROUPS} />
     </ReportSectionBlock>

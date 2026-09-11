@@ -1,10 +1,10 @@
 import React from 'react';
-import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
+import { ChampionTrait, StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
 import {
   PrintSectionTitle,
   PrintSectionSubtitle,
   PrintSectionRule,
-  PrintChampionTable,
+  PrintTable,
   PrintBody,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
 import { PrintPageChrome } from './PrintPageChrome';
@@ -17,6 +17,31 @@ interface PrintChampionProfilePageProps {
   notesB: NoteEntry[] | undefined;
   notesC: NoteEntry[] | undefined;
 }
+
+// One linear name/description/explanation table per lens — mirrors the Dominant
+// Career Style / Personal Signature / Thinking Mode tables on the counsellor chart
+// (Step2SectionB), rather than the 3-up card grid used before.
+const ChampionTraitTable: React.FC<{ nameLabel: string; trait: ChampionTrait }> = ({
+  nameLabel,
+  trait,
+}) => (
+  <PrintTable>
+    <thead>
+      <tr>
+        <th style={{ width: '18%' }}>{nameLabel}</th>
+        <th style={{ width: '41%' }}>Description</th>
+        <th>Explanation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style={{ fontWeight: 700 }}>{trait.name}</td>
+        <td>{trait.description}</td>
+        <td>{trait.explanation}</td>
+      </tr>
+    </tbody>
+  </PrintTable>
+);
 
 export const PrintChampionProfilePage: React.FC<PrintChampionProfilePageProps> = ({
   studentInfo,
@@ -35,27 +60,9 @@ export const PrintChampionProfilePage: React.FC<PrintChampionProfilePageProps> =
       naturally show up with others and how you think things through.
     </PrintBody>
 
-    <PrintChampionTable>
-      <thead>
-        <tr>
-          <th>Career Style</th>
-          <th>Personal Signature</th>
-          <th>Thinking Mode</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td className="trait-name">{studentProfile.careerStyle.name}</td>
-          <td className="trait-name">{studentProfile.personalSignature.name}</td>
-          <td className="trait-name">{studentProfile.thinkingMode.name}</td>
-        </tr>
-        <tr>
-          <td>{studentProfile.careerStyle.description}</td>
-          <td>{studentProfile.personalSignature.description}</td>
-          <td>{studentProfile.thinkingMode.description}</td>
-        </tr>
-      </tbody>
-    </PrintChampionTable>
+    <ChampionTraitTable nameLabel="Career Style" trait={studentProfile.careerStyle} />
+    <ChampionTraitTable nameLabel="Personal Signature" trait={studentProfile.personalSignature} />
+    <ChampionTraitTable nameLabel="Thinking Mode" trait={studentProfile.thinkingMode} />
 
     <PrintInsightsSection
       groups={[

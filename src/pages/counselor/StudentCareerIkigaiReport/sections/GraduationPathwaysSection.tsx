@@ -1,6 +1,7 @@
 import React from 'react';
 import { RiGraduationCapLine } from 'react-icons/ri';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
+import { getCareerFitGrading } from '@/utils/careerFitGrading';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,
@@ -32,7 +33,10 @@ export const GraduationPathwaysSection: React.FC<GraduationPathwaysSectionProps>
 
       <TraitMapTableContainer>
         <TraitMapHeaderRow
-          style={{ gridTemplateColumns: '150px 180px 180px 180px 1fr 200px', minWidth: '1300px' }}
+          style={{
+            gridTemplateColumns: '150px 180px 180px 180px 1fr 200px 130px 1fr',
+            minWidth: '1620px',
+          }}
         >
           <TraitCell>Cluster</TraitCell>
           <TraitCell>Main Stream</TraitCell>
@@ -40,12 +44,17 @@ export const GraduationPathwaysSection: React.FC<GraduationPathwaysSectionProps>
           <TraitCell>Specialisation</TraitCell>
           <TraitCell>Reasoning</TraitCell>
           <TraitCell>Key Exams</TraitCell>
+          <TraitCell>Grading Level</TraitCell>
+          <TraitCell>Explanation</TraitCell>
         </TraitMapHeaderRow>
 
         {data.pathways.map(row => (
           <TraitMapDataRow
             key={row.id}
-            style={{ gridTemplateColumns: '150px 180px 180px 180px 1fr 200px', minWidth: '1300px' }}
+            style={{
+              gridTemplateColumns: '150px 180px 180px 180px 1fr 200px 130px 1fr',
+              minWidth: '1620px',
+            }}
           >
             <TraitCell style={{ fontWeight: 700, color: '#4F46E5' }}>{row.cluster}</TraitCell>
             <TraitCell style={{ fontWeight: 600 }}>{row.mainStream}</TraitCell>
@@ -53,6 +62,10 @@ export const GraduationPathwaysSection: React.FC<GraduationPathwaysSectionProps>
             <TraitCell style={{ fontWeight: 500 }}>{row.specialisations}</TraitCell>
             <TraitCell style={{ fontWeight: 400 }}>{row.reasoning}</TraitCell>
             <TraitCell style={{ fontWeight: 600 }}>{row.keyExams}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>
+              {getCareerFitGrading(row.fitScore ?? undefined)?.level ?? '—'}
+            </TraitCell>
+            <TraitCell>{getCareerFitGrading(row.fitScore ?? undefined)?.explanation ?? '—'}</TraitCell>
           </TraitMapDataRow>
         ))}
       </TraitMapTableContainer>

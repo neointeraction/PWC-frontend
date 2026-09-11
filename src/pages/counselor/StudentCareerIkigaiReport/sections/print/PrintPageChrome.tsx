@@ -1,5 +1,10 @@
 import React from 'react';
-import { PrintPage, PrintRunningHeader, PrintFooter } from '../../StudentCareerIkigaiReportPage.print.styles';
+import {
+  PrintPage,
+  PrintRunningHeader,
+  PrintFooter,
+  PrintPageNumber,
+} from '../../StudentCareerIkigaiReportPage.print.styles';
 
 interface PrintPageChromeProps {
   gradeClass: string;
@@ -17,6 +22,9 @@ export const PrintPageChrome: React.FC<PrintPageChromeProps> = ({ gradeClass, ch
       <span>Confidential</span>
     </PrintRunningHeader>
     {children}
-    <PrintFooter>kREATE Compass Report</PrintFooter>
+    <PrintFooter>
+      <span>kREATE Compass Report</span>
+      <PrintPageNumber />
+    </PrintFooter>
   </PrintPage>
 );

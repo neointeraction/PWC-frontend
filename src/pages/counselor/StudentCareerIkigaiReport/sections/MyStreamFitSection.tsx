@@ -1,6 +1,7 @@
 import React from 'react';
 import { RiGitBranchLine } from 'react-icons/ri';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
+import { getStreamFitGrading } from '@/utils/careerFitGrading';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,
@@ -10,9 +11,6 @@ import {
   TraitMapHeaderRow,
   TraitMapDataRow,
   TraitCell,
-  TextCard,
-  TextCardTitle,
-  TextCardBody,
 } from '../StudentCareerIkigaiReportPage.styles';
 
 interface MyStreamFitSectionProps {
@@ -32,7 +30,7 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
         </SectionSubtitle>
       </SectionHeaderGroup>
 
-      {/* Stream Fit Table */}
+      {/* Stream Fit Table — same columns as the counsellor chart's Stream Fit table */}
       <TraitMapTableContainer>
         <TraitMapHeaderRow
           style={{ gridTemplateColumns: '150px 180px 220px 180px 130px 1fr', minWidth: '1100px' }}
@@ -42,7 +40,7 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
           <TraitCell>Core Subjects</TraitCell>
           <TraitCell>Electives</TraitCell>
           <TraitCell>Grading Level</TraitCell>
-          <TraitCell>Meaning</TraitCell>
+          <TraitCell>Explanation</TraitCell>
         </TraitMapHeaderRow>
 
         {data.table.map(row => (
@@ -57,19 +55,15 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
             <TraitCell style={{ fontWeight: 700 }}>{row.subStream}</TraitCell>
             <TraitCell style={{ fontWeight: 500 }}>{row.coreSubjects}</TraitCell>
             <TraitCell style={{ fontWeight: 600 }}>{row.electives}</TraitCell>
-            <TraitCell style={{ fontWeight: 700 }}>{row.gradingLevel}</TraitCell>
-            <TraitCell style={{ fontWeight: 500 }}>{row.meaning}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>
+              {getStreamFitGrading(row.fitScore ?? undefined)?.level ?? '—'}
+            </TraitCell>
+            <TraitCell style={{ fontWeight: 500 }}>
+              {getStreamFitGrading(row.fitScore ?? undefined)?.explanation ?? '—'}
+            </TraitCell>
           </TraitMapDataRow>
         ))}
       </TraitMapTableContainer>
-
-      {/* Why These Streams Text Block */}
-      <TextCard style={{ backgroundColor: 'rgba(79, 70, 229, 0.04)', borderLeft: '4px solid #4F46E5' }}>
-        <TextCardTitle style={{ color: '#4F46E5', fontSize: '1.05rem' }}>
-          Why These Streams? — Detailed Rationale
-        </TextCardTitle>
-        <TextCardBody>{data.whyTheseStreams}</TextCardBody>
-      </TextCard>
     </ReportSectionBlock>
   );
 };

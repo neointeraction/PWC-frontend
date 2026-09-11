@@ -28,9 +28,9 @@ export interface StreamFitItem {
   subStream: string;
   coreSubjects: string;
   electives: string;
-  requirement: string;
-  gradingLevel: string;
-  meaning: string;
+  // Grading level + Student-Friendly Explanation are derived from this on the fly (see
+  // getStreamFitGrading in utils/careerFitGrading.ts) — same as the counsellor chart.
+  fitScore: number | null;
 }
 
 export interface GraduationPathwayItem {
@@ -41,21 +41,15 @@ export interface GraduationPathwayItem {
   specialisations: string;
   keyExams: string;
   reasoning: string;
-}
-
-export interface IndustryChoiceItem {
-  id: string;
-  cluster: string;
-  industry: string;
-  domain: string;
-  requirement: string;
-  gradingLevel: string;
-  meaning: string;
+  // Grading level + Student-Friendly Explanation are derived from this on the fly (see
+  // getCareerFitGrading in utils/careerFitGrading.ts) — same as the counsellor chart.
+  fitScore: number | null;
 }
 
 export interface ChampionTrait {
   name: string;
   description: string;
+  explanation?: string;
 }
 
 export interface CareerRecommendationCard {
@@ -102,5 +96,4 @@ export interface StudentCareerIkigaiReportData {
     pathways: GraduationPathwayItem[];
   };
   careerCompass: CareerRecommendationCard[];
-  industryChoice: IndustryChoiceItem[];
 }

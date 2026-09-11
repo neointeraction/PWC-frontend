@@ -14,6 +14,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Button } from '@/components/Button';
 import { Checkbox } from '@/components/Checkbox';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
   careerService,
   CareerEntryPayload,
@@ -896,7 +897,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
     reset,
     setValue,
     watch,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, dirtyFields },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     mode: 'onChange',
@@ -1119,15 +1120,15 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
         salaryGlobalRangeText: optText(data.salaryGlobalRangeText),
         // Clear the imported numeric columns — the mapper prefers them over the text
         // range, so leaving them set makes an edited salary look like it never saved.
-        // Only meaningful on edit; a new entry has nothing to clear, so the keys are
-        // left out of the create payload entirely rather than sent as `null`.
-        ...(clearing
-          ? {
-              salaryIndiaMinLPA: null,
-              salaryIndiaMaxLPA: null,
-              salaryGlobalMinUSD: null,
-              salaryGlobalMaxUSD: null,
-            }
+        // Only when the user actually touched that salary field, though: the text box
+        // is prefilled from the numeric-derived display string, so gating on `clearing`
+        // alone cleared these on every unrelated edit (e.g. adding a course) and
+        // silently degraded the stored salary (losing "$40k" → "$40000" formatting).
+        ...(clearing && dirtyFields.salaryIndiaRangeText
+          ? { salaryIndiaMinLPA: null, salaryIndiaMaxLPA: null }
+          : {}),
+        ...(clearing && dirtyFields.salaryGlobalRangeText
+          ? { salaryGlobalMinUSD: null, salaryGlobalMaxUSD: null }
           : {}),
         certificationsStudent: optList(data.certificationsStudent),
         certificationsUG: optList(data.certificationsUG),

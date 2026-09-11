@@ -1,5 +1,6 @@
 import React from 'react';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
+import { getStreamFitGrading } from '@/utils/careerFitGrading';
 import {
   PrintSectionTitle,
   PrintSectionSubtitle,
@@ -33,7 +34,7 @@ export const PrintStreamFitPage: React.FC<PrintStreamFitPageProps> = ({ gradeCla
           <th>Core Subjects</th>
           <th>Electives</th>
           <th>Grading Level</th>
-          <th>Meaning</th>
+          <th>Explanation</th>
         </tr>
       </thead>
       <tbody>
@@ -43,16 +44,11 @@ export const PrintStreamFitPage: React.FC<PrintStreamFitPageProps> = ({ gradeCla
             <td>{row.subStream}</td>
             <td>{row.coreSubjects}</td>
             <td>{row.electives}</td>
-            <td>{row.gradingLevel}</td>
-            <td>{row.meaning}</td>
+            <td>{getStreamFitGrading(row.fitScore ?? undefined)?.level ?? '—'}</td>
+            <td>{getStreamFitGrading(row.fitScore ?? undefined)?.explanation ?? '—'}</td>
           </tr>
         ))}
       </tbody>
     </PrintTable>
-
-    <PrintSectionTitle as="h3" style={{ fontSize: '13px', marginTop: '10px' }}>
-      Why These Streams?
-    </PrintSectionTitle>
-    <PrintBody>{data.whyTheseStreams}</PrintBody>
   </PrintPageChrome>
 );

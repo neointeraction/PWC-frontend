@@ -1,6 +1,8 @@
 import React from 'react';
 import { RiRocketLine } from 'react-icons/ri';
-import { RoadmapGridJson, AcademicTrend, AlignmentRating } from '@/types/counsellorChart.types';
+import { RoadmapGridJson, AlignmentRating } from '@/types/counsellorChart.types';
+import { ScriBandGuidance } from '@/types';
+import { ALIGNMENT_MEANING } from '@/utils/academicAlignmentGuidance';
 import { EmptyState } from '@/components/EmptyState';
 import { CounsellorInsightsCard } from './CounsellorInsightsCard';
 import {
@@ -16,6 +18,10 @@ import {
   CareerDetailRow,
   CareerDetailLabel,
   CareerDetailValue,
+  TraitMapTableContainer,
+  TraitMapHeaderRow,
+  TraitMapDataRow,
+  TraitCell,
 } from '../StudentCareerIkigaiReportPage.styles';
 
 interface Scri {
@@ -27,24 +33,10 @@ interface Scri {
 interface KreateBlueprintSectionProps {
   roadmapGrid?: RoadmapGridJson | null;
   scri?: Scri;
-  academicTrend?: AcademicTrend | null;
+  bandGuidance?: ScriBandGuidance[];
   alignmentRating?: AlignmentRating | null;
   notes?: Record<string, string>;
 }
-
-const ACADEMIC_TREND_LABEL: Record<AcademicTrend, string> = {
-  IMPROVING: 'Improving',
-  STABLE: 'Stable',
-  DECLINING: 'Declining',
-  NOT_ASSESSED: 'Not Yet Assessed',
-};
-
-const ACADEMIC_TREND_MEANING: Record<AcademicTrend, string> = {
-  IMPROVING: "Your academic performance has been trending upward.",
-  STABLE: 'Your academic performance has stayed consistent.',
-  DECLINING: 'Your academic performance has been trending downward.',
-  NOT_ASSESSED: 'Not enough academic history has been reviewed yet to gauge a trend.',
-};
 
 const ALIGNMENT_LABEL: Record<AlignmentRating, string> = {
   STRONGLY_ALIGNED: 'Strongly Aligned',
@@ -53,23 +45,18 @@ const ALIGNMENT_LABEL: Record<AlignmentRating, string> = {
   NOT_YET_ASSESSED: 'Not Yet Assessed',
 };
 
-const ALIGNMENT_MEANING: Record<AlignmentRating, string> = {
-  STRONGLY_ALIGNED: 'Your academic strengths and career interests point in the same direction.',
-  PARTIALLY_ALIGNED: 'Your academic strengths and career interests overlap in some areas but not others.',
-  MISALIGNED: 'Your academic strengths and career interests currently point in different directions.',
-  NOT_YET_ASSESSED: 'Alignment has not been assessed yet.',
-};
-
 // "Parting Notes" — G1 onwards, per the Design Destiny template's kREATE Blueprint page.
 const INSIGHT_GROUPS = [{ prefix: 'G', title: 'Parting Notes' }] as const;
 
 export const KreateBlueprintSection: React.FC<KreateBlueprintSectionProps> = ({
   roadmapGrid,
   scri,
-  academicTrend,
+  bandGuidance,
   alignmentRating,
   notes = {},
 }) => {
+  const currentBandDetail = bandGuidance?.find(b => b.band === scri?.band);
+
   return (
     <ReportSectionBlock id="kreate-blueprint">
       <SectionHeaderGroup>
@@ -140,16 +127,33 @@ export const KreateBlueprintSection: React.FC<KreateBlueprintSectionProps> = ({
       <TextCard style={{ borderLeft: '3px solid #4F46E5', backgroundColor: 'rgba(79, 70, 229, 0.03)' }}>
         <TextCardTitle style={{ color: '#4F46E5' }}>My Career Confidence Meter</TextCardTitle>
         {scri?.bandLabel ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
-            <CareerDetailRow>
-              <CareerDetailLabel>Label</CareerDetailLabel>
-              <CareerDetailValue>{scri.bandLabel}</CareerDetailValue>
-            </CareerDetailRow>
-            <CareerDetailRow>
-              <CareerDetailLabel>Score</CareerDetailLabel>
-              <CareerDetailValue>{scri.total ?? '—'}</CareerDetailValue>
-            </CareerDetailRow>
-          </div>
+          <>
+            <div style={{ marginTop: '6px' }}>
+              <CareerDetailRow>
+                <CareerDetailLabel>Label</CareerDetailLabel>
+                <CareerDetailValue>{scri.bandLabel}</CareerDetailValue>
+              </CareerDetailRow>
+            </div>
+            {currentBandDetail && (
+              <>
+                <CareerDetailValue style={{ marginTop: '10px' }}>
+                  {currentBandDetail.labelMeaning}
+                </CareerDetailValue>
+                <TraitMapTableContainer style={{ marginTop: '12px' }}>
+                  <TraitMapHeaderRow style={{ gridTemplateColumns: '1fr 1fr 1fr', minWidth: '600px' }}>
+                    <TraitCell>For Students</TraitCell>
+                    <TraitCell>Tips for Students</TraitCell>
+                    <TraitCell>Tips for Parent</TraitCell>
+                  </TraitMapHeaderRow>
+                  <TraitMapDataRow style={{ gridTemplateColumns: '1fr 1fr 1fr', minWidth: '600px' }}>
+                    <TraitCell>{currentBandDetail.forStudents}</TraitCell>
+                    <TraitCell>{currentBandDetail.tipsForStudents}</TraitCell>
+                    <TraitCell>{currentBandDetail.tipsForParent}</TraitCell>
+                  </TraitMapDataRow>
+                </TraitMapTableContainer>
+              </>
+            )}
+          </>
         ) : (
           <EmptyState
             title="Not recorded yet"
@@ -160,14 +164,7 @@ export const KreateBlueprintSection: React.FC<KreateBlueprintSectionProps> = ({
 
       <TextCard style={{ borderLeft: '3px solid #10B981', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>
         <TextCardTitle style={{ color: '#10B981' }}>My Overall Academic Orientation</TextCardTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
-          <CareerDetailRow>
-            <CareerDetailLabel>Academic Trend</CareerDetailLabel>
-            <CareerDetailValue>
-              {ACADEMIC_TREND_LABEL[academicTrend ?? 'NOT_ASSESSED']} —{' '}
-              {ACADEMIC_TREND_MEANING[academicTrend ?? 'NOT_ASSESSED']}
-            </CareerDetailValue>
-          </CareerDetailRow>
+        <div style={{ marginTop: '6px' }}>
           <CareerDetailRow>
             <CareerDetailLabel>Interest Alignment</CareerDetailLabel>
             <CareerDetailValue>

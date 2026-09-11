@@ -1,6 +1,7 @@
 import React from 'react';
 import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
 import { ScriBandGuidance } from '@/types';
+import { ALIGNMENT_MEANING } from '@/utils/academicAlignmentGuidance';
 import { Select } from '@/components/Select';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
@@ -71,16 +72,19 @@ const alignmentOptions = [
   { value: 'Not Yet Assessed', label: 'Not Yet Assessed' },
 ];
 
-const alignmentDescriptionMap: Record<string, string> = {
-  'Strongly Aligned':
-    "The subject you enjoy the most and the career direction that suits you both come from the same set of strengths. In other words, what you love doing in class and what you'd be good at in your future career are pointing in the same direction, that's a strong, natural connection to build on.",
-  'Partially Aligned':
-    "There's a genuine connection between what you enjoy and where your strengths point but it's not a perfect match. Some parts line up nicely, while other parts of the recommended path may need a bit more exploring or a slightly different subject combination than what you'd naturally pick.",
-  'Misaligned':
-    'Right now, the subject you enjoy most and the career direction your strengths point to seem to be pulling in two different directions. This isn\'t unusual, and it doesn\'t mean either one is "wrong" it just means this is worth talking through properly, so you understand why the gap exists and what your real options are.',
-  'Not Yet Assessed':
-    "There isn't enough information yet to compare your favourite subject with a career direction. This usually just means a part of the assessment or conversation is still pending nothing to worry about, please explore further with details.",
+// Maps this component's display-string alignment values to the shared ALIGNMENT_MEANING
+// lookup (keyed by the API's AlignmentRating enum), so the guidance text shown here always
+// matches the student report exactly.
+const alignmentDisplayToApiKey: Record<string, keyof typeof ALIGNMENT_MEANING> = {
+  'Strongly Aligned': 'STRONGLY_ALIGNED',
+  'Partially Aligned': 'PARTIALLY_ALIGNED',
+  'Misaligned': 'MISALIGNED',
+  'Not Yet Assessed': 'NOT_YET_ASSESSED',
 };
+
+const alignmentDescriptionMap: Record<string, string> = Object.fromEntries(
+  Object.entries(alignmentDisplayToApiKey).map(([display, apiKey]) => [display, ALIGNMENT_MEANING[apiKey]])
+);
 
 const scriDescriptors: Record<string, Record<number, string>> = {
   S1: {

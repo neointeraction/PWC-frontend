@@ -1,6 +1,6 @@
 import React from 'react';
 import { RiUser3Line, RiCheckLine, RiHeartsLine } from 'react-icons/ri';
-import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
+import { ChampionTrait, StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
 import { CounsellorInsightsCard } from './CounsellorInsightsCard';
 import {
   ReportSectionBlock,
@@ -21,14 +21,27 @@ interface StudentProfileSectionProps {
   notes?: Record<string, string>;
 }
 
-// The three "quick lenses" columns (Career Style / Personal Signature / Thinking Mode) map
-// to the top RIASEC, BIG FIVE, and COG&DEC traits respectively — already assembled onto
-// data.careerStyle / personalSignature / thinkingMode by reports.service.ts.
-const LENS_COLUMNS = [
-  { key: 'careerStyle', label: 'Career Style' },
-  { key: 'personalSignature', label: 'Personal Signature' },
-  { key: 'thinkingMode', label: 'Thinking Mode' },
-] as const;
+const LENS_GRID_COLUMNS = '180px 1fr 1fr';
+
+// One linear name/description/explanation table per lens — mirrors the Dominant Career
+// Style / Personal Signature / Thinking Mode tables on the counsellor chart (Step2SectionB)
+// and the print report's Champion's Profile page, instead of the old 3-up card grid.
+const LensTraitTable: React.FC<{ label: string; trait: ChampionTrait }> = ({ label, trait }) => (
+  <TraitMapTableContainer style={{ marginBottom: '12px' }}>
+    <TraitMapHeaderRow style={{ gridTemplateColumns: LENS_GRID_COLUMNS, minWidth: 0 }}>
+      <TraitCell>{label}</TraitCell>
+      <TraitCell>Description</TraitCell>
+      <TraitCell>Explanation</TraitCell>
+    </TraitMapHeaderRow>
+    <TraitMapDataRow style={{ gridTemplateColumns: LENS_GRID_COLUMNS, minWidth: 0 }}>
+      <TraitCell style={{ fontWeight: 800, color: '#4F46E5', alignItems: 'flex-start' }}>
+        {trait.name}
+      </TraitCell>
+      <TraitCell style={{ alignItems: 'flex-start' }}>{trait.description}</TraitCell>
+      <TraitCell style={{ alignItems: 'flex-start' }}>{trait.explanation}</TraitCell>
+    </TraitMapDataRow>
+  </TraitMapTableContainer>
+);
 
 // Counsellor's Insights groups the same synthesis notes shown in "Counsellor's Comments"
 // (see CounselorCommentsSection.tsx), filtered down to the three codes the Champion's
@@ -51,25 +64,9 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({ da
       </SectionHeaderGroup>
 
       {/* Three quick lenses: Career Style / Personal Signature / Thinking Mode */}
-      <TraitMapTableContainer>
-        <TraitMapHeaderRow style={{ gridTemplateColumns: '1fr 1fr 1fr', minWidth: 0 }}>
-          {LENS_COLUMNS.map(col => (
-            <TraitCell key={col.key}>{col.label}</TraitCell>
-          ))}
-        </TraitMapHeaderRow>
-        <TraitMapDataRow style={{ gridTemplateColumns: '1fr 1fr 1fr', minWidth: 0 }}>
-          {LENS_COLUMNS.map(col => (
-            <TraitCell key={col.key} style={{ alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ fontWeight: 800, color: '#4F46E5', marginBottom: '4px' }}>
-                  {data[col.key].name}
-                </div>
-                <div style={{ fontWeight: 400 }}>{data[col.key].description}</div>
-              </div>
-            </TraitCell>
-          ))}
-        </TraitMapDataRow>
-      </TraitMapTableContainer>
+      <LensTraitTable label="Career Style" trait={data.careerStyle} />
+      <LensTraitTable label="Personal Signature" trait={data.personalSignature} />
+      <LensTraitTable label="Thinking Mode" trait={data.thinkingMode} />
 
       {/* Career Personality Snapshot — commented out for now, per request
       <TextCard

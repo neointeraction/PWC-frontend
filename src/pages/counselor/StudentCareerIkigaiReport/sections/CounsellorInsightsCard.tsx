@@ -38,7 +38,7 @@ export const CounsellorInsightsCard: React.FC<CounsellorInsightsCardProps> = ({ 
       {filledGroups.map(group => (
         <div key={group.prefix} style={{ marginTop: '10px' }}>
           <TextCardTitle style={{ fontSize: '0.9rem' }}>{group.title}</TextCardTitle>
-          <BulletList as="ol">
+          <BulletList as="ol" style={{ listStyle: 'decimal' }}>
             {group.entries.map((entry, idx) => (
               <li key={idx}>{entry}</li>
             ))}

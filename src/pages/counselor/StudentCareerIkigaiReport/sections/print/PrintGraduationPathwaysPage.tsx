@@ -1,5 +1,6 @@
 import React from 'react';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
+import { getCareerFitGrading } from '@/utils/careerFitGrading';
 import {
   PrintSectionTitle,
   PrintSectionSubtitle,
@@ -38,6 +39,8 @@ export const PrintGraduationPathwaysPage: React.FC<PrintGraduationPathwaysPagePr
           <th style={{ width: '14%' }}>Specialisation</th>
           <th>Reasoning</th>
           <th style={{ width: '14%' }}>Key Exams</th>
+          <th style={{ width: '12%' }}>Grading Level</th>
+          <th>Explanation</th>
         </tr>
       </thead>
       <tbody>
@@ -49,6 +52,8 @@ export const PrintGraduationPathwaysPage: React.FC<PrintGraduationPathwaysPagePr
             <td>{row.specialisations}</td>
             <td>{row.reasoning}</td>
             <td>{row.keyExams}</td>
+            <td>{getCareerFitGrading(row.fitScore ?? undefined)?.level ?? '—'}</td>
+            <td>{getCareerFitGrading(row.fitScore ?? undefined)?.explanation ?? '—'}</td>
           </tr>
         ))}
       </tbody>

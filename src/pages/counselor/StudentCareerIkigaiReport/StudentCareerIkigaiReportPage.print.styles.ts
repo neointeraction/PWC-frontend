@@ -14,6 +14,7 @@ const PRINT_HEADER_BG = '#EDEDED';
 
 export const PrintRoot = styled.div`
   display: none;
+  counter-reset: printPage;
 
   @media print {
     display: block;
@@ -26,6 +27,10 @@ export const PrintPage = styled.section`
   padding: 32px 40px 40px;
   page-break-after: always;
   break-after: page;
+  counter-increment: printPage;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 
   &:last-child {
     page-break-after: auto;
@@ -53,12 +58,22 @@ export const PrintRunningHeader = styled.div`
 `;
 
 export const PrintFooter = styled.div`
-  margin-top: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
   padding-top: 8px;
   border-top: 1px solid #cccccc;
   font-size: 9px;
   color: ${PRINT_GREY_TEXT};
-  text-align: right;
+`;
+
+// Page number shown in each page's footer — driven entirely by the CSS counter on
+// PrintPage/PrintRoot above, so it stays correct however many pages the report has.
+export const PrintPageNumber = styled.span`
+  &::before {
+    content: 'Page ' counter(printPage);
+  }
 `;
 
 // Cover page
@@ -204,35 +219,6 @@ export const PrintTable = styled.table`
   }
 `;
 
-// Three-column Champion's Profile table
-export const PrintChampionTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 18px;
-  font-size: 11px;
-
-  th,
-  td {
-    border: 1px solid ${PRINT_BORDER};
-    padding: 8px 10px;
-    width: 33.33%;
-    vertical-align: top;
-  }
-
-  th {
-    background: ${PRINT_PURPLE};
-    color: #ffffff;
-    font-weight: 700;
-    text-align: center;
-  }
-
-  td.trait-name {
-    font-weight: 700;
-    color: ${PRINT_PURPLE};
-    text-align: center;
-  }
-`;
-
 export const PrintInsightsBlock = styled.div`
   margin-top: 18px;
 `;
@@ -256,6 +242,7 @@ export const PrintInsightGroup = styled.div`
   ol {
     margin: 0;
     padding-left: 18px;
+    list-style: decimal;
   }
 
   li {

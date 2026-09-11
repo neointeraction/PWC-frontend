@@ -19,6 +19,7 @@ import { useToast } from '@/hooks';
 import { careerService } from '@/services/career.service';
 import { assessmentService } from '@/services/assessment.service';
 import { fitKey } from '@/services/counsellorChart.service';
+import { getCareerFitGrading, getStreamFitGrading } from '@/utils/careerFitGrading';
 
 import { ComparisonTable } from './ComparisonTable';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
@@ -42,6 +43,7 @@ import {
   StreamFitTableHeaderCell,
   StreamFitDataRow,
   StreamFitCell,
+  TraitScoreBadge,
 } from '../StudentFormChartPage.styles';
 
 interface Step3SectionCProps {
@@ -50,9 +52,8 @@ interface Step3SectionCProps {
   onChangeNotesPre: (code: string, value: string) => void;
   onChangeStreamTable?: (table: StreamFitItem[]) => void;
   onChangeWhyStream1?: (value: string) => void;
-  onChangeNotesE: (code: string, value: string) => void;
   onChangeGraduationTable: (table: GraduationItem[]) => void;
-  onChangeNotesF: (code: string, value: string) => void;
+  onChangeNotesE: (code: string, value: string) => void;
   onChangeEntranceExamsTable: (table: EntranceExamItem[]) => void;
   onChangeCollegesTable: (table: CollegesAfterItem[]) => void;
   // Sets both tables in one state update/save — used by the Target Role auto-suggestion
@@ -67,27 +68,27 @@ const synthesisRowsPreDef = [
   {
     code: 'D1',
     placeholder:
-      "Career Goal Alignment : Compare the student's stated goal (1.1) with the parent's preferred path (1.1 parent column); note whether they match, partially match, or diverge.",
+      "Career Goal Alignment : Compare the student's stated goal (C1.1) with the parent's preferred path (C1.1 parent column); note whether they match, partially match, or diverge.",
   },
   {
     code: 'D2',
     placeholder:
-      'Motivation Driver : Compare the underlying reason for interest on both sides (1.2) - passion, stability, prestige, earning potential and note if student and parent are optimising for the same thing.',
+      'Motivation Driver : Compare the underlying reason for interest on both sides (C1.2) - passion, stability, prestige, earning potential and note if student and parent are optimising for the same thing.',
   },
   {
     code: 'D3',
     placeholder:
-      "Influencer Mapping : Note who is shaping the student's career thinking (2.1) and how well the parent actually understands the student's interests (2.2); flag if an external influencer is dominating over self-driven interest.",
+      "Influencer Mapping : Note who is shaping the student's career thinking (C2.1) and how well the parent actually understands the student's interests (C2.2); flag if an external influencer is dominating over self-driven interest.",
   },
   {
     code: 'D4',
     placeholder:
-      "Openness Check : Compare the parent's stated openness to unconventional careers (3.1) against what the assessment is likely to recommend; flag early if a mismatch is expected so the session can address it directly.",
+      "Openness Check : Compare the parent's stated openness to unconventional careers (C3.1) against what the assessment is likely to recommend; flag early if a mismatch is expected so the session can address it directly.",
   },
   {
     code: 'D5',
     placeholder:
-      'Practical Constraints : Capture financial, relocation, and decision-ownership constraints (3.2–3.6) that must shape a realistic roadmap, plus any specific concern (3.7–3.8) to raise carefully with the family.',
+      'Practical Constraints : Capture financial, relocation, and decision-ownership constraints (C3.2–C3.6) that must shape a realistic roadmap, plus any specific concern (C3.7–C3.8) to raise carefully with the family.',
   },
 ];
 
@@ -95,65 +96,32 @@ const synthesisRowsEDef = [
   {
     code: 'E1',
     placeholder:
-      "Student alignment - compare the recommended stream against the student's stated career interest (1.1); note if the recommendation confirms, refines, or challenges what the student already believes.",
+      "Student alignment : Compare the recommended stream against the student's stated career interest (C1.1); note if the recommendation confirms, refines, or challenges what the student already believes.",
   },
   {
     code: 'E2',
     placeholder:
-      "Parent alignment - compare the recommended stream against the parent's preferred path (1.1 parent column); flag if this needs careful framing given the parent's stance on unconventional paths (3.1).",
+      "Parent alignment : Compare the recommended stream against the parent's preferred path (C1.1 parent column); flag if this needs careful framing given the parent's stance on unconventional paths (C3.1).",
   },
   {
     code: 'E3',
     placeholder:
-      "Skill gap to bridge - note any subject/skill gap (e.g. Numerical Reasoning) that should be actively worked on if the chosen stream differs from the student's current strongest academic area.",
+      "Skill gap to bridge : Note any subject/skill gap (e.g. Numerical Reasoning) that should be actively worked on if the chosen stream differs from the student's current strongest academic area.",
   },
   {
     code: 'E4',
     placeholder:
-      "Constraint cross-check - weigh these degree options against the parent's financial and relocation constraints (3.2–3.4); flag any option that may not be practically viable.",
+      "Constraint cross-check : Weigh these degree options against the parent's financial and relocation constraints (C3.2–C3.4); flag any option that may not be practically viable.",
   },
   {
     code: 'E5',
     placeholder:
-      'Exam-prep timeline - note if any of the listed Key Exams need preparation to start as early as Class 11, and build this into the roadmap.',
+      'Exam-prep timeline : Note if any of the listed Key Exams need preparation to start as early as Class 11, and build this into the roadmap.',
   },
   {
     code: 'E6',
     placeholder:
-      "Goal cross-check - compare the student's stated career goal (1.1) with the actual Career Compass output below; note whether this confirms the goal or opens a new direction worth discussing.",
-  },
-];
-
-const synthesisRowsFDef = [
-  {
-    code: 'F1',
-    placeholder:
-      "Student alignment : Compare the recommended stream against the student's stated career interest (1.1); note if the recommendation confirms, refines, or challenges what the student already believes.",
-  },
-  {
-    code: 'F2',
-    placeholder:
-      "Parent alignment : Compare the recommended stream against the parent's preferred path (1.1 parent column); flag if this needs careful framing given the parent's stance on unconventional paths (3.1).",
-  },
-  {
-    code: 'F3',
-    placeholder:
-      "Skill gap to bridge : Note any subject/skill gap (e.g. Numerical Reasoning) that should be actively worked on if the chosen stream differs from the student's current strongest academic area.",
-  },
-  {
-    code: 'F4',
-    placeholder:
-      "Constraint cross-check : Weigh these degree options against the parent's financial and relocation constraints (3.2–3.4); flag any option that may not be practically viable.",
-  },
-  {
-    code: 'F5',
-    placeholder:
-      'Exam-prep timeline : Note if any of the listed Key Exams need preparation to start as early as Class 11, and build this into the roadmap.',
-  },
-  {
-    code: 'F6',
-    placeholder:
-      "Goal cross-check : Compare the student's stated career goal (1.1) with the actual Career Compass output below; note whether this confirms the goal or opens a new direction worth discussing.",
+      "Goal cross-check : Compare the student's stated career goal (C1.1) with the actual Career Compass output below; note whether this confirms the goal or opens a new direction worth discussing.",
   },
 ];
 
@@ -186,9 +154,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
   data,
   onChangeNotesPre,
   onChangeStreamTable,
-  onChangeNotesE,
   onChangeGraduationTable,
-  onChangeNotesF,
+  onChangeNotesE,
   onChangeEntranceExamsTable,
   onChangeCollegesTable,
   onChangeCollegesAndExamsTable,
@@ -810,8 +777,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
         <CompTableContainer style={{ overflowX: 'auto' }}>
           <CompTableHeaderRow
             style={{
-              gridTemplateColumns: '150px 150px 180px 160px 1fr 180px 120px 120px 100px 40px',
-              minWidth: '1440px',
+              gridTemplateColumns: '110px 120px 140px 150px 1fr 140px 100px 100px 110px 1fr 40px',
+              minWidth: '1300px',
             }}
           >
             <CompTableHeaderCell>Cluster</CompTableHeaderCell>
@@ -823,6 +790,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
             <CompTableHeaderCell>Salary (India)</CompTableHeaderCell>
             <CompTableHeaderCell>Salary (Abroad)</CompTableHeaderCell>
             <CompTableHeaderCell>Fit Score</CompTableHeaderCell>
+            <CompTableHeaderCell>Student-Friendly Explanation</CompTableHeaderCell>
             <CompTableHeaderCell />
           </CompTableHeaderRow>
 
@@ -830,8 +798,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
             <CompDataRow
               key={row.id}
               style={{
-                gridTemplateColumns: '150px 150px 180px 160px 1fr 180px 120px 120px 100px 40px',
-                minWidth: '1440px',
+                gridTemplateColumns: '110px 120px 140px 150px 1fr 140px 100px 100px 110px 1fr 40px',
+                minWidth: '1300px',
               }}
             >
               <CompParamCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
@@ -846,7 +814,17 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryIndia}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>{row.salaryAbroad}</CompResponseCell>
               <CompResponseCell style={{ borderLeft: 'none' }}>
-                {row.fitScore !== undefined ? `${row.fitScore}%` : '—'}
+                {row.fitScore !== undefined ? (
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                    {getCareerFitGrading(row.fitScore)?.level}
+                    <TraitScoreBadge>{row.fitScore}%</TraitScoreBadge>
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </CompResponseCell>
+              <CompResponseCell style={{ borderLeft: 'none' }}>
+                {getCareerFitGrading(row.fitScore)?.explanation || '—'}
               </CompResponseCell>
               <RowActionsCell>
                 <Tooltip content="Delete Row">
@@ -873,20 +851,20 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
 
         {/* 1. Stream Fit Table */}
         <StreamFitTableContainer>
-          <StreamFitTableHeaderRow style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 3fr 100px 40px' }}>
+          <StreamFitTableHeaderRow style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 100px 3fr 40px' }}>
             <StreamFitTableHeaderCell>Main Stream</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Sub-Streams</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Core Subjects Usually Offered</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Optional / Elective Subjects</StreamFitTableHeaderCell>
-            <StreamFitTableHeaderCell>Student & Parent-Friendly Explanation</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Fit Score</StreamFitTableHeaderCell>
+            <StreamFitTableHeaderCell>Student & Parent-Friendly Explanation</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell />
           </StreamFitTableHeaderRow>
 
           {streamFitRows.map(row => (
             <StreamFitDataRow
               key={row.id}
-              style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 3fr 100px 40px' }}
+              style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 100px 3fr 40px' }}
             >
               <StreamFitCell $bold>
                 {row.mainStream}
@@ -899,10 +877,19 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <StreamFitCell $bold>{row.subStream}</StreamFitCell>
               <StreamFitCell>{row.coreSubjects}</StreamFitCell>
               <StreamFitCell>{row.electives}</StreamFitCell>
-              <StreamFitCell $secondary>
-                {row.explanation || row.meaning || row.streamRequirement}
+              <StreamFitCell>
+                {row.fitScore !== undefined ? (
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                    {getStreamFitGrading(row.fitScore)?.level}
+                    <TraitScoreBadge>{row.fitScore}%</TraitScoreBadge>
+                  </span>
+                ) : (
+                  '—'
+                )}
               </StreamFitCell>
-              <StreamFitCell>{row.fitScore !== undefined ? `${row.fitScore}%` : '—'}</StreamFitCell>
+              <StreamFitCell $secondary>
+                {getStreamFitGrading(row.fitScore)?.explanation || '—'}
+              </StreamFitCell>
               <RowActionsCell>
                 <Tooltip content="Delete Row">
                   <RowDeleteButton
@@ -917,22 +904,14 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           ))}
         </StreamFitTableContainer>
 
-        {/* Synthesis Notes E1–E6 */}
-        <SynthesisNotesPanel
-          title="Counsellor Synthesis Notes"
-          rows={synthesisRowsEDef}
-          notes={data.synthesisNotesE}
-          onChangeNote={onChangeNotesE}
-        />
-
         {/* 2. Graduation Table */}
         <div id="sec-c-graduation-fit" style={{ marginTop: '20px' }}>
           <TableHeader title="Graduation Fit" table="graduation" count={graduationRows.length} />
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 100px 40px',
-                minWidth: '1040px',
+                gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 100px 1fr 40px',
+                minWidth: '1320px',
               }}
             >
               <CompTableHeaderCell>Cluster</CompTableHeaderCell>
@@ -942,6 +921,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompTableHeaderCell>Reasoning</CompTableHeaderCell>
               <CompTableHeaderCell>Key Exams</CompTableHeaderCell>
               <CompTableHeaderCell>Fit Score</CompTableHeaderCell>
+              <CompTableHeaderCell>Student-Friendly Explanation</CompTableHeaderCell>
               <CompTableHeaderCell />
             </CompTableHeaderRow>
 
@@ -949,8 +929,8 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompDataRow
                 key={row.id}
                 style={{
-                  gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 100px 40px',
-                  minWidth: '1040px',
+                  gridTemplateColumns: '120px 180px 180px 150px 1fr 180px 100px 1fr 40px',
+                  minWidth: '1320px',
                 }}
               >
                 <CompParamCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
@@ -963,7 +943,17 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.reasoning}</CompResponseCell>
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.keyExams}</CompResponseCell>
                 <CompResponseCell style={{ borderLeft: 'none' }}>
-                  {row.fitScore !== undefined ? `${row.fitScore}%` : '—'}
+                  {row.fitScore !== undefined ? (
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                      {getCareerFitGrading(row.fitScore)?.level}
+                      <TraitScoreBadge>{row.fitScore}%</TraitScoreBadge>
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>
+                  {getCareerFitGrading(row.fitScore)?.explanation || '—'}
                 </CompResponseCell>
                 <RowActionsCell>
                   <Tooltip content="Delete Row">
@@ -1086,12 +1076,12 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           </CompTableContainer>
         </div>
 
-        {/* Synthesis Notes F1–F6 */}
+        {/* Synthesis Notes E1–E6 */}
         <SynthesisNotesPanel
           title="Counsellor Synthesis Notes"
-          rows={synthesisRowsFDef}
-          notes={data.synthesisNotesF}
-          onChangeNote={onChangeNotesF}
+          rows={synthesisRowsEDef}
+          notes={data.synthesisNotesE}
+          onChangeNote={onChangeNotesE}
         />
       </SectionBlock>
 
