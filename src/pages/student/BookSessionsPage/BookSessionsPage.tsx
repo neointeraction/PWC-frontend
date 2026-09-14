@@ -79,6 +79,13 @@ const groupByDate = (options: BookingSlotOption[]): Map<string, BookingSlotOptio
   return map;
 };
 
+// Safety net on top of whatever the backend returns — booking options should only ever
+// offer today or later, never a date that's already passed.
+const excludePastDates = (options: BookingSlotOption[]): BookingSlotOption[] => {
+  const today = dayjs().format('YYYY-MM-DD');
+  return options.filter(o => o.date >= today);
+};
+
 export const BookSessionsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -140,7 +147,10 @@ export const BookSessionsPage: React.FC = () => {
     enabled: !!studentId && showSession1Section && (isReadyToBook || hasExistingBooking),
     staleTime: 30_000,
   });
-  const s1OptionsByDate = useMemo(() => groupByDate(s1Options ?? []), [s1Options]);
+  const s1OptionsByDate = useMemo(
+    () => groupByDate(excludePastDates(s1Options ?? [])),
+    [s1Options]
+  );
   const s1Dates = useMemo(() => Array.from(s1OptionsByDate.keys()).sort(), [s1OptionsByDate]);
 
   const [s1Date, setS1Date] = useState<string>('');
@@ -176,7 +186,10 @@ export const BookSessionsPage: React.FC = () => {
     enabled: !!studentId && showSession2Section && !!session1Ref.date && !!session1Ref.startTime,
     staleTime: 30_000,
   });
-  const s2OptionsByDate = useMemo(() => groupByDate(s2Options ?? []), [s2Options]);
+  const s2OptionsByDate = useMemo(
+    () => groupByDate(excludePastDates(s2Options ?? [])),
+    [s2Options]
+  );
   const s2Dates = useMemo(() => Array.from(s2OptionsByDate.keys()).sort(), [s2OptionsByDate]);
 
   const [s2Date, setS2Date] = useState<string>('');
