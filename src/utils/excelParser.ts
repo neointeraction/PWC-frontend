@@ -111,12 +111,21 @@ export const toISODate = (v: string): string => {
 };
 
 /**
- * Normalizes a time string ("9:00", "09:00") or Excel time fraction to HH:mm (24h).
- * Returns '' if the value can't be recognized as a time.
+ * Normalizes a time string ("9:00", "09:00", "9:00 AM", "2:00:00 PM") or Excel time
+ * fraction to HH:mm (24h). Returns '' if the value can't be recognized as a time.
  */
 export const toHHMM = (v: string): string => {
   const s = String(v ?? '').trim();
   if (!s) return '';
+  // Excel's default time format is 12-hour ("2:00 PM"), which `raw: false` hands back
+  // as display text — this must be checked before the generic ':' split below, or the
+  // AM/PM marker is silently dropped and every PM time is read as if it were AM.
+  const ampmMatch = s.match(/^(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*([AaPp][Mm])$/);
+  if (ampmMatch) {
+    let h = parseInt(ampmMatch[1], 10) % 12;
+    if (ampmMatch[3].toLowerCase() === 'pm') h += 12;
+    return `${String(h).padStart(2, '0')}:${(ampmMatch[2] || '00').padStart(2, '0')}`;
+  }
   if (s.includes(':')) {
     const [h, m] = s.split(':');
     return `${h.padStart(2, '0')}:${(m || '0').slice(0, 2).padStart(2, '0')}`;
