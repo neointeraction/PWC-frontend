@@ -211,11 +211,17 @@ export const AssessmentFormPage: React.FC = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   // Start or resume the student's attempt; its saved answers prefill the form.
-  const { data: attempt, isLoading: isAttemptLoading } = useQuery({
+  const {
+    data: attempt,
+    isLoading: isAttemptLoading,
+    isError: isAttemptError,
+    error: attemptError,
+  } = useQuery({
     queryKey: ['assessment-attempt', me?.id, cohort],
     queryFn: () => assessmentService.startAttempt(me!.id, cohort!),
     enabled: !!me?.id && !!cohort,
     staleTime: 60_000,
+    retry: false,
   });
   const attemptId = attempt?.id;
 
@@ -325,6 +331,13 @@ export const AssessmentFormPage: React.FC = () => {
   });
 
   const handleSubmitAssessment = () => {
+    if (!attemptId) {
+      toast.error(
+        'Error',
+        'We could not find your assessment attempt. Please refresh the page and try again.'
+      );
+      return;
+    }
     submitMutation.mutate();
   };
 
@@ -575,7 +588,7 @@ export const AssessmentFormPage: React.FC = () => {
               size="lg"
               rightIcon={<RiPlayCircleLine size={20} />}
               isLoading={isMeLoading || isQuestionsLoading || isAttemptLoading}
-              disabled={!isMeLoading && !cohort}
+              disabled={!isMeLoading && (!cohort || isAttemptError || !attemptId)}
               onClick={() => {
                 setIsFormStarted(true);
                 setCurrentQuestionIndex(0);
@@ -589,6 +602,13 @@ export const AssessmentFormPage: React.FC = () => {
               <p style={{ color: '#DC2626', fontSize: 13, marginTop: 8 }}>
                 We couldn&apos;t find an active cohort on your student record, so this assessment can&apos;t
                 load yet. Please contact your counsellor or admin.
+              </p>
+            )}
+            {!isMeLoading && cohort && isAttemptError && (
+              <p style={{ color: '#DC2626', fontSize: 13, marginTop: 8 }}>
+                {attemptError instanceof AxiosError && attemptError.response?.status === 409
+                  ? 'You have already submitted this assessment.'
+                  : getApiErrorMessage(attemptError, "We couldn't start your assessment. Please refresh the page or try again shortly.")}
               </p>
             )}
           </StartCtaBox>

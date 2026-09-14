@@ -12,6 +12,9 @@ import { useCounselorStore } from '@/store/counselor.store';
 import { useToast } from '@/hooks';
 import { ModalForm } from '../CounselorsList.styles';
 
+// Counselor ID and email are the login identifiers the backend assigns at creation —
+// `PATCH /counsellors/:id` doesn't accept either field (see counsellors.schema.ts on the
+// backend), so both are shown read-only here rather than silently discarding edits.
 const editCounselorSchema = z.object({
   counselorId: z.string().min(1, 'Counselor ID is required'),
   name: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -93,6 +96,8 @@ export const EditCounselorModal: React.FC = () => {
         <Input
           label="Counselor ID"
           placeholder="e.g. C001"
+          disabled
+          hint="Counselor ID can't be changed after creation."
           error={errors.counselorId?.message}
           {...register('counselorId')}
         />
@@ -108,6 +113,8 @@ export const EditCounselorModal: React.FC = () => {
           label="Email Address"
           type="email"
           placeholder="e.g. anil.iyer@example.com"
+          disabled
+          hint="Email can't be changed after creation."
           error={errors.email?.message}
           {...register('email')}
         />
