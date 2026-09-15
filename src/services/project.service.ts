@@ -191,17 +191,34 @@ const mapProject = (p: ApiProject): Project => ({
   createdAt: (p.createdAt ?? '').slice(0, 10),
 });
 
-// One student row that never made it into the table, with the reason to show the user.
-export interface StudentImportFailure {
-  name: string;
-  reason: string;
+// POST /projects/wizard is one atomic transaction — project, students, and counsellor
+// slots either all land or none do, so unlike the old 3-call orchestration there's no
+// partial-success shape to report: a rejected row (bad student email, a slot already
+// booked elsewhere, ...) fails the whole call and nothing is created.
+export interface CreateProjectResult {
+  project: Project;
+  studentsCreated: number;
+  counsellorsAssigned: number;
+  slotsImported: number;
 }
 
-export interface StudentImportSummary {
-  total: number;
-  imported: number;
-  failed: number;
-  failures: StudentImportFailure[];
+// The wizard response embeds the created project in the same shape GET/POST /projects
+// returns.
+interface ApiProjectWizardResult {
+  project: ApiProject;
+  studentsCreated: number;
+  counsellorsAssigned: number;
+  slotsImported: number;
+}
+
+// --- Assigning counsellors to an already-existing project (post-creation) ---
+// The atomic /projects/wizard endpoint only covers creation, so adding a counsellor to a
+// project afterward (e.g. from the project's Sessions page) still goes through the
+// standalone assign + slot-import calls below, which can partially succeed.
+
+export interface CounselorAssignFailure {
+  name: string;
+  reason: string;
 }
 
 // POST /sessions/slots/import is one-shot per project: a 409 means this project's sheet
@@ -214,23 +231,11 @@ export interface SlotImportSummary {
   error?: string;
 }
 
-export interface CounselorAssignFailure {
-  name: string;
-  reason: string;
-}
-
 export interface CounselorAssignResult {
   assigned: number;
   failures: CounselorAssignFailure[];
   slotImport: SlotImportSummary;
 }
-
-export interface CreateProjectResult {
-  project: Project;
-  studentImport: StudentImportSummary;
-  counselorAssign: CounselorAssignResult;
-}
-
 
 // Assigns each matched (real-directory) counsellor to the project, then imports their
 // availability slots in one shot. A counsellor already tied to a *different* institute is
@@ -354,79 +359,74 @@ export const projectService = {
     return mapProject(data);
   },
 
-  // Orchestrates real creation: project (institute fields sent directly on it, no more
-  // separate Institute entity) → students (bulk) → counsellors + slot import. A bad
-  // student row doesn't abort the batch, but every skipped row is counted and returned
-  // so the wizard can say what actually landed.
+  // One atomic call: project + student roster + counsellor slots, via the transactional
+  // wizard endpoint — either everything lands or nothing does (see CreateProjectResult).
   create: async (payload: CreateProjectPayload): Promise<CreateProjectResult> => {
     const { instituteDetails, students, counselors } = payload;
 
-    // 1. Project — `code` is admin-supplied and required (no longer auto-generated);
-    //    address/contactNumber/primaryEmail live directly on the project row now.
-    const { data: project } = await apiClient.post<ApiProject>('/projects', {
-      code: instituteDetails.instituteId.trim(),
-      name: instituteDetails.name.trim(),
-      address: instituteDetails.location.trim(),
-      contactNumber: normalizePhone(instituteDetails.phone),
-      primaryEmail: instituteDetails.email,
-      fromDate: instituteDetails.validFrom,
-      toDate: instituteDetails.validTo,
-    });
-
-    // 2. Bulk-create students. `studentCode` is required by the backend (no longer
-    //    auto-generated) — taken from the sheet's Student ID column, falling back to a
-    //    generated placeholder for rows that don't carry one so the row isn't rejected.
-    //    `className`/`divisionName` are plain free-text fields on the student, no
-    //    class/division lookup needed. `seq` also labels a failed row with no name/email.
-    const failures: StudentImportFailure[] = [];
-    let imported = 0;
-    let seq = 0;
-    for (const s of students) {
-      seq += 1;
+    // `studentCode` is required by the backend (no longer auto-generated) — taken from
+    // the sheet's Student ID column, falling back to a generated placeholder for rows
+    // that don't carry one. `className`/`divisionName` are plain free-text fields, no
+    // class/division lookup needed.
+    const wizardStudents = students.map((s, idx) => {
       const className = (s.grade || 'General').trim();
       const divisionName = (s.division || className).trim();
       const parts = s.name.trim().split(/\s+/);
       const firstName = parts[0] || s.name.trim();
       const lastName = parts.slice(1).join(' ') || firstName;
-      try {
-        await apiClient.post('/students', {
-          firstName,
-          lastName,
-          email: s.email,
-          mobile: normalizePhone(s.mobile),
-          projectId: project.id,
-          className,
-          divisionName,
-          parentMobile: normalizePhone(s.parentMobile || s.mobile),
-          studentCode: s.studentId?.trim() || `S${String(seq).padStart(4, '0')}`,
-          ...(s.parentEmail ? { parentEmail: s.parentEmail } : {}),
-          ...(s.parentName ? { fatherName: s.parentName } : {}),
-          ...(s.password ? { password: s.password } : {}),
-          ...(s.whatsappNumber ? { whatsappNumber: normalizePhone(s.whatsappNumber) } : {}),
-        });
-        imported += 1;
-      } catch (err) {
-        // One bad row must not abort the batch — record it and carry on.
-        failures.push({
-          name: s.name || s.email || `Row ${seq}`,
-          reason: getApiErrorMessage(err, 'Rejected by the server'),
-        });
-      }
-    }
+      return {
+        firstName,
+        lastName,
+        email: s.email,
+        mobile: normalizePhone(s.mobile),
+        className,
+        divisionName,
+        parentMobile: normalizePhone(s.parentMobile || s.mobile),
+        studentCode: s.studentId?.trim() || `S${String(idx + 1).padStart(4, '0')}`,
+        ...(s.parentEmail ? { parentEmail: s.parentEmail } : {}),
+        ...(s.parentName ? { fatherName: s.parentName } : {}),
+        ...(s.password ? { password: s.password } : {}),
+        ...(s.whatsappNumber ? { whatsappNumber: normalizePhone(s.whatsappNumber) } : {}),
+      };
+    });
 
-    // 3. Counsellors: assign each matched (directory) counsellor to the project, and
-    //    import their availability slots.
-    const counselorAssign = await assignCounselorsWithSlots(project.id, counselors);
+    // Assignment is derived from counsellorSlots on the wizard endpoint (grouped by
+    // counsellorCode) — a matched counsellor with no slot rows can't be represented here
+    // and won't be assigned. Only the (currently unreachable — manual add is disabled in
+    // the UI) zero-slot path is affected; every counsellor coming from an availability
+    // sheet upload carries at least one slot.
+    const counsellorSlots = counselors
+      .filter(c => c.matchStatus === 'matched' && c.counsellorCode)
+      .flatMap(c =>
+        (c.slots ?? []).map(slot => ({
+          counsellorCode: c.counsellorCode!,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }))
+      );
+
+    const { data } = await apiClient.post<ApiProjectWizardResult>('/projects/wizard', {
+      // `code` is admin-supplied and required (no longer auto-generated);
+      // address/contactNumber/primaryEmail live directly on the project row.
+      project: {
+        code: instituteDetails.instituteId.trim(),
+        name: instituteDetails.name.trim(),
+        address: instituteDetails.location.trim(),
+        contactNumber: normalizePhone(instituteDetails.phone),
+        primaryEmail: instituteDetails.email,
+        fromDate: instituteDetails.validFrom,
+        toDate: instituteDetails.validTo,
+      },
+      students: wizardStudents,
+      counsellorSlots,
+    });
 
     return {
-      project: mapProject(project),
-      studentImport: {
-        total: students.length,
-        imported,
-        failed: failures.length,
-        failures,
-      },
-      counselorAssign,
+      project: mapProject(data.project),
+      studentsCreated: data.studentsCreated,
+      counsellorsAssigned: data.counsellorsAssigned,
+      slotsImported: data.slotsImported,
     };
   },
 
