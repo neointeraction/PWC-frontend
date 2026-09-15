@@ -144,6 +144,11 @@ interface LinkedSectionProps {
   // frontend-integration-guide.md §9.5), so it stays non-editable here.
   onUpdate: (key: string, item: IncludedItem) => void;
   addButtonLabel: string;
+  // What ticking here actually changes — Entrance Exams are curated per role, but Courses
+  // are shared by every role in the career cluster and Institutions by every role in the
+  // industry (see CareerCourse/CareerInstitution in the backend schema), so ticking or
+  // adding one here changes what every sibling role shows too.
+  listLabel: string;
   renderSubform: (helpers: {
     initial?: IncludedItem;
     save: (item: IncludedItem) => void;
@@ -160,6 +165,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
   onAddNew,
   onUpdate,
   addButtonLabel,
+  listLabel,
   renderSubform,
 }) => {
   const [formMode, setFormMode] = useState<SectionFormMode>({ type: 'closed' });
@@ -184,7 +190,7 @@ const LinkedSection: React.FC<LinkedSectionProps> = ({
 
       {items.length > 0 && (
         <>
-          <S.FieldLabel>Included with this role (tick / untick):</S.FieldLabel>
+          <S.FieldLabel>{listLabel}</S.FieldLabel>
           <S.ExistingEntriesList>
             {items.map(item => (
               <S.EntryRow key={item.key} $checked={item.checked}>
@@ -276,9 +282,11 @@ const EducationPathSection: React.FC<{
   onUpdate: (entry: DomainEducationEntry) => void;
 }> = ({ domainId, entries, checkedIds, onToggle, onAdd, onUpdate }) => {
   const toast = useToast();
-  // 'closed' | 'add' | editing a specific entry (PATCH /career-library/education/{id} —
-  // only reachable for entries added in this form session, since it renames a canonical
-  // row shared by every role that names it).
+  // 'closed' | 'add' | editing a specific entry (PATCH /career-library/education/{id}).
+  // Education entries are a canonical row shared by every role that names it, so editing
+  // one here — reachable only by Super Admin (this whole modal is gated at the page level)
+  // — changes it everywhere it's used, not just for this role. Removing it from a role is
+  // just unticking it, same as Entrance Exams/Institutions; there's no hard delete here.
   const [formMode, setFormMode] = useState<'closed' | 'add' | DomainEducationEntry>('closed');
   const [level, setLevel] = useState<EducationLevel>('GRADUATE');
   const [programme, setProgramme] = useState('');
@@ -296,15 +304,17 @@ const EducationPathSection: React.FC<{
     staleTime: 60_000,
   });
 
-  // Only entries actually linked to this role — ticking through the domain's whole
-  // education path lives in the career-taxonomy admin screens, not here. Certification
-  // levels are excluded since certifications have their own dedicated fields above.
+  // Entries relevant to this role — everything currently linked or unticked-but-not-yet-
+  // saved, so unticking keeps the row visible (re-tickable) until Save Job Role commits it.
+  // Ticking through the domain's whole education path lives in the career-taxonomy admin
+  // screens, not here. Certification levels are excluded since certifications have their
+  // own dedicated fields above.
   const linked = useMemo(
     () =>
       entries.filter(
-        e => checkedIds.has(e.id) && e.level !== 'CERTIFICATION_STUDENT' && e.level !== 'CERTIFICATION_UG'
+        e => e.level !== 'CERTIFICATION_STUDENT' && e.level !== 'CERTIFICATION_UG'
       ),
-    [entries, checkedIds]
+    [entries]
   );
 
   const ordered = useMemo(
@@ -410,7 +420,6 @@ const EducationPathSection: React.FC<{
                     <Checkbox
                       checked={checkedIds.has(entry.id)}
                       onChange={() => onToggle(entry.id)}
-                      label={checkedIds.has(entry.id) ? 'No Delete' : 'Delete'}
                     />
                     <S.EducationEntryText>
                       <S.EducationLevelName>
@@ -419,17 +428,13 @@ const EducationPathSection: React.FC<{
                       {entry.programme}
                       {sessionAddedIds.has(entry.id) && <S.NewTag>new</S.NewTag>}
                     </S.EducationEntryText>
-                    {/* Editing renames the shared canonical row, so it's only offered for
-                        entries created in this form session, not ones already linked. */}
-                    {sessionAddedIds.has(entry.id) && (
-                      <S.EditIconButton
-                        type="button"
-                        aria-label={`Edit ${entry.programme}`}
-                        onClick={() => openEdit(entry)}
-                      >
-                        <RiPencilLine size={14} />
-                      </S.EditIconButton>
-                    )}
+                    <S.EditIconButton
+                      type="button"
+                      aria-label={`Edit ${entry.programme}`}
+                      onClick={() => openEdit(entry)}
+                    >
+                      <RiPencilLine size={14} />
+                    </S.EditIconButton>
                   </S.EducationEntryRow>
                 ))}
               </S.ExistingEntriesList>
@@ -1358,6 +1363,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             onAddNew={addNew(setExams)}
             onUpdate={updateItem(setExams)}
             addButtonLabel="Add New Exam"
+            listLabel="Included with this role (tick / untick):"
             renderSubform={({ initial, save, close }) => (
               <ExamSubform initial={initial} save={save} close={close} />
             )}
@@ -1370,6 +1376,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             onAddNew={addNew(setCourses)}
             onUpdate={updateItem(setCourses)}
             addButtonLabel="Add New Course"
+            listLabel="Shared with every role in this career cluster (tick / untick):"
             renderSubform={({ initial, save, close }) => (
               <CourseSubform initial={initial} save={save} close={close} />
             )}
@@ -1382,6 +1389,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             onAddNew={addNew(setInstitutions)}
             onUpdate={updateItem(setInstitutions)}
             addButtonLabel="Add New Institution"
+            listLabel="Shared with every role in this industry (tick / untick):"
             renderSubform={({ initial, save, close }) => (
               <InstitutionSubform initial={initial} save={save} close={close} />
             )}
