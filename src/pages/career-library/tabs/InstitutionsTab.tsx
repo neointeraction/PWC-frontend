@@ -1,7 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
 import { InstitutionDetail } from '@/types';
-import { RiStarLine, RiStarFill } from 'react-icons/ri';
 
 const Container = styled.div`
   display: flex;
@@ -98,43 +97,11 @@ const LinkText = styled.a`
   }
 `;
 
-const CardFooter = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  padding-top: ${({ theme }) => theme.spacing.sm};
-`;
-
-const ShortlistBtn = styled.button<{ $shortlisted?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: none;
-  background-color: ${({ $shortlisted }) => ($shortlisted ? '#C49419' : '#D99F26')};
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all ${({ theme }) => theme.transition.fast};
-
-  &:hover {
-    background-color: #b38510;
-  }
-`;
-
-
-
 interface InstitutionsTabProps {
   institutions: InstitutionDetail[];
-  onToggleShortlist: (id: string) => void;
 }
 
-export const InstitutionsTab: React.FC<InstitutionsTabProps> = ({
-  institutions,
-  onToggleShortlist,
-}) => {
+export const InstitutionsTab: React.FC<InstitutionsTabProps> = ({ institutions }) => {
   return (
     <Container>
       <Grid>
@@ -167,16 +134,6 @@ export const InstitutionsTab: React.FC<InstitutionsTabProps> = ({
                 </DetailRow>
               </DetailList>
             </TopContent>
-
-            <CardFooter>
-              <ShortlistBtn
-                $shortlisted={inst.isShortlisted}
-                onClick={() => onToggleShortlist(inst.id)}
-              >
-                {inst.isShortlisted ? <RiStarFill size={14} /> : <RiStarLine size={14} />}
-                {inst.isShortlisted ? 'Shortlisted' : 'Save to shortlist'}
-              </ShortlistBtn>
-            </CardFooter>
           </InstCard>
         ))}
       </Grid>

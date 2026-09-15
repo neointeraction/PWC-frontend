@@ -12,6 +12,9 @@ const ResetPasswordPage = lazy(() =>
 const ForgotPasswordPage = lazy(() =>
   import('@/pages/auth/ForgotPassword').then(m => ({ default: m.ForgotPasswordPage }))
 );
+const ResetPasswordConfirmPage = lazy(() =>
+  import('@/pages/auth/ResetPasswordConfirm').then(m => ({ default: m.ResetPasswordConfirmPage }))
+);
 const DashboardPage = lazy(() =>
   import('@/pages/dashboard').then(m => ({ default: m.DashboardPage }))
 );
@@ -147,11 +150,19 @@ export const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path={ROUTES.PARENT_PRE_COUNSELLING_FORM}
+          path={ROUTES.RESET_PASSWORD_CONFIRM}
+          element={
+            <PublicRoute>
+              <ResetPasswordConfirmPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path={`${ROUTES.PARENT_PRE_COUNSELLING_FORM}/:studentId`}
           element={<ParentPreCounsellingFormPage />}
         />
         <Route
-          path={ROUTES.PARENT_FEEDBACK_FORM}
+          path={`${ROUTES.PARENT_FEEDBACK_FORM}/:studentId`}
           element={<ParentFeedbackFormPage />}
         />
         <Route

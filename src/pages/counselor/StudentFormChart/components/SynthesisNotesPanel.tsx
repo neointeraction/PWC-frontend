@@ -9,6 +9,7 @@ import {
   SynthesisCodeLabel,
 } from '../StudentFormChartPage.styles';
 import { AutoSizeTextarea } from './AutoSizeTextarea';
+import { useIsReadOnly } from '../ReadOnlyContext';
 
 export interface SynthesisNoteRowDef {
   code: string;
@@ -29,9 +30,11 @@ export const SynthesisNotesPanel: React.FC<SynthesisNotesPanelProps> = ({
   notes,
   onChangeNote,
 }) => {
+  const isReadOnly = useIsReadOnly();
+
   return (
-    <SynthesisPanel>
-      <SynthesisPanelHeader>
+    <SynthesisPanel $readOnly={isReadOnly}>
+      <SynthesisPanelHeader $readOnly={isReadOnly}>
         <RiEditBoxLine size={16} />
         {title}
       </SynthesisPanelHeader>
@@ -39,16 +42,18 @@ export const SynthesisNotesPanel: React.FC<SynthesisNotesPanelProps> = ({
       <SynthesisRowList>
         {rows.map((rowDef, index) => {
           const value = notes[rowDef.code] || '';
-          const placeholder = rowDef.placeholder || `Enter counsellor synthesis note ${index + 1}...`;
+          const guidance = rowDef.placeholder || `Enter counsellor synthesis note ${index + 1}...`;
+          const placeholder = isReadOnly && !value ? 'No notes added' : guidance;
           return (
             <SynthesisRow key={rowDef.code}>
-              <Tooltip content={placeholder} position="right">
-                <SynthesisCodeLabel>{index + 1}</SynthesisCodeLabel>
+              <Tooltip content={guidance} position="right">
+                <SynthesisCodeLabel $readOnly={isReadOnly}>{index + 1}</SynthesisCodeLabel>
               </Tooltip>
               <AutoSizeTextarea
                 value={value}
                 onChange={e => onChangeNote(rowDef.code, e.target.value)}
                 placeholder={placeholder}
+                readOnly={isReadOnly}
               />
             </SynthesisRow>
           );

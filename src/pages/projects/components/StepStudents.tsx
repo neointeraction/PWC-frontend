@@ -5,8 +5,10 @@ import { Table, Column } from '@/components/Table';
 import { Tooltip } from '@/components/Tooltip';
 import { useProjectStore } from '@/store/project.store';
 import { parseExcelFile } from '@/utils/excelParser';
+import { projectService } from '@/services/project.service';
 import { ProjectStudent } from '@/types/project.types';
 import { useToast } from '@/hooks';
+import { isValidEmail, isValidPhone } from '@/utils';
 import { ActionIconButton } from '../Projects.styles';
 import {
   StepFormContainer,
@@ -36,29 +38,136 @@ export const StepStudents: React.FC = () => {
           return;
         }
 
+        // Column order/names follow the institute's standard roster template:
+        // Student Id, Student Name, Class, Division, Student Mobile No.,
+        // WhatsApp Number (if different), Student Email ID, Father Name,
+        // Father Mobile No., Father Email ID. Older sheet variants (Student ID,
+        // Parent Name/Mobile/Email, etc.) are still accepted as fallbacks.
         const rawStudents: ProjectStudent[] = rows.map(row => ({
-          name: row['Name'] || row['name'] || '',
-          email: row['Email'] || row['email'] || '',
-          mobile: row['Mobile'] || row['mobile'] || row['Phone'] || row['phone'] || '',
-          grade: row['Grade'] || row['grade'] || row['Class'] || row['class'] || '',
+          studentId:
+            row['Student Id'] || row['Student ID'] || row['studentId'] || row['StudentID'] || '',
+          name: row['Student Name'] || row['Name'] || row['name'] || '',
+          email: row['Student Email ID'] || row['Email'] || row['email'] || '',
+          mobile:
+            row['Student Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '',
+          grade: row['Class'] || row['Grade'] || row['grade'] || row['class'] || '',
+          division: row['Division'] || row['division'] || '',
+          parentName: row['Father Name'] || row['Parent Name'] || row['parentName'] || '',
+          parentMobile:
+            row['Father Mobile No.'] ||
+            row['Parent Mobile No.'] ||
+            row['Parent Mobile'] ||
+            row['parentMobile'] ||
+            '',
+          parentEmail:
+            row['Father Email ID'] ||
+            row['Parent Email ID'] ||
+            row['Parent Email'] ||
+            row['parentEmail'] ||
+            '',
+          whatsappNumber:
+            row['WhatsApp Number (if different)'] ||
+            row['WhatsApp Number'] ||
+            row['whatsappNumber'] ||
+            '',
+          password:
+            row['Password'] || row['password'] || row['Temp Password'] || row['PWD'] || '',
         }));
 
-        const validStudents = rawStudents.filter(s => s.name && s.email);
+        // Student ID, Name, Email, Mobile, Class and Division are mandatory —
+        // everything else (parent details, password) is optional.
+        const rowLabel = (s: ProjectStudent, i: number) => s.name || s.email || `Row ${i + 2}`;
+        const invalid: { row: ProjectStudent; index: number; reason: string }[] = [];
+        const validStudents = rawStudents.filter((s, i) => {
+          if (!s.studentId) {
+            invalid.push({ row: s, index: i, reason: 'missing Student ID' });
+            return false;
+          }
+          if (!s.name) {
+            invalid.push({ row: s, index: i, reason: 'missing Name' });
+            return false;
+          }
+          if (!s.email || !isValidEmail(s.email)) {
+            invalid.push({ row: s, index: i, reason: 'missing/invalid Email' });
+            return false;
+          }
+          if (!s.mobile || !isValidPhone(s.mobile)) {
+            invalid.push({ row: s, index: i, reason: 'missing/invalid Mobile' });
+            return false;
+          }
+          if (!s.grade) {
+            invalid.push({ row: s, index: i, reason: 'missing Class' });
+            return false;
+          }
+          if (!s.division) {
+            invalid.push({ row: s, index: i, reason: 'missing Division' });
+            return false;
+          }
+          return true;
+        });
 
         if (validStudents.length === 0) {
           toast.error(
             'Invalid Format',
-            'No valid student records found. Ensure columns: Name, Email, Mobile, Grade.'
+            'No valid student records found. Required columns: Student ID, Name, Email, Mobile, Class, Division.'
           );
           setIsProcessing(false);
           return;
         }
 
-        setStudents([...students, ...validStudents]);
-        toast.success(
-          'Students Loaded',
-          `${validStudents.length} student(s) added successfully.`
+        // Reject rows that match a student already onboarded to ANY project — email,
+        // Student ID, and mobile are each globally unique on the backend.
+        let duplicateCheck;
+        try {
+          duplicateCheck = await projectService.checkDuplicateStudents(validStudents);
+        } catch {
+          toast.error('Duplicate Check Failed', 'Could not verify students against existing records. Please try again.');
+          setIsProcessing(false);
+          return;
+        }
+        const duplicateIndexes = new Set(
+          duplicateCheck.filter(r => r.isDuplicate).map(r => r.index)
         );
+        const newStudents = validStudents.filter((_, i) => !duplicateIndexes.has(i));
+        const duplicates = validStudents
+          .map((s, i) => ({ row: s, index: i }))
+          .filter(({ index }) => duplicateIndexes.has(index));
+
+        if (newStudents.length === 0 && duplicates.length > 0) {
+          toast.error(
+            'Duplicate Students',
+            `All ${duplicates.length} student(s) already exist in the system — none were added.`
+          );
+          setIsProcessing(false);
+          return;
+        }
+
+        setStudents([...students, ...newStudents]);
+
+        const skipped = invalid.length + duplicates.length;
+        if (skipped > 0) {
+          const duplicateReasons = duplicates.map(({ row, index }) => {
+            const match = duplicateCheck.find(r => r.index === index)?.matches[0];
+            return {
+              row,
+              index,
+              reason: match
+                ? `already exists in "${match.projectName}" (${match.field})`
+                : 'already exists',
+            };
+          });
+          toast.warning(
+            'Some Rows Skipped',
+            `${newStudents.length} student(s) added. ${skipped} skipped — ` +
+              [...invalid, ...duplicateReasons]
+                .slice(0, 3)
+                .map(f => `${rowLabel(f.row, f.index)}: ${f.reason}`)
+                .join(' · ') +
+              (skipped > 3 ? ` (and ${skipped - 3} more)` : '')
+          );
+        } else {
+          toast.success('Students Loaded', `${newStudents.length} student(s) added successfully.`);
+        }
       } catch {
         toast.error('Parse Error', 'Failed to parse the uploaded file.');
       } finally {
@@ -79,6 +188,10 @@ export const StepStudents: React.FC = () => {
   };
 
   const columns: Column<ProjectStudent>[] = [
+    {
+      key: 'studentId',
+      header: 'Student ID',
+    },
     {
       key: 'name',
       header: 'Name',
@@ -120,7 +233,7 @@ export const StepStudents: React.FC = () => {
 
       <FileUpload
         label="Student List"
-        hint="CSV with columns: Name, Email, Mobile, Grade"
+        hint="CSV with columns: Student ID, Name, Email, Mobile, Class, Division (required) — Parent Name/Mobile/Email, Password (optional)"
         onFileSelect={handleFileSelect}
         onFileRemove={handleFileRemove}
         selectedFile={selectedFile}

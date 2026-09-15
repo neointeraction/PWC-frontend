@@ -92,7 +92,7 @@ export const Step7SummaryDashboard: React.FC<Step7SummaryDashboardProps> = ({
           <FormGroup>
             <FormLabel>Career Style & Signature</FormLabel>
             <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-              {formData.sectionB.summaryStrip.careerStyle} — {formData.sectionB.summaryStrip.personalSignature}
+              {formData.sectionB.summaryStrip.careerStyle.style} — {formData.sectionB.summaryStrip.personalSignature.style}
             </div>
           </FormGroup>
           <FormGroup>

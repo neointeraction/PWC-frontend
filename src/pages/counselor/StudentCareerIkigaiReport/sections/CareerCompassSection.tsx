@@ -1,92 +1,79 @@
 import React from 'react';
-import { RiCompassLine, RiBuildingLine, RiMoneyDollarCircleLine } from 'react-icons/ri';
-import { CareerRecommendationCard as CardType } from '@/mocks/studentIkigaiReport.mock';
-import { Badge } from '@/components/Badge';
+import { RiCompassLine } from 'react-icons/ri';
+import { CareerRecommendationCard as CardType } from '@/types/studentIkigaiReport.types';
+import { getCareerFitGrading } from '@/utils/careerFitGrading';
+import { CounsellorInsightsCard } from './CounsellorInsightsCard';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,
   SectionTitle,
   SectionSubtitle,
-  CareerCompassGrid,
-  CareerCompassCard,
-  CareerCardTitle,
-  CareerMetaTagGroup,
-  CareerMetaTag,
-  CareerDetailRow,
-  CareerDetailLabel,
-  CareerDetailValue,
+  TraitMapTableContainer,
+  TraitMapHeaderRow,
+  TraitMapDataRow,
+  TraitCell,
 } from '../StudentCareerIkigaiReportPage.styles';
 
 interface CareerCompassSectionProps {
   cards: CardType[];
+  notes?: Record<string, string>;
 }
 
-export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ cards }) => {
+// "Where we see You Thriving" — D1 onwards, per the Design Destiny template's Career
+// Compass / Job Roles page.
+const INSIGHT_GROUPS = [{ prefix: 'D', title: 'Where we see You Thriving' }] as const;
+
+// Same column set as the counsellor chart's "Career Compass (Target Roles & Compensation)"
+// table (Step3SectionC) — Fit Score shows only the grading level (no raw percentage) for
+// this student-facing view.
+const CAREER_COMPASS_GRID_COLUMNS = '150px 150px 180px 200px 1fr 180px 120px 120px 130px 1fr';
+
+export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ cards, notes = {} }) => {
   return (
     <ReportSectionBlock id="career-compass">
       <SectionHeaderGroup>
         <SectionTitle>
           <RiCompassLine size={24} />
-          My Career Compass — Top 6 Career Recommendations
+          My Career Compass
         </SectionTitle>
         <SectionSubtitle>
-          Curated top 6 career roles matched to student aptitude, interest, industry demand, AI resilience, and global salary potential.
+          Curated career roles matched to student aptitude, interest, industry demand, AI resilience, and global salary potential.
         </SectionSubtitle>
       </SectionHeaderGroup>
 
-      <CareerCompassGrid>
-        {cards.map((card, idx) => (
-          <CareerCompassCard key={card.id}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <CareerCardTitle>
-                #{idx + 1} · {card.role}
-              </CareerCardTitle>
-              <Badge variant="success">
-                {card.aiResilience}
-              </Badge>
-            </div>
+      <TraitMapTableContainer>
+        <TraitMapHeaderRow style={{ gridTemplateColumns: CAREER_COMPASS_GRID_COLUMNS, minWidth: '1440px' }}>
+          <TraitCell>Cluster</TraitCell>
+          <TraitCell>Industry</TraitCell>
+          <TraitCell>Domain</TraitCell>
+          <TraitCell>Target Role</TraitCell>
+          <TraitCell>Why It Fits</TraitCell>
+          <TraitCell>Top Employers</TraitCell>
+          <TraitCell>Salary (India)</TraitCell>
+          <TraitCell>Salary (Abroad)</TraitCell>
+          <TraitCell>Grading Level</TraitCell>
+          <TraitCell>Student-Friendly Explanation</TraitCell>
+        </TraitMapHeaderRow>
 
-            <CareerMetaTagGroup>
-              <CareerMetaTag>{card.cluster}</CareerMetaTag>
-              <CareerMetaTag>{card.industry}</CareerMetaTag>
-              <CareerMetaTag>{card.domain}</CareerMetaTag>
-            </CareerMetaTagGroup>
-
-            <CareerDetailRow>
-              <CareerDetailLabel>Why It Fits</CareerDetailLabel>
-              <CareerDetailValue style={{ color: '#4F46E5', fontWeight: 600 }}>
-                {card.whyItFits}
-              </CareerDetailValue>
-            </CareerDetailRow>
-
-            <CareerDetailRow>
-              <CareerDetailLabel>
-                <RiBuildingLine size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                Top Employers
-              </CareerDetailLabel>
-              <CareerDetailValue>{card.topEmployers}</CareerDetailValue>
-            </CareerDetailRow>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
-              <CareerDetailRow>
-                <CareerDetailLabel>
-                  <RiMoneyDollarCircleLine size={14} style={{ verticalAlign: 'middle', marginRight: '2px' }} />
-                  Salary (India)
-                </CareerDetailLabel>
-                <CareerDetailValue style={{ fontWeight: 700 }}>{card.salaryIndia}</CareerDetailValue>
-              </CareerDetailRow>
-
-              <CareerDetailRow>
-                <CareerDetailLabel>
-                  <RiMoneyDollarCircleLine size={14} style={{ verticalAlign: 'middle', marginRight: '2px' }} />
-                  Salary (Abroad)
-                </CareerDetailLabel>
-                <CareerDetailValue style={{ fontWeight: 700 }}>{card.salaryAbroad}</CareerDetailValue>
-              </CareerDetailRow>
-            </div>
-          </CareerCompassCard>
+        {cards.map(card => (
+          <TraitMapDataRow key={card.id} style={{ gridTemplateColumns: CAREER_COMPASS_GRID_COLUMNS, minWidth: '1440px' }}>
+            <TraitCell style={{ fontWeight: 800, color: '#4F46E5' }}>{card.cluster}</TraitCell>
+            <TraitCell>{card.industry}</TraitCell>
+            <TraitCell>{card.domain}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>{card.role}</TraitCell>
+            <TraitCell>{card.whyItFits}</TraitCell>
+            <TraitCell>{card.topEmployers}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>{card.salaryIndia}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>{card.salaryAbroad}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>
+              {getCareerFitGrading(card.fitScore ?? undefined)?.level || '—'}
+            </TraitCell>
+            <TraitCell>{getCareerFitGrading(card.fitScore ?? undefined)?.explanation || '—'}</TraitCell>
+          </TraitMapDataRow>
         ))}
-      </CareerCompassGrid>
+      </TraitMapTableContainer>
+
+      <CounsellorInsightsCard notes={notes} groups={INSIGHT_GROUPS} />
     </ReportSectionBlock>
   );
 };

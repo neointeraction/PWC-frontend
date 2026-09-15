@@ -33,7 +33,7 @@ export interface CounselorFilterParams {
 }
 
 export interface CreateCounselorInput {
-  counselorId: string;
+  counselorId?: string;
   name: string;
   mobile: string;
   email: string;
@@ -48,7 +48,6 @@ export interface UpdateCounselorInput {
   mobile?: string;
   email?: string;
   meetingLink?: string;
-  pwd?: string;
   status?: 'active' | 'inactive';
 }
 

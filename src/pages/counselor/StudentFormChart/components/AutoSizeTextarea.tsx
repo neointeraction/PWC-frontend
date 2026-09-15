@@ -39,6 +39,19 @@ const TextareaEl = styled.textarea<{ $minHeight: number }>`
   &::placeholder {
     color: ${({ theme }) => theme.colors.textMuted};
   }
+
+  &:read-only {
+    background-color: ${({ theme }) => theme.colors.background};
+    border-style: dashed;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    cursor: default;
+    resize: none;
+  }
+
+  &:read-only::placeholder {
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-style: italic;
+  }
 `;
 
 const Wrapper = styled.div`

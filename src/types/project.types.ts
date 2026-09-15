@@ -1,8 +1,10 @@
-export type ProjectStatus = 'active' | 'draft' | 'completed' | 'deleted';
+export type ProjectStatus = 'active' | 'closed' | 'deleted';
 
 export interface Project {
   id: string;
+  code?: string;
   name: string;
+  instituteId?: string;
   instituteName: string;
   counselorCount: number;
   studentCount: number;
@@ -11,6 +13,8 @@ export interface Project {
   validFrom: string;
   validTo: string;
   location?: string;
+  email?: string;
+  phone?: string;
   createdAt?: string;
   hasRedFlag?: boolean;
 }
@@ -22,11 +26,22 @@ export interface ProjectFilterParams {
   limit?: number;
 }
 
+export interface CounsellorSlotRow {
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+}
+
 export interface ProjectCounselor {
   name: string;
   email: string;
   mobile: string;
   matchStatus: 'matched' | 'new';
+  // Set from the availability-sheet flow: the counsellor's directory code, the
+  // matched backend id (when found), and their parsed availability slots.
+  counsellorCode?: string;
+  directoryId?: string;
+  slots?: CounsellorSlotRow[];
 }
 
 export interface ProjectStudent {
@@ -35,16 +50,37 @@ export interface ProjectStudent {
   email: string;
   mobile: string;
   grade: string;
-  className?: string;
+  // Extended fields parsed from the real import sheet (not shown in the preview
+  // table) — used when bulk-creating students against the backend.
   division?: string;
+  parentName?: string;
+  parentMobile?: string;
+  parentEmail?: string;
+  whatsappNumber?: string;
+  password?: string;
   sessionDate?: string;
   timeSlot?: string;
   sessionType?: 'S1' | 'S2';
+  isMissed?: boolean;
+}
+
+export interface StudentDuplicateMatch {
+  field: string;
+  value: string;
+  projectName: string;
+}
+
+export interface StudentDuplicateCheckResult {
+  index: number;
+  isDuplicate: boolean;
+  matches: StudentDuplicateMatch[];
 }
 
 export interface InstituteDetails {
+  instituteId: string;
   name: string;
   email: string;
+  location: string;
   phone: string;
   validFrom: string;
   validTo: string;
@@ -59,18 +95,56 @@ export interface TimeSlot {
 export interface CounselorSession {
   id: string;
   counselorId: string;
+  counselorCode: string;
   counselorName: string;
   counselorEmail: string;
   counselorPhone: string;
+  counselorMeetingLink?: string;
   timeSlots: TimeSlot[];
+  slots: ProjectSlot[];
   assignedStudents: ProjectStudent[];
 }
 
+// One row of a counsellor's schedule table: an availability slot, plus the booking
+// sitting in it when there is one. A session booked by an admin outside the slot
+// inventory (POST /sessions) has no slot behind it and still gets a row.
+export interface ProjectSlot {
+  id: string;
+  sessionId?: string;
+  // Display strings the table renders directly ("18 Feb 2026", "09:30 - 10:30").
+  date: string;
+  time: string;
+  // Raw values the session endpoints need back.
+  slotDate: string;
+  startTime: string;
+  endTime: string;
+  isBooked: boolean;
+  // True when either party no-showed — studentNoShow || counsellorNoShow below. Drives
+  // the existing "missed" flag/reschedule-required UI regardless of whose fault it was.
+  isMissed?: boolean;
+  studentNoShow?: boolean;
+  counsellorNoShow?: boolean;
+  // Both the student and counsellor actually joined (POST /sessions/{id}/join) — the
+  // green check is this, not just that the booked time has passed.
+  attended?: boolean;
+  studentId?: string;
+  studentName?: string;
+  studentCode?: string;
+  studentEmail?: string;
+  mobile?: string;
+  grade?: string;
+  sessionType?: 'S1' | 'S2';
+  notes?: string;
+  meetingLink?: string;
+}
+
 export interface StudentSessionDetail {
+  id?: string;
   sessionNumber: 1 | 2;
   status: 'completed' | 'scheduled' | 'pending';
   date: string;
   timeSlot: string;
+  counselorId?: string;
   counselorName: string;
   counselorEmail: string;
 }
@@ -102,6 +176,7 @@ export interface ProjectStudentDetail {
   parentName?: string;
   parentMobile?: string;
   parentEmail?: string;
+  whatsappNumber?: string;
   grade: string;
   className?: string;
   division?: string;
@@ -116,7 +191,8 @@ export interface ProjectStudentDetail {
   followUpHistory?: FollowUpRecord[];
   lastFollowUpDate?: string;
   isFlagged?: boolean;
-  isDiscontinued?: boolean;
+  // Reason behind the derived 🚩 flag (backend stageInfo) — drives the flag tooltip.
+  flagReason?: 'IDLE' | 'MISSED_SESSION' | null;
 }
 
 export interface CreateProjectPayload {

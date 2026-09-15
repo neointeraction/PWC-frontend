@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RiFileCopyLine, RiEyeLine, RiEyeOffLine, RiRefreshLine, RiLockPasswordLine } from 'react-icons/ri';
+import { RiFileCopyLine, RiEyeLine, RiEyeOffLine, RiRefreshLine, RiLockPasswordLine, RiErrorWarningLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -8,7 +8,7 @@ import { Badge } from '@/components/Badge';
 import { tenantManagementService } from '@/services/tenant-management.service';
 import { useTenantManagementStore } from '@/store/tenant-management.store';
 import { useToast } from '@/hooks';
-import { UserRecord } from '@/types/tenant-management.types';
+import { getApiErrorMessage } from '@/utils';
 import {
   FlexColumnGap,
   FlexRowBetween,
@@ -55,6 +55,29 @@ const ReadonlyVal = styled.div`
   border-radius: ${({ theme }) => theme.borderRadius.md};
   color: ${({ theme }) => theme.colors.text};
   user-select: all;
+  min-height: 20px;
+`;
+
+const DeactivatedNotice = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: 10px 12px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background-color: ${({ theme }) => theme.colors.dangerLight};
+  border: 1px solid ${({ theme }) => theme.colors.danger};
+  color: ${({ theme }) => theme.colors.danger};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  line-height: 1.4;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  strong {
+    font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  }
 `;
 
 const SmallIconButton = styled.button`
@@ -70,7 +93,12 @@ const SmallIconButton = styled.button`
   cursor: pointer;
   transition: all ${({ theme }) => theme.transition.fast};
 
-  &:hover {
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
     border-color: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme }) => theme.colors.primaryLight};
@@ -83,15 +111,28 @@ export const CredentialsModal: React.FC = () => {
   const { isCredentialsModalOpen, closeCredentialsModal, selectedUser } =
     useTenantManagementStore();
   const [showPassword, setShowPassword] = useState(false);
+  // Holds the plaintext password to display — the one-time value from creating the
+  // admin, or a freshly regenerated one. An existing admin's password can't be read
+  // back (it's hashed), so it stays masked until regenerated.
+  const [password, setPassword] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (isCredentialsModalOpen) {
+      setPassword(selectedUser?.generatedPassword);
+      setShowPassword(false);
+    }
+  }, [isCredentialsModalOpen, selectedUser]);
 
   const regenMutation = useMutation({
     mutationFn: (id: string) => tenantManagementService.regeneratePassword(id),
-    onSuccess: (data: UserRecord) => {
+    onSuccess: record => {
+      setPassword(record.generatedPassword);
+      setShowPassword(true);
       queryClient.invalidateQueries({ queryKey: ['tenant-records'] });
-      toast.success('Credentials Regenerated', `New password generated for ${data.name}.`);
+      toast.success('Password Regenerated', `A new password was generated for ${record.name}.`);
     },
-    onError: () => {
-      toast.error('Error', 'Failed to regenerate credentials.');
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to regenerate password.'));
     },
   });
 
@@ -103,7 +144,9 @@ export const CredentialsModal: React.FC = () => {
   };
 
   const usernameVal = selectedUser.username || selectedUser.email;
-  const passVal = selectedUser.generatedPassword || 'kREATE@User2026!';
+  const isInactive = selectedUser.status === 'inactive';
+  const hasPassword = Boolean(password);
+  const passwordDisplay = hasPassword && showPassword ? password : '••••••••••••';
 
   return (
     <Modal
@@ -118,10 +161,21 @@ export const CredentialsModal: React.FC = () => {
           <div>
             <CredentialNameText>{selectedUser.name}</CredentialNameText>
           </div>
-          <Badge variant={selectedUser.userCategory === 'pwc' ? 'primary' : 'info'}>
+          <Badge variant={selectedUser.isViewOnly ? 'warning' : 'primary'}>
             {selectedUser.userCategory.toUpperCase()} USER
           </Badge>
         </FlexRowBetween>
+
+        {isInactive && (
+          <DeactivatedNotice>
+            <RiErrorWarningLine size={18} />
+            <span>
+              <strong>Account deactivated.</strong> This tenant cannot log in until the
+              account is reactivated — a password won&apos;t work while it&apos;s
+              deactivated. Enable it from Edit Tenant &rarr; Account Status.
+            </span>
+          </DeactivatedNotice>
+        )}
 
         <CredentialsBox>
           <FieldRow>
@@ -129,6 +183,7 @@ export const CredentialsModal: React.FC = () => {
             <InputValGroup>
               <ReadonlyVal>{usernameVal}</ReadonlyVal>
               <SmallIconButton
+                type="button"
                 title="Copy Username"
                 onClick={() => handleCopy(usernameVal, 'Username/Email')}
               >
@@ -140,16 +195,20 @@ export const CredentialsModal: React.FC = () => {
           <FieldRow>
             <label>Generated Password</label>
             <InputValGroup>
-              <ReadonlyVal>{showPassword ? passVal : '••••••••••••'}</ReadonlyVal>
+              <ReadonlyVal>{passwordDisplay}</ReadonlyVal>
               <SmallIconButton
+                type="button"
                 title={showPassword ? 'Hide Password' : 'Show Password'}
-                onClick={() => setShowPassword(!showPassword)}
+                disabled={!hasPassword}
+                onClick={() => setShowPassword(prev => !prev)}
               >
                 {showPassword ? <RiEyeOffLine size={18} /> : <RiEyeLine size={18} />}
               </SmallIconButton>
               <SmallIconButton
+                type="button"
                 title="Copy Password"
-                onClick={() => handleCopy(passVal, 'Password')}
+                disabled={!hasPassword}
+                onClick={() => password && handleCopy(password, 'Password')}
               >
                 <RiFileCopyLine size={18} />
               </SmallIconButton>
@@ -172,8 +231,9 @@ export const CredentialsModal: React.FC = () => {
             variant="primary"
             size="sm"
             leftIcon={<RiLockPasswordLine size={16} />}
+            disabled={!hasPassword}
             onClick={() => {
-              const fullText = `kREATE Platform Credentials:\nName: ${selectedUser.name}\nUsername: ${usernameVal}\nPassword: ${passVal}\nPortal: kREATE Career Counselling Platform`;
+              const fullText = `kREATE Platform Credentials:\nName: ${selectedUser.name}\nUsername: ${usernameVal}\nPassword: ${password}\nPortal: kREATE Career Counselling Platform`;
               handleCopy(fullText, 'Full Credentials Package');
             }}
           >

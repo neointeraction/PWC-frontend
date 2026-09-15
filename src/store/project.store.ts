@@ -24,8 +24,10 @@ interface ProjectActions {
 }
 
 const emptyInstituteDetails: InstituteDetails = {
+  instituteId: '',
   name: '',
   email: '',
+  location: '',
   phone: '',
   validFrom: '',
   validTo: '',

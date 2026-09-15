@@ -5,22 +5,28 @@ import { z } from 'zod';
 import { Input } from '@/components/Input';
 import { DatePicker } from '@/components/DatePicker';
 import { useProjectStore } from '@/store/project.store';
+import { isValidPhone } from '@/utils';
 import {
   StepFormContainer,
   StepSubtitle,
-  FormGrid,
-  FormGroup,
+  InstituteFormGrid,
+  InstituteFormFullField,
 } from './AddProjectWizard.styles';
 import { InstituteDetails } from '@/types/project.types';
 
 const instituteSchema = z
   .object({
+    instituteId: z.string().min(1, 'Institute ID is required'),
     name: z
       .string()
       .min(1, 'Institute name is required')
       .min(3, 'Institute name must be at least 3 characters'),
     email: z.string().min(1, 'Email is required').email('Invalid email format'),
-    phone: z.string().min(1, 'Phone number is required'),
+    location: z.string().min(1, 'Location is required'),
+    phone: z
+      .string()
+      .min(1, 'Phone number is required')
+      .refine(isValidPhone, 'Enter a valid number, e.g. 9876543210 (no leading zero)'),
     validFrom: z.string().min(1, 'Start date is required'),
     validTo: z.string().min(1, 'End date is required'),
   })
@@ -64,8 +70,72 @@ export const StepInstitute: React.FC = () => {
       <StepSubtitle>
         Enter the primary contact and timeline information for this institute.
       </StepSubtitle>
-      <FormGrid>
-        <FormGroup>
+      <InstituteFormGrid>
+        <InstituteFormFullField>
+          <Input
+            label="Institute ID"
+            placeholder="Enter institute ID"
+            error={errors.instituteId?.message}
+            {...register('instituteId', {
+              onChange: e => handleChange('instituteId', e.target.value),
+            })}
+          />
+        </InstituteFormFullField>
+        <Controller
+          name="validFrom"
+          control={control}
+          render={({ field }) => (
+            <DatePicker
+              label="Valid From"
+              selected={field.value ? new Date(field.value) : null}
+              onChange={(date: Date | null) => {
+                const isoDate = date ? date.toISOString() : '';
+                field.onChange(isoDate);
+                handleChange('validFrom', isoDate);
+              }}
+              error={errors.validFrom?.message}
+              placeholderText="Select start date"
+              selectsStart
+              startDate={field.value ? new Date(field.value) : undefined}
+              endDate={
+                instituteDetails.validTo
+                  ? new Date(instituteDetails.validTo)
+                  : undefined
+              }
+            />
+          )}
+        />
+        <Controller
+          name="validTo"
+          control={control}
+          render={({ field }) => (
+            <DatePicker
+              label="Valid To"
+              selected={field.value ? new Date(field.value) : null}
+              onChange={(date: Date | null) => {
+                const isoDate = date ? date.toISOString() : '';
+                field.onChange(isoDate);
+                handleChange('validTo', isoDate);
+              }}
+              error={errors.validTo?.message}
+              placeholderText="Select end date"
+              selectsEnd
+              startDate={
+                instituteDetails.validFrom
+                  ? new Date(instituteDetails.validFrom)
+                  : undefined
+              }
+              endDate={field.value ? new Date(field.value) : undefined}
+              minDate={
+                instituteDetails.validFrom
+                  ? new Date(instituteDetails.validFrom)
+                  : undefined
+              }
+            />
+          )}
+        />
+
+        <InstituteFormFullField>
           <Input
             label="Institute Name"
             placeholder="Enter institute name"
@@ -74,6 +144,19 @@ export const StepInstitute: React.FC = () => {
               onChange: e => handleChange('name', e.target.value),
             })}
           />
+        </InstituteFormFullField>
+        <InstituteFormFullField>
+          <Input
+            label="Location"
+            placeholder="Location"
+            error={errors.location?.message}
+            {...register('location', {
+              onChange: e => handleChange('location', e.target.value),
+            })}
+          />
+        </InstituteFormFullField>
+
+        <InstituteFormFullField>
           <Input
             label="Email Address"
             type="email"
@@ -83,75 +166,19 @@ export const StepInstitute: React.FC = () => {
               onChange: e => handleChange('email', e.target.value),
             })}
           />
+        </InstituteFormFullField>
+        <InstituteFormFullField>
           <Input
             label="Phone Number"
             type="tel"
-            placeholder="+91 XXXXX XXXXX"
+            placeholder="XXXXX XXXXX"
             error={errors.phone?.message}
             {...register('phone', {
               onChange: e => handleChange('phone', e.target.value),
             })}
           />
-        </FormGroup>
-
-        <FormGroup>
-          <FormGrid>
-            <Controller
-              name="validFrom"
-              control={control}
-              render={({ field }) => (
-                <DatePicker
-                  label="Valid From"
-                  selected={field.value ? new Date(field.value) : null}
-                  onChange={(date: Date | null) => {
-                    const isoDate = date ? date.toISOString() : '';
-                    field.onChange(isoDate);
-                    handleChange('validFrom', isoDate);
-                  }}
-                  error={errors.validFrom?.message}
-                  placeholderText="Select start date"
-                  selectsStart
-                  startDate={field.value ? new Date(field.value) : undefined}
-                  endDate={
-                    instituteDetails.validTo
-                      ? new Date(instituteDetails.validTo)
-                      : undefined
-                  }
-                />
-              )}
-            />
-            <Controller
-              name="validTo"
-              control={control}
-              render={({ field }) => (
-                <DatePicker
-                  label="Valid To"
-                  selected={field.value ? new Date(field.value) : null}
-                  onChange={(date: Date | null) => {
-                    const isoDate = date ? date.toISOString() : '';
-                    field.onChange(isoDate);
-                    handleChange('validTo', isoDate);
-                  }}
-                  error={errors.validTo?.message}
-                  placeholderText="Select end date"
-                  selectsEnd
-                  startDate={
-                    instituteDetails.validFrom
-                      ? new Date(instituteDetails.validFrom)
-                      : undefined
-                  }
-                  endDate={field.value ? new Date(field.value) : undefined}
-                  minDate={
-                    instituteDetails.validFrom
-                      ? new Date(instituteDetails.validFrom)
-                      : undefined
-                  }
-                />
-              )}
-            />
-          </FormGrid>
-        </FormGroup>
-      </FormGrid>
+        </InstituteFormFullField>
+      </InstituteFormGrid>
     </StepFormContainer>
   );
 };

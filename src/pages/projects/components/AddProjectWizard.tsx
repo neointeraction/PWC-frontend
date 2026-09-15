@@ -14,6 +14,7 @@ import { Stepper, StepConfig } from '@/components/Stepper';
 import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
 import { useToast } from '@/hooks';
+import { getApiErrorMessage, isValidEmail, isValidPhone } from '@/utils';
 import { StepInstitute } from './StepInstitute';
 import { StepStudents } from './StepStudents';
 import { StepCounselors } from './StepCounselors';
@@ -48,33 +49,90 @@ export const AddProjectWizard: React.FC = () => {
 
   const createMutation = useMutation({
     mutationFn: projectService.create,
-    onSuccess: () => {
+    onSuccess: ({ studentImport, counselorAssign }) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Project Created', 'The project has been created successfully.');
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
+      // Student rows are imported one by one and a bad row is skipped rather than
+      // aborting the batch, so say what actually landed instead of a blanket success.
+      const studentNote =
+        studentImport.failed > 0
+          ? `${studentImport.imported} of ${studentImport.total} students imported. ` +
+            `${studentImport.failed} skipped — ` +
+            studentImport.failures
+              .slice(0, 3)
+              .map(f => `${f.name}: ${f.reason}`)
+              .join(' · ') +
+            (studentImport.failed > 3 ? ` (and ${studentImport.failed - 3} more)` : '')
+          : studentImport.total > 0
+            ? `All ${studentImport.total} students were imported.`
+            : '';
+      // A counsellor assignment can fail (e.g. already tied to a different institute) —
+      // say who was skipped and why instead of a blanket success.
+      const counselorNote =
+        counselorAssign.failures.length > 0
+          ? `${counselorAssign.assigned} counselor(s) assigned. ` +
+            `${counselorAssign.failures.length} skipped — ` +
+            counselorAssign.failures
+              .slice(0, 3)
+              .map(f => `${f.name}: ${f.reason}`)
+              .join(' · ') +
+            (counselorAssign.failures.length > 3
+              ? ` (and ${counselorAssign.failures.length - 3} more)`
+              : '')
+          : '';
+      // The slot sheet imports as one call: if it is rejected, every counsellor is left
+      // with no availability at all, which a plain success toast would hide.
+      const slotNote = counselorAssign.slotImport.error
+        ? `Counsellor availability was not imported (${counselorAssign.slotImport.attempted} slot(s)) — ${counselorAssign.slotImport.error}`
+        : '';
+
+      const issueNote = [counselorNote, slotNote].filter(Boolean).join(' ');
+
+      if (studentNote && issueNote) {
+        toast.warning('Project Created — Check the Imports', `${studentNote} ${issueNote}`);
+      } else if (issueNote) {
+        toast.warning('Project Created — Check Counselor Assignments', issueNote);
+      } else if (studentImport.failed > 0) {
+        toast.warning('Project Created — Some Students Skipped', studentNote);
+      } else {
+        toast.success(
+          'Project Created',
+          studentNote || 'The project has been created successfully.'
+        );
+      }
       closeWizard();
     },
-    onError: () => {
-      toast.error('Error', 'Failed to create the project. Please try again.');
+    onError: (err: unknown) => {
+      // Surface what the server actually rejected — a duplicate institute name/email/phone
+      // is the common case, and a generic message makes it undiagnosable.
+      toast.error(
+        'Error',
+        getApiErrorMessage(err, 'Failed to create the project. Please try again.')
+      );
     },
   });
 
   const isNextDisabled = useMemo(() => {
     switch (wizardStep) {
       case 0: {
-        const { name, email, phone, validFrom, validTo } = instituteDetails;
+        const { instituteId, name, email, location, phone, validFrom, validTo } =
+          instituteDetails;
+        if (!instituteId) return true;
         if (!name || name.trim().length < 3) return true;
-        if (!email || !phone || !validFrom || !validTo) return true;
+        if (!email || !location || !phone || !validFrom || !validTo) return true;
+        if (!isValidEmail(email)) return true;
+        if (!isValidPhone(phone)) return true;
         if (new Date(validFrom) > new Date(validTo)) return true;
         return false;
       }
       case 1:
         return students.length === 0;
       case 2:
-        return false;
+        return counselors.filter(c => c.matchStatus === 'matched').length === 0;
       default:
         return false;
     }
-  }, [wizardStep, instituteDetails, students]);
+  }, [wizardStep, instituteDetails, students, counselors]);
 
   const handleFinish = () => {
     createMutation.mutate({
@@ -128,6 +186,7 @@ export const AddProjectWizard: React.FC = () => {
           <Button
             rightIcon={<RiArrowRightLine size={16} />}
             onClick={nextStep}
+            disabled={isNextDisabled}
           >
             Next
           </Button>

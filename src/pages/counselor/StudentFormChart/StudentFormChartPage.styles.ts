@@ -222,6 +222,19 @@ export const StepLabelText = styled.span`
   font-size: 0.8rem;
 `;
 
+// Wraps the step content only (not the footer nav) so a read-only viewer (e.g. an
+// admin browsing a student's chart) can page through steps but can't edit any field.
+export const ReadOnlyStepContent = styled.div<{ $readOnly?: boolean }>`
+  display: contents;
+
+  ${({ $readOnly }) =>
+    $readOnly &&
+    `
+    pointer-events: none;
+    user-select: text;
+  `}
+`;
+
 // Main Content Panel
 export const MainContentPanel = styled.main`
   flex: 1;
@@ -387,11 +400,57 @@ export const CompSubHeaderRow = styled.div`
   color: ${({ theme }) => theme.colors.primary};
 `;
 
+// Colors/sizing match ActionIconButton in Tenant Management for a uniform
+// icon-button style, but stays row-hover-only (opacity:0 until its row is
+// hovered) so an editable table's extra "actions" column stays visually quiet
+// the rest of the time.
+export const RowDeleteButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, border-color ${({ theme }) => theme.transition.fast}, color ${({ theme }) => theme.transition.fast}, background-color ${({ theme }) => theme.transition.fast};
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+    background-color: ${({ theme }) => theme.colors.primaryLight};
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+
+export const RowActionsCell = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+`;
+
 export const CompDataRow = styled.div`
   display: grid;
   grid-template-columns: 280px 1fr 1fr;
   align-items: flex-start;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+
+  &:hover ${RowDeleteButton} {
+    opacity: 1;
+  }
 
   &:last-child {
     border-bottom: none;
@@ -422,6 +481,8 @@ export const CompResponseCell = styled.div<{ $type?: 'student' | 'parent' }>`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  white-space: pre-line;
+  line-height: 1.5;
   background-color: ${({ $type }) =>
     $type === 'student'
       ? 'rgba(79, 70, 229, 0.02)'
@@ -445,35 +506,25 @@ export const CompResponseCell = styled.div<{ $type?: 'student' | 'parent' }>`
   }
 `;
 
-export const NaBadge = styled.span`
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background-color: ${({ theme }) => theme.colors.border};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: 0.75rem;
-  font-weight: 600;
-`;
-
 // Full-Width Synthesis Notes Panel
-export const SynthesisPanel = styled.div`
-  background-color: ${({ theme }) => theme.colors.noteBackground};
-  border: 1px solid ${({ theme }) => theme.colors.warning};
-  border-left: 4px solid ${({ theme }) => theme.colors.warning};
+export const SynthesisPanel = styled.div<{ $readOnly?: boolean }>`
+  background-color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.background : theme.colors.noteBackground)};
+  border: 1px solid ${({ theme, $readOnly }) => ($readOnly ? theme.colors.border : theme.colors.warning)};
+  border-left: 4px solid ${({ theme, $readOnly }) => ($readOnly ? theme.colors.border : theme.colors.warning)};
   border-radius: 4px;
   overflow: hidden;
   width: 100%;
   margin-top: 16px;
 `;
 
-export const SynthesisPanelHeader = styled.div`
+export const SynthesisPanelHeader = styled.div<{ $readOnly?: boolean }>`
   padding: 10px 16px;
-  background-color: ${({ theme }) => theme.colors.warningLight};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.warning}40;
+  background-color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.background : theme.colors.warningLight)};
+  border-bottom: 1px solid ${({ theme, $readOnly }) => ($readOnly ? theme.colors.border : `${theme.colors.warning}40`)};
   font-size: 0.85rem;
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: ${({ theme }) => theme.colors.warning};
+  color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.textSecondary : theme.colors.warning)};
   display: flex;
   align-items: center;
   gap: 8px;
@@ -496,7 +547,7 @@ export const SynthesisRow = styled.div`
   }
 `;
 
-export const SynthesisCodeLabel = styled.div`
+export const SynthesisCodeLabel = styled.div<{ $readOnly?: boolean }>`
   width: 42px;
   min-width: 42px;
   height: 28px;
@@ -504,7 +555,7 @@ export const SynthesisCodeLabel = styled.div`
   align-items: center;
   justify-content: center;
   margin-top: 10px;
-  background-color: ${({ theme }) => theme.colors.warning};
+  background-color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.textSecondary : theme.colors.warning)};
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -512,13 +563,17 @@ export const SynthesisCodeLabel = styled.div`
   letter-spacing: 0.5px;
   text-transform: uppercase;
   flex-shrink: 0;
-  cursor: pointer;
+  cursor: ${({ $readOnly }) => ($readOnly ? 'default' : 'pointer')};
   transition: all 0.15s ease;
 
+  ${({ $readOnly }) =>
+    !$readOnly &&
+    `
   &:hover {
     opacity: 0.9;
     transform: scale(1.05);
   }
+  `}
 
   @media (max-width: 600px) {
     width: 100%;
@@ -743,6 +798,17 @@ export const ScriResultHeader = styled.div`
 export const ScriScoreValue = styled.span`
   font-size: 1.5rem;
   font-weight: 800;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const ScriScoreLabel = styled.span`
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const ScriScoreNumber = styled.span`
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-style: normal;
   color: ${({ theme }) => theme.colors.text};
 `;
 
@@ -1051,9 +1117,9 @@ export const RedFlagNotice = styled.div`
   margin-top: 10px;
   padding: 9px 12px;
   border-radius: 4px;
-  border: 1px solid ${({ theme }) => theme.colors.danger}35;
-  background-color: ${({ theme }) => theme.colors.dangerLight};
-  color: ${({ theme }) => theme.colors.danger};
+  border: 1px solid ${({ theme }) => theme.colors.warning}35;
+  background-color: ${({ theme }) => theme.colors.warningLight};
+  color: ${({ theme }) => theme.colors.warning};
   font-size: 0.8rem;
   font-style: italic;
   display: flex;
@@ -1111,6 +1177,10 @@ export const StreamFitDataRow = styled.div<{ $highlight?: boolean }>`
 
   &:hover {
     background-color: ${({ theme }) => theme.colors.surfaceHover || '#F8FAFC'};
+  }
+
+  &:hover ${RowDeleteButton} {
+    opacity: 1;
   }
 
   &:last-child {

@@ -4,9 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiSearchLine,
   RiFlag2Fill,
-  RiFileExcel2Line,
+  RiFlag2Line,
+  // RiFileExcel2Line,
   RiUserAddLine,
   RiCalendarLine,
+  RiEyeLine,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -19,7 +21,7 @@ import { projectService } from '@/services/project.service';
 import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
-import { formatDateDDMMYYYY } from '@/utils';
+import { formatDate, getApiErrorMessage } from '@/utils';
 import { EditStudentModal } from './EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
 import {
@@ -32,11 +34,10 @@ import {
   StageCellWrapper,
   CounselorWrapper,
   CounselorIdBadge,
-  GradeBadge,
   DateCellWrapper,
   FlagIconWrapper,
   FlagFilterButton,
-  ToolbarIconButton,
+  // ToolbarIconButton,
 } from './ProjectStudentsPage.styles';
 
 export const PROJECT_STAGES_OPTIONS = [
@@ -71,40 +72,66 @@ export const ProjectStudentsPage: React.FC = () => {
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
-    queryFn: () => projectService.getById(projectId || 'proj-001'),
+    queryFn: () => projectService.getById(projectId as string),
+    enabled: Boolean(projectId),
   });
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['projectStudents', projectId],
-    queryFn: () => projectService.getProjectStudents(projectId || 'proj-001'),
+    queryFn: () => projectService.getProjectStudents(projectId as string),
+    enabled: Boolean(projectId),
   });
 
   const updateMutation = useMutation({
     mutationFn: (updatedStudent: ProjectStudentDetail) =>
-      projectService.updateProjectStudent(projectId || 'proj-001', updatedStudent),
-    onSuccess: () => {
+      projectService.saveProjectStudent(projectId as string, updatedStudent),
+    onSuccess: result => {
       queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      // Student counts elsewhere read the project's `_count`, not the student list.
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       toast.success('Student Saved', 'Student information updated successfully.');
+      // PATCH /students/{id} has no email field, so an edited address never reached the
+      // backend — say so rather than letting the success toast imply it saved.
+      if (result.emailChangeIgnored) {
+        toast.warning(
+          'Email Not Changed',
+          "A student's login email can't be edited here — every other change was saved."
+        );
+      }
       setEditingStudent(null);
       setIsAddModalOpen(false);
     },
-    onError: () => {
-      toast.error('Save Failed', 'Could not update student details.');
+    onError: err => {
+      toast.error('Save Failed', getApiErrorMessage(err, 'Could not update student details.'));
+    },
+  });
+
+  const retestMutation = useMutation({
+    mutationFn: (studentToRetest: ProjectStudentDetail) =>
+      projectService.deleteProjectStudent(studentToRetest.id),
+    onSuccess: (_result, studentToRetest) => {
+      queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      toast.success(
+        'Student Removed for Retest',
+        `${studentToRetest.name}'s details were deleted. Add them again to restart the process.`
+      );
+      setViewingStudent(null);
+    },
+    onError: err => {
+      toast.error('Retest Failed', getApiErrorMessage(err, 'Could not delete student for retest.'));
     },
   });
 
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
-      id: `std-new-${Date.now()}`,
-      studentId: `ST${100 + students.length + 1}`,
+      id: '',
+      studentId: '',
       name: '',
       email: '',
-      mobile: '+91 ',
-      grade: 'Grade 11',
-      counselorId: 'COU-01',
-      counselorName: 'Dr. Rajeshwari Menon',
+      mobile: '',
+      grade: '',
       stage: 'Login Activated',
-      stageCompletedDate: new Date().toISOString().slice(0, 10),
       daysInStage: 0,
       isFlagged: false,
     };
@@ -112,6 +139,7 @@ export const ProjectStudentsPage: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
+  /*
   const handleExportExcel = () => {
     // Generate stage-wise distribution summary
     const stageCounts: Record<string, number> = {};
@@ -142,7 +170,7 @@ export const ProjectStudentsPage: React.FC = () => {
     csvContent += `STUDENT-LEVEL DETAIL LIST\n`;
     csvContent += `Student ID,Student Name,Grade / Class,Counselor ID,Counselor Name,Current Stage,Stage Date,Days In Stage,Follow-up Flag (>2 Days)\n`;
     filteredStudents.forEach(s => {
-      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || 'COU-01'}","${s.counselorName || s.session1?.counselorName || 'Dr. Rajeshwari Menon'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
+      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || ''}","${s.counselorName || ''}","${s.stage || ''}","${s.stageCompletedDate || s.session1?.date || ''}","${s.daysInStage ?? ''}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -161,6 +189,7 @@ export const ProjectStudentsPage: React.FC = () => {
       'Downloaded project stage distribution and students report (.csv).'
     );
   };
+  */
 
   const totalFlaggedCount = students.filter(s => s.isFlagged).length;
 
@@ -189,7 +218,7 @@ export const ProjectStudentsPage: React.FC = () => {
       key: 'studentId',
       header: 'Student ID',
       width: '120px',
-      render: row => row.studentId || `ST${100 + (parseInt(row.id.replace(/\D/g, ''), 10) || 1)}`,
+      render: row => row.studentId || '',
     },
     {
       key: 'name',
@@ -208,19 +237,22 @@ export const ProjectStudentsPage: React.FC = () => {
     {
       key: 'grade',
       header: 'Grade / Class',
-      width: '130px',
-      render: row => <GradeBadge>{row.grade}</GradeBadge>,
+      width: '140px',
+      render: row => row.grade || '',
     },
     {
       key: 'counselor',
       header: 'Counselor',
       width: '230px',
-      render: row => (
-        <CounselorWrapper>
-          <CounselorIdBadge>{row.counselorId || 'COU-01'}</CounselorIdBadge>
-          <span>{row.counselorName || row.session1?.counselorName || 'Dr. Rajeshwari Menon'}</span>
-        </CounselorWrapper>
-      ),
+      render: row =>
+        row.counselorName ? (
+          <CounselorWrapper>
+            {row.counselorId && <CounselorIdBadge>{row.counselorId}</CounselorIdBadge>}
+            <span>{row.counselorName}</span>
+          </CounselorWrapper>
+        ) : (
+          ''
+        ),
     },
     {
       key: 'stage',
@@ -228,7 +260,22 @@ export const ProjectStudentsPage: React.FC = () => {
       width: '240px',
       render: row => (
         <StageCellWrapper>
-          <span>{row.stage || 'Login Activated'}</span>
+          <span>{row.stage || ''}</span>
+          {row.isFlagged && (
+            <Tooltip
+              content={
+                row.flagReason === 'MISSED_SESSION'
+                  ? 'Flagged: missed session — needs follow-up'
+                  : row.flagReason === 'IDLE'
+                  ? 'Flagged: idle too long — needs follow-up'
+                  : 'Flagged for admin follow-up'
+              }
+            >
+              <span>
+                <RiFlag2Line size={15} style={{ color: '#EF4444', verticalAlign: '-2px' }} />
+              </span>
+            </Tooltip>
+          )}
         </StageCellWrapper>
       ),
     },
@@ -241,10 +288,14 @@ export const ProjectStudentsPage: React.FC = () => {
         return (
           <DateCellWrapper>
             <RiCalendarLine size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
-            <span>{rawDate ? formatDateDDMMYYYY(rawDate) : '—'}</span>
+            <span>{rawDate ? formatDate(rawDate) : ''}</span>
             {row.isFlagged && (
               <Tooltip
-                content={`Stage inactive for ${row.daysInStage || 3} days (> 2 days threshold) — follow up required`}
+                content={
+                  row.daysInStage
+                    ? `Stage inactive for ${row.daysInStage} days (> 2 days threshold) — follow up required`
+                    : 'Flagged for admin follow-up'
+                }
               >
                 <FlagIconWrapper>
                   <RiFlag2Fill size={16} />
@@ -252,6 +303,32 @@ export const ProjectStudentsPage: React.FC = () => {
               </Tooltip>
             )}
           </DateCellWrapper>
+        );
+      },
+    },
+    {
+      key: 'counsellorChart',
+      header: '',
+      width: '140px',
+      render: row => {
+        // A chart only exists once a counselor has actually been assigned to a session.
+        const assignedSession = row.session1?.counselorName ? row.session1 : row.session2;
+        if (!assignedSession?.id) return null;
+        return (
+          <Tooltip content="View this student's Counsellor Chart (read-only)">
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<RiEyeLine size={14} />}
+              onClick={() =>
+                navigate(
+                  `${ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', assignedSession.id!)}?readOnly=1`
+                )
+              }
+            >
+              View Chart
+            </Button>
+          </Tooltip>
         );
       },
     },
@@ -313,7 +390,7 @@ export const ProjectStudentsPage: React.FC = () => {
               </span>
             </FlagFilterButton>
 
-            <Tooltip content="Export Students Stage Report to Excel">
+            {/* <Tooltip content="Export Students Stage Report to Excel">
               <ToolbarIconButton
                 type="button"
                 $variant="excel"
@@ -322,7 +399,7 @@ export const ProjectStudentsPage: React.FC = () => {
               >
                 <RiFileExcel2Line size={18} />
               </ToolbarIconButton>
-            </Tooltip>
+            </Tooltip> */}
 
             <Button leftIcon={<RiUserAddLine size={16} />} onClick={handleCreateNewStudent}>
               Add Student
@@ -352,6 +429,8 @@ export const ProjectStudentsPage: React.FC = () => {
         onClose={() => setViewingStudent(null)}
         student={viewingStudent}
         onSave={updated => updateMutation.mutate(updated)}
+        onRetest={studentToRetest => retestMutation.mutate(studentToRetest)}
+        isRetesting={retestMutation.isPending}
       />
 
       <EditStudentModal

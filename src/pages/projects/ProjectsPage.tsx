@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,9 +8,8 @@ import {
   RiEditLine,
   RiDeleteBinLine,
   RiUserLine,
-  RiDownloadLine,
+  // RiDownloadLine,
   RiRefreshLine,
-  RiFlag2Fill,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -25,10 +24,10 @@ import { useProjectStore } from '@/store/project.store';
 import { useAuthStore } from '@/store';
 import { useToast } from '@/hooks';
 import { Project, ProjectStatus } from '@/types/project.types';
+import { ROUTES } from '@/constants';
 import {
   ProjectsContainer,
   StatsGrid,
-  InteractiveStatCardWrapper,
   StatMetricValue,
   MetaText,
   FilterBar,
@@ -36,7 +35,6 @@ import {
   ActionIconButtonGroup,
   ActionIconButton,
   ProjectNameCell,
-  ProjectTitleRow,
   ProjectNameLink,
   ProjectInstituteSubtext,
 } from './Projects.styles';
@@ -58,7 +56,7 @@ export const ProjectsPage: React.FC = () => {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
 
-  const handleDownloadProjectReport = (project: Project) => {
+  /* const handleDownloadProjectReport = (project: Project) => {
     const csvContent =
       `Project Summary Report\n` +
       `Project Name,${project.name}\n` +
@@ -85,7 +83,7 @@ export const ProjectsPage: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     toast.success('Report Downloaded', `Exported project report CSV for ${project.name}.`);
-  };
+  }; */
 
   const { data, isLoading } = useQuery({
     queryKey: ['projects', searchQuery, statusFilter, page, limit],
@@ -98,10 +96,34 @@ export const ProjectsPage: React.FC = () => {
       }),
   });
 
+  // Query all projects for stats calculation (without pagination)
+  const { data: allProjectsData } = useQuery({
+    queryKey: ['projects-stats'],
+    queryFn: () => projectService.getAll({}), // Get all without filters
+  });
+
+  // Calculate dynamic stats from all projects
+  const stats = useMemo(() => {
+    if (!allProjectsData?.data) {
+      return {
+        totalProjects: 0,
+        liveProjects: 0,
+      };
+    }
+
+    const projects = allProjectsData.data;
+    
+    return {
+      totalProjects: projects.length,
+      liveProjects: projects.filter(p => p.status === 'active').length,
+    };
+  }, [allProjectsData]);
+
   const deleteMutation = useMutation({
     mutationFn: projectService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       toast.success('Project Deleted', 'Successfully removed project record.');
       setProjectToDelete(null);
     },
@@ -115,6 +137,7 @@ export const ProjectsPage: React.FC = () => {
     mutationFn: (id: string) => projectService.update(id, { status: 'active' }),
     onSuccess: updated => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       toast.success('Project Restored', `Restored ${updated.name} to active status.`);
     },
     onError: () => {
@@ -140,16 +163,10 @@ export const ProjectsPage: React.FC = () => {
             Active
           </Badge>
         );
-      case 'draft':
-        return (
-          <Badge variant="warning" dot>
-            Draft
-          </Badge>
-        );
-      case 'completed':
+      case 'closed':
         return (
           <Badge variant="info" dot>
-            Completed
+            Closed
           </Badge>
         );
       case 'deleted':
@@ -167,20 +184,13 @@ export const ProjectsPage: React.FC = () => {
       header: 'Project',
       render: row => (
         <ProjectNameCell>
-          <ProjectTitleRow>
-            <ProjectNameLink
-              type="button"
-              onClick={() => navigate(`/projects/dashboard/${row.id}`)}
-            >
-              {row.name}
-            </ProjectNameLink>
-            {row.hasRedFlag && (
-              <Tooltip content="Contains overdue follow-up stages (> 2 days)">
-                <RiFlag2Fill size={15} style={{ color: '#EF4444', flexShrink: 0 }} />
-              </Tooltip>
-            )}
-          </ProjectTitleRow>
-          <ProjectInstituteSubtext>{row.instituteName}</ProjectInstituteSubtext>
+          <ProjectNameLink
+            type="button"
+            onClick={() => navigate(`/projects/dashboard/${row.id}`)}
+          >
+            {row.name}
+          </ProjectNameLink>
+          {row.code && <ProjectInstituteSubtext>{row.code}</ProjectInstituteSubtext>}
         </ProjectNameCell>
       ),
     },
@@ -192,15 +202,18 @@ export const ProjectsPage: React.FC = () => {
     {
       key: 'validFrom',
       header: 'Valid From',
-      render: row => (row.validFrom ? dayjs(row.validFrom).format('DD MMM YYYY') : '—'),
+      render: row => (row.validFrom ? dayjs(row.validFrom).format('D MMM YYYY') : '—'),
     },
     {
       key: 'validTo',
       header: 'Valid To',
       render: row => {
         if (!row.validTo) return '—';
-        const formattedDate = dayjs(row.validTo).format('DD MMM YYYY');
-        if (row.status === 'active') {
+        const formattedDate = dayjs(row.validTo).format('D MMM YYYY');
+        // Only warn once the project has actually started — otherwise "days left" is
+        // measured against a window that hasn't begun and overstates urgency.
+        const hasStarted = !row.validFrom || !dayjs().isBefore(dayjs(row.validFrom), 'day');
+        if (row.status === 'active' && hasStarted) {
           const daysLeft = Math.ceil(dayjs(row.validTo).diff(dayjs(), 'day', true));
           if (daysLeft >= 0 && daysLeft <= 15) {
             return (
@@ -259,14 +272,15 @@ export const ProjectsPage: React.FC = () => {
       render: (row: Project) => (
         <ActionIconButtonGroup>
           {isViewOnlyUser ? (
-            <Tooltip content="Download Project Report">
-              <ActionIconButton
-                aria-label="Download Project Report"
-                onClick={() => handleDownloadProjectReport(row)}
-              >
-                <RiDownloadLine size={16} />
-              </ActionIconButton>
-            </Tooltip>
+            // <Tooltip content="Download Project Report">
+            //   <ActionIconButton
+            //     aria-label="Download Project Report"
+            //     onClick={() => handleDownloadProjectReport(row)}
+            //   >
+            //     <RiDownloadLine size={16} />
+            //   </ActionIconButton>
+            // </Tooltip>
+            <></>
           ) : row.status === 'deleted' ? (
             <Tooltip content="Revert / Restore Project">
               <ActionIconButton
@@ -283,14 +297,14 @@ export const ProjectsPage: React.FC = () => {
                   <RiEditLine size={16} />
                 </ActionIconButton>
               </Tooltip>
-              <Tooltip content="Download Project Report">
+              {/* <Tooltip content="Download Project Report">
                 <ActionIconButton
                   aria-label="Download Project Report"
                   onClick={() => handleDownloadProjectReport(row)}
                 >
                   <RiDownloadLine size={16} />
                 </ActionIconButton>
-              </Tooltip>
+              </Tooltip> */}
               <Tooltip content="Delete Project">
                 <ActionIconButton aria-label="Delete Project" onClick={() => handleDeleteClick(row)}>
                   <RiDeleteBinLine size={16} />
@@ -308,70 +322,48 @@ export const ProjectsPage: React.FC = () => {
       <PageHeader
         title="Projects"
         subtitle="Manage institution projects and counselling initiatives"
-        breadcrumbs={[{ label: 'Projects' }]}
+        breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Projects' }]}
       />
 
       <StatsGrid>
         <Card title="Total Projects">
-          <StatMetricValue>{data?.total ?? 7}</StatMetricValue>
+          <StatMetricValue>{stats.totalProjects}</StatMetricValue>
           <MetaText>Active &amp; registered projects</MetaText>
         </Card>
 
         <Card title="Live">
-          <StatMetricValue $variant="success">14</StatMetricValue>
+          <StatMetricValue $variant="success">{stats.liveProjects}</StatMetricValue>
           <MetaText>Currently ongoing batches</MetaText>
-        </Card>
-
-        <InteractiveStatCardWrapper
-          $active={statusFilter === 'to_extend'}
-          onClick={() => {
-            setStatusFilter(prev => (prev === 'to_extend' ? 'all' : 'to_extend'));
-            setPage(1);
-          }}
-        >
-          <Card title="To Extend">
-            <StatMetricValue $variant="warning">1</StatMetricValue>
-            <MetaText>Expiring within 15 days</MetaText>
-          </Card>
-        </InteractiveStatCardWrapper>
-
-        <Card title="Completed">
-          <StatMetricValue>2</StatMetricValue>
-          <MetaText>Finished project batches</MetaText>
         </Card>
       </StatsGrid>
 
       <Card>
         <FilterBar>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, flexWrap: 'wrap' }}>
-            <SearchWrapper>
-              <Input
-                placeholder="Search projects by name or institute..."
-                leftIcon={<RiSearchLine size={18} />}
-                value={searchQuery}
-                onChange={e => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </SearchWrapper>
-            <div style={{ width: '220px' }}>
-              <Select
-                options={[
-                  { value: 'all', label: 'All Projects' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'to_extend', label: 'To Extend (≤ 15 days)' },
-                  { value: 'draft', label: 'Draft' },
-                  { value: 'completed', label: 'Completed' },
-                  { value: 'deleted', label: 'Deleted Projects' },
-                ]}
-                value={statusFilter}
-                onChange={e => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
+          <SearchWrapper>
+            <Input
+              placeholder="Search projects by name or institute..."
+              leftIcon={<RiSearchLine size={18} />}
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
+            />
+          </SearchWrapper>
+          <div style={{ width: '180px' }}>
+            <Select
+              options={[
+                { value: 'all', label: 'All Projects' },
+                { value: 'active', label: 'Active' },
+                { value: 'closed', label: 'Closed' },
+                { value: 'deleted', label: 'Deleted Projects' },
+              ]}
+              value={statusFilter}
+              onChange={e => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+            />
           </div>
           {!isViewOnlyUser && (
             <Button leftIcon={<RiAddLine size={18} />} onClick={openWizard}>

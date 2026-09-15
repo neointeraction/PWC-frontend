@@ -1,5 +1,7 @@
 import React from 'react';
 import { CounsellorFormChartData } from '@/mocks/studentFormChart.mock';
+import { ScriBandGuidance } from '@/types';
+import { ALIGNMENT_MEANING } from '@/utils/academicAlignmentGuidance';
 import { Select } from '@/components/Select';
 import { SynthesisNotesPanel } from './SynthesisNotesPanel';
 import {
@@ -17,13 +19,22 @@ import {
   RadioCustom,
   ScriResultCard,
   ScriResultHeader,
-  ScriScoreValue,
+  ScriScoreLabel,
+  ScriScoreNumber,
   ScriBandBadge,
   ScriGuidanceText,
+  TraitTableContainer,
+  TraitTableHeaderRow,
+  TraitTableHeaderCell,
+  TraitDataRow,
+  TraitCell,
 } from '../StudentFormChartPage.styles';
+
+const SCRI_GUIDANCE_GRID = '1fr 1fr 1fr';
 
 interface Step6SCRIProps {
   data: CounsellorFormChartData['sectionE'];
+  bandGuidance?: ScriBandGuidance[];
   onChangeScriRating: (code: string, rating: number) => void;
   onChangeAlignment: (
     alignment: CounsellorFormChartData['sectionE']['academicCareerAlignment']
@@ -61,16 +72,19 @@ const alignmentOptions = [
   { value: 'Not Yet Assessed', label: 'Not Yet Assessed' },
 ];
 
-const alignmentDescriptionMap: Record<string, string> = {
-  'Strongly Aligned':
-    "The subject you enjoy the most and the career direction that suits you both come from the same set of strengths. In other words, what you love doing in class and what you'd be good at in your future career are pointing in the same direction, that's a strong, natural connection to build on.",
-  'Partially Aligned':
-    "There's a genuine connection between what you enjoy and where your strengths point but it's not a perfect match. Some parts line up nicely, while other parts of the recommended path may need a bit more exploring or a slightly different subject combination than what you'd naturally pick.",
-  'Misaligned':
-    'Right now, the subject you enjoy most and the career direction your strengths point to seem to be pulling in two different directions. This isn\'t unusual, and it doesn\'t mean either one is "wrong" it just means this is worth talking through properly, so you understand why the gap exists and what your real options are.',
-  'Not Yet Assessed':
-    "There isn't enough information yet to compare your favourite subject with a career direction. This usually just means a part of the assessment or conversation is still pending nothing to worry about, please explore further with details.",
+// Maps this component's display-string alignment values to the shared ALIGNMENT_MEANING
+// lookup (keyed by the API's AlignmentRating enum), so the guidance text shown here always
+// matches the student report exactly.
+const alignmentDisplayToApiKey: Record<string, keyof typeof ALIGNMENT_MEANING> = {
+  'Strongly Aligned': 'STRONGLY_ALIGNED',
+  'Partially Aligned': 'PARTIALLY_ALIGNED',
+  'Misaligned': 'MISALIGNED',
+  'Not Yet Assessed': 'NOT_YET_ASSESSED',
 };
+
+const alignmentDescriptionMap: Record<string, string> = Object.fromEntries(
+  Object.entries(alignmentDisplayToApiKey).map(([display, apiKey]) => [display, ALIGNMENT_MEANING[apiKey]])
+);
 
 const scriDescriptors: Record<string, Record<number, string>> = {
   S1: {
@@ -113,6 +127,7 @@ const scriDescriptors: Record<string, Record<number, string>> = {
 
 export const Step6SCRI: React.FC<Step6SCRIProps> = ({
   data,
+  bandGuidance,
   onChangeScriRating,
   onChangeAlignment,
   onChangeNotes,
@@ -156,6 +171,8 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
   };
 
   const currentBandInfo = getScriBandInfo(scriTotal);
+  const currentBandNumber = Number(currentBandInfo.band.replace('Band ', ''));
+  const currentBandDetail = bandGuidance?.find(b => b.band === currentBandNumber);
 
   return (
     <>
@@ -201,12 +218,27 @@ export const Step6SCRI: React.FC<Step6SCRIProps> = ({
         {/* Dynamic Auto-populated SCRI Summary Output */}
         <ScriResultCard>
           <ScriResultHeader>
-            <ScriScoreValue>{scriTotal}</ScriScoreValue>
             <ScriBandBadge $band={currentBandInfo.band}>
-              ( {currentBandInfo.band} : {currentBandInfo.label} )
+              <ScriScoreLabel>Score - </ScriScoreLabel>
+              <ScriScoreNumber>{scriTotal}</ScriScoreNumber>
+              <ScriScoreLabel> out of 24 </ScriScoreLabel>( {currentBandInfo.band} : {currentBandInfo.label} )
             </ScriBandBadge>
           </ScriResultHeader>
-          <ScriGuidanceText>{currentBandInfo.guidance}</ScriGuidanceText>
+          <ScriGuidanceText>{currentBandDetail?.labelMeaning ?? currentBandInfo.guidance}</ScriGuidanceText>
+          {currentBandDetail && (
+            <TraitTableContainer style={{ marginTop: '12px', overflowX: 'auto' }}>
+              <TraitTableHeaderRow style={{ gridTemplateColumns: SCRI_GUIDANCE_GRID, minWidth: '600px' }}>
+                <TraitTableHeaderCell>For Students</TraitTableHeaderCell>
+                <TraitTableHeaderCell>Tips for Students</TraitTableHeaderCell>
+                <TraitTableHeaderCell>Tips for Parent</TraitTableHeaderCell>
+              </TraitTableHeaderRow>
+              <TraitDataRow style={{ gridTemplateColumns: SCRI_GUIDANCE_GRID, minWidth: '600px' }}>
+                <TraitCell $secondary>{currentBandDetail.forStudents}</TraitCell>
+                <TraitCell $secondary>{currentBandDetail.tipsForStudents}</TraitCell>
+                <TraitCell $secondary>{currentBandDetail.tipsForParent}</TraitCell>
+              </TraitDataRow>
+            </TraitTableContainer>
+          )}
         </ScriResultCard>
       </SectionBlock>
 

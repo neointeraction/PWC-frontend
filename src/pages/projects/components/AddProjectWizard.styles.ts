@@ -92,3 +92,21 @@ export const FormGroup = styled.div`
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.md};
 `;
+
+export const InstituteFormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.lg};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+export const InstituteFormFullField = styled.div`
+  grid-column: span 2;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    grid-column: span 1;
+  }
+`;

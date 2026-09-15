@@ -12,13 +12,15 @@ import { useCounselorStore } from '@/store/counselor.store';
 import { useToast } from '@/hooks';
 import { ModalForm } from '../CounselorsList.styles';
 
+// Counselor ID and email are the login identifiers the backend assigns at creation —
+// `PATCH /counsellors/:id` doesn't accept either field (see counsellors.schema.ts on the
+// backend), so both are shown read-only here rather than silently discarding edits.
 const editCounselorSchema = z.object({
   counselorId: z.string().min(1, 'Counselor ID is required'),
   name: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email address'),
   mobile: z.string().min(10, 'Mobile number must be at least 10 digits'),
   meetingLink: z.string().optional(),
-  pwd: z.string().optional(),
   status: z.enum(['active', 'inactive']),
 });
 
@@ -47,7 +49,6 @@ export const EditCounselorModal: React.FC = () => {
         email: selectedCounselorForEdit.email,
         mobile: selectedCounselorForEdit.mobile,
         meetingLink: selectedCounselorForEdit.meetingLink || '',
-        pwd: selectedCounselorForEdit.pwd || '',
         status: selectedCounselorForEdit.status,
       });
     }
@@ -58,6 +59,7 @@ export const EditCounselorModal: React.FC = () => {
       counselorService.update(selectedCounselorForEdit!.id, data),
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
+      queryClient.invalidateQueries({ queryKey: ['counselors-stats'] });
       toast.success('Counselor Updated', `Successfully updated profile for ${data.name}.`);
       closeEditModal();
     },
@@ -94,6 +96,8 @@ export const EditCounselorModal: React.FC = () => {
         <Input
           label="Counselor ID"
           placeholder="e.g. C001"
+          disabled
+          hint="Counselor ID can't be changed after creation."
           error={errors.counselorId?.message}
           {...register('counselorId')}
         />
@@ -109,6 +113,8 @@ export const EditCounselorModal: React.FC = () => {
           label="Email Address"
           type="email"
           placeholder="e.g. anil.iyer@example.com"
+          disabled
+          hint="Email can't be changed after creation."
           error={errors.email?.message}
           {...register('email')}
         />
@@ -125,14 +131,6 @@ export const EditCounselorModal: React.FC = () => {
           placeholder="e.g. https://meet.google.com/abc-defg-hij"
           error={errors.meetingLink?.message}
           {...register('meetingLink')}
-        />
-
-        <Input
-          label="Password / PWD"
-          type="password"
-          placeholder="Enter new password to update"
-          error={errors.pwd?.message}
-          {...register('pwd')}
         />
 
         <Controller

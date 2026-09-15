@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiSearchLine,
   RiCheckLine,
   RiFlag2Fill,
   RiUserForbidLine,
   RiCalendarEventLine,
-  RiFileExcel2Line,
+  // RiFileExcel2Line,
   RiVideoChatLine,
   RiUserAddLine,
   RiDeleteBinLine,
@@ -23,11 +23,13 @@ import { AlertModal } from '@/components/AlertModal';
 import { DatePicker } from '@/components/DatePicker';
 import { Select } from '@/components/Select';
 import { projectService } from '@/services/project.service';
-import { CounselorSession, ProjectStudent, ProjectCounselor } from '@/types/project.types';
+import { sessionsService, hasSessionEnded } from '@/services/sessions.service';
+import { CounselorSession, ProjectStudent, ProjectCounselor, ProjectSlot } from '@/types/project.types';
 import { useToast } from '@/hooks';
+import { formatDate, getApiErrorMessage } from '@/utils';
 import { ROUTES } from '@/constants';
 import { ViewStudentModal } from './ViewStudentModal';
-import { AssignStudentModal, SlotData } from './AssignStudentModal';
+import { AssignStudentModal } from './AssignStudentModal';
 import { AddCounselorModal } from './AddCounselorModal';
 import {
   Container,
@@ -38,7 +40,7 @@ import {
   FilterBar,
   FiltersLeft,
   FiltersRight,
-  ToolbarIconButton,
+  // ToolbarIconButton,
   SearchWrapper,
   CounselorsGrid,
   CounselorCard,
@@ -68,16 +70,11 @@ import {
   ActionIconButton,
 } from './ProjectSessionsPage.styles';
 
-export interface EnhancedSlotData extends SlotData {
-  counselorCode?: string;
-  isMissed?: boolean;
-  notes?: string;
-}
-
 export const ProjectSessionsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilterCategory, setSelectedFilterCategory] = useState<string | null>(null);
@@ -87,320 +84,292 @@ export const ProjectSessionsPage: React.FC = () => {
   const [counselorToDelete, setCounselorToDelete] = useState<CounselorSession | null>(null);
   const [selectedSlotForAssign, setSelectedSlotForAssign] = useState<{
     session: CounselorSession;
-    slot: SlotData;
+    slot: ProjectSlot;
   } | null>(null);
   const [selectedStudentForView, setSelectedStudentForView] = useState<ProjectStudent | null>(null);
   const [rescheduleSlot, setRescheduleSlot] = useState<{
+    counselorId: string;
     counselorName: string;
-    slot: EnhancedSlotData;
+    slot: ProjectSlot;
   } | null>(null);
 
-  // Reschedule form state
-  const [rescheduleDate, setRescheduleDate] = useState<Date | null>(new Date('2026-02-28'));
-  const [rescheduleTime, setRescheduleTime] = useState('11:00 - 12:00');
+  // Reschedule form state — populated from the counsellor's real open slots (below),
+  // not a fixed date/time list.
+  const [rescheduleDate, setRescheduleDate] = useState<Date | null>(null);
+  const [rescheduleTime, setRescheduleTime] = useState('');
 
-  // Counselors state
-  const [customSessions, setCustomSessions] = useState<CounselorSession[] | null>(null);
-  const [counselorCodes, setCounselorCodes] = useState<Record<string, string>>({
-    'cs-101': 'CN003',
-    'cs-102': 'CN004',
-    'cs-103': 'CN005',
-    'cs-104': 'CN006',
+  // The same counsellor's remaining open availability — reschedule keeps them locked in,
+  // it just moves to a different one of their own open slots.
+  const { data: rescheduleOpenSlots = [] } = useQuery({
+    queryKey: ['reschedule-open-slots', rescheduleSlot?.counselorId, projectId],
+    queryFn: () =>
+      sessionsService.getSlots({
+        counsellorId: rescheduleSlot!.counselorId,
+        projectId: projectId as string,
+        status: 'OPEN',
+      }),
+    enabled: Boolean(rescheduleSlot?.counselorId && projectId),
   });
 
-  // Local state for customized slot rows per counselor
-  const [counselorSlotsMap, setCounselorSlotsMap] = useState<Record<string, EnhancedSlotData[]>>({
-    'cs-101': [
-      {
-        id: 'anil-slot-1',
-        date: '18 Feb 2026',
-        time: '09:30 - 10:30',
-        studentName: 'Ananya Roy',
-        sessionType: 'S1',
-        mobile: '+91 9810012345',
-        isBooked: true,
-        isMissed: false,
-        notes: 'Session completed successfully. Recommended focus on science stream.',
-      },
-      {
-        id: 'anil-slot-2',
-        date: '22 Feb 2026',
-        time: '09:30 - 10:30',
-        studentName: 'Ananya Roy',
-        sessionType: 'S2',
-        mobile: '+91 9810012345',
-        isBooked: true,
-        isMissed: true,
-        notes: 'Student missed session due to illness. Parent requested reschedule.',
-      },
-      {
-        id: 'anil-slot-3',
-        date: '18 Feb 2026',
-        time: '11:00 - 12:00',
-        isBooked: false,
-      },
-      {
-        id: 'anil-slot-4',
-        date: '25 Feb 2026',
-        time: '14:00 - 15:00',
-        isBooked: false,
-      },
-    ],
-    'cs-102': [
-      {
-        id: 'mahesh-slot-1',
-        date: '18 Feb 2026',
-        time: '09:30 - 10:30',
-        studentName: 'Aarav Sharma',
-        sessionType: 'S1',
-        mobile: '+91 9810054321',
-        isBooked: true,
-        isMissed: false,
-        notes: 'Session completed.',
-      },
-      {
-        id: 'mahesh-slot-2',
-        date: '22 Feb 2026',
-        time: '09:30 - 10:30',
-        studentName: 'Rohan Menon',
-        sessionType: 'S2',
-        mobile: '+91 9810067890',
-        isBooked: true,
-        isMissed: true,
-        notes: 'Follow-up required with student.',
-      },
-      {
-        id: 'mahesh-slot-3',
-        date: '18 Feb 2026',
-        time: '11:00 - 12:00',
-        isBooked: false,
-      },
-      {
-        id: 'mahesh-slot-4',
-        date: '25 Feb 2026',
-        time: '14:00 - 15:00',
-        isBooked: false,
-      },
-    ],
-    'cs-103': [
-      {
-        id: 'hema-slot-1',
-        date: '19 Feb 2026',
-        time: '14:00 - 15:00',
-        studentName: 'Devika Nair',
-        sessionType: 'S2',
-        mobile: '+91 9810037035',
-        isBooked: true,
-        isMissed: false,
-      },
-      {
-        id: 'hema-slot-2',
-        date: '23 Feb 2026',
-        time: '11:00 - 12:00',
-        isBooked: false,
-      },
-      {
-        id: 'hema-slot-3',
-        date: '26 Feb 2026',
-        time: '16:00 - 17:00',
-        isBooked: false,
-      },
-    ],
-    'cs-104': [
-      {
-        id: 'girish-slot-1',
-        date: '19 Feb 2026',
-        time: '16:00 - 17:00',
-        studentName: 'Siddharth Pillai',
-        sessionType: 'S1',
-        mobile: '+91 9810049380',
-        isBooked: true,
-        isMissed: false,
-      },
-      {
-        id: 'girish-slot-2',
-        date: '24 Feb 2026',
-        time: '09:30 - 10:30',
-        isBooked: false,
-      },
-      {
-        id: 'girish-slot-3',
-        date: '27 Feb 2026',
-        time: '14:00 - 15:00',
-        isBooked: false,
-      },
-    ],
-  });
+  const rescheduleDates = useMemo(
+    () => Array.from(new Set(rescheduleOpenSlots.map(s => s.date))).sort(),
+    [rescheduleOpenSlots]
+  );
+
+  const rescheduleDateObjs = useMemo(
+    () =>
+      rescheduleDates.map(d => {
+        const [y, m, day] = d.split('-').map(Number);
+        return new Date(y, m - 1, day);
+      }),
+    [rescheduleDates]
+  );
+
+  const rescheduleTimeOptions = useMemo(() => {
+    if (!rescheduleDate) return [];
+    const ymd = [
+      rescheduleDate.getFullYear(),
+      String(rescheduleDate.getMonth() + 1).padStart(2, '0'),
+      String(rescheduleDate.getDate()).padStart(2, '0'),
+    ].join('-');
+    return rescheduleOpenSlots
+      .filter(s => s.date === ymd)
+      .map(s => ({ value: `${s.startTime} - ${s.endTime}`, label: `${s.startTime} - ${s.endTime}` }));
+  }, [rescheduleOpenSlots, rescheduleDate]);
+
+  // Default-select the first available date once this counsellor's open slots load.
+  useEffect(() => {
+    if (rescheduleSlot && rescheduleDates.length > 0 && !rescheduleDate) {
+      const [y, m, d] = rescheduleDates[0].split('-').map(Number);
+      setRescheduleDate(new Date(y, m - 1, d));
+    }
+  }, [rescheduleDates, rescheduleSlot, rescheduleDate]);
+
+  // Default-select the first time slot for whichever date is picked.
+  useEffect(() => {
+    if (rescheduleTimeOptions.length === 0) {
+      setRescheduleTime('');
+    } else if (!rescheduleTimeOptions.some(o => o.value === rescheduleTime)) {
+      setRescheduleTime(rescheduleTimeOptions[0].value);
+    }
+  }, [rescheduleTimeOptions, rescheduleTime]);
+
+  const handleCloseRescheduleModal = () => {
+    setRescheduleSlot(null);
+    setRescheduleDate(null);
+    setRescheduleTime('');
+  };
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
-    queryFn: () => projectService.getById(projectId || 'proj-001'),
+    queryFn: () => projectService.getById(projectId as string),
+    enabled: Boolean(projectId),
   });
 
-  const { data: rawSessions = [], isLoading } = useQuery({
+  const { data: effectiveSessions = [], isLoading } = useQuery({
     queryKey: ['projectSessions', projectId],
-    queryFn: () => projectService.getProjectSessions(projectId || 'proj-001'),
+    queryFn: () => projectService.getProjectSessions(projectId as string),
+    enabled: Boolean(projectId),
   });
 
-  const effectiveSessions = customSessions ?? rawSessions;
+  // Every schedule write lands back through the same two endpoints this page reads.
+  const refreshSchedule = () => {
+    queryClient.invalidateQueries({ queryKey: ['projectSessions', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+  };
+
+  // Assigns each counsellor to the project (POST /counsellors/{id}/projects) and imports
+  // their availability slots. Only rows matched against the real directory carry the id
+  // that endpoint needs; anything else has to be created under Counselors List first.
+  const assignCounselorsMutation = useMutation({
+    mutationFn: (newCounselors: ProjectCounselor[]) => {
+      const unmatched = newCounselors.filter(c => !c.directoryId).map(c => c.counsellorCode || c.name);
+      return projectService
+        .assignCounselorsToProject(projectId as string, newCounselors)
+        .then(result => ({ ...result, unmatched }));
+    },
+    onSuccess: ({ assigned, failures, slotImport, unmatched }) => {
+      refreshSchedule();
+      setIsAddCounselorModalOpen(false);
+      if (assigned > 0) {
+        toast.success(
+          'Counselors Assigned',
+          `Assigned ${assigned} counselor(s) to this project` +
+            (slotImport.imported > 0 ? ` with ${slotImport.imported} availability slot(s).` : '.')
+        );
+      }
+      if (failures.length > 0) {
+        toast.warning(
+          'Some Counselors Skipped',
+          failures.map(f => `${f.name}: ${f.reason}`).join(' · ')
+        );
+      }
+      if (slotImport.error) {
+        toast.warning('Availability Not Imported', slotImport.error);
+      }
+      if (unmatched.length > 0) {
+        toast.warning(
+          'Not In Directory',
+          `${unmatched.join(', ')} — add them under Counselors List before assigning.`
+        );
+      }
+    },
+    onError: err => {
+      toast.error('Assignment Failed', getApiErrorMessage(err, 'Could not assign counselors.'));
+    },
+  });
 
   const handleCounselorsAssigned = (newCounselors: ProjectCounselor[]) => {
-    const currentSessionsList = [...effectiveSessions];
-    const newSlotsMap = { ...counselorSlotsMap };
-    const newCodesMap = { ...counselorCodes };
-
-    newCounselors.forEach((counselor, idx) => {
-      const newId = `cs-${Date.now()}-${idx}`;
-      const codeIndex = Object.keys(newCodesMap).length + 3;
-      const code = `CN${String(codeIndex).padStart(3, '0')}`;
-      newCodesMap[newId] = code;
-
-      const newSessionItem: CounselorSession = {
-        id: newId,
-        counselorId: `COU-${10 + idx}`,
-        counselorName: counselor.name,
-        counselorEmail: counselor.email,
-        counselorPhone: counselor.mobile || '+91 98100 00000',
-        timeSlots: [],
-        assignedStudents: [],
-      };
-
-      newSlotsMap[newId] = [
-        {
-          id: `${newId}-slot-1`,
-          date: '02 Mar 2026',
-          time: '09:30 - 10:30',
-          isBooked: false,
-        },
-        {
-          id: `${newId}-slot-2`,
-          date: '02 Mar 2026',
-          time: '11:00 - 12:00',
-          isBooked: false,
-        },
-        {
-          id: `${newId}-slot-3`,
-          date: '05 Mar 2026',
-          time: '14:00 - 15:00',
-          isBooked: false,
-        },
-      ];
-
-      currentSessionsList.push(newSessionItem);
-    });
-
-    setCounselorCodes(newCodesMap);
-    setCounselorSlotsMap(newSlotsMap);
-    setCustomSessions(currentSessionsList);
-    setIsAddCounselorModalOpen(false);
+    assignCounselorsMutation.mutate(newCounselors);
   };
+
+  const unassignCounselorMutation = useMutation({
+    mutationFn: (counselor: CounselorSession) =>
+      projectService.unassignCounsellorFromProject(counselor.counselorId, projectId as string),
+    onSuccess: (_data, counselor) => {
+      refreshSchedule();
+      toast.success(
+        'Counselor Removed',
+        `Removed ${counselor.counselorName} from project counselor assignments.`
+      );
+      setCounselorToDelete(null);
+    },
+    onError: err => {
+      toast.error('Removal Failed', getApiErrorMessage(err, 'Could not remove this counselor.'));
+    },
+  });
 
   const handleConfirmDeleteCounselor = () => {
     if (!counselorToDelete) return;
-    const filtered = effectiveSessions.filter(s => s.id !== counselorToDelete.id);
-    setCustomSessions(filtered);
-    toast.success(
-      'Counselor Removed',
-      `Removed ${counselorToDelete.counselorName} from project counselor assignments.`
-    );
-    setCounselorToDelete(null);
+    unassignCounselorMutation.mutate(counselorToDelete);
   };
 
   const handleCopyMeetLink = (session: CounselorSession) => {
-    const link = `https://meet.google.com/pwc-${session.counselorId.toLowerCase()}`;
-    navigator.clipboard.writeText(link);
+    if (!session.counselorMeetingLink) {
+      toast.error(
+        'No Meet Link',
+        `${session.counselorName} has no meeting link on file. Add one from Counselors List.`
+      );
+      return;
+    }
+    navigator.clipboard.writeText(session.counselorMeetingLink);
     toast.success(
       'Link Copied',
       `Google Meet link for ${session.counselorName} copied to clipboard.`
     );
   };
 
-  const handleExportExcel = () => {
-    const rows: string[] = [];
-    rows.push('Counselor Code,Counselor Name,Counselor Email,Counselor Phone,Date,Time,Student Name,Session,Student Phone,Status');
+  // const handleExportExcel = () => {
+  //   const rows: string[] = [];
+  //   rows.push('Counselor Code,Counselor Name,Counselor Email,Counselor Phone,Date,Time,Student Name,Session,Student Phone,Status');
 
-    filteredSessions.forEach(session => {
-      const code = counselorCodes[session.id] || 'CN001';
-      const slots = counselorSlotsMap[session.id] || [];
-      slots.forEach(slot => {
-        const student = slot.studentName || 'Not Booked';
-        const sessionType = slot.sessionType || (slot.isBooked ? 'S1' : 'NB');
-        const phone = slot.mobile || '—';
-        const status = slot.isMissed ? 'Missed' : slot.isBooked ? 'Completed' : 'Available';
-        rows.push(`"${code}","${session.counselorName}","${session.counselorEmail}","${session.counselorPhone}","${slot.date}","${slot.time}","${student}","${sessionType}","${phone}","${status}"`);
-      });
-    });
+  //   filteredSessions.forEach(session => {
+  //     const code = session.counselorCode;
+  //     session.slots.forEach(slot => {
+  //       const student = slot.studentName || 'Not Booked';
+  //       const sessionType = slot.sessionType || (slot.isBooked ? 'S1' : 'NB');
+  //       const phone = slot.mobile || '—';
+  //       const status = slot.isMissed ? 'Missed' : slot.isBooked ? 'Completed' : 'Available';
+  //       rows.push(`"${code}","${session.counselorName}","${session.counselorEmail}","${session.counselorPhone}","${slot.date}","${slot.time}","${student}","${sessionType}","${phone}","${status}"`);
+  //     });
+  //   });
 
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${(project?.name || 'Project_Sessions').replace(/\s+/g, '_')}_List.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Excel Export Started', 'Downloaded project sessions list (.csv).');
-  };
+  //   const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  //   const url = URL.createObjectURL(blob);
+  //   const link = document.createElement('a');
+  //   link.setAttribute('href', url);
+  //   link.setAttribute('download', `${(project?.name || 'Project_Sessions').replace(/\s+/g, '_')}_List.csv`);
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  //   toast.success('Excel Export Started', 'Downloaded project sessions list (.csv).');
+  // };
 
-  const handleOpenAssignModal = (session: CounselorSession, slot: SlotData) => {
+  const handleOpenAssignModal = (session: CounselorSession, slot: ProjectSlot) => {
     setSelectedSlotForAssign({ session, slot });
   };
 
-  const handleSaveSlotAssignment = (slotId: string, updatedSlot: Partial<SlotData>) => {
-    if (!selectedSlotForAssign) return;
-    const sessionKey = selectedSlotForAssign.session.id;
-
-    setCounselorSlotsMap(prev => {
-      const currentSlots = prev[sessionKey] || [];
-      const updatedSlots = currentSlots.map(s =>
-        s.id === slotId ? { ...s, ...updatedSlot, isMissed: false } : s
+  // POST /sessions — admin manual booking against the counsellor whose slot was clicked.
+  const assignStudentMutation = useMutation({
+    mutationFn: (input: { studentId: string; sessionType: 'S1' | 'S2' }) => {
+      if (!selectedSlotForAssign) throw new Error('No slot selected');
+      const { session, slot } = selectedSlotForAssign;
+      return projectService.assignStudentToSlot({
+        studentId: input.studentId,
+        counsellorId: session.counselorId,
+        sessionType: input.sessionType,
+        date: slot.slotDate,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+    },
+    onSuccess: () => {
+      const label = selectedSlotForAssign;
+      refreshSchedule();
+      toast.success(
+        'Schedule Saved',
+        `Assigned a student to ${label?.session.counselorName}'s session on ${label?.slot.date ? formatDate(label.slot.date) : ''}.`
       );
-      return { ...prev, [sessionKey]: updatedSlots };
-    });
+      setSelectedSlotForAssign(null);
+    },
+    onError: err => {
+      toast.error('Assignment Failed', getApiErrorMessage(err, 'Could not book this session.'));
+    },
+  });
 
-    toast.success(
-      'Schedule Saved',
-      `Assigned ${updatedSlot.studentName} to ${selectedSlotForAssign.session.counselorName}'s session on ${selectedSlotForAssign.slot.date}.`
-    );
-    setSelectedSlotForAssign(null);
+  const handleSaveSlotAssignment = (input: { studentId: string; sessionType: 'S1' | 'S2' }) => {
+    assignStudentMutation.mutate(input);
   };
+
+  // POST /sessions/{id}/reschedule — same counsellor, new date/time. Only a booked row
+  // has a session behind it to move.
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ sessionId, date, startTime }: { sessionId: string; date: string; startTime: string }) =>
+      projectService.rescheduleSession(sessionId, date, startTime),
+    onSuccess: () => {
+      refreshSchedule();
+      toast.success(
+        'Session Rescheduled',
+        `Rescheduled session for ${rescheduleSlot?.slot.studentName ?? 'the student'}.`
+      );
+      handleCloseRescheduleModal();
+    },
+    onError: err => {
+      toast.error('Reschedule Failed', getApiErrorMessage(err, 'Could not reschedule this session.'));
+    },
+  });
 
   const handleConfirmReschedule = () => {
-    if (!rescheduleSlot) return;
-    const dateFormatted = rescheduleDate
-      ? rescheduleDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-      : '28 Feb 2026';
-
-    // Update the slot in state
-    setCounselorSlotsMap(prev => {
-      const newMap = { ...prev };
-      Object.keys(newMap).forEach(key => {
-        newMap[key] = newMap[key].map(s =>
-          s.id === rescheduleSlot.slot.id
-            ? {
-                ...s,
-                date: dateFormatted,
-                time: rescheduleTime,
-                isMissed: false,
-              }
-            : s
-        );
-      });
-      return newMap;
-    });
-
-    toast.success(
-      'Session Rescheduled',
-      `Rescheduled session for ${rescheduleSlot.slot.studentName} to ${dateFormatted} at ${rescheduleTime}.`
-    );
-    setRescheduleSlot(null);
+    if (!rescheduleSlot?.slot.sessionId) {
+      toast.error('Nothing To Reschedule', 'This slot has no booked session behind it.');
+      return;
+    }
+    if (!rescheduleDate) {
+      toast.error('Date Required', 'Pick the new session date.');
+      return;
+    }
+    if (!rescheduleTime) {
+      toast.error('Time Required', 'Pick an available time slot for that date.');
+      return;
+    }
+    // The picker holds a local Date; the API takes a plain YYYY-MM-DD.
+    const date = [
+      rescheduleDate.getFullYear(),
+      String(rescheduleDate.getMonth() + 1).padStart(2, '0'),
+      String(rescheduleDate.getDate()).padStart(2, '0'),
+    ].join('-');
+    // "11:00 - 12:00" -> "11:00"; the backend derives the end from the slot it claims.
+    const startTime = rescheduleTime.split('-')[0].trim();
+    rescheduleMutation.mutate({ sessionId: rescheduleSlot.slot.sessionId, date, startTime });
   };
 
+  const todayLabel = formatDate(new Date().toISOString());
+
   const filteredSessions = effectiveSessions.filter(s => {
-    const slots = counselorSlotsMap[s.id] || [];
+    const slots = s.slots;
 
     if (selectedFilterCategory === 'follow_up_today') {
-      return slots.some(slot => slot.isBooked);
+      return slots.some(slot => slot.isBooked && slot.date === todayLabel);
     }
     if (selectedFilterCategory === 'missed_session_1') {
       return slots.some(slot => slot.isBooked && slot.sessionType === 'S1' && slot.isMissed);
@@ -413,20 +382,35 @@ export const ProjectSessionsPage: React.FC = () => {
     const q = searchQuery.toLowerCase();
     return (
       s.counselorName.toLowerCase().includes(q) ||
-      (counselorCodes[s.id] && counselorCodes[s.id].toLowerCase().includes(q)) ||
+      s.counselorCode.toLowerCase().includes(q) ||
       slots.some(slot => slot.studentName && slot.studentName.toLowerCase().includes(q))
     );
   });
 
+  const followUpTodayCount = effectiveSessions.reduce(
+    (count, s) => count + s.slots.filter(slot => slot.isBooked && slot.date === todayLabel).length,
+    0
+  );
+  const missedSession1Count = effectiveSessions.reduce(
+    (count, s) =>
+      count + s.slots.filter(slot => slot.isBooked && slot.sessionType === 'S1' && slot.isMissed).length,
+    0
+  );
+  const missedSession2Count = effectiveSessions.reduce(
+    (count, s) =>
+      count + s.slots.filter(slot => slot.isBooked && slot.sessionType === 'S2' && slot.isMissed).length,
+    0
+  );
+
   const getSlotColumns = (
     session: CounselorSession
-  ): Column<EnhancedSlotData>[] => [
+  ): Column<ProjectSlot>[] => [
     {
       key: 'date',
       header: 'Date',
       render: row => (
         <span style={{ color: row.isBooked ? undefined : '#94A3B8', fontWeight: 500 }}>
-          {row.date}
+          {row.date ? formatDate(row.date) : ''}
         </span>
       ),
     },
@@ -448,12 +432,15 @@ export const ProjectSessionsPage: React.FC = () => {
             type="button"
             onClick={() =>
               setSelectedStudentForView({
-                studentId: 'ST101',
+                studentId: row.studentCode,
                 name: row.studentName || '',
-                email: `${row.studentName?.toLowerCase().replace(/\s+/g, '.')}@student.edu`,
-                mobile: row.mobile || '+91 9810012345',
-                grade: '11th',
+                email: row.studentEmail || '',
+                mobile: row.mobile || '',
+                grade: row.grade || '',
+                sessionDate: row.slotDate,
+                timeSlot: row.time,
                 sessionType: row.sessionType === 'S2' ? 'S2' : 'S1',
+                isMissed: row.isMissed,
               })
             }
           >
@@ -471,13 +458,30 @@ export const ProjectSessionsPage: React.FC = () => {
           return <SessionPill $type="NB">NB</SessionPill>;
         }
         if (row.isMissed) {
+          // Name who no-showed for the admin, even though every case shares the same
+          // "needs reschedule" follow-up — a counsellor-only miss gets a distinct color
+          // so it doesn't read as the student's absence.
+          const missedByStudent = Boolean(row.studentNoShow);
+          const missedByCounsellor = Boolean(row.counsellorNoShow);
+          const missedLabel =
+            missedByStudent && missedByCounsellor
+              ? 'Both Student & Counsellor No-Show — Reschedule Required'
+              : missedByCounsellor
+                ? 'Counsellor No-Show — did not join within the 10-minute window. Reschedule Required.'
+                : missedByStudent
+                  ? 'Student No-Show — did not join within the 10-minute window. Reschedule Required.'
+                  : 'Missed Session — Reschedule Required';
+          const missedByCounsellorOnly = missedByCounsellor && !missedByStudent;
           return (
             <SessionBadgeWrapper>
               <SessionPill $type={row.sessionType === 'S2' ? 'S2' : 'S1'} $isMissed>
                 {row.sessionType || 'S2'}
               </SessionPill>
-              <Tooltip content="Missed Session — Reschedule Required">
-                <RiFlag2Fill size={14} style={{ color: '#EF4444' }} />
+              <Tooltip content={missedLabel}>
+                <RiFlag2Fill
+                  size={14}
+                  style={{ color: missedByCounsellorOnly ? '#D97706' : '#EF4444' }}
+                />
               </Tooltip>
             </SessionBadgeWrapper>
           );
@@ -487,7 +491,11 @@ export const ProjectSessionsPage: React.FC = () => {
             <SessionPill $type={row.sessionType === 'S2' ? 'S2' : 'S1'}>
               {row.sessionType || 'S1'}
             </SessionPill>
-            <RiCheckLine size={16} style={{ color: '#16A34A' }} />
+            {row.attended && (
+              <Tooltip content="Both student and counsellor joined the session">
+                <RiCheckLine size={16} style={{ color: '#16A34A' }} />
+              </Tooltip>
+            )}
           </SessionBadgeWrapper>
         );
       },
@@ -497,7 +505,7 @@ export const ProjectSessionsPage: React.FC = () => {
       header: 'Phone',
       render: row =>
         row.isBooked ? (
-          row.mobile || '+91 9810012345'
+          row.mobile || '—'
         ) : (
           <span style={{ color: '#CBD5E1' }}>—</span>
         ),
@@ -505,13 +513,23 @@ export const ProjectSessionsPage: React.FC = () => {
     {
       key: 'action',
       header: 'Action',
-      render: row => (
-        <ActionCellWrapper>
-          {row.isBooked && row.isMissed ? (
+      render: row => {
+        if (row.isBooked) {
+          // Admin reschedule has no notice window (unlike the student's own 24h
+          // self-service rule) — it's just gated on whether there's still something to
+          // reschedule: a session that already happened and went fine needs nothing,
+          // one that's upcoming or was missed still does.
+          const nothingToReschedule =
+            (hasSessionEnded({ scheduledDate: row.slotDate, endTime: row.endTime }) || row.attended) &&
+            !row.isMissed;
+          const button = (
             <RescheduleButton
               type="button"
+              disabled={nothingToReschedule}
               onClick={() => {
+                if (nothingToReschedule) return;
                 setRescheduleSlot({
+                  counselorId: session.counselorId,
                   counselorName: session.counselorName,
                   slot: row,
                 });
@@ -519,7 +537,21 @@ export const ProjectSessionsPage: React.FC = () => {
             >
               Reschedule
             </RescheduleButton>
-          ) : !row.isBooked ? (
+          );
+          return (
+            <ActionCellWrapper>
+              {nothingToReschedule ? (
+                <Tooltip content="This session already happened — nothing to reschedule">
+                  {button}
+                </Tooltip>
+              ) : (
+                button
+              )}
+            </ActionCellWrapper>
+          );
+        }
+        return (
+          <ActionCellWrapper>
             <Tooltip content="Assign Student to Slot">
               <ActionIconButton
                 type="button"
@@ -528,9 +560,9 @@ export const ProjectSessionsPage: React.FC = () => {
                 <RiCalendarEventLine size={15} />
               </ActionIconButton>
             </Tooltip>
-          ) : null}
-        </ActionCellWrapper>
-      ),
+          </ActionCellWrapper>
+        );
+      },
     },
   ];
 
@@ -559,7 +591,7 @@ export const ProjectSessionsPage: React.FC = () => {
           }
         >
           <MetricCardLabel>Follow-up today</MetricCardLabel>
-          <MetricCardValue $color="#5D2384">17</MetricCardValue>
+          <MetricCardValue $color="#5D2384">{followUpTodayCount}</MetricCardValue>
         </MetricFilterCard>
 
         <MetricFilterCard
@@ -572,7 +604,7 @@ export const ProjectSessionsPage: React.FC = () => {
           }
         >
           <MetricCardLabel>Missed Session - 1</MetricCardLabel>
-          <MetricCardValue $color="#EA580C">3</MetricCardValue>
+          <MetricCardValue $color="#EA580C">{missedSession1Count}</MetricCardValue>
         </MetricFilterCard>
 
         <MetricFilterCard
@@ -585,7 +617,7 @@ export const ProjectSessionsPage: React.FC = () => {
           }
         >
           <MetricCardLabel>Missed Session - 2</MetricCardLabel>
-          <MetricCardValue $color="#EA580C">9</MetricCardValue>
+          <MetricCardValue $color="#EA580C">{missedSession2Count}</MetricCardValue>
         </MetricFilterCard>
       </TopMetricCardsGrid>
 
@@ -603,7 +635,7 @@ export const ProjectSessionsPage: React.FC = () => {
           </FiltersLeft>
 
           <FiltersRight>
-            <Tooltip content="Export Sessions to Excel">
+            {/* <Tooltip content="Export Sessions to Excel">
               <ToolbarIconButton
                 type="button"
                 $variant="excel"
@@ -612,7 +644,7 @@ export const ProjectSessionsPage: React.FC = () => {
               >
                 <RiFileExcel2Line size={18} />
               </ToolbarIconButton>
-            </Tooltip>
+            </Tooltip> */}
 
             <Button
               leftIcon={<RiUserAddLine size={16} />}
@@ -633,8 +665,16 @@ export const ProjectSessionsPage: React.FC = () => {
         ) : (
           <CounselorsGrid>
             {filteredSessions.map(session => {
-              const code = counselorCodes[session.id] || 'CN001';
-              const slots = counselorSlotsMap[session.id] || [];
+              const code = session.counselorCode;
+              const slots = session.slots;
+              const bookedCount = slots.filter(slot => slot.isBooked).length;
+              const session1Count = slots.filter(
+                slot => slot.isBooked && slot.sessionType === 'S1'
+              ).length;
+              const session2Count = slots.filter(
+                slot => slot.isBooked && slot.sessionType === 'S2'
+              ).length;
+              const missedCount = slots.filter(slot => slot.isBooked && slot.isMissed).length;
 
               return (
                 <CounselorCard key={session.id}>
@@ -661,22 +701,22 @@ export const ProjectSessionsPage: React.FC = () => {
                       <CounselorMetricsGroup>
                         <MetricChip>
                           <MetricChipLabel>Booked</MetricChipLabel>
-                          <MetricChipValue>60/80 hrs</MetricChipValue>
+                          <MetricChipValue>{bookedCount}/{slots.length} hrs</MetricChipValue>
                         </MetricChip>
 
                         <MetricChip>
                           <MetricChipLabel>Session 1</MetricChipLabel>
-                          <MetricChipValue>32</MetricChipValue>
+                          <MetricChipValue>{session1Count}</MetricChipValue>
                         </MetricChip>
 
                         <MetricChip>
                           <MetricChipLabel>Session 2</MetricChipLabel>
-                          <MetricChipValue>32</MetricChipValue>
+                          <MetricChipValue>{session2Count}</MetricChipValue>
                         </MetricChip>
 
                         <MissedMetricChip>
                           <RiUserForbidLine size={15} />
-                          <span>4 Missed</span>
+                          <span>{missedCount} Missed</span>
                         </MissedMetricChip>
                       </CounselorMetricsGroup>
 
@@ -726,7 +766,9 @@ export const ProjectSessionsPage: React.FC = () => {
         onClose={() => setSelectedSlotForAssign(null)}
         session={selectedSlotForAssign?.session || null}
         slot={selectedSlotForAssign?.slot || null}
+        projectId={projectId}
         onSave={handleSaveSlotAssignment}
+        isSaving={assignStudentMutation.isPending}
       />
 
       {/* View Student Modal */}
@@ -740,7 +782,7 @@ export const ProjectSessionsPage: React.FC = () => {
       {/* Reschedule Session Modal */}
       <Modal
         isOpen={Boolean(rescheduleSlot)}
-        onClose={() => setRescheduleSlot(null)}
+        onClose={handleCloseRescheduleModal}
         title={`Reschedule Session — ${rescheduleSlot?.slot.studentName}`}
         size="md"
       >
@@ -756,26 +798,32 @@ export const ProjectSessionsPage: React.FC = () => {
             label="New Session Date"
             selected={rescheduleDate}
             onChange={(date: Date | null) => setRescheduleDate(date)}
-            placeholderText="Select new date"
+            placeholderText={rescheduleDates.length > 0 ? 'Select new date' : 'No open slots for this counselor'}
+            includeDates={rescheduleDateObjs}
           />
 
           <Select
             label="Available Time Slot"
             value={rescheduleTime}
             onChange={e => setRescheduleTime(e.target.value)}
-            options={[
-              { value: '09:30 - 10:30', label: '09:30 AM - 10:30 AM' },
-              { value: '11:00 - 12:00', label: '11:00 AM - 12:00 PM' },
-              { value: '14:00 - 15:00', label: '02:00 PM - 03:00 PM' },
-              { value: '16:00 - 17:00', label: '04:00 PM - 05:00 PM' },
-            ]}
+            options={
+              rescheduleTimeOptions.length > 0
+                ? rescheduleTimeOptions
+                : [{ value: '', label: 'No open slots for this date' }]
+            }
           />
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
-            <Button variant="secondary" size="sm" onClick={() => setRescheduleSlot(null)}>
+            <Button variant="secondary" size="sm" onClick={handleCloseRescheduleModal}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" onClick={handleConfirmReschedule}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleConfirmReschedule}
+              isLoading={rescheduleMutation.isPending}
+              disabled={!rescheduleDate || !rescheduleTime}
+            >
               Confirm Reschedule
             </Button>
           </div>
@@ -795,7 +843,7 @@ export const ProjectSessionsPage: React.FC = () => {
         onClose={() => setCounselorToDelete(null)}
         onConfirm={handleConfirmDeleteCounselor}
         title="Remove Counselor from Project?"
-        description={`Are you sure you want to remove ${counselorToDelete?.counselorName} (${counselorCodes[counselorToDelete?.id || ''] || 'CN001'}) from this project? If this counselor has active or booked sessions, any uncompleted sessions will need to be rescheduled or reassigned.`}
+        description={`Are you sure you want to remove ${counselorToDelete?.counselorName} (${counselorToDelete?.counselorCode ?? ''}) from this project? If this counselor has active or booked sessions, any uncompleted sessions will need to be rescheduled or reassigned.`}
         variant="danger"
         confirmText="Remove Counselor"
         cancelText="Cancel"

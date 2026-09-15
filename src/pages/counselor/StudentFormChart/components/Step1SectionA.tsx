@@ -34,7 +34,7 @@ const synthesisRowsDef = [
   {
     code: 'A1',
     placeholder:
-      "Compare student's favourite/least-liked subjects (1.1–1.2) against the parent's perception. If the favourite subject matches what the parent identifies as a strength, that's an ideal anchor for stream recommendation. If they diverge, probe the direction of the gap: a parent-identified strength the child doesn't enjoy may mean the child is performing under pressure rather than genuine interest; a child-enjoyed subject the parent doesn't recognise may be a hidden passion not yet visible in performance. For the least-liked subject, distinguish whether the dislike is interest-based (“I find it boring”) or difficulty-based (“I struggle but would try if taught differently”).",
+      "Compare student's favourite/least-liked subjects (A1.1–A1.2) against the parent's perception. If the favourite subject matches what the parent identifies as a strength, that's an ideal anchor for stream recommendation. If they diverge, probe the direction of the gap: a parent-identified strength the child doesn't enjoy may mean the child is performing under pressure rather than genuine interest; a child-enjoyed subject the parent doesn't recognise may be a hidden passion not yet visible in performance. For the least-liked subject, distinguish whether the dislike is interest-based (“I find it boring”) or difficulty-based (“I struggle but would try if taught differently”).",
   },
   {
     code: 'A2',
@@ -44,12 +44,12 @@ const synthesisRowsDef = [
   {
     code: 'A3',
     placeholder:
-      'Learning mode preference (2.5), note how this may point toward a stream or career style that will suit the student best.',
+      'Learning mode preference (A2.5), note how this may point toward a stream or career style that will suit the student best.',
   },
   {
     code: 'A4',
     placeholder:
-      'Engagement breadth is the student engaged in a wide range of school activities (2.4) or narrowly focused? Note whether this reflects genuine interest or lack of exposure/opportunity and point toward a stream or career style.',
+      'Engagement breadth is the student engaged in a wide range of school activities (A2.4) or narrowly focused? Note whether this reflects genuine interest or lack of exposure/opportunity and point toward a stream or career style.',
   },
   {
     code: 'A5',

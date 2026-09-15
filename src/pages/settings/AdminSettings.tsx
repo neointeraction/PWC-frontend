@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
   RiShieldLine,
@@ -10,7 +12,9 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { useToast } from '@/hooks';
-import { useThemeStore } from '@/store';
+import { useAuthStore, useThemeStore } from '@/store';
+import { authService } from '@/services/auth.service';
+import { getApiErrorMessage } from '@/utils';
 import { ROUTES } from '@/constants';
 
 const TabsContainer = styled.div`
@@ -89,6 +93,8 @@ const ToggleInfo = styled.div`
 export const AdminSettings: React.FC = () => {
   const toast = useToast();
   const { theme, toggleTheme } = useThemeStore();
+  const navigate = useNavigate();
+  const logout = useAuthStore(state => state.logout);
 
   const [activeTab, setActiveTab] = useState<'security' | 'appearance'>('security');
 
@@ -96,6 +102,22 @@ export const AdminSettings: React.FC = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: authService.changePassword,
+    onSuccess: () => {
+      // The backend revokes every refresh session on a successful change, so the
+      // current session is already dead server-side — sign out and send the user
+      // back to login rather than letting the next token refresh fail mid-task.
+      toast.success('Password Updated', 'Your password has been changed. Please sign in again.');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      logout();
+      navigate(ROUTES.LOGIN, { replace: true });
+    },
+    onError: err => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to change password.'));
+    },
   });
 
   return (
@@ -128,12 +150,14 @@ export const AdminSettings: React.FC = () => {
                 toast.error('Password Mismatch', 'New password and confirm password do not match.');
                 return;
               }
-              if (passwordForm.newPassword.length < 6) {
-                toast.error('Weak Password', 'Password must be at least 6 characters long.');
+              if (passwordForm.newPassword.length < 8) {
+                toast.error('Weak Password', 'Password must be at least 8 characters long.');
                 return;
               }
-              toast.success('Password Updated', 'Your password has been changed successfully.');
-              setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+              changePasswordMutation.mutate({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword,
+              });
             }}
           >
             <Input
@@ -149,7 +173,7 @@ export const AdminSettings: React.FC = () => {
             <Input
               label="New Password"
               type="password"
-              placeholder="Enter new password (min. 6 chars)"
+              placeholder="Enter new password (min. 8 chars)"
               value={passwordForm.newPassword}
               onChange={e => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
               required
@@ -165,7 +189,11 @@ export const AdminSettings: React.FC = () => {
               required
             />
             <div>
-              <Button type="submit" leftIcon={<RiSaveLine size={18} />}>
+              <Button
+                type="submit"
+                leftIcon={<RiSaveLine size={18} />}
+                isLoading={changePasswordMutation.isPending}
+              >
                 Update Password
               </Button>
             </div>

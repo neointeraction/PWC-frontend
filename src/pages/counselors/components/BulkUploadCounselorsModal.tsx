@@ -13,6 +13,8 @@ import { Button } from '@/components/Button';
 import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { counselorService } from '@/services/counselor.service';
+import { parseExcelFile } from '@/utils/excelParser';
+import { isValidPhone } from '@/utils';
 import { useCounselorStore } from '@/store/counselor.store';
 import { useToast } from '@/hooks';
 import { CreateCounselorInput } from '@/types/counselor.types';
@@ -124,11 +126,29 @@ export const BulkUploadCounselorsModal: React.FC = () => {
 
   const bulkMutation = useMutation({
     mutationFn: counselorService.bulkCreate,
-    onSuccess: data => {
+    onSuccess: ({ created, failures }) => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
-      toast.success('Bulk Upload Complete', `Successfully imported ${data.length} counselor records.`);
-      handleReset();
-      closeBulkUploadModal();
+      queryClient.invalidateQueries({ queryKey: ['counselors-stats'] });
+      // Rows are created one at a time and a rejected row is skipped, so report what was
+      // actually written rather than calling a zero-row import a success.
+      if (failures.length > 0) {
+        const examples = failures.slice(0, 3).map(f => `${f.name}: ${f.reason}`).join(' · ');
+        toast.error(
+          created.length > 0 ? 'Partially Imported' : 'Nothing Imported',
+          `${created.length} of ${created.length + failures.length} counselors imported. ` +
+            `${failures.length} skipped — ${examples}` +
+            (failures.length > 3 ? ` (and ${failures.length - 3} more)` : '')
+        );
+      } else {
+        toast.success(
+          'Bulk Upload Complete',
+          `Successfully imported ${created.length} counselor records.`
+        );
+      }
+      if (created.length > 0) {
+        handleReset();
+        closeBulkUploadModal();
+      }
     },
     onError: () => {
       toast.error('Error', 'Failed to bulk upload counselor records.');
@@ -145,9 +165,9 @@ export const BulkUploadCounselorsModal: React.FC = () => {
 
   const handleDownloadTemplate = () => {
     const csvContent =
-      'Counsellor ID,PWD,Counsellor Name,Mobile No.,Email ID\n' +
-      'C014,,Anil Sharma,9876543210,anil.sharma@example.com\n' +
-      'C015,,Sunita Roy,9812345678,sunita.roy@example.com\n';
+      'Counsellor ID,PWD,Counsellor Name,Mobile No.,Email ID,Meeting Link\n' +
+      'C014,,Anil Sharma,9876543210,anil.sharma@example.com,https://meet.google.com/abc-defg-hij\n' +
+      'C015,,Sunita Roy,9812345678,sunita.roy@example.com,\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -159,53 +179,59 @@ export const BulkUploadCounselorsModal: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const parseFileContent = (content: string) => {
-    const lines = content
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-
-    if (lines.length <= 1) {
-      toast.error('Invalid File', 'The CSV file appears to be empty or missing headers.');
+  // Header-based mapping — reads the directory sheet columns (incl. the PWD password).
+  const parseRows = (data: Record<string, string>[]) => {
+    if (data.length === 0) {
+      toast.error('Invalid File', 'The file appears to be empty or missing headers.');
       return;
     }
-
-    const rows: ParsedRow[] = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(',').map(p => p.trim());
-      const counselorId = parts[0] || `C0${i + 13}`;
-      const name = parts[2] || parts[1] || '';
-      const mobile = parts[3] || parts[2] || '';
-      const email = parts[4] || parts[3] || '';
-
-      const isValid = Boolean(name && email && email.includes('@'));
-      rows.push({
+    const rows: ParsedRow[] = data.map(row => {
+      const counselorId = (
+        row['Counsellor ID'] || row['Counselor ID'] || row['counsellorCode'] || ''
+      ).trim();
+      const pwd = (row['PWD'] || row['Password'] || row['pwd'] || '').trim();
+      const name = (row['Counsellor Name'] || row['Counselor Name'] || row['Name'] || '').trim();
+      const mobile = (row['Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '').trim();
+      const email = (row['Email ID'] || row['Email'] || row['email'] || '').trim();
+      const meetingLink = (row['Meeting Link'] || row['GMeet / Zoom Link'] || row['meetingLink'] || '').trim();
+      const hasId = Boolean(counselorId);
+      const hasName = Boolean(name);
+      const hasEmail = Boolean(email && email.includes('@'));
+      const hasMobile = isValidPhone(mobile);
+      const isValid = hasId && hasName && hasEmail && hasMobile;
+      const problems = [
+        !hasId && 'Counsellor ID',
+        !hasName && 'name',
+        !hasEmail && 'valid email',
+        !hasMobile && (mobile ? 'valid mobile (E.164, e.g. 919876543210)' : 'mobile'),
+      ].filter(Boolean);
+      return {
         counselorId,
         name: name || 'Unknown Counselor',
-        mobile: mobile || 'N/A',
+        mobile,
         email: email || 'invalid@example.com',
+        meetingLink: meetingLink || undefined,
+        pwd: pwd || undefined,
         status: 'active',
         isValid,
-        validationError: !isValid ? 'Missing required name or email format' : undefined,
-      });
-    }
-
+        validationError: isValid ? undefined : `Missing or invalid: ${problems.join(', ')}`,
+      };
+    });
     setParsedRows(rows);
   };
 
-  const handleFileSelect = (file: File) => {
-    if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
-      toast.error('Unsupported File', 'Please upload a CSV or TXT file.');
+  const handleFileSelect = async (file: File) => {
+    if (!/\.(xlsx|xls|csv|txt)$/i.test(file.name)) {
+      toast.error('Unsupported File', 'Please upload an Excel (.xlsx) or CSV file.');
       return;
     }
     setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = e.target?.result as string;
-      parseFileContent(text);
-    };
-    reader.readAsText(file);
+    try {
+      const rows = await parseExcelFile(file);
+      parseRows(rows);
+    } catch {
+      toast.error('Parse Error', 'Failed to parse the uploaded file.');
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -246,6 +272,11 @@ export const BulkUploadCounselorsModal: React.FC = () => {
       key: 'email',
       header: 'Email ID',
       render: row => row.email,
+    },
+    {
+      key: 'meetingLink',
+      header: 'Meeting Link',
+      render: row => row.meetingLink || '—',
     },
     {
       key: 'isValid',
@@ -308,7 +339,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
         <TemplateSection>
           <TemplateInfo>
             <h4>CSV Template Format</h4>
-            <p>Headers required: Counsellor ID, PWD, Counsellor Name, Mobile No., Email ID</p>
+            <p>Headers required: Counsellor ID, PWD, Counsellor Name, Mobile No., Email ID, Meeting Link</p>
           </TemplateInfo>
           <Button variant="secondary" size="sm" leftIcon={<RiDownloadLine size={16} />} onClick={handleDownloadTemplate}>
             Download Sample CSV
@@ -318,7 +349,7 @@ export const BulkUploadCounselorsModal: React.FC = () => {
         <input
           type="file"
           ref={fileInputRef}
-          accept=".csv,.txt"
+          accept=".csv,.txt,.xlsx,.xls"
           style={{ display: 'none' }}
           onChange={e => {
             if (e.target.files && e.target.files[0]) {

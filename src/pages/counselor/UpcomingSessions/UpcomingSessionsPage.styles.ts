@@ -37,10 +37,11 @@ export const TimeText = styled.span`
   color: ${({ theme }) => theme.colors.text};
 `;
 
-export const StatusPill = styled.span<{ $canJoin: boolean }>`
+export const StatusPill = styled.span<{ $canJoin: boolean; $missed?: boolean }>`
   font-size: ${({ theme }) => theme.fontSize.xs};
   font-weight: ${({ theme }) => theme.fontWeight.semibold};
-  color: ${({ theme, $canJoin }) => ($canJoin ? theme.colors.success : theme.colors.textMuted)};
+  color: ${({ theme, $canJoin, $missed }) =>
+    $canJoin ? theme.colors.success : $missed ? theme.colors.danger : theme.colors.textMuted};
   display: inline-flex;
   align-items: center;
   gap: 4px;

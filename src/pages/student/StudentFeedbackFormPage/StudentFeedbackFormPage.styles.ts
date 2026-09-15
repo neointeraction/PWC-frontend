@@ -241,14 +241,20 @@ export const SectionSubCode = styled.span`
   margin-left: 6px;
 `;
 
-export const QuestionCard = styled.div`
+export const QuestionCard = styled.div<{ $hasError?: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 16px;
   background-color: ${({ theme }) => theme.colors.background};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  border: 1px solid ${({ theme, $hasError }) => ($hasError ? '#DC2626' : theme.colors.border)};
   border-radius: 4px;
+`;
+
+export const QuestionErrorText = styled.p`
+  font-size: 13px;
+  color: #dc2626;
+  margin: 0;
 `;
 
 export const QuestionTitle = styled.div`

@@ -195,13 +195,14 @@ export const TimeText = styled.span`
   color: ${({ theme }) => theme.colors.text};
 `;
 
-export const SessionStatusIndicator = styled.span<{ $canJoin?: boolean }>`
+export const SessionStatusIndicator = styled.span<{ $canJoin?: boolean; $missed?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: ${({ $canJoin, theme }) => ($canJoin ? theme.colors.success : theme.colors.textSecondary)};
+  color: ${({ $canJoin, $missed, theme }) =>
+    $canJoin ? theme.colors.success : $missed ? theme.colors.danger : theme.colors.textSecondary};
 `;
 
 export const StudentCellWrapper = styled.div`

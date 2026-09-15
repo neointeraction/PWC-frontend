@@ -121,4 +121,15 @@ export const ActionIconButton = styled.button`
     color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme }) => theme.colors.primaryLight};
   }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+
+    &:hover {
+      border-color: ${({ theme }) => theme.colors.border};
+      color: ${({ theme }) => theme.colors.textSecondary};
+      background-color: ${({ theme }) => theme.colors.surface};
+    }
+  }
 `;

@@ -1,106 +1,77 @@
-import { LoginPayload, LoginResponse, User } from '@/types';
+import { apiClient } from './api';
+import { LoginPayload, LoginResponse, User, Role } from '@/types';
+import { formatFullName } from '@/utils';
 
-const MOCK_SUPER_ADMIN: User = {
-  id: 'user-super-admin',
-  name: 'Aarav Sharma (Super Admin)',
-  email: 'admin@pwc.com',
-  role: 'super_admin',
+interface ApiUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: 'STUDENT' | 'COUNSELLOR' | 'ADMIN' | 'VIEW_ONLY_ADMIN' | 'SUPER_ADMIN';
+  isActive: boolean;
+  mustChangePassword: boolean;
+}
+
+interface ApiAuthResponse {
+  accessToken: string;
+  user: ApiUser;
+}
+
+const ROLE_MAP: Record<ApiUser['role'], Role> = {
+  STUDENT: 'student',
+  COUNSELLOR: 'counselor',
+  ADMIN: 'admin',
+  VIEW_ONLY_ADMIN: 'view_only',
+  SUPER_ADMIN: 'super_admin',
 };
 
-const MOCK_ADMIN_SUNITA: User = {
-  id: 'user-admin-sunita',
-  name: 'Sunita Sharma',
-  email: 'sunita.sharma@pwc-global.com',
-  role: 'admin',
-};
+const mapUser = (u: ApiUser): User => ({
+  id: u.id,
+  name: formatFullName(u.firstName, u.lastName),
+  email: u.email,
+  role: ROLE_MAP[u.role],
+  mustChangePassword: u.mustChangePassword,
+  isViewOnly: u.role === 'VIEW_ONLY_ADMIN',
+});
 
-const MOCK_COUNSELOR_MAHESH: User = {
-  id: 'user-counselor-mahesh',
-  name: 'Mahesh Pillai',
-  email: 'counselor@pwc.com',
-  role: 'counselor',
-};
-
-const MOCK_STUDENT_AARAV: User = {
-  id: 'user-student-aarav',
-  name: 'Aarav Sharma',
-  email: 'student@pwc.com',
-  role: 'student',
-};
-
-const MOCK_VIEW_ONLY_USER: User = {
-  id: 'user-view-only-vikram',
-  name: 'Vikram Mehta (View-Only)',
-  email: 'viewer@pwc.com',
-  role: 'admin',
-  isViewOnly: true,
-};
-
-const MOCK_TOKEN = 'mock-jwt-token-12345';
+const mapAuthResponse = (data: ApiAuthResponse): LoginResponse => ({
+  user: mapUser(data.user),
+  token: data.accessToken,
+});
 
 export const authService = {
+  // POST /api/v1/auth/login — sets the refreshToken httpOnly cookie as a side effect.
   login: async (payload: LoginPayload): Promise<LoginResponse> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-
-    if (payload.email === 'admin@pwc.com') {
-      return {
-        user: MOCK_SUPER_ADMIN,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.email === 'sunita.sharma@pwc-global.com') {
-      return {
-        user: MOCK_ADMIN_SUNITA,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.email === 'viewer@pwc.com' || payload.email === 'pooja.verma@pwc.com') {
-      return {
-        user: MOCK_VIEW_ONLY_USER,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.email === 'counselor@pwc.com') {
-      return {
-        user: MOCK_COUNSELOR_MAHESH,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.email === 'student@pwc.com') {
-      return {
-        user: MOCK_STUDENT_AARAV,
-        token: MOCK_TOKEN,
-      };
-    }
-
-    if (payload.password.length > 0) {
-      return {
-        user: {
-          id: 'user-admin',
-          name: payload.email.split('@')[0].replace('.', ' ') || 'kREATE Admin',
-          email: payload.email,
-          role: 'admin',
-        },
-        token: MOCK_TOKEN,
-      };
-    }
-
-    throw new Error('Invalid email or password');
+    const { data } = await apiClient.post<ApiAuthResponse>('/auth/login', payload);
+    return mapAuthResponse(data);
   },
 
+  // POST /api/v1/auth/logout — reads/revokes the refreshToken cookie server-side.
   logout: async (): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await apiClient.post('/auth/logout');
   },
 
-  refreshToken: async (token: string): Promise<string> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    if (token === MOCK_TOKEN) {
-      return MOCK_TOKEN;
-    }
-    throw new Error('Invalid token');
+  // POST /api/v1/auth/refresh — no body, reads the refreshToken cookie; rotates it.
+  refresh: async (): Promise<LoginResponse> => {
+    const { data } = await apiClient.post<ApiAuthResponse>('/auth/refresh');
+    return mapAuthResponse(data);
+  },
+
+  // POST /api/v1/auth/change-password — requires Bearer. Clears mustChangePassword and
+  // revokes all refresh sessions server-side (204, no body).
+  changePassword: async (payload: { currentPassword: string; newPassword: string }): Promise<void> => {
+    await apiClient.post('/auth/change-password', payload);
+  },
+
+  // POST /api/v1/auth/forgot-password — always 202, never reveals whether the email
+  // exists. Backend emails a single-use `${APP_WEB_URL}/reset-password?token=...` link.
+  forgotPassword: async (email: string): Promise<void> => {
+    await apiClient.post('/auth/forgot-password', { email });
+  },
+
+  // POST /api/v1/auth/reset-password — 204 on success; 400 if the token is
+  // invalid/expired/already used. Token is single-use, expires in 1h by default.
+  resetPassword: async (payload: { token: string; newPassword: string }): Promise<void> => {
+    await apiClient.post('/auth/reset-password', payload);
   },
 };

@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Career, EntranceExam, CourseDetail, InstitutionDetail } from '@/types';
-import { Tooltip } from '@/components/Tooltip';
 import { Card } from '@/components/Card';
+import { Tooltip } from '@/components/Tooltip';
 import {
-  RiStarLine,
-  RiStarFill,
-  RiEditLine,
   RiFileTextLine,
   RiGraduationCapLine,
   RiFilePaperLine,
@@ -15,8 +12,10 @@ import {
   RiShieldCheckLine,
   RiMoneyDollarCircleLine,
   RiGlobalLine,
+  RiEditLine,
 } from 'react-icons/ri';
 import { EducationPathTab } from '../tabs/EducationPathTab';
+import { DomainEducationEntry } from '@/services/career.service';
 import { EntranceExamsTab } from '../tabs/EntranceExamsTab';
 import { CoursesTab } from '../tabs/CoursesTab';
 import { InstitutionsTab } from '../tabs/InstitutionsTab';
@@ -33,69 +32,39 @@ const BannerCard = styled.div`
 } 100%);
   color: #ffffff;
   border-radius: 4px;
-  padding: ${({ theme }) => theme.spacing.xl};
+  padding: ${({ theme }) => theme.spacing.xxl};
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.lg};
+  gap: ${({ theme }) => theme.spacing.xl};
   position: relative;
   box-shadow: 0 12px 28px -6px rgba(93, 35, 132, 0.35);
 `;
 
 const BannerHeader = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.md};
   flex-wrap: wrap;
 `;
 
-const HeaderActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-
-const ShortlistButton = styled.button<{ $shortlisted?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 18px;
-  border-radius: 4px;
-  border: none;
-  background-color: ${({ $shortlisted }) => ($shortlisted ? '#C49419' : '#D99F26')};
-  color: #ffffff;
-  font-size: ${({ theme }) => theme.fontSize.sm};
-  font-weight: ${({ theme }) => theme.fontWeight.bold};
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(217, 159, 38, 0.35);
-  transition: all ${({ theme }) => theme.transition.fast};
-
-  &:hover {
-    background-color: #b38510;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(217, 159, 38, 0.45);
-  }
-`;
-
-const GlassEditButton = styled.button`
-  display: flex;
+const EditRoleButton = styled.button`
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background-color: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(4px);
-  color: #ffffff;
   font-size: ${({ theme }) => theme.fontSize.sm};
   font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: ${({ theme }) => theme.borderRadius.md};
   cursor: pointer;
-  transition: all ${({ theme }) => theme.transition.fast};
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
 
   &:hover {
-    background-color: rgba(255, 255, 255, 0.28);
-    border-color: rgba(255, 255, 255, 0.6);
-    transform: translateY(-1px);
+    background-color: rgba(255, 255, 255, 0.24);
   }
 `;
 
@@ -243,7 +212,8 @@ const VerticalTabButton = styled.button<{ $active: boolean }>`
   width: 100%;
 
   &:hover {
-    background-color: ${({ theme }) => theme.colors.primaryLight};
+    background-color: ${({ theme, $active }) =>
+      $active ? theme.colors.primaryLight : theme.colors.surfaceHover};
     color: ${({ theme }) => theme.colors.primary};
   }
 `;
@@ -280,10 +250,9 @@ interface JobRoleDetailViewProps {
   role: Career;
   entranceExams: EntranceExam[];
   courses: CourseDetail[];
+  relatedCourses?: CourseDetail[];
   institutions: InstitutionDetail[];
-  onToggleShortlist: () => void;
-  onToggleExamShortlist: (id: string) => void;
-  onToggleInstitutionShortlist: (id: string) => void;
+  linkedEducationEntries?: DomainEducationEntry[];
   onEditRole?: (role: Career) => void;
 }
 
@@ -293,10 +262,9 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
   role,
   entranceExams,
   courses,
+  relatedCourses,
   institutions,
-  onToggleShortlist,
-  onToggleExamShortlist,
-  onToggleInstitutionShortlist,
+  linkedEducationEntries,
   onEditRole,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -308,24 +276,13 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
   return (
     <Container>
       <BannerCard>
-        <BannerHeader>
-          <HeaderActions>
-            <ShortlistButton
-              $shortlisted={role.isShortlisted}
-              onClick={onToggleShortlist}
-            >
-              {role.isShortlisted ? <RiStarFill size={16} /> : <RiStarLine size={16} />}
-              {role.isShortlisted ? 'Shortlisted' : 'Save to shortlist'}
-            </ShortlistButton>
-            {onEditRole && (
-              <Tooltip content="Edit Role Specification">
-                <GlassEditButton onClick={() => onEditRole(role)}>
-                  <RiEditLine size={16} /> Edit Role
-                </GlassEditButton>
-              </Tooltip>
-            )}
-          </HeaderActions>
-        </BannerHeader>
+        {onEditRole && (
+          <BannerHeader>
+            <EditRoleButton type="button" onClick={() => onEditRole(role)}>
+              <RiEditLine size={16} /> Edit Role
+            </EditRoleButton>
+          </BannerHeader>
+        )}
 
         <MetricsGrid>
           <MetricCard $variant="green">
@@ -413,39 +370,45 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
           {activeTab === 'overview' && (
             <SectionGrid>
               <SectionCard title="Role Overview & Scope">
-                <SectionText>{role.oneLineDescription}</SectionText>
                 <SectionText>
-                  Applied UI Designers focus on crafting intuitive digital interfaces, maintaining visual component systems, and bridging product design with frontend engineering.
+                  {role.roleOverview ||
+                    role.oneLineDescription ||
+                    'No role overview provided for this role yet.'}
                 </SectionText>
               </SectionCard>
 
               <SectionCard title="Key Skill Requirements">
-                <SectionText>
-                  • Figma, Visual System Architecture, Micro-Interactions<br />
-                  • User Research Synthesis & Prototyping<br />
-                  • Responsive Design & Accessibility (WCAG Compliance)
-                </SectionText>
+                {role.keySkills && role.keySkills.length > 0 ? (
+                  <SectionText>
+                    {role.keySkills.map((skill, i) => (
+                      <React.Fragment key={i}>
+                        • {skill}
+                        <br />
+                      </React.Fragment>
+                    ))}
+                  </SectionText>
+                ) : (
+                  <SectionText>No key skills listed for this role yet.</SectionText>
+                )}
               </SectionCard>
             </SectionGrid>
           )}
 
-          {activeTab === 'education' && <EducationPathTab role={role} />}
+          {activeTab === 'education' && (
+            <EducationPathTab role={role} linkedEducationEntries={linkedEducationEntries} />
+          )}
 
-          {activeTab === 'exams' && (
-            <EntranceExamsTab
-              exams={entranceExams}
-              onToggleShortlist={onToggleExamShortlist}
+          {activeTab === 'exams' && <EntranceExamsTab exams={entranceExams} />}
+
+          {activeTab === 'courses' && (
+            <CoursesTab
+              courses={courses}
+              relatedCourses={relatedCourses}
+              clusterName={role.careerCluster}
             />
           )}
 
-          {activeTab === 'courses' && <CoursesTab courses={courses} />}
-
-          {activeTab === 'institutions' && (
-            <InstitutionsTab
-              institutions={institutions}
-              onToggleShortlist={onToggleInstitutionShortlist}
-            />
-          )}
+          {activeTab === 'institutions' && <InstitutionsTab institutions={institutions} />}
         </TabContentArea>
       </MainLayout>
     </Container>

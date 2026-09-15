@@ -22,6 +22,7 @@ import { useTenantManagementStore } from '@/store/tenant-management.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useToast } from '@/hooks';
 import { UserRecord, UserCategory } from '@/types/tenant-management.types';
+import { formatDateTime } from '@/utils';
 import {
   TenantManagementContainer,
   FilterBar,
@@ -178,7 +179,7 @@ export const TenantManagementPage: React.FC = () => {
     {
       key: 'lastActive',
       header: 'Last Active',
-      render: row => row.lastActive || 'N/A',
+      render: row => (row.lastActive ? formatDateTime(row.lastActive) : 'N/A'),
     },
     {
       key: 'actions',

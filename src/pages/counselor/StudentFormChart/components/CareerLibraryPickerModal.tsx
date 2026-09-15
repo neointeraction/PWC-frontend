@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { RiSearchLine, RiAddLine } from 'react-icons/ri';
+import { useQuery } from '@tanstack/react-query';
+import { RiSearchLine, RiAddLine, RiInformationLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -7,13 +8,20 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Badge } from '@/components/Badge';
 import { Checkbox } from '@/components/Checkbox';
-import { mockCareers, mockClusters } from '@/mocks/careers.mock';
+import { careerService } from '@/services/career.service';
 import { CareerCompassItem } from '@/mocks/studentFormChart.mock';
+
+// The Compass Report only ever prints the counsellor's top picks, so the chart is
+// flagged past this many roles. Advisory only — never blocks adding more.
+const COMPASS_RECOMMENDED = 3;
 
 interface CareerLibraryPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddRoles: (roles: CareerCompassItem[]) => void;
+  // Roles already on the chart, so the hint reflects the real total rather than just
+  // this session's selection.
+  existingCount?: number;
 }
 
 const FilterHeaderRow = styled.div`
@@ -90,6 +98,27 @@ const RoleMetaRow = styled.div`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
+const CompassHint = styled.div<{ $overRecommended: boolean }>`
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  background-color: ${({ $overRecommended, theme }) =>
+    $overRecommended ? theme.colors.warningLight : theme.colors.surfaceHover};
+  color: ${({ $overRecommended, theme }) =>
+    $overRecommended ? theme.colors.warning : theme.colors.textSecondary};
+  border: 1px solid ${({ $overRecommended, theme }) =>
+    $overRecommended ? theme.colors.warning : theme.colors.border};
+
+  svg {
+    flex-shrink: 0;
+  }
+`;
+
 const FooterBar = styled.div`
   display: flex;
   align-items: center;
@@ -101,20 +130,33 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
   isOpen,
   onClose,
   onAddRoles,
+  existingCount = 0,
 }) => {
   const [search, setSearch] = useState('');
   const [selectedCluster, setSelectedCluster] = useState('ALL');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  const { data: clusters = [] } = useQuery({
+    queryKey: ['career-clusters'],
+    queryFn: () => careerService.getClusters(),
+    enabled: isOpen,
+  });
+
+  const { data: careers = [] } = useQuery({
+    queryKey: ['career-job-roles'],
+    queryFn: () => careerService.getJobRoles(),
+    enabled: isOpen,
+  });
+
   const clusterOptions = useMemo(() => {
     return [
       { label: 'All Career Clusters', value: 'ALL' },
-      ...mockClusters.map(c => ({ label: c.name, value: c.name })),
+      ...clusters.map(c => ({ label: c.name, value: c.name })),
     ];
-  }, []);
+  }, [clusters]);
 
   const filteredCareers = useMemo(() => {
-    return mockCareers.filter(c => {
+    return careers.filter(c => {
       const searchLower = search.toLowerCase();
       const roleText = c.jobRole || c.title || '';
       const domainText = c.domain || '';
@@ -129,7 +171,11 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
 
       return matchesSearch && matchesCluster;
     });
-  }, [search, selectedCluster]);
+  }, [careers, search, selectedCluster]);
+
+  // Total the chart would hold if the current selection were added.
+  const compassTotal = existingCount + selectedIds.length;
+  const overRecommended = compassTotal > COMPASS_RECOMMENDED;
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
@@ -146,16 +192,17 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
   };
 
   const handleAddSubmit = () => {
-    const selectedCareers = mockCareers.filter(c => selectedIds.includes(c.id));
+    const selectedCareers = careers.filter(c => selectedIds.includes(c.id));
     const itemsToAdd: CareerCompassItem[] = selectedCareers.map(career => ({
       id: `cc-cl-${career.id}-${Date.now()}`,
+      cluster: career.careerCluster || '',
+      industry: career.industry || '',
       domain: career.domain || career.careerCluster || 'General Domain',
       role: career.jobRole || career.title || 'Career Specialist',
       whyItFits: career.oneLineDescription || career.aiResilienceComment || 'Selected from Career Library',
       topEmployers: Array.isArray(career.topCompaniesRecruiting)
         ? career.topCompaniesRecruiting.join(', ')
         : career.topCompaniesRecruiting || 'Top Enterprises',
-      aiResilience: career.aiResilienceGrading || 'High',
       salaryIndia: career.approxSalaryRangeIndia || '₹6–15 LPA',
       salaryAbroad: career.globalSalaryRange || '$70k–120k',
       approvalStatus: 'Approved',
@@ -194,6 +241,13 @@ export const CareerLibraryPickerModal: React.FC<CareerLibraryPickerModalProps> =
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <CompassHint $overRecommended={overRecommended}>
+          <RiInformationLine size={14} />
+          {overRecommended
+            ? `${compassTotal} roles on the chart — the Compass Report shows the top ${COMPASS_RECOMMENDED}.`
+            : `${compassTotal} of ${COMPASS_RECOMMENDED} roles shown on the Compass Report.`}
+        </CompassHint>
+
         <FilterHeaderRow>
           <SearchInputWrapper>
             <Input

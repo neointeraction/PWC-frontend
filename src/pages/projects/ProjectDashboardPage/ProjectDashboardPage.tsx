@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  RiDownloadLine,
+  // RiDownloadLine,
   RiTimeLine,
   RiDeleteBinLine,
   RiArrowLeftLine,
   RiCloseCircleLine,
   RiSearchLine,
   RiFlag2Fill,
+  RiFlag2Line,
   RiFileExcel2Line,
   RiUserAddLine,
   RiCalendarLine,
@@ -19,15 +20,16 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Table, Column } from '@/components/Table';
 import { AlertModal, Tooltip } from '@/components';
+import { Loader } from '@/components/Loader';
 import { projectService } from '@/services/project.service';
 import { ProjectStudentDetail } from '@/types/project.types';
-import { mockProjects } from '@/mocks/projects.mock';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
-import { formatDateDDMMYYYY } from '@/utils';
+import { formatDate, getApiErrorMessage } from '@/utils';
 import { EditProjectModal } from '../components/EditProjectModal';
 import { EditStudentModal } from '../ProjectStudentsPage/EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
+import { buildCounselorChartReport, buildCounselorFeedbackRatingReport } from './projectReports';
 import {
   DashboardContainer,
   ProjectTopHeaderCard,
@@ -53,11 +55,13 @@ import {
   StageCellWrapper,
   CounselorWrapper,
   CounselorIdBadge,
-  GradeBadge,
   DateCellWrapper,
   FlagIconWrapper,
   FlagFilterButton,
   ToolbarIconButton,
+  ExportMenuWrapper,
+  ExportMenu,
+  ExportMenuItem,
 } from './ProjectDashboardPage.styles';
 
 export const PROJECT_STAGES_OPTIONS = [
@@ -75,17 +79,70 @@ export const PROJECT_STAGES_OPTIONS = [
   { value: 'Report Downloaded', label: 'Report Downloaded' },
 ];
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2026-08-01" -> "01 Aug, 2026". Parsed by parts rather than through `new Date` so a
+// date-only string doesn't shift a day in timezones behind UTC.
+const formatBannerDate = (ymd?: string): string => {
+  if (!ymd) return '—';
+  const [y, m, d] = ymd.split('-');
+  if (!y || !m || !d) return ymd;
+  return `${d} ${MONTHS[Number(m) - 1] ?? m}, ${y}`;
+};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Date-only strings are pinned to UTC midnight on both sides of every subtraction below,
+// so a day is never gained or lost to the local timezone.
+const parseYmd = (ymd?: string): number | null => {
+  if (!ymd) return null;
+  const [y, m, d] = ymd.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return Date.UTC(y, m - 1, d);
+};
+
+const todayUtc = (): number => {
+  const now = new Date();
+  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+// The project window, counting both the first and last day.
+const totalDays = (from?: string, to?: string): number | null => {
+  const start = parseYmd(from);
+  const end = parseYmd(to);
+  if (start === null || end === null || end < start) return null;
+  return Math.round((end - start) / MS_PER_DAY) + 1;
+};
+
+// Whole days left in the project window: the full window before it starts, counting
+// down as days elapse, 0 once it has closed. Never exceeds totalDays.
+const remainingDays = (from?: string, to?: string): number | null => {
+  const start = parseYmd(from);
+  const end = parseYmd(to);
+  if (start === null || end === null || end < start) return null;
+  const total = Math.round((end - start) / MS_PER_DAY) + 1;
+  const elapsed = Math.max(0, Math.min(total, Math.round((todayUtc() - start) / MS_PER_DAY)));
+  return total - elapsed;
+};
+
 export const ProjectDashboardPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const project = mockProjects.find(p => p.id === projectId) || mockProjects[0];
+  const { data: project, isLoading: isProjectLoading } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => projectService.getById(projectId as string),
+    enabled: Boolean(projectId),
+  });
+
+  const isProjectClosed = project?.status === 'closed';
+  const projectTotalDays = totalDays(project?.validFrom, project?.validTo);
+  const projectRemainingDays = remainingDays(project?.validFrom, project?.validTo);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
-  const [isProjectClosed, setIsProjectClosed] = useState(project.status === 'completed');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Table Filters State
@@ -96,24 +153,68 @@ export const ProjectDashboardPage: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<ProjectStudentDetail | null>(null);
   const [viewingStudent, setViewingStudent] = useState<ProjectStudentDetail | null>(null);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [exportingReport, setExportingReport] = useState<
+    'student' | 'counselorChart' | 'counselorFeedback' | null
+  >(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const limit = 10;
+
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isExportMenuOpen]);
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['projectStudents', projectId],
-    queryFn: () => projectService.getProjectStudents(projectId || 'proj-001'),
+    queryFn: () => projectService.getProjectStudents(projectId as string),
+    enabled: Boolean(projectId),
   });
 
   const updateMutation = useMutation({
     mutationFn: (updatedStudent: ProjectStudentDetail) =>
-      projectService.updateProjectStudent(projectId || 'proj-001', updatedStudent),
-    onSuccess: () => {
+      projectService.saveProjectStudent(projectId as string, updatedStudent),
+    onSuccess: result => {
       queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      // The Total Students card reads the project's `_count`, not the student list.
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       toast.success('Student Saved', 'Student information updated successfully.');
+      // PATCH /students/{id} has no email field, so an edited address never reached the
+      // backend — say so rather than letting the success toast imply it saved.
+      if (result.emailChangeIgnored) {
+        toast.warning(
+          'Email Not Changed',
+          "A student's login email can't be edited here — every other change was saved."
+        );
+      }
       setEditingStudent(null);
       setIsAddStudentModalOpen(false);
     },
-    onError: () => {
-      toast.error('Save Failed', 'Could not update student details.');
+    onError: err => {
+      toast.error('Save Failed', getApiErrorMessage(err, 'Could not update student details.'));
+    },
+  });
+
+  const retestMutation = useMutation({
+    mutationFn: (studentToRetest: ProjectStudentDetail) =>
+      projectService.deleteProjectStudent(studentToRetest.id),
+    onSuccess: (_result, studentToRetest) => {
+      queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      toast.success(
+        'Student Removed for Retest',
+        `${studentToRetest.name}'s details were deleted. Add them again to restart the process.`
+      );
+      setViewingStudent(null);
+    },
+    onError: err => {
+      toast.error('Retest Failed', getApiErrorMessage(err, 'Could not delete student for retest.'));
     },
   });
 
@@ -121,28 +222,52 @@ export const ProjectDashboardPage: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleConfirmClose = () => {
-    setIsProjectClosed(true);
-    setIsCloseModalOpen(false);
-    toast.success('Project Closed', `"${project.name}" has been marked as completed.`);
-  };
+  // PATCH /projects/{id} with status CLOSED — the soft close that also gates
+  // student/parent submissions on the backend.
+  const closeMutation = useMutation({
+    mutationFn: () => projectService.update(projectId as string, { status: 'closed' }),
+    onSuccess: updated => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
+      setIsCloseModalOpen(false);
+      toast.success('Project Closed', `"${updated.name}" has been marked as completed.`);
+    },
+    onError: () => {
+      toast.error('Close Failed', 'Could not close this project. Please try again.');
+    },
+  });
 
-  const handleConfirmDelete = () => {
-    setIsDeleteModalOpen(false);
-    toast.warning('Project Deleted', `${project.name} has been removed.`);
-    navigate(ROUTES.PROJECTS);
-  };
+  // DELETE /projects/{id} is a soft-delete (status → DELETED); the record is preserved
+  // and can be restored from the projects list.
+  const deleteMutation = useMutation({
+    mutationFn: () => projectService.delete(projectId as string),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
+      setIsDeleteModalOpen(false);
+      toast.warning('Project Deleted', `${project?.name ?? 'Project'} has been removed.`);
+      navigate(ROUTES.PROJECTS);
+    },
+    onError: () => {
+      toast.error('Delete Failed', 'Could not delete this project. Please try again.');
+    },
+  });
+
+  const handleConfirmClose = () => closeMutation.mutate();
+
+  const handleConfirmDelete = () => deleteMutation.mutate();
 
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
-      id: `std-new-${Date.now()}`,
-      studentId: `ST${100 + students.length + 1}`,
+      id: '',
+      studentId: '',
       name: '',
       email: '',
-      mobile: '+91 ',
+      mobile: '',
       grade: 'Grade 11',
-      counselorId: 'COU-01',
-      counselorName: 'Dr. Rajeshwari Menon',
+      counselorId: '',
+      counselorName: '',
       stage: 'Login Activated',
       stageCompletedDate: new Date().toISOString().slice(0, 10),
       daysInStage: 0,
@@ -152,7 +277,22 @@ export const ProjectDashboardPage: React.FC = () => {
     setIsAddStudentModalOpen(true);
   };
 
-  const handleExportExcel = () => {
+  const downloadCsv = (csvContent: string, filenameSuffix: string) => {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute(
+      'download',
+      `${(project?.name ?? 'Project').replace(/\s+/g, '_')}_${filenameSuffix}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportStudentReport = () => {
     // Generate stage-wise distribution summary
     const stageCounts: Record<string, number> = {};
     PROJECT_STAGES_OPTIONS.filter(opt => opt.value !== 'all').forEach(opt => {
@@ -167,8 +307,8 @@ export const ProjectDashboardPage: React.FC = () => {
     const flaggedCount = students.filter(s => s.isFlagged).length;
 
     let csvContent = `PROJECT STUDENTS STAGE REPORT\n`;
-    csvContent += `Project Name,${project.name}\n`;
-    csvContent += `Institution,${project.instituteName}\n`;
+    csvContent += `Project Name,${project?.name ?? ''}\n`;
+    csvContent += `Institution,${project?.instituteName ?? ''}\n`;
     csvContent += `Total Enrolled Students,${students.length}\n`;
     csvContent += `Total Overdue Flagged (>2 Days Inactive),${flaggedCount}\n\n`;
 
@@ -182,21 +322,42 @@ export const ProjectDashboardPage: React.FC = () => {
     csvContent += `STUDENT-LEVEL DETAIL LIST\n`;
     csvContent += `Student ID,Student Name,Grade / Class,Counselor ID,Counselor Name,Current Stage,Stage Date,Days In Stage,Follow-up Flag (>2 Days)\n`;
     filteredStudents.forEach(s => {
-      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || 'COU-01'}","${s.counselorName || s.session1?.counselorName || 'Dr. Rajeshwari Menon'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
+      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || '—'}","${s.counselorName || s.session1?.counselorName || '—'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
     });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${project.name.replace(/\s+/g, '_')}_Stage_Report.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(
-      'Excel Export Started',
-      'Downloaded project stage distribution and students report (.csv).'
-    );
+    downloadCsv(csvContent, 'Student_Details_Report');
+    toast.success('Report Export Started', 'Downloaded student details report (.csv).');
+  };
+
+  // Per-student counsellor chart (pre-counselling + computed assessment + SCRI) — real
+  // .xlsx matching docs/Class 910_Counsellor Chart(4analytics).xlsx.
+  const handleExportCounselorChart = async () => {
+    setExportingReport('counselorChart');
+    try {
+      await buildCounselorChartReport(project, students);
+      toast.success('Report Export Started', 'Downloaded counselor chart report (.xlsx).');
+    } catch (err) {
+      toast.error('Export Failed', getApiErrorMessage(err, 'Could not generate the counselor chart report.'));
+    } finally {
+      setExportingReport(null);
+    }
+  };
+
+  // Raw per-question feedback form answers — real .xlsx matching
+  // docs/Class 910_Counsellor Feedback Rating.xlsx.
+  const handleExportCounselorFeedback = async () => {
+    setExportingReport('counselorFeedback');
+    try {
+      await buildCounselorFeedbackRatingReport(project, students);
+      toast.success('Report Export Started', 'Downloaded counselor feedback rating report (.xlsx).');
+    } catch (err) {
+      toast.error(
+        'Export Failed',
+        getApiErrorMessage(err, 'Could not generate the counselor feedback rating report.')
+      );
+    } finally {
+      setExportingReport(null);
+    }
   };
 
   const totalFlaggedCount = students.filter(s => s.isFlagged).length;
@@ -243,29 +404,41 @@ export const ProjectDashboardPage: React.FC = () => {
       ),
     },
     {
-      key: 'grade',
-      header: 'Grade / Class',
-      width: '130px',
-      render: row => <GradeBadge>{row.grade}</GradeBadge>,
-    },
-    {
       key: 'counselor',
       header: 'Counselor',
       width: '230px',
-      render: row => (
-        <CounselorWrapper>
-          <CounselorIdBadge>{row.counselorId || 'COU-01'}</CounselorIdBadge>
-          <span>{row.counselorName || row.session1?.counselorName || 'Dr. Rajeshwari Menon'}</span>
-        </CounselorWrapper>
-      ),
+      render: row =>
+        row.counselorId || row.counselorName || row.session1?.counselorName ? (
+          <CounselorWrapper>
+            {row.counselorId && <CounselorIdBadge>{row.counselorId}</CounselorIdBadge>}
+            <span>{row.counselorName || row.session1?.counselorName}</span>
+          </CounselorWrapper>
+        ) : (
+          <span>—</span>
+        ),
     },
     {
-      key: 'stage',
+      key: 'currentStage',
       header: 'Current Stage',
       width: '240px',
       render: row => (
         <StageCellWrapper>
           <span>{row.stage || 'Login Activated'}</span>
+          {row.isFlagged && (
+            <Tooltip
+              content={
+                row.flagReason === 'MISSED_SESSION'
+                  ? 'Flagged: missed session — needs follow-up'
+                  : row.flagReason === 'IDLE'
+                  ? 'Flagged: idle too long — needs follow-up'
+                  : 'Flagged for admin follow-up'
+              }
+            >
+              <span>
+                <RiFlag2Line size={15} style={{ color: '#EF4444', verticalAlign: '-2px' }} />
+              </span>
+            </Tooltip>
+          )}
         </StageCellWrapper>
       ),
     },
@@ -278,7 +451,7 @@ export const ProjectDashboardPage: React.FC = () => {
         return (
           <DateCellWrapper>
             <RiCalendarLine size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
-            <span>{rawDate ? formatDateDDMMYYYY(rawDate) : '—'}</span>
+            <span>{rawDate ? formatDate(rawDate) : '—'}</span>
             {row.isFlagged && (
               <Tooltip
                 content={`Stage inactive for ${row.daysInStage || 3} days (> 2 days threshold) — follow up required`}
@@ -293,6 +466,8 @@ export const ProjectDashboardPage: React.FC = () => {
       },
     },
   ];
+
+  if (isProjectLoading) return <Loader />;
 
   return (
     <DashboardContainer>
@@ -309,21 +484,78 @@ export const ProjectDashboardPage: React.FC = () => {
 
           <ProjectIdentity>
             <ProjectTitleRow>
-              <ProjectInstituteTitle>{project.instituteName}</ProjectInstituteTitle>
-              <InstCodeBadge>INS001</InstCodeBadge>
+              <ProjectInstituteTitle>{project?.instituteName}</ProjectInstituteTitle>
+              {project?.code && <InstCodeBadge>{project.code}</InstCodeBadge>}
               <StatusPill $isClosed={isProjectClosed}>
                 {isProjectClosed ? 'Completed' : 'Ongoing'}
               </StatusPill>
             </ProjectTitleRow>
             <LocationAndPeriod>
-              <span>{project.location || 'Mumbai, Maharashtra'}</span>
-              <span>•</span>
-              <PeriodText>Period : 01 Aug, 2026 – 31 Oct, 2026</PeriodText>
+              {project?.location && (
+                <>
+                  <span>{project.location}</span>
+                  <span>•</span>
+                </>
+              )}
+              <PeriodText>
+                Period : {formatBannerDate(project?.validFrom)} –{' '}
+                {formatBannerDate(project?.validTo)}
+              </PeriodText>
             </LocationAndPeriod>
           </ProjectIdentity>
         </TopHeaderLeft>
 
         <TopHeaderActions>
+          <ExportMenuWrapper ref={exportMenuRef}>
+            <Tooltip content="Export Reports">
+              <ToolbarIconButton
+                type="button"
+                $variant="excel"
+                onClick={() => setIsExportMenuOpen(prev => !prev)}
+                aria-label="Export Reports"
+                aria-haspopup="true"
+                aria-expanded={isExportMenuOpen}
+              >
+                <RiFileExcel2Line size={18} />
+              </ToolbarIconButton>
+            </Tooltip>
+
+            {isExportMenuOpen && (
+              <ExportMenu>
+                <ExportMenuItem
+                  type="button"
+                  disabled={exportingReport !== null}
+                  onClick={() => {
+                    handleExportStudentReport();
+                    setIsExportMenuOpen(false);
+                  }}
+                >
+                  Student details report
+                </ExportMenuItem>
+                <ExportMenuItem
+                  type="button"
+                  disabled={exportingReport !== null}
+                  onClick={async () => {
+                    setIsExportMenuOpen(false);
+                    await handleExportCounselorChart();
+                  }}
+                >
+                  Counselor chart report
+                </ExportMenuItem>
+                <ExportMenuItem
+                  type="button"
+                  disabled={exportingReport !== null}
+                  onClick={async () => {
+                    setIsExportMenuOpen(false);
+                    await handleExportCounselorFeedback();
+                  }}
+                >
+                  Counselor feedback rating report
+                </ExportMenuItem>
+              </ExportMenu>
+            )}
+          </ExportMenuWrapper>
+
           <Button
             variant="secondary"
             size="sm"
@@ -340,22 +572,24 @@ export const ProjectDashboardPage: React.FC = () => {
           >
             {isProjectClosed ? 'Closed' : 'Close Project'}
           </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            leftIcon={<RiDeleteBinLine size={16} />}
-            onClick={() => setIsDeleteModalOpen(true)}
-          >
-            Delete project
-          </Button>
-          <Button
+          {isProjectClosed && (
+            <Button
+              variant="danger"
+              size="sm"
+              leftIcon={<RiDeleteBinLine size={16} />}
+              onClick={() => setIsDeleteModalOpen(true)}
+            >
+              Delete project
+            </Button>
+          )}
+          {/* <Button
             variant="primary"
             size="sm"
             leftIcon={<RiDownloadLine size={16} />}
-            onClick={handleExportExcel}
+            onClick={handleExportStudentReport}
           >
             Export Report
-          </Button>
+          </Button> */}
         </TopHeaderActions>
       </ProjectTopHeaderCard>
 
@@ -364,27 +598,27 @@ export const ProjectDashboardPage: React.FC = () => {
         <OverviewCard
           $clickable
           onClick={() =>
-            navigate(ROUTES.PROJECT_SESSIONS.replace(':projectId', projectId || 'proj-001'))
+            navigate(ROUTES.PROJECT_SESSIONS.replace(':projectId', projectId as string))
           }
           title="Click to view Project Sessions"
         >
           <OverviewCardLabel>Counsellors</OverviewCardLabel>
-          <OverviewCardValue>44</OverviewCardValue>
+          <OverviewCardValue>{project?.counselorCount ?? 0}</OverviewCardValue>
         </OverviewCard>
 
         <OverviewCard>
           <OverviewCardLabel>Total Students</OverviewCardLabel>
-          <OverviewCardValue>{students.length || 350}</OverviewCardValue>
+          <OverviewCardValue>{project?.studentCount ?? students.length}</OverviewCardValue>
         </OverviewCard>
 
         <OverviewCard>
           <OverviewCardLabel>Total Days</OverviewCardLabel>
-          <OverviewCardValue>95</OverviewCardValue>
+          <OverviewCardValue>{projectTotalDays ?? '—'}</OverviewCardValue>
         </OverviewCard>
 
         <OverviewCard>
           <OverviewCardLabel>Remaining Days</OverviewCardLabel>
-          <OverviewCardValue>15</OverviewCardValue>
+          <OverviewCardValue>{projectRemainingDays ?? '—'}</OverviewCardValue>
         </OverviewCard>
       </OverviewStatsGrid>
 
@@ -432,17 +666,6 @@ export const ProjectDashboardPage: React.FC = () => {
               </span>
             </FlagFilterButton>
 
-            <Tooltip content="Export Students Stage Report to Excel">
-              <ToolbarIconButton
-                type="button"
-                $variant="excel"
-                onClick={handleExportExcel}
-                aria-label="Export Students to Excel"
-              >
-                <RiFileExcel2Line size={18} />
-              </ToolbarIconButton>
-            </Tooltip>
-
             <Button leftIcon={<RiUserAddLine size={16} />} onClick={handleCreateNewStudent}>
               Add Student
             </Button>
@@ -471,6 +694,8 @@ export const ProjectDashboardPage: React.FC = () => {
         onClose={() => setViewingStudent(null)}
         student={viewingStudent}
         onSave={updated => updateMutation.mutate(updated)}
+        onRetest={studentToRetest => retestMutation.mutate(studentToRetest)}
+        isRetesting={retestMutation.isPending}
       />
 
       {/* Edit Student Modal */}
@@ -486,11 +711,13 @@ export const ProjectDashboardPage: React.FC = () => {
       />
 
       {/* Edit / Extend Project Modal */}
-      <EditProjectModal
-        isOpen={isEditModalOpen}
-        project={project}
-        onClose={() => setIsEditModalOpen(false)}
-      />
+      {project && (
+        <EditProjectModal
+          isOpen={isEditModalOpen}
+          project={project}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
 
       {/* Delete Project Confirmation Modal */}
       <AlertModal
@@ -498,7 +725,7 @@ export const ProjectDashboardPage: React.FC = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
         title="Delete Project"
-        description={`Are you sure you want to delete "${project.name}"? This action cannot be undone.`}
+        description={`Are you sure you want to delete "${project?.name ?? ''}"? This action cannot be undone.`}
         variant="danger"
         confirmText="Delete Project"
         cancelText="Cancel"
@@ -510,7 +737,7 @@ export const ProjectDashboardPage: React.FC = () => {
         onClose={() => setIsCloseModalOpen(false)}
         onConfirm={handleConfirmClose}
         title="Close Project"
-        description={`Are you sure you want to close "${project.name}"? This will mark the project status as completed.`}
+        description={`Are you sure you want to close "${project?.name ?? ''}"? This will mark the project status as completed.`}
         variant="warning"
         confirmText="Close Project"
         cancelText="Cancel"

@@ -5,16 +5,22 @@ export interface Career {
   careerCluster: string; // Text / Categorical
   industry: string; // Text / Categorical
   domain: string; // Text
-  aiResilienceGrading: 'Low' | 'Medium' | 'High'; // Categorical
+  domainId?: string; // Leaf taxonomy id — needed to load the domain's education path
+  aiResilienceGrading: 'Low' | 'Medium' | 'High' | 'Very High'; // Categorical
   aiResilienceComment: string; // Long Text
   oneLineDescription: string; // Text
+  roleOverview?: string; // Long Text — the role write-up shown in the Overview tab
+  keySkills?: string[]; // Key skill requirements shown in the Overview tab
   topCompaniesRecruiting: string[]; // Text / Array of Tags
   approxSalaryRangeIndia: string; // Text
   globalSalaryRange: string; // Text
   minQual10th12thRecommendedSubjects: string; // Long Text
+  qualification10th12thExplanation?: string; // "10+2 Explanation" note
   minQualGradRecommendedSubjects: string; // Long Text
+  qualificationGraduationDefined?: string; // Graduation "defined" note
   entranceExamsUG: string; // Text
   minQualPGRecommendedSubjects: string; // Long Text
+  qualificationPGDefined?: string; // Post-graduation "defined" note
   entranceExamsPG: string; // Text
   certificationsStudents: string; // Long Text
   certificationsUG: string; // Long Text
@@ -27,7 +33,7 @@ export interface Career {
   status: 'active' | 'inactive' | 'pending';
   lastUpdated: string;
   sourceTenant?: string;
-  isShortlisted?: boolean;
+  isShortlisted?: boolean; // used by the (master) shortlist UI on career browsing
 }
 
 export interface CareerCluster {
@@ -63,7 +69,18 @@ export interface PendingRatification {
   suggestedCategory: string;
   description: string;
   submittedAt: string;
+  // Always 'pending' in practice — GET /career-library/proposals only ever returns
+  // unresolved rows (approve/reject delete the row rather than transitioning status).
   status: 'pending' | 'ratified' | 'rejected';
+  // Carried through from GET /career-library/proposals for the review screens.
+  suggestedIndustry?: string;
+  suggestedDomain?: string;
+  projectName?: string;
+  justification?: string;
+  referenceLinks?: string[];
+  resultingEntryId?: string | null;
+  // null when the proposal has no linked student.
+  session2Completed?: boolean | null;
 }
 
 export interface CareerFilters {
@@ -113,5 +130,3 @@ export interface InstitutionDetail {
   website: string;
   isShortlisted?: boolean;
 }
-
-

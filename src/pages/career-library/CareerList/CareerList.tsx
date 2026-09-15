@@ -3,22 +3,33 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
-import { AlertModal } from '@/components';
-import { useToast } from '@/hooks';
-import { useAuthStore } from '@/store';
+import { AlertModal } from '@/components/AlertModal';
 import { ROUTES } from '@/constants';
 import { CareerCluster, CareerIndustry, CareerDomain, Career } from '@/types';
 import { careerService } from '@/services/career.service';
+import { useAuthStore } from '@/store/auth.store';
+import { useToast } from '@/hooks';
+import { getApiErrorMessage } from '@/utils';
 import { BreadcrumbHeader, BreadcrumbStep } from '../components/BreadcrumbHeader';
+import { TaxonomyFormModal, TaxonomyLevel } from '../components/TaxonomyFormModal';
+import { JobRoleFormModal } from '../components/JobRoleFormModal';
 import { ClustersView } from '../views/ClustersView';
 import { IndustriesView } from '../views/IndustriesView';
 import { DomainsView } from '../views/DomainsView';
 import { JobRolesView } from '../views/JobRolesView';
 import { JobRoleDetailView } from '../views/JobRoleDetailView';
 import { SimpleView } from '../views/SimpleView';
-import { AddEditModal, AddEditFormData } from '../modals/AddEditModal';
-import { BulkUploadModal } from './BulkUploadModal';
-import { RiAddLine, RiUploadCloudLine, RiLayoutGridLine, RiListCheck2 } from 'react-icons/ri';
+import { RiLayoutGridLine, RiListCheck2, RiAddLine, RiArrowGoBackLine } from 'react-icons/ri';
+
+type TaxonomyModalState = {
+  level: TaxonomyLevel;
+  mode: 'add' | 'edit';
+  entity?: { id: string; name: string };
+  parentId?: string;
+  parentLabel?: string;
+};
+
+type DeleteTarget = { kind: TaxonomyLevel | 'role'; id: string; name: string };
 
 const Container = styled.div`
   display: flex;
@@ -63,12 +74,36 @@ const ContentCard = styled.div`
   padding: ${({ theme }) => theme.spacing.xl};
 `;
 
+const UndoBanner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
+  background-color: ${({ theme }) => theme.colors.primaryLight};
+  border: 1px solid ${({ theme }) => theme.colors.primary}33;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const UndoButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.colors.primary};
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  cursor: pointer;
+  padding: 0;
+`;
+
 type LevelType = 'clusters' | 'industries' | 'domains' | 'roles' | 'detail';
 
 export const CareerListPage: React.FC = () => {
-  const toast = useToast();
-  const queryClient = useQueryClient();
-
   const [viewMode, setViewMode] = useState<'card' | 'simple'>('card');
   const [level, setLevel] = useState<LevelType>('clusters');
   const [selectedCluster, setSelectedCluster] = useState<CareerCluster | null>(null);
@@ -77,200 +112,162 @@ export const CareerListPage: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<Career | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Modals state
-  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
-  const [isAddEditOpen, setIsAddEditOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<{
-    type: 'cluster' | 'industry' | 'domain' | 'role';
-    item?: any;
-  } | null>(null);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { role } = useAuthStore();
+  // Career Library is managed by the Super Admin only — everyone else (admin,
+  // counsellor, student) gets read-only browsing.
+  const canWrite = role === 'super_admin';
 
-  const [deleteTarget, setDeleteTarget] = useState<{
-    type: 'cluster' | 'industry' | 'domain' | 'role';
-    id: string;
-    name: string;
-  } | null>(null);
+  const [taxonomyModal, setTaxonomyModal] = useState<TaxonomyModalState | null>(null);
+  const [roleModal, setRoleModal] = useState<{ mode: 'add' | 'edit'; entity?: Career } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  // Taxonomy delete is a soft-delete on the backend — offer an immediate undo instead of
+  // leaving a mistaken delete unrecoverable from the UI (SA-8). Only cluster/industry/
+  // domain are restorable; a job-role entry delete is hard.
+  const [lastDeleted, setLastDeleted] = useState<DeleteTarget | null>(null);
 
-  // Queries
+  // A taxonomy/entry write can change any level, so refresh every career query.
+  // `refetchType: 'all'` matters: most of these queries are gated by `enabled` (level /
+  // viewMode), and the default `'active'` only refetches the ones currently switched on —
+  // the rest stay marked stale but keep serving their old data the moment they come back.
+  const invalidateCareer = () =>
+    Promise.all(
+      [
+        'clusters',
+        'clusters-all',
+        'industries',
+        'industries-all',
+        'domains',
+        'domains-all',
+        'jobRoles',
+        'jobRoles-all',
+        'careerDetail',
+        // The edit modal's own link-list fetch — without this a save is followed by a
+        // stale re-seed, and re-saving would restore links the user just removed.
+        'career-entry-detail',
+      ].map(key => queryClient.invalidateQueries({ queryKey: [key], refetchType: 'all' }))
+    );
+
+  // Put a newly-created role on screen straight away rather than waiting on the refetch
+  // that follows — the POST response is the assembled entry, so it is already everything
+  // the list row needs. The invalidation right after reconciles it with the server.
+  const handleRoleSaved = (saved: Career, savedMode: 'add' | 'edit') => {
+    if (savedMode === 'add' && selectedDomain) {
+      queryClient.setQueryData<Career[]>(['jobRoles', selectedDomain.id, searchQuery], prev =>
+        prev ? (prev.some(r => r.id === saved.id) ? prev : [...prev, saved]) : [saved]
+      );
+    }
+    invalidateCareer();
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (target: DeleteTarget) => {
+      switch (target.kind) {
+        case 'cluster':
+          return careerService.deleteCluster(target.id);
+        case 'industry':
+          return careerService.deleteIndustry(target.id);
+        case 'domain':
+          return careerService.deleteDomain(target.id);
+        default:
+          return careerService.deleteEntry(target.id);
+      }
+    },
+    onSuccess: (_data, target) => {
+      invalidateCareer();
+      toast.success('Deleted', `"${target.name}" was removed.`);
+      // If the currently-open role was deleted, step back to the roles list.
+      if (target.kind === 'role' && selectedRole?.id === target.id) {
+        setLevel('roles');
+        setSelectedRole(null);
+      }
+      setLastDeleted(target.kind === 'role' ? null : target);
+      setDeleteTarget(null);
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to delete. It may be in use.'));
+      setDeleteTarget(null);
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (target: DeleteTarget) => {
+      switch (target.kind) {
+        case 'cluster':
+          return careerService.restoreCluster(target.id);
+        case 'industry':
+          return careerService.restoreIndustry(target.id);
+        default:
+          return careerService.restoreDomain(target.id);
+      }
+    },
+    onSuccess: (_data, target) => {
+      invalidateCareer();
+      toast.success('Restored', `"${target.name}" was restored.`);
+      setLastDeleted(null);
+    },
+    onError: (err: unknown) => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to restore.'));
+    },
+  });
+
+  // Queries — all real reads against GET /api/v1/career-library (read-only API;
+  // there's no create/edit/delete/bulk-upload/ratification endpoint yet).
   const { data: clusters = [] } = useQuery({
     queryKey: ['clusters', searchQuery],
     queryFn: () => careerService.getClusters(searchQuery),
+    enabled: viewMode === 'card',
+  });
+
+  const { data: allClusters = [] } = useQuery({
+    queryKey: ['clusters-all'],
+    queryFn: () => careerService.getClusters(),
+    enabled: viewMode === 'simple',
   });
 
   const { data: industries = [] } = useQuery({
-    queryKey: ['industries', selectedCluster?.name, searchQuery],
-    queryFn: () => careerService.getIndustries(selectedCluster?.name, searchQuery),
-    enabled: true,
+    queryKey: ['industries', selectedCluster?.id, searchQuery],
+    queryFn: () => careerService.getIndustries(selectedCluster?.id, searchQuery),
+    enabled: level === 'industries',
   });
 
   const { data: domains = [] } = useQuery({
-    queryKey: ['domains', selectedIndustry?.name, searchQuery],
-    queryFn: () => careerService.getDomains(selectedIndustry?.name, searchQuery),
-    enabled: true,
+    queryKey: ['domains', selectedIndustry?.id, searchQuery],
+    queryFn: () => careerService.getDomains(selectedIndustry?.id, searchQuery),
+    enabled: level === 'domains',
   });
 
   const { data: roles = [] } = useQuery({
-    queryKey: ['jobRoles', selectedDomain?.name, searchQuery],
-    queryFn: () => careerService.getJobRoles(selectedDomain?.name, searchQuery),
-    enabled: true,
+    queryKey: ['jobRoles', selectedDomain?.id, searchQuery],
+    queryFn: () => careerService.getJobRoles(selectedDomain?.id, searchQuery),
+    enabled: level === 'roles',
   });
 
-  const { data: entranceExams = [] } = useQuery({
-    queryKey: ['entranceExams'],
-    queryFn: careerService.getEntranceExams,
+  // Simple View browses the full hierarchy independently of the Card View's
+  // drill-down state, so it needs its own unfiltered queries.
+  const { data: allIndustries = [] } = useQuery({
+    queryKey: ['industries-all'],
+    queryFn: () => careerService.getIndustries(),
+    enabled: viewMode === 'simple',
   });
 
-  const { data: courses = [] } = useQuery({
-    queryKey: ['courses'],
-    queryFn: careerService.getCourses,
+  const { data: allDomains = [] } = useQuery({
+    queryKey: ['domains-all'],
+    queryFn: () => careerService.getDomains(),
+    enabled: viewMode === 'simple',
   });
 
-  const { data: institutions = [] } = useQuery({
-    queryKey: ['institutions'],
-    queryFn: careerService.getInstitutions,
+  const { data: allRoles = [] } = useQuery({
+    queryKey: ['jobRoles-all'],
+    queryFn: () => careerService.getJobRoles(),
+    enabled: viewMode === 'simple',
   });
 
-  // Mutations
-  const createClusterMutation = useMutation({
-    mutationFn: careerService.createCluster,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clusters'] });
-      toast.success('Cluster Added', 'New career cluster created successfully.');
-    },
-  });
-
-  const updateClusterMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
-      careerService.updateCluster(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clusters'] });
-      toast.success('Cluster Updated', 'Cluster updated successfully.');
-    },
-  });
-
-  const deleteClusterMutation = useMutation({
-    mutationFn: careerService.deleteCluster,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clusters'] });
-      toast.success('Cluster Deleted', 'Cluster removed successfully.');
-    },
-  });
-
-  const createIndustryMutation = useMutation({
-    mutationFn: careerService.createIndustry,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['industries'] });
-      toast.success('Industry Added', 'New industry created successfully.');
-    },
-  });
-
-  const updateIndustryMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
-      careerService.updateIndustry(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['industries'] });
-      toast.success('Industry Updated', 'Industry updated successfully.');
-    },
-  });
-
-  const deleteIndustryMutation = useMutation({
-    mutationFn: careerService.deleteIndustry,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['industries'] });
-      toast.success('Industry Deleted', 'Industry removed successfully.');
-    },
-  });
-
-  const createDomainMutation = useMutation({
-    mutationFn: careerService.createDomain,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['domains'] });
-      toast.success('Domain Added', 'New domain created successfully.');
-    },
-  });
-
-  const updateDomainMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
-      careerService.updateDomain(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['domains'] });
-      toast.success('Domain Updated', 'Domain updated successfully.');
-    },
-  });
-
-  const deleteDomainMutation = useMutation({
-    mutationFn: careerService.deleteDomain,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['domains'] });
-      toast.success('Domain Deleted', 'Domain removed successfully.');
-    },
-  });
-
-  const createRoleMutation = useMutation({
-    mutationFn: careerService.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobRoles'] });
-      toast.success('Job Role Added', 'New job role created successfully.');
-    },
-  });
-
-  const updateRoleMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
-      careerService.update(id, payload),
-    onSuccess: updatedRole => {
-      queryClient.invalidateQueries({ queryKey: ['jobRoles'] });
-      if (selectedRole && selectedRole.id === updatedRole.id) {
-        setSelectedRole(updatedRole);
-      }
-      toast.success('Job Role Updated', 'Job role specification updated successfully.');
-    },
-  });
-
-  const deleteRoleMutation = useMutation({
-    mutationFn: careerService.deleteJobRole,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobRoles'] });
-      if (level === 'detail') {
-        setLevel('roles');
-      }
-      toast.success('Job Role Deleted', 'Job role removed successfully.');
-    },
-  });
-
-  const toggleShortlistMutation = useMutation({
-    mutationFn: careerService.toggleShortlist,
-    onSuccess: updatedRole => {
-      queryClient.invalidateQueries({ queryKey: ['jobRoles'] });
-      if (selectedRole && selectedRole.id === updatedRole.id) {
-        setSelectedRole(updatedRole);
-      }
-      toast.info(
-        updatedRole.isShortlisted ? 'Saved to Shortlist' : 'Removed from Shortlist',
-        `Role "${updatedRole.jobRole}" shortlist status updated.`
-      );
-    },
-  });
-
-  const toggleExamShortlistMutation = useMutation({
-    mutationFn: careerService.toggleExamShortlist,
-    onSuccess: updatedExam => {
-      queryClient.invalidateQueries({ queryKey: ['entranceExams'] });
-      toast.info(
-        updatedExam.isShortlisted ? 'Exam Shortlisted' : 'Exam Removed',
-        `Exam "${updatedExam.name}" shortlist status updated.`
-      );
-    },
-  });
-
-  const toggleInstShortlistMutation = useMutation({
-    mutationFn: careerService.toggleInstitutionShortlist,
-    onSuccess: updatedInst => {
-      queryClient.invalidateQueries({ queryKey: ['institutions'] });
-      toast.info(
-        updatedInst.isShortlisted ? 'Institution Shortlisted' : 'Institution Removed',
-        `Institution "${updatedInst.name}" shortlist status updated.`
-      );
-    },
+  const { data: roleDetail } = useQuery({
+    queryKey: ['careerDetail', selectedRole?.id],
+    queryFn: () => careerService.getById(selectedRole!.id),
+    enabled: level === 'detail' && !!selectedRole,
   });
 
   // Breadcrumbs calculation
@@ -289,9 +286,8 @@ export const CareerListPage: React.FC = () => {
     ];
 
     if (selectedCluster || level !== 'clusters') {
-      const clusterName = selectedCluster?.name || 'Arts, Design & Creative';
       steps.push({
-        label: clusterName,
+        label: selectedCluster?.name || '',
         onClick: () => {
           setLevel('industries');
           setSelectedIndustry(null);
@@ -302,9 +298,8 @@ export const CareerListPage: React.FC = () => {
     }
 
     if (selectedIndustry || level === 'domains' || level === 'roles' || level === 'detail') {
-      const indName = selectedIndustry?.name || 'Applied Arts';
       steps.push({
-        label: indName,
+        label: selectedIndustry?.name || '',
         onClick: () => {
           setLevel('domains');
           setSelectedDomain(null);
@@ -314,9 +309,8 @@ export const CareerListPage: React.FC = () => {
     }
 
     if (selectedDomain || level === 'roles' || level === 'detail') {
-      const domName = selectedDomain?.name || 'Digital Arts';
       steps.push({
-        label: domName,
+        label: selectedDomain?.name || '',
         onClick: () => {
           setLevel('roles');
           setSelectedRole(null);
@@ -325,127 +319,28 @@ export const CareerListPage: React.FC = () => {
     }
 
     if (selectedRole || level === 'detail') {
-      const roleTitle = selectedRole?.jobRole || 'Applied UI Designer';
-      steps.push({
-        label: roleTitle,
-      });
+      steps.push({ label: selectedRole?.jobRole || '' });
     }
 
     return steps;
   };
 
-  // Dynamic Header Titles & Add Labels
+  // Dynamic Header Titles
   const getHeaderTitle = () => {
     if (level === 'clusters') return 'Choose a Career Cluster';
     if (level === 'industries') return 'Choose an Industry within the Career Cluster';
     if (level === 'domains') return 'Choose a Domain within the Industry';
     if (level === 'roles') return 'Choose a Job Role within the Domain';
-    return selectedRole?.jobRole || 'Applied UI Designer';
+    return selectedRole?.jobRole || '';
   };
 
-  const getAddLabel = () => {
-    if (level === 'clusters') return 'Add Cluster';
-    if (level === 'industries') return 'Add Industry';
-    if (level === 'domains') return 'Add Domain';
-    if (level === 'roles') return 'Add Job Role';
-    return undefined;
-  };
-
-  // Handlers
-  const handleOpenAddModal = () => {
-    if (level === 'clusters') setEditingItem({ type: 'cluster' });
-    else if (level === 'industries') setEditingItem({ type: 'industry' });
-    else if (level === 'domains') setEditingItem({ type: 'domain' });
-    else setEditingItem({ type: 'role' });
-    setIsAddEditOpen(true);
-  };
-
-  const handleOpenEditModal = (type: 'cluster' | 'industry' | 'domain' | 'role', item: any) => {
-    setEditingItem({ type, item });
-    setIsAddEditOpen(true);
-  };
-
-  const handleFormSubmit = (data: AddEditFormData) => {
-    if (!editingItem) return;
-
-    if (editingItem.type === 'cluster') {
-      if (editingItem.item) {
-        updateClusterMutation.mutate({
-          id: editingItem.item.id,
-          payload: { name: data.name, description: data.description },
-        });
-      } else {
-        createClusterMutation.mutate({ name: data.name, description: data.description });
-      }
-    } else if (editingItem.type === 'industry') {
-      if (editingItem.item) {
-        updateIndustryMutation.mutate({
-          id: editingItem.item.id,
-          payload: { name: data.name, description: data.description },
-        });
-      } else {
-        createIndustryMutation.mutate({
-          clusterName: selectedCluster?.name || 'Arts, Design & Creative',
-          name: data.name,
-          description: data.description,
-        });
-      }
-    } else if (editingItem.type === 'domain') {
-      if (editingItem.item) {
-        updateDomainMutation.mutate({
-          id: editingItem.item.id,
-          payload: { name: data.name, description: data.description },
-        });
-      } else {
-        createDomainMutation.mutate({
-          clusterName: selectedCluster?.name || 'Arts, Design & Creative',
-          industryName: selectedIndustry?.name || 'Applied Arts',
-          name: data.name,
-          description: data.description,
-        });
-      }
-    } else if (editingItem.type === 'role') {
-      if (editingItem.item) {
-        updateRoleMutation.mutate({
-          id: editingItem.item.id,
-          payload: {
-            jobRole: data.name,
-            title: data.name,
-            oneLineDescription: data.description || 'Job role specification.',
-            aiResilienceGrading: data.aiResilience || 'High',
-            approxSalaryRangeIndia: data.salaryIndia || '₹4–15 LPA',
-            globalSalaryRange: data.salaryGlobal || '$70k–$120k',
-            topCompaniesRecruiting: data.topRecruiters
-              ? data.topRecruiters.split(',')
-              : ['Tech Firms'],
-          },
-        });
-      } else {
-        createRoleMutation.mutate({
-          jobRole: data.name,
-          title: data.name,
-          careerCluster: selectedCluster?.name || 'Arts, Design & Creative',
-          industry: selectedIndustry?.name || 'Applied Arts',
-          domain: selectedDomain?.name || 'Digital Arts',
-          oneLineDescription: data.description || 'Job role specification.',
-          aiResilienceGrading: data.aiResilience || 'High',
-          approxSalaryRangeIndia: data.salaryIndia || '₹4–15 LPA',
-          globalSalaryRange: data.salaryGlobal || '$70k–$120k',
-          topCompaniesRecruiting: data.topRecruiters
-            ? data.topRecruiters.split(',')
-            : ['Tech Firms'],
-        });
-      }
-    }
-  };
-
-  const handleConfirmDelete = () => {
-    if (!deleteTarget) return;
-    if (deleteTarget.type === 'cluster') deleteClusterMutation.mutate(deleteTarget.id);
-    else if (deleteTarget.type === 'industry') deleteIndustryMutation.mutate(deleteTarget.id);
-    else if (deleteTarget.type === 'domain') deleteDomainMutation.mutate(deleteTarget.id);
-    else if (deleteTarget.type === 'role') deleteRoleMutation.mutate(deleteTarget.id);
-    setDeleteTarget(null);
+  const getHeaderSubtitle = () => {
+    if (level === 'clusters')
+      return 'Select a career cluster to explore industries and specialization tracks';
+    if (level === 'industries') return `Industries under ${selectedCluster?.name || ''}`;
+    if (level === 'domains') return `Domains under ${selectedIndustry?.name || ''}`;
+    if (level === 'roles') return `Job roles under ${selectedDomain?.name || ''}`;
+    return '';
   };
 
   const handleBack = () => {
@@ -464,33 +359,42 @@ export const CareerListPage: React.FC = () => {
     }
   };
 
-  const { role } = useAuthStore();
-  const isSuperAdmin = role === 'super_admin';
-
-  const addLabel = getAddLabel();
+  // Keep the same job role when switching to Card View: rebuild the drill-down path
+  // from the shared selected role and jump straight to its detail.
+  const switchToCard = () => {
+    if (selectedRole) {
+      const cluster =
+        allClusters.find(c => c.name === selectedRole.careerCluster) || selectedCluster;
+      const industry =
+        allIndustries.find(i => i.name === selectedRole.industry) || selectedIndustry;
+      const domain = allDomains.find(d => d.name === selectedRole.domain) || selectedDomain;
+      if (cluster) setSelectedCluster(cluster);
+      if (industry) setSelectedIndustry(industry);
+      if (domain) setSelectedDomain(domain);
+      setLevel('detail');
+    }
+    setViewMode('card');
+  };
 
   return (
     <Container>
       <PageHeader
         title={viewMode === 'simple' ? 'Career Library Spec Browser' : getHeaderTitle()}
+        subtitle={
+          viewMode === 'simple'
+            ? 'Select hierarchy options on the left panel to inspect full job role specifications'
+            : getHeaderSubtitle()
+        }
         breadcrumbs={[{ label: 'Dashboard', href: ROUTES.DASHBOARD }, { label: 'Career Library' }]}
         onBack={viewMode === 'card' && level !== 'clusters' ? handleBack : undefined}
         actions={
           <ViewToggleContainer>
-            <ViewToggleButton
-              $active={viewMode === 'card'}
-              onClick={() => setViewMode('card')}
-            >
+            <ViewToggleButton $active={viewMode === 'card'} onClick={switchToCard}>
               <RiLayoutGridLine size={16} /> Card View
             </ViewToggleButton>
             <ViewToggleButton
               $active={viewMode === 'simple'}
-              onClick={() => {
-                setViewMode('simple');
-                if (!selectedCluster && clusters.length > 0) {
-                  setSelectedCluster(clusters[0]);
-                }
-              }}
+              onClick={() => setViewMode('simple')}
             >
               <RiListCheck2 size={16} /> Simple View
             </ViewToggleButton>
@@ -498,21 +402,31 @@ export const CareerListPage: React.FC = () => {
         }
       />
 
+      {lastDeleted && (
+        <UndoBanner>
+          <span>
+            "{lastDeleted.name}" ({lastDeleted.kind}) was deleted.
+          </span>
+          <UndoButton
+            type="button"
+            onClick={() => restoreMutation.mutate(lastDeleted)}
+            disabled={restoreMutation.isPending}
+          >
+            <RiArrowGoBackLine size={14} />
+            {restoreMutation.isPending ? 'Restoring…' : 'Undo'}
+          </UndoButton>
+        </UndoBanner>
+      )}
+
       {viewMode === 'simple' ? (
         <SimpleView
-          clusters={clusters}
-          industries={industries}
-          domains={domains}
-          roles={roles}
-          entranceExams={entranceExams}
-          courses={courses}
-          institutions={institutions}
-          onToggleShortlist={id => toggleShortlistMutation.mutate(id)}
-          onToggleExamShortlist={id => toggleExamShortlistMutation.mutate(id)}
-          onToggleInstitutionShortlist={id => toggleInstShortlistMutation.mutate(id)}
-          onEditRole={
-            isSuperAdmin ? roleItem => handleOpenEditModal('role', roleItem) : undefined
-          }
+          clusters={allClusters}
+          industries={allIndustries}
+          domains={allDomains}
+          selectedRole={selectedRole}
+          onSelectRole={setSelectedRole}
+          onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}
+          roles={allRoles}
         />
       ) : (
         <ContentCard>
@@ -521,39 +435,85 @@ export const CareerListPage: React.FC = () => {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             actions={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {isSuperAdmin && viewMode === 'card' && level === 'clusters' && (
-                  <Button
-                    variant="secondary"
-                    leftIcon={<RiUploadCloudLine size={18} />}
-                    onClick={() => setIsBulkUploadOpen(true)}
-                  >
-                    Bulk Upload
-                  </Button>
-                )}
-                {isSuperAdmin && level !== 'detail' && addLabel && (
-                  <Button leftIcon={<RiAddLine size={18} />} onClick={handleOpenAddModal}>
-                    {addLabel}
-                  </Button>
-                )}
-              </div>
+              canWrite && level !== 'detail' ? (
+                <>
+                  {level === 'clusters' && (
+                    <Button
+                      size="sm"
+                      leftIcon={<RiAddLine size={16} />}
+                      onClick={() => setTaxonomyModal({ level: 'cluster', mode: 'add' })}
+                    >
+                      Add Cluster
+                    </Button>
+                  )}
+                  {level === 'industries' && selectedCluster && (
+                    <Button
+                      size="sm"
+                      leftIcon={<RiAddLine size={16} />}
+                      onClick={() =>
+                        setTaxonomyModal({
+                          level: 'industry',
+                          mode: 'add',
+                          parentId: selectedCluster.id,
+                          parentLabel: selectedCluster.name,
+                        })
+                      }
+                    >
+                      Add Industry
+                    </Button>
+                  )}
+                  {level === 'domains' && selectedIndustry && (
+                    <Button
+                      size="sm"
+                      leftIcon={<RiAddLine size={16} />}
+                      onClick={() =>
+                        setTaxonomyModal({
+                          level: 'domain',
+                          mode: 'add',
+                          parentId: selectedIndustry.id,
+                          parentLabel: selectedIndustry.name,
+                        })
+                      }
+                    >
+                      Add Domain
+                    </Button>
+                  )}
+                  {level === 'roles' && selectedDomain && (
+                    <Button
+                      size="sm"
+                      leftIcon={<RiAddLine size={16} />}
+                      onClick={() => setRoleModal({ mode: 'add' })}
+                    >
+                      Add Job Role
+                    </Button>
+                  )}
+                </>
+              ) : undefined
             }
           />
 
           {level === 'clusters' && (
             <ClustersView
               clusters={clusters}
-              selectedClusterName={selectedCluster?.name || 'Arts, Design & Creative'}
+              selectedClusterName={selectedCluster?.name}
               onSelectCluster={cluster => {
                 setSelectedCluster(cluster);
                 setLevel('industries');
               }}
               onEditCluster={
-                isSuperAdmin ? cluster => handleOpenEditModal('cluster', cluster) : undefined
+                canWrite
+                  ? cluster =>
+                      setTaxonomyModal({
+                        level: 'cluster',
+                        mode: 'edit',
+                        entity: { id: cluster.id, name: cluster.name },
+                      })
+                  : undefined
               }
               onDeleteCluster={
-                isSuperAdmin
-                  ? cluster => setDeleteTarget({ type: 'cluster', id: cluster.id, name: cluster.name })
+                canWrite
+                  ? cluster =>
+                      setDeleteTarget({ kind: 'cluster', id: cluster.id, name: cluster.name })
                   : undefined
               }
             />
@@ -562,17 +522,24 @@ export const CareerListPage: React.FC = () => {
           {level === 'industries' && (
             <IndustriesView
               industries={industries}
-              selectedIndustryName={selectedIndustry?.name || 'Applied Arts'}
+              selectedIndustryName={selectedIndustry?.name}
               onSelectIndustry={ind => {
                 setSelectedIndustry(ind);
                 setLevel('domains');
               }}
               onEditIndustry={
-                isSuperAdmin ? ind => handleOpenEditModal('industry', ind) : undefined
+                canWrite
+                  ? ind =>
+                      setTaxonomyModal({
+                        level: 'industry',
+                        mode: 'edit',
+                        entity: { id: ind.id, name: ind.name },
+                      })
+                  : undefined
               }
               onDeleteIndustry={
-                isSuperAdmin
-                  ? ind => setDeleteTarget({ type: 'industry', id: ind.id, name: ind.name })
+                canWrite
+                  ? ind => setDeleteTarget({ kind: 'industry', id: ind.id, name: ind.name })
                   : undefined
               }
             />
@@ -581,17 +548,24 @@ export const CareerListPage: React.FC = () => {
           {level === 'domains' && (
             <DomainsView
               domains={domains}
-              selectedDomainName={selectedDomain?.name || 'Digital Arts'}
+              selectedDomainName={selectedDomain?.name}
               onSelectDomain={dom => {
                 setSelectedDomain(dom);
                 setLevel('roles');
               }}
               onEditDomain={
-                isSuperAdmin ? dom => handleOpenEditModal('domain', dom) : undefined
+                canWrite
+                  ? dom =>
+                      setTaxonomyModal({
+                        level: 'domain',
+                        mode: 'edit',
+                        entity: { id: dom.id, name: dom.name },
+                      })
+                  : undefined
               }
               onDeleteDomain={
-                isSuperAdmin
-                  ? dom => setDeleteTarget({ type: 'domain', id: dom.id, name: dom.name })
+                canWrite
+                  ? dom => setDeleteTarget({ kind: 'domain', id: dom.id, name: dom.name })
                   : undefined
               }
             />
@@ -600,84 +574,71 @@ export const CareerListPage: React.FC = () => {
           {level === 'roles' && (
             <JobRolesView
               roles={roles}
-              selectedRoleId={selectedRole?.id || 'role-ui-1'}
+              selectedRoleId={selectedRole?.id}
               onSelectRole={role => {
                 setSelectedRole(role);
                 setLevel('detail');
               }}
-              onEditRole={
-                isSuperAdmin ? role => handleOpenEditModal('role', role) : undefined
-              }
+              onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}
               onDeleteRole={
-                isSuperAdmin
-                  ? role => setDeleteTarget({ type: 'role', id: role.id, name: role.jobRole })
+                canWrite
+                  ? role => setDeleteTarget({ kind: 'role', id: role.id, name: role.jobRole })
                   : undefined
               }
             />
           )}
 
-          {level === 'detail' && selectedRole && (
+          {level === 'detail' && selectedRole && roleDetail && (
             <JobRoleDetailView
-              role={selectedRole}
-              entranceExams={entranceExams}
-              courses={courses}
-              institutions={institutions}
-              onToggleShortlist={() => toggleShortlistMutation.mutate(selectedRole.id)}
-              onToggleExamShortlist={id => toggleExamShortlistMutation.mutate(id)}
-              onToggleInstitutionShortlist={id => toggleInstShortlistMutation.mutate(id)}
-              onEditRole={
-                isSuperAdmin ? role => handleOpenEditModal('role', role) : undefined
-              }
+              role={roleDetail.career}
+              entranceExams={roleDetail.entranceExams}
+              courses={roleDetail.courses}
+              relatedCourses={roleDetail.relatedCourses}
+              institutions={roleDetail.institutions}
+              linkedEducationEntries={roleDetail.linkedEducationEntries}
+              onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}
             />
           )}
         </ContentCard>
       )}
 
-      {/* Bulk Upload Modal */}
-      <BulkUploadModal
-        isOpen={isBulkUploadOpen}
-        onClose={() => setIsBulkUploadOpen(false)}
+      <TaxonomyFormModal
+        isOpen={Boolean(taxonomyModal)}
+        onClose={() => setTaxonomyModal(null)}
+        onSaved={invalidateCareer}
+        level={taxonomyModal?.level ?? 'cluster'}
+        mode={taxonomyModal?.mode ?? 'add'}
+        entity={taxonomyModal?.entity}
+        parentId={taxonomyModal?.parentId}
+        parentLabel={taxonomyModal?.parentLabel}
       />
 
-      {/* Add / Edit Modal */}
-      <AddEditModal
-        isOpen={isAddEditOpen}
-        onClose={() => {
-          setIsAddEditOpen(false);
-          setEditingItem(null);
-        }}
-        title={
-          editingItem?.item
-            ? `Edit ${editingItem.type.toUpperCase()}: ${editingItem.item.name || editingItem.item.jobRole}`
-            : `Add New ${editingItem?.type.toUpperCase()}`
-        }
-        isJobRole={editingItem?.type === 'role'}
-        initialValues={
-          editingItem?.item
-            ? {
-                name: editingItem.item.name || editingItem.item.jobRole,
-                description: editingItem.item.description || editingItem.item.oneLineDescription,
-                aiResilience: editingItem.item.aiResilienceGrading || 'High',
-                salaryIndia: editingItem.item.approxSalaryRangeIndia || '₹4–15 LPA',
-                salaryGlobal: editingItem.item.globalSalaryRange || '$70k–$120k',
-                topRecruiters: Array.isArray(editingItem.item.topCompaniesRecruiting)
-                  ? editingItem.item.topCompaniesRecruiting.join(', ')
-                  : editingItem.item.topCompaniesRecruiting || 'Tech Firms, Startups',
-              }
-            : undefined
-        }
-        onSubmit={handleFormSubmit}
+      <JobRoleFormModal
+        isOpen={Boolean(roleModal)}
+        onClose={() => setRoleModal(null)}
+        onSaved={handleRoleSaved}
+        mode={roleModal?.mode ?? 'add'}
+        entity={roleModal?.entity}
+        domainId={selectedDomain?.id}
+        domainLabel={selectedDomain?.name}
+        clusterLabel={selectedCluster?.name}
+        industryLabel={selectedIndustry?.name}
       />
 
-      {/* Confirmation Modal */}
       <AlertModal
-        isOpen={!!deleteTarget}
+        isOpen={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
-        onConfirm={handleConfirmDelete}
-        title={`Delete ${deleteTarget?.type.toUpperCase()}`}
-        description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+        title={`Delete ${deleteTarget?.kind === 'role' ? 'Job Role' : deleteTarget?.kind ?? ''}`}
+        description={`Are you sure you want to delete "${deleteTarget?.name}"?${
+          deleteTarget && deleteTarget.kind !== 'role'
+            ? ' Its child items may be affected.'
+            : ''
+        }`}
         variant="danger"
-        confirmText="Delete Item"
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleteMutation.isPending}
       />
     </Container>
   );

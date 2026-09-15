@@ -33,7 +33,10 @@ export const useNotificationStore = create<NotificationStore>()(
       set(state => ({
         notifications: [...state.notifications, { ...notification, id }],
       }));
-      const duration = notification.duration ?? 4000;
+      // Longer messages (e.g. detailed backend error text) need more time to read
+      // than the 4s default gives, so scale with length instead of clipping it.
+      const textLength = notification.title.length + (notification.message?.length ?? 0);
+      const duration = notification.duration ?? Math.min(10000, Math.max(4000, textLength * 60));
       if (duration > 0) {
         setTimeout(() => {
           set(state => ({

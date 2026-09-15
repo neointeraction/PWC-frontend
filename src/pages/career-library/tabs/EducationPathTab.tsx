@@ -2,6 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { Card } from '@/components/Card';
 import { Career } from '@/types';
+import { DomainEducationEntry } from '@/services/career.service';
 
 const Container = styled.div`
   display: flex;
@@ -132,9 +133,52 @@ const CertPill = styled.span`
 
 interface EducationPathTabProps {
   role: Career;
+  // Structured education-path ticks (SA-12): once a role has entries for a level, they
+  // take over that step from the legacy free-text columns, which an edit no longer
+  // keeps in sync (see docs/pending-items.md SA-12).
+  linkedEducationEntries?: DomainEducationEntry[];
 }
 
-export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
+// Certifications arrive as a '; '-joined string from the mapper — split back to pills.
+const toList = (value?: string): string[] =>
+  (value || '')
+    .split(/[;,]/)
+    .map(item => item.trim())
+    .filter(Boolean);
+
+const byLevel = (entries: DomainEducationEntry[], level: DomainEducationEntry['level']) =>
+  entries.filter(e => e.level === level);
+
+// Multiple programmes at the same level (e.g. BDes / BFA / Relevant Degree) render as one
+// combined line instead of a separate title+description block per programme.
+const renderStepEntries = (entries: DomainEducationEntry[]) => {
+  const programmes = entries.map(entry => entry.programme).join(' / ');
+  const descriptions = Array.from(
+    new Set(entries.map(entry => entry.description).filter((d): d is string => Boolean(d)))
+  );
+  return (
+    <>
+      <StepTitle>{programmes}</StepTitle>
+      {descriptions.map((description, i) => (
+        <StepSubtitle key={i}>{description}</StepSubtitle>
+      ))}
+    </>
+  );
+};
+
+export const EducationPathTab: React.FC<EducationPathTabProps> = ({
+  role,
+  linkedEducationEntries = [],
+}) => {
+  const class10Plus2 = byLevel(linkedEducationEntries, 'CLASS_10_PLUS_2');
+  const graduate = byLevel(linkedEducationEntries, 'GRADUATE');
+  const postGraduate = byLevel(linkedEducationEntries, 'POST_GRADUATE');
+  const studentCertEntries = byLevel(linkedEducationEntries, 'CERTIFICATION_STUDENT');
+  const ugCertEntries = byLevel(linkedEducationEntries, 'CERTIFICATION_UG');
+
+  const studentCerts = toList(role.certificationsStudents);
+  const ugCerts = toList(role.certificationsUG);
+
   return (
     <Container>
       <TimelineCard>
@@ -147,20 +191,44 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
         <StepGrid>
           <StepCard>
             <StepLabel>10+2</StepLabel>
-            <StepTitle>12th — Any stream</StepTitle>
-            <StepSubtitle>{role.minQual10th12thRecommendedSubjects || '12th Standard Fine Arts / Computer Application'}</StepSubtitle>
+            {class10Plus2.length > 0 ? (
+              renderStepEntries(class10Plus2)
+            ) : (
+              <>
+                <StepTitle>{role.minQual10th12thRecommendedSubjects || '—'}</StepTitle>
+                {role.qualification10th12thExplanation && (
+                  <StepSubtitle>{role.qualification10th12thExplanation}</StepSubtitle>
+                )}
+              </>
+            )}
           </StepCard>
 
           <StepCard>
             <StepLabel>GRADUATE</StepLabel>
-            <StepTitle>BDes / BFA / Relevant Degree</StepTitle>
-            <StepSubtitle>Recommended focus: UI/UX Design &amp; Digital Arts</StepSubtitle>
+            {graduate.length > 0 ? (
+              renderStepEntries(graduate)
+            ) : (
+              <>
+                <StepTitle>{role.minQualGradRecommendedSubjects || '—'}</StepTitle>
+                {role.qualificationGraduationDefined && (
+                  <StepSubtitle>{role.qualificationGraduationDefined}</StepSubtitle>
+                )}
+              </>
+            )}
           </StepCard>
 
           <StepCard>
             <StepLabel>POST-GRADUATE</StepLabel>
-            <StepTitle>MDes, MFA, Design Management</StepTitle>
-            <StepSubtitle>Advanced Human-Computer Interaction</StepSubtitle>
+            {postGraduate.length > 0 ? (
+              renderStepEntries(postGraduate)
+            ) : (
+              <>
+                <StepTitle>{role.minQualPGRecommendedSubjects || '—'}</StepTitle>
+                {role.qualificationPGDefined && (
+                  <StepSubtitle>{role.qualificationPGDefined}</StepSubtitle>
+                )}
+              </>
+            )}
           </StepCard>
         </StepGrid>
       </TimelineCard>
@@ -169,19 +237,26 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({ role }) => {
         <CertCard>
           <CertTitle>Certifications — Student Level</CertTitle>
           <PillGroup>
-            <CertPill>Adobe Photoshop Skills</CertPill>
-            <CertPill>Canva Design Mastery</CertPill>
-            <CertPill>Graphic Design Fundamentals</CertPill>
+            {studentCertEntries.length > 0 ? (
+              studentCertEntries.map(entry => <CertPill key={entry.id}>{entry.programme}</CertPill>)
+            ) : studentCerts.length > 0 ? (
+              studentCerts.map((cert, i) => <CertPill key={i}>{cert}</CertPill>)
+            ) : (
+              <StepSubtitle>No certifications listed.</StepSubtitle>
+            )}
           </PillGroup>
         </CertCard>
 
         <CertCard>
           <CertTitle>Certifications — Undergraduate Level</CertTitle>
           <PillGroup>
-            <CertPill>Adobe Certified Professional</CertPill>
-            <CertPill>UI/UX Design Specialization</CertPill>
-            <CertPill>Motion Graphics &amp; After Effects</CertPill>
-            <CertPill>UX Tools</CertPill>
+            {ugCertEntries.length > 0 ? (
+              ugCertEntries.map(entry => <CertPill key={entry.id}>{entry.programme}</CertPill>)
+            ) : ugCerts.length > 0 ? (
+              ugCerts.map((cert, i) => <CertPill key={i}>{cert}</CertPill>)
+            ) : (
+              <StepSubtitle>No certifications listed.</StepSubtitle>
+            )}
           </PillGroup>
         </CertCard>
       </CertificationsGrid>

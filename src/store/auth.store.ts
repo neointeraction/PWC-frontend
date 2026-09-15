@@ -14,6 +14,7 @@ export interface AuthActions {
   login: (user: User, token: string) => void;
   logout: () => void;
   setUser: (user: User) => void;
+  setToken: (token: string) => void;
   setMustResetPassword: (mustReset: boolean) => void;
   clearSession: () => void;
 }
@@ -35,7 +36,13 @@ export const useAuthStore = create<AuthStore>()(
             token,
             role: user.role,
             isAuthenticated: true,
-            mustResetPassword: user.role === 'counselor' || user.role === 'student',
+            // App-admin roles (super admin / admin / view-only admin) are never forced
+            // through the mandatory password-change flow, regardless of the backend flag.
+            mustResetPassword:
+              user.role === 'super_admin' || user.role === 'admin' || user.role === 'view_only'
+                ? false
+                : user.mustChangePassword ??
+                  (user.role === 'counselor' || user.role === 'student'),
           }),
         logout: () =>
           set({
@@ -50,6 +57,7 @@ export const useAuthStore = create<AuthStore>()(
             user,
             role: user.role,
           }),
+        setToken: token => set({ token }),
         setMustResetPassword: mustReset =>
           set({
             mustResetPassword: mustReset,

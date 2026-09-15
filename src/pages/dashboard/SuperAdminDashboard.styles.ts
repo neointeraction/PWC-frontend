@@ -189,6 +189,36 @@ export const ApproveButton = styled.button`
   }
 `;
 
+export const IdentityCell = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+export const IdLine = styled.span`
+  font-size: 11px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+export const CloseButton = styled.button`
+  background-color: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all ${({ theme }) => theme.transition.fast};
+
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.dangerLight};
+    border-color: ${({ theme }) => theme.colors.danger};
+    color: ${({ theme }) => theme.colors.danger};
+  }
+`;
+
 export const ModalDetailCard = styled.div`
   background-color: ${({ theme }) => theme.colors.primaryLight};
   border: 1px solid ${({ theme }) => theme.colors.primaryMuted};

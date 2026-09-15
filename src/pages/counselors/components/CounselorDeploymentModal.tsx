@@ -79,16 +79,11 @@ export const CounselorDeploymentModal: React.FC<CounselorDeploymentModalProps> =
 }) => {
   if (!counselor) return null;
 
-  const projects = counselor.projectsList && counselor.projectsList.length > 0
-    ? counselor.projectsList
-    : [
-        {
-          schoolName: counselor.projectDeployedName || 'St. Xavier\'s College, Mumbai',
-          totalAllotted: counselor.totalAllotted || 0,
-          session1Balance: counselor.session1Balance || 0,
-          session2Balance: counselor.session2Balance || 0,
-        },
-      ];
+  const projects = counselor.projectsList ?? [];
+
+  const totalAllotted = projects.reduce((sum, p) => sum + p.totalAllotted, 0);
+  const session1Balance = projects.reduce((sum, p) => sum + p.session1Balance, 0);
+  const session2Balance = projects.reduce((sum, p) => sum + p.session2Balance, 0);
 
   const columns: Column<ProjectDeploymentDetail>[] = [
     {
@@ -132,17 +127,17 @@ export const CounselorDeploymentModal: React.FC<CounselorDeploymentModalProps> =
           <div style={{ display: 'flex', gap: '24px' }}>
             <SummaryStat>
               <span>Total Allotted</span>
-              <span>{counselor.totalAllotted ?? 62}</span>
+              <span>{totalAllotted}</span>
             </SummaryStat>
 
             <SummaryStat>
               <span>S1 Balance</span>
-              <span>{counselor.session1Balance ?? 18}</span>
+              <span>{session1Balance}</span>
             </SummaryStat>
 
             <SummaryStat>
               <span>S2 Balance</span>
-              <span>{counselor.session2Balance ?? 26}</span>
+              <span>{session2Balance}</span>
             </SummaryStat>
           </div>
         </CounselorMetaCard>

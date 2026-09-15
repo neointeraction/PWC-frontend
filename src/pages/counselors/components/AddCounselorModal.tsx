@@ -18,7 +18,6 @@ const addCounselorSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   mobile: z.string().min(10, 'Mobile number must be at least 10 digits'),
   meetingLink: z.string().optional(),
-  pwd: z.string().optional(),
   status: z.enum(['active', 'inactive']),
 });
 
@@ -43,7 +42,6 @@ export const AddCounselorModal: React.FC = () => {
       email: '',
       mobile: '',
       meetingLink: '',
-      pwd: '',
       status: 'active',
     },
   });
@@ -52,6 +50,7 @@ export const AddCounselorModal: React.FC = () => {
     mutationFn: counselorService.create,
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['counselors'] });
+      queryClient.invalidateQueries({ queryKey: ['counselors-stats'] });
       toast.success('Counselor Added', `Successfully registered counselor ${data.name} (${data.counselorId}).`);
       reset();
       closeAddModal();
@@ -86,7 +85,7 @@ export const AddCounselorModal: React.FC = () => {
       <ModalForm id="add-counselor-form" onSubmit={handleSubmit(onSubmit)}>
         <Input
           label="Counselor ID"
-          placeholder="e.g. C014"
+          placeholder="Enter counselor ID"
           error={errors.counselorId?.message}
           {...register('counselorId')}
         />
@@ -118,14 +117,6 @@ export const AddCounselorModal: React.FC = () => {
           placeholder="e.g. https://meet.google.com/abc-defg-hij"
           error={errors.meetingLink?.message}
           {...register('meetingLink')}
-        />
-
-        <Input
-          label="Password / PWD (Optional)"
-          type="password"
-          placeholder="Leave blank for auto-generated password"
-          error={errors.pwd?.message}
-          {...register('pwd')}
         />
 
         <Controller

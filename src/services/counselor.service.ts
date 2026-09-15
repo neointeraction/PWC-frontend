@@ -1,19 +1,100 @@
+import { apiClient } from './api';
 import {
   Counselor,
   CounselorFilterParams,
   CounselorListResponse,
   CreateCounselorInput,
   UpdateCounselorInput,
+  ProjectDeploymentDetail,
 } from '@/types/counselor.types';
-import { mockCounselors } from '@/mocks/counselors.mock';
+import { formatFullName, getApiErrorMessage, normalizePhone } from '@/utils';
 
-let counselorDb: Counselor[] = [...mockCounselors];
+// One import row that never made it in, with the reason to show the user.
+export interface BulkCreateFailure {
+  name: string;
+  reason: string;
+}
+
+export interface BulkCreateResult {
+  created: Counselor[];
+  failures: BulkCreateFailure[];
+}
+
+// ---- Backend counsellor shape (GET /counsellors — user + institute + projects) ----
+interface ApiCounsellor {
+  id: string;
+  counsellorCode: string;
+  mobile: string;
+  meetingLink?: string;
+  createdAt?: string;
+  user: { id: string; email: string; firstName: string; lastName: string; isActive: boolean };
+  institute?: { id: string; name: string };
+  projects?: { projectId: string; project?: { id: string; name: string } }[];
+}
+
+// The logged-in counsellor's own record (`GET /counsellors/me`) — resolves the User id
+// from the JWT to the Counsellor id + assigned projects that the session-scheduling
+// screens are keyed on.
+export interface CurrentCounselorProject {
+  projectId: string;
+  name: string;
+}
+
+export interface CurrentCounselor {
+  id: string;
+  counsellorCode: string;
+  mobile: string;
+  user: { id: string; email: string; firstName: string; lastName: string };
+  projects: CurrentCounselorProject[];
+}
+
+const splitName = (full: string): { firstName: string; lastName: string } => {
+  const parts = full.trim().split(/\s+/);
+  return { firstName: parts[0] || full.trim(), lastName: parts.slice(1).join(' ') || parts[0] || '' };
+};
+
+const mapCounsellor = (c: ApiCounsellor): Counselor => {
+  const projectsList: ProjectDeploymentDetail[] = (c.projects ?? []).map(p => ({
+    schoolName: p.project?.name ?? '',
+    totalAllotted: 0,
+    session1Balance: 0,
+    session2Balance: 0,
+  }));
+  const active = c.user.isActive;
+  return {
+    id: c.id,
+    counselorId: c.counsellorCode,
+    name: formatFullName(c.user.firstName, c.user.lastName),
+    email: c.user.email,
+    mobile: c.mobile,
+    meetingLink: c.meetingLink,
+    status: active ? 'active' : 'inactive',
+    deploymentStatus: !active ? 'inactive' : projectsList.length > 0 ? 'deployed' : 'bench',
+    projectDeployedName: projectsList[0]?.schoolName,
+    projectsList,
+    createdAt: c.createdAt ? c.createdAt.slice(0, 10) : '',
+  };
+};
 
 export const counselorService = {
-  async getAll(params: CounselorFilterParams = {}): Promise<CounselorListResponse> {
-    await new Promise(resolve => setTimeout(resolve, 200));
+  // GET /api/v1/counsellors/me — self-service, the entry point every counsellor-facing
+  // screen needs for its Counsellor id + assigned projects.
+  getMe: async (): Promise<CurrentCounselor> => {
+    const { data } = await apiClient.get<ApiCounsellor>('/counsellors/me');
+    return {
+      id: data.id,
+      counsellorCode: data.counsellorCode,
+      mobile: data.mobile,
+      user: data.user,
+      projects: (data.projects ?? []).map(p => ({ projectId: p.projectId, name: p.project?.name ?? '' })),
+    };
+  },
 
-    let filtered = [...counselorDb];
+  // GET /api/v1/counsellors — flat array; search/status/pagination are client-side to
+  // keep the existing table contract.
+  async getAll(params: CounselorFilterParams = {}): Promise<CounselorListResponse> {
+    const { data } = await apiClient.get<ApiCounsellor[]>('/counsellors');
+    let filtered = data.map(mapCounsellor);
 
     if (params.search) {
       const q = params.search.toLowerCase();
@@ -25,7 +106,6 @@ export const counselorService = {
           c.mobile.includes(q)
       );
     }
-
     if (params.status && params.status !== 'all') {
       filtered = filtered.filter(c => c.status === params.status);
     }
@@ -34,74 +114,67 @@ export const counselorService = {
     const limit = params.limit || 10;
     const total = filtered.length;
     const totalPages = Math.ceil(total / limit) || 1;
-
     const start = (page - 1) * limit;
-    const data = filtered.slice(start, start + limit);
-
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+    return { data: filtered.slice(start, start + limit), total, page, limit, totalPages };
   },
 
   async getById(id: string): Promise<Counselor> {
-    await new Promise(resolve => setTimeout(resolve, 150));
-    const item = counselorDb.find(c => c.id === id);
-    if (!item) throw new Error('Counselor not found');
-    return item;
+    const { data } = await apiClient.get<ApiCounsellor>(`/counsellors/${id}`);
+    return mapCounsellor(data);
   },
 
+  // POST /api/v1/counsellors. The backend also returns a one-time tempPassword; the
+  // directory UI doesn't surface it, so only the mapped record is returned.
   async create(input: CreateCounselorInput): Promise<Counselor> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const newCounselor: Counselor = {
-      id: `cns-${Date.now()}`,
-      counselorId: input.counselorId || `C0${counselorDb.length + 1}`,
-      name: input.name,
+    const { firstName, lastName } = splitName(input.name);
+    const { data } = await apiClient.post<{ counsellor: ApiCounsellor }>('/counsellors', {
+      firstName,
+      lastName,
       email: input.email,
-      mobile: input.mobile,
-      pwd: input.pwd || '',
-      status: input.status || 'active',
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    counselorDb.unshift(newCounselor);
-    return newCounselor;
+      mobile: normalizePhone(input.mobile),
+      // Required by the backend (no longer auto-generated).
+      counsellorCode: (input.counselorId || '').trim(),
+      ...(input.pwd ? { password: input.pwd } : {}),
+      ...(input.meetingLink ? { meetingLink: input.meetingLink } : {}),
+    });
+    return mapCounsellor(data.counsellor);
   },
 
-  async bulkCreate(inputs: CreateCounselorInput[]): Promise<Counselor[]> {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    const createdList: Counselor[] = inputs.map((input, index) => ({
-      id: `cns-${Date.now()}-${index}`,
-      counselorId: input.counselorId || `C${String(counselorDb.length + index + 1).padStart(3, '0')}`,
-      name: input.name,
-      email: input.email,
-      mobile: input.mobile,
-      pwd: input.pwd || '',
-      status: input.status || 'active',
-      createdAt: new Date().toISOString().split('T')[0],
-    }));
-    counselorDb.unshift(...createdList);
-    return createdList;
+  // No bulk endpoint — sequential creates. A failing row (duplicate email/mobile, bad
+  // format) is skipped rather than aborting the batch, but the reason is returned so the
+  // caller can tell the user which rows never made it in.
+  async bulkCreate(inputs: CreateCounselorInput[]): Promise<BulkCreateResult> {
+    const created: Counselor[] = [];
+    const failures: BulkCreateFailure[] = [];
+    for (const input of inputs) {
+      try {
+        created.push(await counselorService.create(input));
+      } catch (err) {
+        failures.push({
+          name: input.name || input.email || input.counselorId || 'Unknown',
+          reason: getApiErrorMessage(err, 'Rejected by the server'),
+        });
+      }
+    }
+    return { created, failures };
   },
 
   async update(id: string, input: UpdateCounselorInput): Promise<Counselor> {
-    await new Promise(resolve => setTimeout(resolve, 250));
-    const index = counselorDb.findIndex(c => c.id === id);
-    if (index === -1) throw new Error('Counselor not found');
-
-    const updated: Counselor = {
-      ...counselorDb[index],
-      ...input,
-    };
-    counselorDb[index] = updated;
-    return updated;
+    const body: Record<string, unknown> = {};
+    if (input.name !== undefined) {
+      const { firstName, lastName } = splitName(input.name);
+      body.firstName = firstName;
+      body.lastName = lastName;
+    }
+    if (input.mobile !== undefined) body.mobile = input.mobile;
+    if (input.meetingLink !== undefined) body.meetingLink = input.meetingLink;
+    if (input.status !== undefined) body.isActive = input.status === 'active';
+    const { data } = await apiClient.patch<ApiCounsellor>(`/counsellors/${id}`, body);
+    return mapCounsellor(data);
   },
 
   async delete(id: string): Promise<boolean> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    counselorDb = counselorDb.filter(c => c.id !== id);
+    await apiClient.delete(`/counsellors/${id}`);
     return true;
   },
 };

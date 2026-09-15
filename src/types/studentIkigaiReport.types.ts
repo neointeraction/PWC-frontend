@@ -1,0 +1,103 @@
+// View-model types for the kREATE Compass Report page, assembled from
+// GET /api/v1/reports/students/{studentId}/assessment (docs/api-list.md "Reports"). The
+// printed/PDF-exported version of the report additionally reads counsellor-authored
+// session-local fields (roadmap grid, colleges/exams, notes) straight off the
+// GET /counsellor-chart/students/{studentId} response already fetched by
+// StudentCareerIkigaiReportPage.tsx — see sections/print/PrintReportContent.tsx.
+
+export interface TraitMapItem {
+  no: number;
+  layerTrait: string;
+  traitName: string;
+  whatItMeasures: string;
+  grade: string;
+  gradeMeaning: string;
+}
+
+export interface ReliabilityMetric {
+  code: string;
+  name: string;
+  score: string;
+  status: string;
+  guidance: string;
+}
+
+export interface StreamFitItem {
+  id: string;
+  mainStream: string;
+  subStream: string;
+  coreSubjects: string;
+  electives: string;
+  // Grading level + Student-Friendly Explanation are derived from this on the fly (see
+  // getStreamFitGrading in utils/careerFitGrading.ts) — same as the counsellor chart.
+  fitScore: number | null;
+}
+
+export interface GraduationPathwayItem {
+  id: string;
+  cluster: string;
+  mainStream: string;
+  subStream: string;
+  specialisations: string;
+  keyExams: string;
+  reasoning: string;
+  // Grading level + Student-Friendly Explanation are derived from this on the fly (see
+  // getCareerFitGrading in utils/careerFitGrading.ts) — same as the counsellor chart.
+  fitScore: number | null;
+}
+
+export interface ChampionTrait {
+  name: string;
+  description: string;
+  explanation?: string;
+}
+
+export interface CareerRecommendationCard {
+  id: string;
+  role: string;
+  cluster: string;
+  industry: string;
+  domain: string;
+  whyItFits: string;
+  topEmployers: string;
+  aiResilience: string;
+  salaryIndia: string;
+  salaryAbroad: string;
+  fitScore: number | null;
+  level: string;
+  addedByCounsellor: boolean;
+}
+
+export interface StudentCareerIkigaiReportData {
+  studentInfo: {
+    studentName: string;
+    studentId: string;
+    gradeClass: string;
+    schoolName: string;
+    counselorName: string;
+    reportDate: string;
+  };
+  studentProfile: {
+    archetype: string;
+    snapshotSummary: string;
+    coreStrengths: string[];
+    hobbies: string[];
+    careerStyle: ChampionTrait;
+    personalSignature: ChampionTrait;
+    thinkingMode: ChampionTrait;
+  };
+  traitMap: TraitMapItem[];
+  reliability: ReliabilityMetric[];
+  streamFit: {
+    table: StreamFitItem[];
+    whyTheseStreams: string;
+  };
+  graduation: {
+    pathways: GraduationPathwayItem[];
+  };
+  careerCompass: CareerRecommendationCard[];
+  // Student/parent's acknowledgement of the finalized report — backed by
+  // CounsellorChart.acceptedAt on the backend (see reports.service.ts).
+  accepted: boolean;
+  acceptedAt: string | null;
+}

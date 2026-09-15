@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiArrowLeftLine,
   RiArrowRightLine,
@@ -7,11 +8,24 @@ import {
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
+import { Loader } from '@/components/Loader';
+import { EmptyState } from '@/components/EmptyState';
 import { ROUTES } from '@/constants';
 import {
-  getMockStudentFormChartData,
   CounsellorFormChartData,
+  CollegesAfterItem,
+  EntranceExamItem,
 } from '@/mocks/studentFormChart.mock';
+import { sessionsService } from '@/services/sessions.service';
+import { scriBandGuidanceService } from '@/services/scriBandGuidance.service';
+import {
+  counsellorChartService,
+  mapChartToFormData,
+  buildSaveBody,
+  emptyFormData,
+} from '@/services/counsellorChart.service';
+import { useToast, useCurrentCounselor } from '@/hooks';
+import { getApiErrorMessage, formatFullName } from '@/utils';
 
 import { SidebarTracker, StepDefinition } from './components/SidebarTracker';
 import { Step0StudentInfo } from './components/Step0StudentInfo';
@@ -29,7 +43,9 @@ import {
   LayoutWrapper,
   MainContentPanel,
   StickyFooterNav,
+  ReadOnlyStepContent,
 } from './StudentFormChartPage.styles';
+import { ReadOnlyContext } from './ReadOnlyContext';
 
 const STEP_LABELS = [
   { index: 0, label: 'Our Champion', shortLabel: 'Info' },
@@ -41,11 +57,11 @@ const STEP_LABELS = [
     shortLabel: 'C',
     sublinks: [
       { id: 'sec-c-pre-counselling', label: 'Pre-Counselling View' },
+      { id: 'sec-c-target-roles', label: 'Target Roles & Compass' },
       { id: 'sec-c-stream-fit', label: 'Stream Fit & Pathways' },
       { id: 'sec-c-graduation-fit', label: 'Graduation Fit' },
       { id: 'sec-c-colleges', label: 'Colleges After Class 11&12' },
       { id: 'sec-c-entrance-exams', label: 'Entrance Exams' },
-      { id: 'sec-c-target-roles', label: 'Target Roles & Compass' },
     ],
   },
   { index: 4, label: 'Reliability of Assessment', shortLabel: 'D' },
@@ -56,15 +72,108 @@ const STEP_LABELS = [
 
 export const StudentFormChartPage: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const [searchParams] = useSearchParams();
+  // Admins browse a student's chart read-only from Project Students — the page's save
+  // and mirror-pair mutations assume a counselor identity (see useCurrentCounselor),
+  // so this just blocks input interaction rather than reusing the counselor flow.
+  const isReadOnly = searchParams.get('readOnly') === '1';
   const navigate = useNavigate();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const { data: counselor } = useCurrentCounselor();
 
   const [activeStep, setActiveStep] = useState(0);
   const [activeSublinkId, setActiveSublinkId] = useState<string | undefined>();
   const [visitedSteps, setVisitedSteps] = useState<number[]>([0]);
 
+  // The chart is keyed on studentId server-side; the route only carries sessionId, so
+  // resolve the session first.
+  const {
+    data: session,
+    isLoading: isSessionLoading,
+    isError: isSessionError,
+  } = useQuery({
+    queryKey: ['session', sessionId],
+    queryFn: () => sessionsService.getById(sessionId!),
+    enabled: !!sessionId,
+  });
+
+  const studentId = session?.studentId;
+
+  const {
+    data: chart,
+    isLoading: isChartLoading,
+    isError: isChartError,
+    error: chartError,
+  } = useQuery({
+    queryKey: ['counsellor-chart', studentId],
+    queryFn: () => counsellorChartService.getChart(studentId!),
+    enabled: !!studentId,
+  });
+
+  const { data: scriBandGuidance } = useQuery({
+    queryKey: ['scri-band-guidance'],
+    queryFn: () => scriBandGuidanceService.list(),
+    staleTime: Infinity,
+  });
+
   const [formData, setFormData] = useState<CounsellorFormChartData>(() =>
-    getMockStudentFormChartData(sessionId || 'sess-counselor-1')
+    emptyFormData(sessionId || '', '')
   );
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  // Re-seed local editable state whenever a fresh chart is fetched (initial load, or
+  // after a save round-trips the server's merged copy back).
+  useEffect(() => {
+    if (chart && studentId) {
+      setFormData(mapChartToFormData(chart, sessionId || studentId));
+      setHasLoadedOnce(true);
+    }
+  }, [chart, studentId, sessionId]);
+
+  const saveMutation = useMutation({
+    mutationFn: (overrideData?: CounsellorFormChartData) => {
+      const lastEditedBy = counselor
+        ? formatFullName(counselor.user.firstName, counselor.user.lastName)
+        : undefined;
+      return counsellorChartService.saveChart(
+        studentId!,
+        buildSaveBody(overrideData ?? formData, lastEditedBy)
+      );
+    },
+    onSuccess: updated => {
+      queryClient.setQueryData(['counsellor-chart', studentId], updated);
+    },
+    onError: err => {
+      toast.error('Save Failed', getApiErrorMessage(err, 'Could not save the counsellor chart.'));
+    },
+  });
+
+  // Amending/reverting a mirror-pair answer re-scores the whole attempt server-side and
+  // returns just the AssessmentResultRow (not the full chart shape), so refetch the
+  // chart itself rather than trying to patch it — the existing effect above then
+  // re-seeds formData from the recomputed report.
+  const mirrorPairMutation = useMutation({
+    mutationFn: (action: { type: 'amend'; questionCode: string; amendedOption: number } | { type: 'revert'; questionCode: string }) =>
+      action.type === 'amend'
+        ? counsellorChartService.amendMirrorPair(studentId!, {
+            questionCode: action.questionCode,
+            amendedOption: action.amendedOption,
+            counsellorId: counselor?.id,
+          })
+        : counsellorChartService.revertMirrorPairAmendment(studentId!, action.questionCode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['counsellor-chart', studentId] });
+      toast.success('Updated', 'Mirror pair response updated and the assessment re-scored.');
+    },
+    onError: err => {
+      toast.error('Update Failed', getApiErrorMessage(err, 'Could not update the mirror pair response.'));
+    },
+  });
+
+  const isLoading = isSessionLoading || isChartLoading;
+  const isError = isSessionError || isChartError;
 
   const handleStepChange = (stepIndex: number, sublinkId?: string) => {
     setActiveStep(stepIndex);
@@ -79,8 +188,29 @@ export const StudentFormChartPage: React.FC = () => {
           el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 100);
+    } else {
+      // The page scrolls inside DashboardLayout's <main> (overflow-y: auto), not the
+      // window, so window.scrollTo is a no-op here — scroll that container instead.
+      const scrollContainer = document.getElementById('dashboard-content-area');
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
+
+  // Deep link from Super Admin's manual-entry "View" action (?section=sec-c-...) —
+  // jump straight to Step 3 / Section C and scroll to that table, once, after the
+  // chart has loaded (handleStepChange's scroll relies on the section being rendered).
+  useEffect(() => {
+    if (!hasLoadedOnce) return;
+    const sectionId = searchParams.get('section');
+    if (sectionId) {
+      handleStepChange(3, sectionId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasLoadedOnce]);
 
   const handleNextStep = () => {
     if (activeStep < STEP_LABELS.length - 1) {
@@ -91,15 +221,21 @@ export const StudentFormChartPage: React.FC = () => {
   const handlePrevStep = () => {
     if (activeStep > 0) {
       handleStepChange(activeStep - 1);
+    } else if (isReadOnly) {
+      navigate(-1);
     } else {
       navigate(ROUTES.UPCOMING_SESSIONS);
     }
   };
 
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-
   const handleSaveFormChart = () => {
-    setIsSuccessModalOpen(true);
+    saveMutation.mutate(undefined, { onSuccess: () => setIsSuccessModalOpen(true) });
+  };
+
+  const handleSaveChanges = () => {
+    saveMutation.mutate(undefined, {
+      onSuccess: () => toast.success('Saved', 'Your changes have been saved.'),
+    });
   };
 
   // Construct step definitions for sidebar
@@ -112,15 +248,41 @@ export const StudentFormChartPage: React.FC = () => {
     sublinks: s.sublinks,
   }));
 
+  if (isLoading || !hasLoadedOnce) {
+    return <Loader fullPage />;
+  }
+
+  if (isError || !studentId) {
+    return (
+      <Container>
+        <PageHeader
+          title="Counsellor Form Chart"
+          breadcrumbs={
+            isReadOnly ? undefined : [{ label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS }]
+          }
+          onBack={() => (isReadOnly ? navigate(-1) : navigate(ROUTES.UPCOMING_SESSIONS))}
+        />
+        <EmptyState
+          title="Couldn't load this chart"
+          description={getApiErrorMessage(chartError, 'This student or session could not be found.')}
+        />
+      </Container>
+    );
+  }
+
   return (
     <Container>
       <PageHeader
-        title={`Counsellor Form Chart — ${formData.studentInfo.studentName}`}
-        breadcrumbs={[
-          { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
-          { label: `Chart (${formData.studentInfo.studentName})` },
-        ]}
-        onBack={() => navigate(ROUTES.UPCOMING_SESSIONS)}
+        title={`Counsellor Form Chart — ${formData.studentInfo.studentName}${isReadOnly ? ' (Read-only)' : ''}`}
+        breadcrumbs={
+          isReadOnly
+            ? [{ label: `Chart (${formData.studentInfo.studentName})` }]
+            : [
+                { label: 'Upcoming Sessions', href: ROUTES.UPCOMING_SESSIONS },
+                { label: `Chart (${formData.studentInfo.studentName})` },
+              ]
+        }
+        onBack={() => (isReadOnly ? navigate(-1) : navigate(ROUTES.UPCOMING_SESSIONS))}
       />
 
       <LayoutWrapper>
@@ -134,6 +296,8 @@ export const StudentFormChartPage: React.FC = () => {
 
         {/* Main Step Content Panel */}
         <MainContentPanel>
+        <ReadOnlyStepContent $readOnly={isReadOnly}>
+        <ReadOnlyContext.Provider value={isReadOnly}>
           {activeStep === 0 && (
             <Step0StudentInfo
               data={formData.studentInfo}
@@ -181,15 +345,6 @@ export const StudentFormChartPage: React.FC = () => {
                   sectionB: { ...prev.sectionB, traitsTable: traits },
                 }))
               }
-              onChangeSummary={summary =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionB: {
-                    ...prev.sectionB,
-                    summaryStrip: { ...prev.sectionB.summaryStrip, ...summary },
-                  },
-                }))
-              }
               onChangeDna={(field, val) =>
                 setFormData(prev => ({
                   ...prev,
@@ -219,6 +374,7 @@ export const StudentFormChartPage: React.FC = () => {
 
           {activeStep === 3 && (
             <Step3SectionC
+              studentId={formData.studentId}
               data={formData.sectionC}
               onChangeNotesPre={(code, val) =>
                 setFormData(prev => ({
@@ -229,18 +385,28 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
-              onChangeStreamTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, streamFitTable: table },
-                }))
-              }
+              onChangeStreamTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, streamFitTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
               onChangeWhyStream1={val =>
                 setFormData(prev => ({
                   ...prev,
                   sectionC: { ...prev.sectionC, whyThisStream1: val },
                 }))
               }
+              onChangeGraduationTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, graduationTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
               onChangeNotesE={(code, val) =>
                 setFormData(prev => ({
                   ...prev,
@@ -250,51 +416,50 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
-              onChangeGraduationTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, graduationTable: table },
-                }))
-              }
-              onChangeWhyStream2={val =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, whyThisStream2: val },
-                }))
-              }
-              onChangeNotesF={(code, val) =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: {
-                    ...prev.sectionC,
-                    synthesisNotesF: { ...prev.sectionC.synthesisNotesF, [code]: val },
-                  },
-                }))
-              }
-              onChangeCompassTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, careerCompassTable: table },
-                }))
-              }
-              onChangeEntranceExamsTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, entranceExamsTable: table },
-                }))
-              }
-              onChangeCollegesTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, collegesTable: table },
-                }))
-              }
-              onChangeCompassClusterTable={table =>
-                setFormData(prev => ({
-                  ...prev,
-                  sectionC: { ...prev.sectionC, careerCompassClusterTable: table },
-                }))
-              }
+              onChangeCompassTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, careerCompassTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
+              onChangeEntranceExamsTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, entranceExamsTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
+              onChangeCollegesTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, collegesTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
+              onChangeCollegesAndExamsTable={(colleges: CollegesAfterItem[], exams: EntranceExamItem[]) => {
+                // Both tables in one state update + one save — calling the two setters
+                // above back-to-back here would race (each captures the same stale
+                // `formData` closure, so the second call's save silently reverts the
+                // first's field back to its old value).
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, collegesTable: colleges, entranceExamsTable: exams },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
+              onChangeCompassClusterTable={table => {
+                const next = {
+                  ...formData,
+                  sectionC: { ...formData.sectionC, careerCompassClusterTable: table },
+                };
+                setFormData(next);
+                saveMutation.mutate(next);
+              }}
             />
           )}
 
@@ -321,6 +486,13 @@ export const StudentFormChartPage: React.FC = () => {
                   },
                 }))
               }
+              onAmendMirrorPair={(questionCode, amendedOption) =>
+                mirrorPairMutation.mutate({ type: 'amend', questionCode, amendedOption })
+              }
+              onRevertMirrorPair={questionCode =>
+                mirrorPairMutation.mutate({ type: 'revert', questionCode })
+              }
+              mirrorPairActionPending={mirrorPairMutation.isPending}
             />
           )}
 
@@ -342,6 +514,7 @@ export const StudentFormChartPage: React.FC = () => {
           {activeStep === 6 && (
             <Step6SCRI
               data={formData.sectionE}
+              bandGuidance={scriBandGuidance}
               onChangeScriRating={(code, rating) =>
                 setFormData(prev => ({
                   ...prev,
@@ -385,6 +558,8 @@ export const StudentFormChartPage: React.FC = () => {
               }
             />
           )}
+        </ReadOnlyContext.Provider>
+        </ReadOnlyStepContent>
 
           {/* Sticky Bottom Navigation Footer */}
           <StickyFooterNav>
@@ -393,7 +568,7 @@ export const StudentFormChartPage: React.FC = () => {
               leftIcon={<RiArrowLeftLine size={16} />}
               onClick={handlePrevStep}
             >
-              {activeStep === 0 ? 'Back to Sessions' : 'Back'}
+              {activeStep === 0 ? (isReadOnly ? 'Back' : 'Back to Sessions') : 'Back'}
             </Button>
 
             <span style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: 500 }}>
@@ -401,18 +576,34 @@ export const StudentFormChartPage: React.FC = () => {
             </span>
 
             {activeStep < STEP_LABELS.length - 1 ? (
-              <Button
-                variant="primary"
-                rightIcon={<RiArrowRightLine size={16} />}
-                onClick={handleNextStep}
-              >
-                Next Step
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {!isReadOnly && (
+                  <Button
+                    variant="secondary"
+                    onClick={handleSaveChanges}
+                    isLoading={saveMutation.isPending}
+                  >
+                    Save Changes
+                  </Button>
+                )}
+                <Button
+                  variant="primary"
+                  rightIcon={<RiArrowRightLine size={16} />}
+                  onClick={handleNextStep}
+                >
+                  Next Step
+                </Button>
+              </div>
+            ) : isReadOnly ? (
+              <Button variant="secondary" leftIcon={<RiCheckDoubleLine size={16} />} disabled>
+                Read-only
               </Button>
             ) : (
               <Button
                 variant="primary"
                 leftIcon={<RiCheckDoubleLine size={16} />}
                 onClick={handleSaveFormChart}
+                isLoading={saveMutation.isPending}
               >
                 Finalize Chart
               </Button>

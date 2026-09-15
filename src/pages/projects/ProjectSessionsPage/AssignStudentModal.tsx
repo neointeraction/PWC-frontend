@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
-import { CounselorSession } from '@/types/project.types';
+import { projectService } from '@/services/project.service';
+import { CounselorSession, ProjectSlot } from '@/types/project.types';
+import { formatDate } from '@/utils';
 
 const FormContainer = styled.div`
   display: flex;
@@ -57,77 +60,67 @@ const FooterActions = styled.div`
   margin-top: ${({ theme }) => theme.spacing.md};
 `;
 
-export interface SlotData {
-  id: string;
-  date: string;
-  time: string;
-  studentName?: string;
-  sessionType?: 'S1' | 'S2';
-  mobile?: string;
-  isBooked: boolean;
-}
-
 interface AssignStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
   session: CounselorSession | null;
-  slot: SlotData | null;
-  onSave: (slotId: string, updatedSlot: Partial<SlotData>) => void;
+  slot: ProjectSlot | null;
+  projectId?: string;
+  onSave: (input: { studentId: string; sessionType: 'S1' | 'S2' }) => void;
+  isSaving?: boolean;
 }
 
-const mockStudentOptions = [
-  { value: 'Ananya Roy', label: 'Ananya Roy (Grade 11 • +91 9810012345)' },
-  { value: 'Rohan Menon', label: 'Rohan Menon (Grade 12 • +91 9810024690)' },
-  { value: 'Priya Rao', label: 'Priya Rao (Grade 10 • +91 9810037035)' },
-  { value: 'Siddharth Pillai', label: 'Siddharth Pillai (Grade 11 • +91 9810049380)' },
-  { value: 'Diya Nair', label: 'Diya Nair (Grade 11 • +91 9810055441)' },
-  { value: 'Aarav Sharma', label: 'Aarav Sharma (Grade 12 • +91 9810066772)' },
-  { value: 'Vihaan Iyer', label: 'Vihaan Iyer (Grade 12 • +91 9810077883)' },
-  { value: 'Kavya Patel', label: 'Kavya Patel (Grade 10 • +91 9810088994)' },
-];
 
 export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
   isOpen,
   onClose,
   session,
   slot,
+  projectId,
   onSave,
+  isSaving,
 }) => {
   const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [sessionType, setSessionType] = useState<'S1' | 'S2'>('S1');
+  // Display-only — the assign-slot endpoint has no field for it, so this just shows
+  // the selected student's number on record rather than implying it can be edited here.
   const [mobile, setMobile] = useState<string>('');
 
+  // The dropdown is the project's own roster; the value is the student id the booking
+  // endpoint needs, not a display name.
+  const { data: students = [] } = useQuery({
+    queryKey: ['projectStudents', projectId],
+    queryFn: () => projectService.getProjectStudents(projectId as string),
+    enabled: Boolean(projectId) && isOpen,
+  });
+
+  const studentOptions = useMemo(
+    () =>
+      students.map(student => ({
+        value: student.id,
+        label: `${student.name} (${student.grade || 'Class —'} • ${student.mobile || '—'})`,
+      })),
+    [students]
+  );
+
   useEffect(() => {
-    if (slot && slot.isBooked) {
-      setSelectedStudent(slot.studentName || 'Ananya Roy');
-      setSessionType(slot.sessionType || 'S1');
-      setMobile(slot.mobile || '+91 9810012345');
-    } else {
-      setSelectedStudent('Ananya Roy');
-      setSessionType('S1');
-      setMobile('+91 9810012345');
-    }
-  }, [slot]);
+    if (!slot) return;
+    const booked = slot.isBooked ? students.find(student => student.id === slot.studentId) : undefined;
+    const initial = booked ?? students[0];
+    setSelectedStudent(initial?.id ?? '');
+    setSessionType(slot.sessionType || 'S1');
+    setMobile(booked?.mobile ?? slot.mobile ?? initial?.mobile ?? '');
+  }, [slot, students]);
 
   const handleStudentChange = (e: { target: { value: string } }) => {
-    const name = e.target.value;
-    setSelectedStudent(name);
-    if (name === 'Ananya Roy') setMobile('+91 9810012345');
-    else if (name === 'Rohan Menon') setMobile('+91 9810024690');
-    else if (name === 'Priya Rao') setMobile('+91 9810037035');
-    else if (name === 'Siddharth Pillai') setMobile('+91 9810049380');
-    else setMobile('+91 9810055441');
+    const id = e.target.value;
+    setSelectedStudent(id);
+    setMobile(students.find(student => student.id === id)?.mobile ?? '');
   };
 
   const handleSave = () => {
-    if (!slot) return;
-    onSave(slot.id, {
-      studentName: selectedStudent,
-      sessionType,
-      mobile,
-      isBooked: true,
-    });
-    onClose();
+    if (!slot || !selectedStudent) return;
+    onSave({ studentId: selectedStudent, sessionType });
   };
 
   if (!session || !slot) return null;
@@ -143,14 +136,14 @@ export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
         <InfoBox>
           <span>Counselor &amp; Available Session Slot</span>
           <span>
-            {session.counselorName} • {slot.date} @ {slot.time}
+            {session.counselorName} • {formatDate(slot.date)} @ {slot.time}
           </span>
         </InfoBox>
 
         <FieldGroup>
           <label>Select Student</label>
           <Select
-            options={mockStudentOptions}
+            options={studentOptions}
             value={selectedStudent}
             onChange={handleStudentChange}
           />
@@ -170,18 +163,19 @@ export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
 
         <FieldGroup>
           <label>Student Contact Phone</label>
-          <Input
-            value={mobile}
-            onChange={e => setMobile(e.target.value)}
-            placeholder="+91 Mobile number"
-          />
+          <Input value={mobile} disabled placeholder="No phone on record" />
         </FieldGroup>
 
         <FooterActions>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSave}>
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            isLoading={isSaving}
+            disabled={!selectedStudent}
+          >
             Save Schedule
           </Button>
         </FooterActions>

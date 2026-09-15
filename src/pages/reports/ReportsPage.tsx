@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect, useState } from 'react';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import {
   RiSearchLine,
   RiDownloadCloudLine,
@@ -14,7 +14,9 @@ import { Select } from '@/components/Select';
 import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { Tooltip } from '@/components';
+import { Loader } from '@/components/Loader';
 import { projectService } from '@/services/project.service';
+import { reportsService } from '@/services/reports.service';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
 import {
@@ -34,6 +36,8 @@ import {
   ActionIconButton,
 } from './ReportsPage.styles';
 
+type SessionStatus = 'completed' | 'scheduled' | 'pending';
+
 interface ReportRow {
   id: string;
   studentName: string;
@@ -41,81 +45,16 @@ interface ReportRow {
   email: string;
   grade: string;
   counselorName: string;
-  session1Status: 'completed' | 'scheduled' | 'pending';
-  session2Status: 'completed' | 'scheduled' | 'pending';
+  session1Status: SessionStatus;
+  session2Status: SessionStatus;
   recommendedTrack: string;
   reportStatus: 'generated' | 'pending';
 }
 
-const mockReportData: Record<string, ReportRow[]> = {
-  'proj-001': [
-    {
-      id: 'rep-1',
-      studentName: 'Rohan Sharma',
-      studentRoll: 'STD-101',
-      email: 'rohan.s@student.edu',
-      grade: '12th',
-      counselorName: 'Anil Iyer',
-      session1Status: 'completed',
-      session2Status: 'completed',
-      recommendedTrack: 'Technology & AI Engineering',
-      reportStatus: 'generated',
-    },
-    {
-      id: 'rep-2',
-      studentName: 'Priya Verma',
-      studentRoll: 'STD-102',
-      email: 'priya.v@student.edu',
-      grade: '12th',
-      counselorName: 'Anil Iyer',
-      session1Status: 'completed',
-      session2Status: 'scheduled',
-      recommendedTrack: 'Healthcare & Medicine',
-      reportStatus: 'pending',
-    },
-    {
-      id: 'rep-3',
-      studentName: 'Ananya Roy',
-      studentRoll: 'STD-103',
-      email: 'ananya.r@student.edu',
-      grade: '11th',
-      counselorName: 'Mahesh Pillai',
-      session1Status: 'completed',
-      session2Status: 'completed',
-      recommendedTrack: 'Financial Markets & Economics',
-      reportStatus: 'generated',
-    },
-    {
-      id: 'rep-4',
-      studentName: 'Siddharth Menon',
-      studentRoll: 'STD-104',
-      email: 'sid.m@student.edu',
-      grade: '12th',
-      counselorName: 'Hema Kurup',
-      session1Status: 'scheduled',
-      session2Status: 'pending',
-      recommendedTrack: 'Digital Design & Animation',
-      reportStatus: 'pending',
-    },
-    {
-      id: 'rep-5',
-      studentName: 'Kavya Gupta',
-      studentRoll: 'STD-105',
-      email: 'kavya.g@student.edu',
-      grade: '10th',
-      counselorName: 'Girish Bhat',
-      session1Status: 'completed',
-      session2Status: 'completed',
-      recommendedTrack: 'Law & International Relations',
-      reportStatus: 'generated',
-    },
-  ],
-};
-
 export const ReportsPage: React.FC = () => {
   const toast = useToast();
 
-  const [selectedProjectId, setSelectedProjectId] = useState('proj-001');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -129,13 +68,50 @@ export const ReportsPage: React.FC = () => {
     projectsData?.data.map(p => ({
       value: p.id,
       label: `${p.name} (${p.instituteName})`,
-    })) || [
-      { value: 'proj-001', label: 'Greenwood High School - Career Guidance' },
-      { value: 'proj-002', label: 'St. Xavier College - Higher Edu Pathway' },
-      { value: 'proj-003', label: 'DPS International - Stream Selection' },
-    ];
+    })) ?? [];
 
-  const reportList = mockReportData[selectedProjectId] || mockReportData['proj-001'];
+  // Default to the first project once the real list has loaded.
+  useEffect(() => {
+    if (!selectedProjectId && projectOptions.length > 0) {
+      setSelectedProjectId(projectOptions[0].value);
+    }
+  }, [projectOptions, selectedProjectId]);
+
+  const { data: students = [], isLoading: isStudentsLoading } = useQuery({
+    queryKey: ['projectStudents', selectedProjectId],
+    queryFn: () => projectService.getProjectStudents(selectedProjectId),
+    enabled: Boolean(selectedProjectId),
+  });
+
+  // GET /reports/students/{id}/assessment 404s until the backend has computed a result,
+  // so only fetch it for students who have actually finished Session 2 — everyone else
+  // is "Pending Review" without a wasted round trip.
+  const reportQueries = useQueries({
+    queries: students.map(s => ({
+      queryKey: ['studentAssessmentReport', s.id],
+      queryFn: () => reportsService.getStudentAssessmentReport(s.id, s.counselorName ?? ''),
+      enabled: s.session2?.status === 'completed',
+      retry: false,
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+
+  const reportList: ReportRow[] = students.map((s, i) => {
+    const reportQuery = reportQueries[i];
+    const topRole = reportQuery?.data?.careerCompass?.[0]?.role;
+    return {
+      id: s.id,
+      studentName: s.name,
+      studentRoll: s.studentId || s.id,
+      email: s.email,
+      grade: s.grade,
+      counselorName: s.counselorName || '—',
+      session1Status: (s.session1?.status ?? 'pending') as SessionStatus,
+      session2Status: (s.session2?.status ?? 'pending') as SessionStatus,
+      recommendedTrack: topRole ?? '—',
+      reportStatus: reportQuery?.isSuccess ? 'generated' : 'pending',
+    };
+  });
 
   const filteredReports = reportList.filter(row => {
     if (!searchQuery) return true;
@@ -146,6 +122,13 @@ export const ReportsPage: React.FC = () => {
       row.recommendedTrack.toLowerCase().includes(q)
     );
   });
+
+  const completedSessions = reportList.reduce(
+    (sum, row) =>
+      sum + (row.session1Status === 'completed' ? 1 : 0) + (row.session2Status === 'completed' ? 1 : 0),
+    0
+  );
+  const reportsGenerated = reportList.filter(row => row.reportStatus === 'generated').length;
 
   const handleDownloadExport = () => {
     toast.success('Report Export Started', 'Downloading comprehensive project report CSV...');
@@ -240,6 +223,7 @@ export const ReportsPage: React.FC = () => {
         <ActionIconButtonGroup>
           <Tooltip content="Download PDF Report">
             <ActionIconButton
+              disabled={row.reportStatus !== 'generated'}
               onClick={() =>
                 toast.info('Download Started', `Downloading PDF report for ${row.studentName}`)
               }
@@ -269,7 +253,10 @@ export const ReportsPage: React.FC = () => {
             <Select
               label="Select Project"
               value={selectedProjectId}
-              onChange={e => setSelectedProjectId(e.target.value)}
+              onChange={e => {
+                setSelectedProjectId(e.target.value);
+                setPage(1);
+              }}
               options={projectOptions}
             />
           </SelectWrapper>
@@ -297,37 +284,41 @@ export const ReportsPage: React.FC = () => {
       <MetricsRow>
         <MetricCard>
           <MetricLabel>Total Students Enrolled</MetricLabel>
-          <MetricValue>120</MetricValue>
+          <MetricValue>{students.length}</MetricValue>
         </MetricCard>
         <MetricCard>
           <MetricLabel>Completed Sessions</MetricLabel>
-          <MetricValue>184</MetricValue>
+          <MetricValue>{completedSessions}</MetricValue>
         </MetricCard>
 
         <MetricCard>
           <MetricLabel>Reports Generated</MetricLabel>
-          <MetricValue>98</MetricValue>
+          <MetricValue>{reportsGenerated}</MetricValue>
         </MetricCard>
         <MetricCard>
           <MetricLabel>Pending Review</MetricLabel>
-          <MetricValue>22</MetricValue>
+          <MetricValue>{students.length - reportsGenerated}</MetricValue>
         </MetricCard>
       </MetricsRow>
 
       <Card padding="lg">
-        <Table
-          columns={columns}
-          data={filteredReports}
-          keyExtractor={row => row.id}
-          emptyMessage="No reports found for the selected project."
-          pagination={{
-            page,
-            limit,
-            total: filteredReports.length,
-            totalPages: Math.ceil(filteredReports.length / limit) || 1,
-            onPageChange: setPage,
-          }}
-        />
+        {isStudentsLoading ? (
+          <Loader />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredReports}
+            keyExtractor={row => row.id}
+            emptyMessage="No reports found for the selected project."
+            pagination={{
+              page,
+              limit,
+              total: filteredReports.length,
+              totalPages: Math.ceil(filteredReports.length / limit) || 1,
+              onPageChange: setPage,
+            }}
+          />
+        )}
       </Card>
     </Container>
   );

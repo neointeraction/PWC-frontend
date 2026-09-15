@@ -5,15 +5,15 @@ import {
   RiFileCopyLine,
   RiCheckLine,
   RiCloseCircleLine,
-  RiTimeLine,
   RiMessage3Line,
+  RiRestartLine,
 } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
-import { Tooltip } from '@/components';
+import { Tooltip, ConfirmDialog } from '@/components';
 import { ProjectStudentDetail, FollowUpRecord } from '@/types/project.types';
 import { useToast } from '@/hooks';
-import { formatDateDDMMYYYY } from '@/utils';
+import { formatDate } from '@/utils';
 import {
   ModalBodyContainer,
   ContactCardsGrid,
@@ -32,14 +32,9 @@ import {
   MessageSectionTitle,
   MessageTextarea,
   MessageQuickSendRow,
-  HistorySection,
-  HistoryHeader,
-  HistoryList,
-  HistoryItem,
-  HistoryDateBadge,
-  EmptyHistoryText,
   ModalFooterRow,
   FooterRightButtons,
+  FooterLeftButtons,
 } from './StudentFollowUpModal.styles';
 
 export const STAGE_PREDEFINED_MESSAGES: Record<string, { subject: string; message: string }> = {
@@ -105,6 +100,8 @@ interface StudentFollowUpModalProps {
   onClose: () => void;
   student: ProjectStudentDetail | null;
   onSave: (updated: ProjectStudentDetail) => void;
+  onRetest: (student: ProjectStudentDetail) => void;
+  isRetesting?: boolean;
 }
 
 export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
@@ -112,8 +109,11 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
   onClose,
   student,
   onSave,
+  onRetest,
+  isRetesting = false,
 }) => {
   const toast = useToast();
+  const [isRetestConfirmOpen, setIsRetestConfirmOpen] = useState(false);
 
   const currentStage = student?.stage || 'Login Activated';
   const defaultTemplate = STAGE_PREDEFINED_MESSAGES[currentStage] || {
@@ -137,12 +137,12 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
 
   if (!student) return null;
 
-  const studentPhone = student.mobile || '+91 9810012345';
-  const cleanStudentPhone = studentPhone.replace(/\D/g, '');
-  const parentPhone = student.parentMobile || '+91 9820987654';
+  const studentPhone = student.mobile || '';
+  const cleanStudentPhone = (student.whatsappNumber || studentPhone).replace(/\D/g, '');
+  const parentPhone = student.parentMobile || '';
   const cleanParentPhone = parentPhone.replace(/\D/g, '');
-  const studentEmail = student.email || `${student.name.toLowerCase().replace(/\s+/g, '.')}@student.edu`;
-  const parentEmail = student.parentEmail || `parent.${student.name.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
+  const studentEmail = student.email || '';
+  const parentEmail = student.parentEmail || '';
 
   const studentWhatsappUrl = `https://wa.me/${cleanStudentPhone}?text=${encodeURIComponent(customMessage)}`;
   const parentWhatsappUrl = `https://wa.me/${cleanParentPhone}?text=${encodeURIComponent(customMessage)}`;
@@ -164,7 +164,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
       id: `fu-${Date.now()}`,
       stage: currentStage,
       date: todayStr,
-      timestamp: `${formatDateDDMMYYYY(todayStr)}, ${timeStr}`,
+      timestamp: `${formatDate(todayStr)}, ${timeStr}`,
       type: 'whatsapp',
       recipient: 'both',
       notes: customMessage,
@@ -191,7 +191,6 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
       ...student,
       stage: 'Discontinued',
       isFlagged: false, // Unflag
-      isDiscontinued: true,
       stageCompletedDate: todayStr,
       daysInStage: 0,
     };
@@ -199,6 +198,11 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
     onSave(updatedStudent);
     toast.warning('Student Discontinued', `${student.name} marked as Discontinued and removed from active follow-up.`);
     onClose();
+  };
+
+  const handleConfirmRetest = () => {
+    onRetest(student);
+    setIsRetestConfirmOpen(false);
   };
 
   return (
@@ -210,16 +214,29 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
       size="lg"
       footer={
         <ModalFooterRow>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleMarkDiscontinued}
-            leftIcon={<RiCloseCircleLine size={16} />}
-            style={{ color: '#DC2626', borderColor: '#FCA5A5' }}
-          >
-            Discontinue Student
-          </Button>
+          <FooterLeftButtons>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleMarkDiscontinued}
+              leftIcon={<RiCloseCircleLine size={16} />}
+              style={{ color: '#DC2626', borderColor: '#FCA5A5' }}
+            >
+              Discontinued
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsRetestConfirmOpen(true)}
+              leftIcon={<RiRestartLine size={16} />}
+              style={{ color: '#B45309', borderColor: '#FDE68A' }}
+            >
+              Retest
+            </Button>
+          </FooterLeftButtons>
 
           <FooterRightButtons>
             <Button type="button" variant="secondary" size="sm" onClick={onClose}>
@@ -270,16 +287,20 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
             </ContactDetailRow>
 
             <ContactActionButtons>
-              <WhatsAppButton
-                href={studentWhatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <RiWhatsappLine size={16} /> WhatsApp Student
-              </WhatsAppButton>
-              <EmailButton href={studentMailtoUrl}>
-                <RiMailLine size={15} /> Email
-              </EmailButton>
+              {cleanStudentPhone && (
+                <WhatsAppButton
+                  href={studentWhatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <RiWhatsappLine size={16} /> WhatsApp Student
+                </WhatsAppButton>
+              )}
+              {studentEmail && (
+                <EmailButton href={studentMailtoUrl}>
+                  <RiMailLine size={15} /> Email
+                </EmailButton>
+              )}
             </ContactActionButtons>
           </ContactCard>
 
@@ -287,7 +308,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
           <ContactCard>
             <ContactCardHeader>
               <ContactRoleTag $role="parent">Parent Contact</ContactRoleTag>
-              <ContactName>{student.parentName || 'Parent / Guardian'}</ContactName>
+              <ContactName>{student.parentName || ''}</ContactName>
             </ContactCardHeader>
 
             <ContactDetailRow>
@@ -312,16 +333,20 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
             </ContactDetailRow>
 
             <ContactActionButtons>
-              <WhatsAppButton
-                href={parentWhatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <RiWhatsappLine size={16} /> WhatsApp Parent
-              </WhatsAppButton>
-              <EmailButton href={parentMailtoUrl}>
-                <RiMailLine size={15} /> Email
-              </EmailButton>
+              {cleanParentPhone && (
+                <WhatsAppButton
+                  href={parentWhatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <RiWhatsappLine size={16} /> WhatsApp Parent
+                </WhatsAppButton>
+              )}
+              {parentEmail && (
+                <EmailButton href={parentMailtoUrl}>
+                  <RiMailLine size={15} /> Email
+                </EmailButton>
+              )}
             </ContactActionButtons>
           </ContactCard>
         </ContactCardsGrid>
@@ -342,24 +367,28 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
           />
 
           <MessageQuickSendRow>
-            <WhatsAppButton
-              href={studentWhatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <RiWhatsappLine size={15} /> Send to Student WhatsApp
-            </WhatsAppButton>
-            <WhatsAppButton
-              href={parentWhatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <RiWhatsappLine size={15} /> Send to Parent WhatsApp
-            </WhatsAppButton>
+            {cleanStudentPhone && (
+              <WhatsAppButton
+                href={studentWhatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <RiWhatsappLine size={15} /> Send to Student WhatsApp
+              </WhatsAppButton>
+            )}
+            {cleanParentPhone && (
+              <WhatsAppButton
+                href={parentWhatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <RiWhatsappLine size={15} /> Send to Parent WhatsApp
+              </WhatsAppButton>
+            )}
           </MessageQuickSendRow>
         </MessageSection>
 
-        {/* Follow-up Log / History */}
+        {/* Follow-up Log / History
         <HistorySection>
           <HistoryHeader>
             <span>Follow-up Log History</span>
@@ -376,7 +405,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
                   <span>
                     <strong>Stage:</strong> {item.stage}
                   </span>
-                  <HistoryDateBadge>{item.timestamp || item.date}</HistoryDateBadge>
+                  <HistoryDateBadge>{item.timestamp || formatDate(item.date)}</HistoryDateBadge>
                 </HistoryItem>
               ))}
             </HistoryList>
@@ -384,7 +413,20 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
             <EmptyHistoryText>No previous follow-ups recorded yet for this student.</EmptyHistoryText>
           )}
         </HistorySection>
+        */}
       </ModalBodyContainer>
+
+      <ConfirmDialog
+        isOpen={isRetestConfirmOpen}
+        onClose={() => setIsRetestConfirmOpen(false)}
+        onConfirm={handleConfirmRetest}
+        title="Retest Student"
+        description="To do a retest, you need to delete this candidate and all their relevant details like pre-counselling form, assessment result etc. data will be deleted. You'll have to add the candidate again and restart the process from the start."
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
+        isDangerous
+        isLoading={isRetesting}
+      />
     </Modal>
   );
 };

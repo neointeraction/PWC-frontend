@@ -1,7 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
 import { EntranceExam } from '@/types';
-import { RiStarLine, RiStarFill } from 'react-icons/ri';
 
 const Container = styled.div`
   display: flex;
@@ -103,37 +102,11 @@ const WindowText = styled.span`
   font-style: italic;
 `;
 
-const ShortlistBtn = styled.button<{ $shortlisted?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: none;
-  background-color: ${({ $shortlisted }) => ($shortlisted ? '#C49419' : '#D99F26')};
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all ${({ theme }) => theme.transition.fast};
-
-  &:hover {
-    background-color: #b38510;
-  }
-`;
-
-
-
 interface EntranceExamsTabProps {
   exams: EntranceExam[];
-  onToggleShortlist: (id: string) => void;
 }
 
-export const EntranceExamsTab: React.FC<EntranceExamsTabProps> = ({
-  exams,
-  onToggleShortlist,
-}) => {
+export const EntranceExamsTab: React.FC<EntranceExamsTabProps> = ({ exams }) => {
   return (
     <Container>
       <HeaderNoteText>
@@ -177,13 +150,6 @@ export const EntranceExamsTab: React.FC<EntranceExamsTabProps> = ({
 
             <ExamFooter>
               <WindowText>{exam.datesText || 'Standard Exam Window'}</WindowText>
-              <ShortlistBtn
-                $shortlisted={exam.isShortlisted}
-                onClick={() => onToggleShortlist(exam.id)}
-              >
-                {exam.isShortlisted ? <RiStarFill size={14} /> : <RiStarLine size={14} />}
-                {exam.isShortlisted ? 'Shortlisted' : 'Save to shortlist'}
-              </ShortlistBtn>
             </ExamFooter>
           </ExamCard>
         ))}

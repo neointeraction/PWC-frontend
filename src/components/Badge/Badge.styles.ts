@@ -33,13 +33,21 @@ const variantMap: Record<BadgeVariant, ReturnType<typeof css>> = {
 export const StyledBadge = styled.span<{
   $variant: BadgeVariant;
   $size: BadgeSize;
+  $wrap?: boolean;
 }>`
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-weight: ${({ theme }) => theme.fontWeight.medium};
   border-radius: ${({ theme }) => theme.borderRadius.full};
-  white-space: nowrap;
+  white-space: ${({ $wrap }) => ($wrap ? 'normal' : 'nowrap')};
+
+  ${({ $wrap }) =>
+    $wrap &&
+    css`
+      align-items: flex-start;
+      text-align: left;
+    `}
 
   ${({ $size }) =>
     $size === 'sm'

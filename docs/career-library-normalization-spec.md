@@ -1,0 +1,200 @@
+# Career Library — normalization spec
+
+**Status:** decisions confirmed (§7) — ready to build. **Goal:** let a counsellor/admin,
+when adding a career (job role), **select existing** entrance exams / courses / colleges
+from dropdowns **or add new** ones inline — instead of typing comma-separated free text.
+That requires turning today's list-like columns into proper lookup + join tables.
+
+## 1. What's fixed vs. what changes
+
+The **taxonomy is fixed** — the client selects from existing values, doesn't invent new
+ones:
+
+- `cluster`, `industry`, `domain` — a fixed 3-level hierarchy. **✅ Done (2026-08-17):** these
+  were normalized into the `CareerCluster` → `CareerIndustry` → `CareerDomain` tables (the
+  `normalize_career_taxonomy` migration); the entry now carries a `domainId` FK, and the taxonomy
+  is admin-managed + soft-deletable via `/api/v1/career-taxonomy/*`. `GET /career-library/filters`
+  and `GET /career-taxonomy/tree` now source from those tables. See `docs/api-list.md` §"Career
+  Taxonomy".
+
+The **job role is the new record**, and adding one may introduce new exams/courses/colleges
+(or reuse existing ones). Those are what we normalize.
+
+## 2. Current fields — classification
+
+| Field on `CareerLibraryEntry` | Today | Proposed |
+|---|---|---|
+| `cluster`, `industry`, `domain` | String (fixed taxonomy) | **✅ normalized** → `CareerCluster`/`CareerIndustry`/`CareerDomain` tables; entry now has a `domainId` FK (admin-managed via `/api/v1/career-taxonomy/*`) |
+| `jobRole` | String | **unchanged** (the new record's label) |
+| `aiResilienceGrade`, `aiResilienceComment`, `oneLineDescription` | scalar | **unchanged** |
+| salary* / qualification* / `entranceExamsUGDescription` | scalar text | **unchanged** (free text) |
+| `entranceExams` (UG), `entranceExamsPG` (PG) | `String[]` | **normalize** → `EntranceExam` lookup + join, with a UG/PG level |
+| `topCourses` | `String[]` | **normalize** → `Course` lookup + join |
+| *(colleges — none on the entry today; derived by `industry` value-match)* | *derived* | **new** → `Institution` lookup + join (curated per career) |
+| `topCompanies` | `String[]` | **decision** — normalize to a `Company` lookup, or keep as free-text array |
+| `certificationsStudent`, `certificationsUG` | `String[]` | **decision** — normalize to a `Certification` lookup (with stage), or keep free-text |
+
+So the three the client explicitly named — **exams, courses, colleges** — are the core of
+this change; companies and certifications are the fuzzy ones to decide on (§7).
+
+## 3. What already exists (and why we can't just link to it as-is)
+
+Imported source directories (matched by string value today, not FK-linked):
+
+- `UgEntranceExam`, `PgEntranceExam` — exam directories, **split UG/PG**.
+- `UgInstitution` (industry-scoped, **duplicated per industry**), `UgInstitutionUniversity`
+  (a deduped general directory), `PgInstitution`.
+- `UgCourse` — course directory (keyed by `careerCluster`).
+
+These are messy source dumps (industry duplication, UG/PG split, many source-specific
+columns). A dropdown wants a **clean, deduped, canonical list** — so the recommendation is
+to introduce canonical lookup tables and seed them *from* these directories, keeping the
+raw directories for the existing "related institutions/courses/exams" detail view.
+
+## 4. Proposed schema (recommended shape)
+
+### Canonical lookup tables (deduped, dropdown-friendly)
+
+```prisma
+enum QualificationLevel { UG PG }
+
+model EntranceExam {
+  id             String  @id @default(cuid())
+  name           String  // e.g. "JEE Main"
+  level          QualificationLevel
+  fullForm       String?
+  conductingBody String?
+  officialWebsite String?
+  // ...seeded from Ug/PgEntranceExam
+  careerLinks    CareerEntranceExam[]
+  @@unique([name, level])
+}
+
+model Institution {
+  id       String  @id @default(cuid())
+  name     String  @unique   // deduped college/university
+  city     String?
+  state    String?
+  type     String?
+  website  String?
+  careerLinks CareerInstitution[]
+}
+
+model Course {
+  id            String @id @default(cuid())
+  name          String
+  level         QualificationLevel
+  fullForm      String?
+  durationYears String?
+  @@unique([name, level])
+  careerLinks   CareerCourse[]
+}
+```
+
+### Join tables (many-to-many: a career ↔ each lookup)
+
+```prisma
+model CareerEntranceExam {
+  careerEntryId  String
+  entranceExamId String
+  careerEntry    CareerLibraryEntry @relation(fields: [careerEntryId], references: [id], onDelete: Cascade)
+  entranceExam   EntranceExam       @relation(fields: [entranceExamId], references: [id], onDelete: Cascade)
+  @@id([careerEntryId, entranceExamId])
+}
+
+model CareerInstitution {
+  careerEntryId String
+  institutionId String
+  // ...relations, @@id([careerEntryId, institutionId])
+}
+
+model CareerCourse {
+  careerEntryId String
+  courseId      String
+  kind          CourseLink? // optional: PRIMARY | ALTERNATE (source distinguishes these)
+  // ...relations, @@id([careerEntryId, courseId])
+}
+```
+
+`CareerLibraryEntry` gains the reverse relations (`entranceExams CareerEntranceExam[]`,
+`institutions CareerInstitution[]`, `courses CareerCourse[]`) and, once backfilled, the old
+`String[]` columns are dropped (see §6).
+
+## 5. "Select existing or add new" — the API pattern
+
+One entry create/update endpoint, no separate "create a college" call. Each normalized
+field accepts a list where every item is **either an existing id or a new record**:
+
+```jsonc
+POST /api/v1/career-library
+{
+  "jobRole": "Robotics Engineer", "cluster": "...", "industry": "...", "domain": "...",
+  "entranceExams": [ { "id": "exm_123" }, { "name": "New Exam", "level": "UG" } ],
+  "institutions":  [ { "id": "ins_45" }, { "name": "New College", "city": "Pune" } ],
+  "courses":       [ { "id": "crs_9" }, { "name": "B.Tech Robotics", "level": "UG" } ]
+}
+```
+
+The service **find-or-creates** each `{name,...}` item (dedupe by name/level, case-
+insensitive), then links via the join table. Plus new **typeahead endpoints** to feed the
+dropdowns:
+
+- `GET /api/v1/career-library/entrance-exams?search=&level=`
+- `GET /api/v1/career-library/institutions?search=`
+- `GET /api/v1/career-library/courses?search=&level=`
+
+(Reads = any authenticated user; the create/link path stays admin.)
+
+## 6. Migration & backfill plan
+
+1. Add the new lookup + join tables (additive migration — safe).
+2. **Seed canonical lookups** from the existing directories, deduped by name (+level):
+   `EntranceExam` ← `Ug/PgEntranceExam`; `Institution` ← `UgInstitutionUniversity` +
+   `PgInstitution`; `Course` ← `UgCourse`.
+3. **Backfill joins** from each entry's existing arrays: split `entranceExams[]` /
+   `entranceExamsPG[]` / `topCourses[]`, match (case-insensitive) or create the canonical
+   row, create the join.
+4. Colleges have no existing per-entry array — **seed each entry's institutions from its
+   current industry value-match** (D3): for each career, take `UgInstitution` rows where
+   `industry = career.industry`, map to the canonical `Institution` (find-or-create by
+   name), and link. Entries then start with a full, editable college list.
+5. Keep the old `String[]` columns for one transitional release (dual-read), then drop them
+   in a follow-up migration once the join data is verified.
+
+## 7. Decisions (confirmed)
+
+- **D1 — Canonical tables.** ✅ New clean canonical `EntranceExam` / `Institution` /
+  `Course` tables (seeded from the `Ug*`/`Pg*` directories); joins + dropdowns point at
+  these. Raw directories kept for the existing detail view.
+- **D2 — Scope.** ✅ Normalize **exams + courses + colleges** now. `topCompanies` and
+  `certificationsStudent`/`certificationsUG` **stay free-text arrays** for now.
+- **D3 — Colleges backfill.** ✅ **Seed each career's institutions from its industry
+  value-match** (then editable), per §6-4.
+- **D4 — UG/PG.** ✅ One lookup table per type with a `level` (`QualificationLevel`) field.
+- **D5 — Old columns.** ✅ Keep the `String[]` columns through one transitional release,
+  drop in a follow-up migration once verified.
+
+## 8. Follow-ups shipped after §7 (2026-08-28)
+
+- **Full detail on inline "add new".** The canonical lookups gained the columns the admin
+  form actually collects (`EntranceExam`: `examMode`, `frequency`, `applicableFor`,
+  `subjectRequirements12th`, `applicationWindow`; `Course`: `stream12thRequirements`,
+  `relevantEntranceExams`, `programmesOffered`, `topColleges`, `furtherStudyOptions`;
+  `Institution`: `shortName`, `entranceExamsRequired`, `programmesOffered`, `ranking`), and
+  the `{ name, … }` link items accept them. A course's exam/college fields stay **free text**
+  — a course is reference data, not a second place to curate per-career links.
+- **Blank-fill, not overwrite.** Linking a name that already exists fills only columns that
+  are still null. Canonical rows are shared across job roles, so an inline add while editing
+  one role must not clobber another's data.
+- **Domain-scoped typeahead.** `?domainId=` on the three dropdown endpoints answers "what
+  does this domain already have", derived from the join tables — no extra schema.
+- **Education Path** (`DomainEducationEntry` + `CareerEducationEntry`) is normalized at the
+  **domain** level, managed under `/api/v1/career-taxonomy/`. Unlike exams/courses it is
+  **not** dual-written back to the flat `qualification*`/`certifications*` strings: those
+  hold workbook prose, not lists.
+
+**Still open:** there is no endpoint to *edit* a canonical `EntranceExam`/`Course`/
+`Institution` row. Blank-fill means a value entered wrong on first creation can only be
+corrected in the database. Admin CRUD for the three lookup tables is the natural next step —
+it also gives the "manage reference data" screen a home, separate from the job-role form.
+```
