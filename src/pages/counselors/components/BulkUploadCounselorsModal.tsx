@@ -185,20 +185,22 @@ export const BulkUploadCounselorsModal: React.FC = () => {
       toast.error('Invalid File', 'The file appears to be empty or missing headers.');
       return;
     }
-    const rows: ParsedRow[] = data.map((row, i) => {
+    const rows: ParsedRow[] = data.map(row => {
       const counselorId = (
-        row['Counsellor ID'] || row['Counselor ID'] || row['counsellorCode'] || `C${String(i + 1).padStart(3, '0')}`
+        row['Counsellor ID'] || row['Counselor ID'] || row['counsellorCode'] || ''
       ).trim();
       const pwd = (row['PWD'] || row['Password'] || row['pwd'] || '').trim();
       const name = (row['Counsellor Name'] || row['Counselor Name'] || row['Name'] || '').trim();
       const mobile = (row['Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '').trim();
       const email = (row['Email ID'] || row['Email'] || row['email'] || '').trim();
       const meetingLink = (row['Meeting Link'] || row['GMeet / Zoom Link'] || row['meetingLink'] || '').trim();
+      const hasId = Boolean(counselorId);
       const hasName = Boolean(name);
       const hasEmail = Boolean(email && email.includes('@'));
       const hasMobile = isValidPhone(mobile);
-      const isValid = hasName && hasEmail && hasMobile;
+      const isValid = hasId && hasName && hasEmail && hasMobile;
       const problems = [
+        !hasId && 'Counsellor ID',
         !hasName && 'name',
         !hasEmail && 'valid email',
         !hasMobile && (mobile ? 'valid mobile (E.164, e.g. 919876543210)' : 'mobile'),
