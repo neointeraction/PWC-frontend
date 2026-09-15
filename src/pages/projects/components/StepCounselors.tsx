@@ -8,6 +8,7 @@ import { Input } from '@/components/Input';
 import { Tooltip } from '@/components/Tooltip';
 import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
+import { sessionsService } from '@/services/sessions.service';
 import { parseExcelFile, toISODate, toHHMM, normalizeCounsellorCode } from '@/utils/excelParser';
 import { ProjectCounselor, CounsellorSlotRow } from '@/types/project.types';
 import { useToast } from '@/hooks';
@@ -114,6 +115,62 @@ export const StepCounselors: React.FC = () => {
           toast.warning(
             'No Matching Counselors',
             'None of the uploaded counselors were found in the directory. Add them there first.'
+          );
+          setIsProcessing(false);
+          return;
+        }
+
+        // A counsellor's slot (counsellorId + date + startTime) is unique across the whole
+        // system, not just this project — the import endpoint 409s on any collision, which
+        // would otherwise leave the project created but that counsellor with zero usable
+        // slots (see /sessions/slots/import). Catch that here, before anything is created:
+        // duplicate rows within this sheet, duplicates against counsellors already staged
+        // earlier in this wizard session, and collisions against slots that already exist
+        // for that counsellor from a previous project.
+        const slotKey = (code: string, s: CounsellorSlotRow) => `${code}|${s.date}|${s.startTime}`;
+        const seen = new Set<string>();
+        for (const c of counselors) {
+          if (!c.counsellorCode) continue;
+          for (const s of c.slots ?? []) seen.add(slotKey(c.counsellorCode, s));
+        }
+        const inSheetConflicts: string[] = [];
+        for (const g of byCode.values()) {
+          for (const s of g.slots) {
+            const key = slotKey(g.code, s);
+            if (seen.has(key)) inSheetConflicts.push(`${g.code} on ${s.date} at ${s.startTime}`);
+            seen.add(key);
+          }
+        }
+        if (inSheetConflicts.length > 0) {
+          toast.error(
+            'Duplicate Slots',
+            `The same counsellor/date/time appears more than once (incl. counsellors already added): ` +
+              `${inSheetConflicts.slice(0, 3).join(', ')}` +
+              (inSheetConflicts.length > 3 ? ` (and ${inSheetConflicts.length - 3} more)` : '') +
+              '. Fix the sheet and re-upload.'
+          );
+          setIsProcessing(false);
+          return;
+        }
+
+        const existingConflicts: string[] = [];
+        for (const c of matched) {
+          if (!c.directoryId || !c.slots?.length) continue;
+          const existingSlots = await sessionsService.getSlots({ counsellorId: c.directoryId });
+          const existingKeys = new Set(existingSlots.map(s => `${s.date}|${s.startTime}`));
+          for (const s of c.slots) {
+            if (existingKeys.has(`${s.date}|${s.startTime}`)) {
+              existingConflicts.push(`${c.counsellorCode || c.name} on ${s.date} at ${s.startTime}`);
+            }
+          }
+        }
+        if (existingConflicts.length > 0) {
+          toast.error(
+            'Slots Already Booked',
+            `These slots are already booked for that counsellor on another project and can't be ` +
+              `imported: ${existingConflicts.slice(0, 3).join(', ')}` +
+              (existingConflicts.length > 3 ? ` (and ${existingConflicts.length - 3} more)` : '') +
+              '. Remove or change those rows and re-upload.'
           );
           setIsProcessing(false);
           return;

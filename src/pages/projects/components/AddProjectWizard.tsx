@@ -13,6 +13,7 @@ import { Button } from '@/components/Button';
 import { Stepper, StepConfig } from '@/components/Stepper';
 import { useProjectStore } from '@/store/project.store';
 import { projectService } from '@/services/project.service';
+import { sessionsService } from '@/services/sessions.service';
 import { useToast } from '@/hooks';
 import { getApiErrorMessage, isValidEmail, isValidPhone } from '@/utils';
 import { StepInstitute } from './StepInstitute';
@@ -35,6 +36,7 @@ const WIZARD_STEPS: StepConfig[] = [
 export const AddProjectWizard: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [isValidatingSlots, setIsValidatingSlots] = React.useState(false);
 
   const {
     isWizardOpen,
@@ -49,64 +51,23 @@ export const AddProjectWizard: React.FC = () => {
 
   const createMutation = useMutation({
     mutationFn: projectService.create,
-    onSuccess: ({ studentImport, counselorAssign }) => {
+    // The wizard endpoint is one transaction — a success here means the project, every
+    // student, and every counsellor slot all landed. No partial-failure reporting needed.
+    onSuccess: ({ studentsCreated, counsellorsAssigned, slotsImported }) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
-      // Student rows are imported one by one and a bad row is skipped rather than
-      // aborting the batch, so say what actually landed instead of a blanket success.
-      const studentNote =
-        studentImport.failed > 0
-          ? `${studentImport.imported} of ${studentImport.total} students imported. ` +
-            `${studentImport.failed} skipped — ` +
-            studentImport.failures
-              .slice(0, 3)
-              .map(f => `${f.name}: ${f.reason}`)
-              .join(' · ') +
-            (studentImport.failed > 3 ? ` (and ${studentImport.failed - 3} more)` : '')
-          : studentImport.total > 0
-            ? `All ${studentImport.total} students were imported.`
-            : '';
-      // A counsellor assignment can fail (e.g. already tied to a different institute) —
-      // say who was skipped and why instead of a blanket success.
-      const counselorNote =
-        counselorAssign.failures.length > 0
-          ? `${counselorAssign.assigned} counselor(s) assigned. ` +
-            `${counselorAssign.failures.length} skipped — ` +
-            counselorAssign.failures
-              .slice(0, 3)
-              .map(f => `${f.name}: ${f.reason}`)
-              .join(' · ') +
-            (counselorAssign.failures.length > 3
-              ? ` (and ${counselorAssign.failures.length - 3} more)`
-              : '')
-          : '';
-      // The slot sheet imports as one call: if it is rejected, every counsellor is left
-      // with no availability at all, which a plain success toast would hide.
-      const slotNote = counselorAssign.slotImport.error
-        ? `Counsellor availability was not imported (${counselorAssign.slotImport.attempted} slot(s)) — ${counselorAssign.slotImport.error}`
-        : '';
-
-      const issueNote = [counselorNote, slotNote].filter(Boolean).join(' ');
-
-      if (studentNote && issueNote) {
-        toast.warning('Project Created — Check the Imports', `${studentNote} ${issueNote}`);
-      } else if (issueNote) {
-        toast.warning('Project Created — Check Counselor Assignments', issueNote);
-      } else if (studentImport.failed > 0) {
-        toast.warning('Project Created — Some Students Skipped', studentNote);
-      } else {
-        toast.success(
-          'Project Created',
-          studentNote || 'The project has been created successfully.'
-        );
-      }
+      toast.success(
+        'Project Created',
+        `${studentsCreated} student(s) onboarded, ${counsellorsAssigned} counselor(s) assigned with ${slotsImported} slot(s).`
+      );
       closeWizard();
     },
     onError: (err: unknown) => {
-      // Surface what the server actually rejected — a duplicate institute name/email/phone
-      // is the common case, and a generic message makes it undiagnosable.
+      // All-or-nothing: nothing was created, so surface exactly what the server rejected
+      // (a duplicate student email/mobile, a slot already booked elsewhere, a duplicate
+      // institute name/email/phone, ...) rather than a generic message.
       toast.error(
-        'Error',
+        'Project Not Created',
         getApiErrorMessage(err, 'Failed to create the project. Please try again.')
       );
     },
@@ -134,7 +95,38 @@ export const AddProjectWizard: React.FC = () => {
     }
   }, [wizardStep, instituteDetails, students, counselors]);
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    // Re-check right before creating anything — the sheet was validated on upload, but a
+    // slot can be claimed by another admin in the meantime. Catching that here means the
+    // project is never created with a counsellor left holding zero usable slots (see
+    // /sessions/slots/import's uniqueness on counsellorId+date+startTime).
+    const withSlots = counselors.filter(c => c.matchStatus === 'matched' && c.directoryId && c.slots?.length);
+    setIsValidatingSlots(true);
+    try {
+      const conflicts: string[] = [];
+      for (const c of withSlots) {
+        const existingSlots = await sessionsService.getSlots({ counsellorId: c.directoryId! });
+        const existingKeys = new Set(existingSlots.map(s => `${s.date}|${s.startTime}`));
+        for (const s of c.slots ?? []) {
+          if (existingKeys.has(`${s.date}|${s.startTime}`)) {
+            conflicts.push(`${c.counsellorCode || c.name} on ${s.date} at ${s.startTime}`);
+          }
+        }
+      }
+      if (conflicts.length > 0) {
+        toast.error(
+          'Slots Already Booked',
+          `These slots were just booked elsewhere for that counsellor and can't be imported: ` +
+            `${conflicts.slice(0, 3).join(', ')}` +
+            (conflicts.length > 3 ? ` (and ${conflicts.length - 3} more)` : '') +
+            '. Remove or change those rows on the Counselors step and try again.'
+        );
+        return;
+      }
+    } finally {
+      setIsValidatingSlots(false);
+    }
+
     createMutation.mutate({
       instituteDetails: {
         ...instituteDetails,
@@ -177,8 +169,8 @@ export const AddProjectWizard: React.FC = () => {
           <Button
             leftIcon={<RiCheckLine size={16} />}
             onClick={handleFinish}
-            disabled={isNextDisabled}
-            isLoading={createMutation.isPending}
+            disabled={isNextDisabled || isValidatingSlots}
+            isLoading={createMutation.isPending || isValidatingSlots}
           >
             Finish
           </Button>
