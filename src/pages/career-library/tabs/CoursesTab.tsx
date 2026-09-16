@@ -122,19 +122,13 @@ const renderCourseCard = (course: CourseDetail) => (
 
 interface CoursesTabProps {
   courses: CourseDetail[];
-  // Courses mapped to this role's career cluster (shared across every job role in that
-  // cluster), shown separately from the role's own curated `courses` above.
-  relatedCourses?: CourseDetail[];
-  clusterName?: string;
 }
 
-export const CoursesTab: React.FC<CoursesTabProps> = ({ courses, relatedCourses = [] }) => {
-  const clusterCourses = relatedCourses.length > 0 ? relatedCourses : courses;
-
+export const CoursesTab: React.FC<CoursesTabProps> = ({ courses }) => {
   return (
     <Container>
-      {clusterCourses.length > 0 ? (
-        <Grid>{clusterCourses.map(renderCourseCard)}</Grid>
+      {courses.length > 0 ? (
+        <Grid>{courses.map(renderCourseCard)}</Grid>
       ) : (
         <EmptyState>No courses linked to this role yet.</EmptyState>
       )}

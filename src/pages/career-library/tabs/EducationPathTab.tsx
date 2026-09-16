@@ -176,8 +176,15 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
   const studentCertEntries = byLevel(linkedEducationEntries, 'CERTIFICATION_STUDENT');
   const ugCertEntries = byLevel(linkedEducationEntries, 'CERTIFICATION_UG');
 
-  const studentCerts = toList(role.certificationsStudents);
-  const ugCerts = toList(role.certificationsUG);
+  // Certifications are edited as free text on the modal (structured cert entries aren't
+  // exposed there), so a structured entry from an older import must not hide a
+  // freshly-added free-text one — merge both, skipping exact-name duplicates.
+  const mergeCerts = (structured: DomainEducationEntry[], freeText: string[]) => {
+    const structuredNames = new Set(structured.map(e => e.programme.trim().toLowerCase()));
+    return freeText.filter(c => !structuredNames.has(c.trim().toLowerCase()));
+  };
+  const studentCerts = mergeCerts(studentCertEntries, toList(role.certificationsStudents));
+  const ugCerts = mergeCerts(ugCertEntries, toList(role.certificationsUG));
 
   return (
     <Container>
@@ -237,10 +244,15 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
         <CertCard>
           <CertTitle>Certifications — Student Level</CertTitle>
           <PillGroup>
-            {studentCertEntries.length > 0 ? (
-              studentCertEntries.map(entry => <CertPill key={entry.id}>{entry.programme}</CertPill>)
-            ) : studentCerts.length > 0 ? (
-              studentCerts.map((cert, i) => <CertPill key={i}>{cert}</CertPill>)
+            {studentCertEntries.length > 0 || studentCerts.length > 0 ? (
+              <>
+                {studentCertEntries.map(entry => (
+                  <CertPill key={entry.id}>{entry.programme}</CertPill>
+                ))}
+                {studentCerts.map((cert, i) => (
+                  <CertPill key={i}>{cert}</CertPill>
+                ))}
+              </>
             ) : (
               <StepSubtitle>No certifications listed.</StepSubtitle>
             )}
@@ -250,10 +262,15 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
         <CertCard>
           <CertTitle>Certifications — Undergraduate Level</CertTitle>
           <PillGroup>
-            {ugCertEntries.length > 0 ? (
-              ugCertEntries.map(entry => <CertPill key={entry.id}>{entry.programme}</CertPill>)
-            ) : ugCerts.length > 0 ? (
-              ugCerts.map((cert, i) => <CertPill key={i}>{cert}</CertPill>)
+            {ugCertEntries.length > 0 || ugCerts.length > 0 ? (
+              <>
+                {ugCertEntries.map(entry => (
+                  <CertPill key={entry.id}>{entry.programme}</CertPill>
+                ))}
+                {ugCerts.map((cert, i) => (
+                  <CertPill key={i}>{cert}</CertPill>
+                ))}
+              </>
             ) : (
               <StepSubtitle>No certifications listed.</StepSubtitle>
             )}

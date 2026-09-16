@@ -238,10 +238,10 @@ export const ProjectDashboardPage: React.FC = () => {
     },
   });
 
-  // DELETE /projects/{id} is a soft-delete (status → DELETED); the record is preserved
-  // and can be restored from the projects list.
+  // Hard-deletes the project's students and unassigns its counsellors before soft-
+  // deleting the project record itself; see projectService.deleteWithDependents.
   const deleteMutation = useMutation({
-    mutationFn: () => projectService.delete(projectId as string),
+    mutationFn: () => projectService.deleteWithDependents(projectId as string),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['projects-stats'] });

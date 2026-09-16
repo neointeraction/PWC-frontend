@@ -107,6 +107,24 @@ export const toISODate = (v: string): string => {
       return `${monthNameMatch[3]}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
   }
+  // SheetJS's `raw: false` CSV/XLSX read reformats any cell it sniffs as a date to its
+  // default short-date text, "m/d/yy" (ECMA-376 built-in number format 14) — this is a
+  // fixed internal format, not locale-dependent, and it's what a real upload's Date
+  // column value looks like by the time it reaches here regardless of how the admin
+  // typed it. A 2-digit year is expanded with the common 69/00 pivot (69-99 -> 19xx,
+  // 00-68 -> 20xx).
+  const slashMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (slashMatch) {
+    const month = parseInt(slashMatch[1], 10);
+    const day = parseInt(slashMatch[2], 10);
+    const yearStr = slashMatch[3];
+    const year = yearStr.length === 2
+      ? (parseInt(yearStr, 10) <= 68 ? 2000 : 1900) + parseInt(yearStr, 10)
+      : parseInt(yearStr, 10);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+  }
   return '';
 };
 

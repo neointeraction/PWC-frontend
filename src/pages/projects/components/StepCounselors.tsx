@@ -79,37 +79,28 @@ export const StepCounselors: React.FC = () => {
         // Match each Counsellor ID against the real directory (only directory
         // counsellors can be added to a project). Sheet codes and directory codes can
         // differ in zero-padding (e.g. "C0001" vs "C001"), so match on a normalized form.
+        // An unknown code can't be resolved to anyone real — that row is skipped rather
+        // than blocking the rest of a perfectly good sheet.
         const directory = await projectService.getCounsellorDirectory();
         const dirByCode = new Map(directory.map(d => [normalizeCounsellorCode(d.counsellorCode), d]));
-        const unresolved: string[] = [];
-        const parsed: ProjectCounselor[] = Array.from(byCode.values()).map(g => {
+        const unresolvedCodes: string[] = [];
+        const matched: ProjectCounselor[] = [];
+        for (const g of byCode.values()) {
           const dir = dirByCode.get(normalizeCounsellorCode(g.code));
-          if (!dir) unresolved.push(g.code);
-          return dir
-            ? {
-                name: dir.name || g.name,
-                email: dir.email,
-                mobile: dir.mobile,
-                matchStatus: 'matched' as const,
-                counsellorCode: g.code,
-                directoryId: dir.id,
-                slots: g.slots,
-              }
-            : { name: g.name, email: '', mobile: '', matchStatus: 'new' as const, counsellorCode: g.code, slots: g.slots };
-        });
-
-        if (unresolved.length > 0) {
-          toast.error(
-            'Unknown Counsellor Code',
-            `Unknown counsellor code: ${unresolved.join(', ')}. Fix the sheet or add them to the directory first.`
-          );
-          setIsProcessing(false);
-          return;
+          if (!dir) {
+            unresolvedCodes.push(g.code);
+            continue;
+          }
+          matched.push({
+            name: dir.name || g.name,
+            email: dir.email,
+            mobile: dir.mobile,
+            matchStatus: 'matched',
+            counsellorCode: g.code,
+            directoryId: dir.id,
+            slots: g.slots,
+          });
         }
-
-        const matched = parsed.filter(p => p.matchStatus === 'matched');
-        const newN = parsed.length - matched.length;
-        const totalSlots = matched.reduce((n, p) => n + (p.slots?.length || 0), 0);
 
         if (matched.length === 0) {
           toast.warning(
@@ -123,64 +114,65 @@ export const StepCounselors: React.FC = () => {
         // A counsellor's slot (counsellorId + date + startTime) is unique across the whole
         // system, not just this project — the import endpoint 409s on any collision, which
         // would otherwise leave the project created but that counsellor with zero usable
-        // slots (see /sessions/slots/import). Catch that here, before anything is created:
-        // duplicate rows within this sheet, duplicates against counsellors already staged
-        // earlier in this wizard session, and collisions against slots that already exist
-        // for that counsellor from a previous project.
+        // slots (see /sessions/slots/import). Drop just the conflicting row rather than the
+        // whole sheet: duplicates within this sheet, duplicates against counsellors already
+        // staged earlier in this wizard session, and collisions against slots that already
+        // exist for that counsellor from a previous project.
         const slotKey = (code: string, s: CounsellorSlotRow) => `${code}|${s.date}|${s.startTime}`;
         const seen = new Set<string>();
         for (const c of counselors) {
           if (!c.counsellorCode) continue;
           for (const s of c.slots ?? []) seen.add(slotKey(c.counsellorCode, s));
         }
-        const inSheetConflicts: string[] = [];
-        for (const g of byCode.values()) {
-          for (const s of g.slots) {
-            const key = slotKey(g.code, s);
-            if (seen.has(key)) inSheetConflicts.push(`${g.code} on ${s.date} at ${s.startTime}`);
+        let skippedSlots = 0;
+        for (const c of matched) {
+          const kept: CounsellorSlotRow[] = [];
+          for (const s of c.slots ?? []) {
+            const key = slotKey(c.counsellorCode!, s);
+            if (seen.has(key)) {
+              skippedSlots += 1;
+              continue;
+            }
             seen.add(key);
+            kept.push(s);
           }
-        }
-        if (inSheetConflicts.length > 0) {
-          toast.error(
-            'Duplicate Slots',
-            `The same counsellor/date/time appears more than once (incl. counsellors already added): ` +
-              `${inSheetConflicts.slice(0, 3).join(', ')}` +
-              (inSheetConflicts.length > 3 ? ` (and ${inSheetConflicts.length - 3} more)` : '') +
-              '. Fix the sheet and re-upload.'
-          );
-          setIsProcessing(false);
-          return;
+          c.slots = kept;
         }
 
-        const existingConflicts: string[] = [];
         for (const c of matched) {
           if (!c.directoryId || !c.slots?.length) continue;
           const existingSlots = await sessionsService.getSlots({ counsellorId: c.directoryId });
           const existingKeys = new Set(existingSlots.map(s => `${s.date}|${s.startTime}`));
-          for (const s of c.slots) {
+          const kept = c.slots.filter(s => {
             if (existingKeys.has(`${s.date}|${s.startTime}`)) {
-              existingConflicts.push(`${c.counsellorCode || c.name} on ${s.date} at ${s.startTime}`);
+              skippedSlots += 1;
+              return false;
             }
-          }
-        }
-        if (existingConflicts.length > 0) {
-          toast.error(
-            'Slots Already Booked',
-            `These slots are already booked for that counsellor on another project and can't be ` +
-              `imported: ${existingConflicts.slice(0, 3).join(', ')}` +
-              (existingConflicts.length > 3 ? ` (and ${existingConflicts.length - 3} more)` : '') +
-              '. Remove or change those rows and re-upload.'
-          );
-          setIsProcessing(false);
-          return;
+            return true;
+          });
+          c.slots = kept;
         }
 
+        const totalSlots = matched.reduce((n, p) => n + (p.slots?.length || 0), 0);
+        const zeroSlotCount = matched.filter(c => !c.slots?.length).length;
+
         setCounselors([...counselors, ...matched]);
-        if (newN > 0) {
-          toast.error(
-            'Some Not In Directory',
-            `${matched.length} matched, ${newN} skipped (not in the counsellor directory — add them there first).`
+
+        const issues: string[] = [];
+        if (unresolvedCodes.length > 0) {
+          issues.push(`${unresolvedCodes.length} unknown counsellor code(s) skipped (${unresolvedCodes.slice(0, 3).join(', ')}${unresolvedCodes.length > 3 ? ', …' : ''})`);
+        }
+        if (skippedSlots > 0) {
+          issues.push(`${skippedSlots} slot row(s) skipped (already booked or duplicated)`);
+        }
+        if (zeroSlotCount > 0) {
+          issues.push(`${zeroSlotCount} counsellor(s) matched but have no usable slots and won't be assigned`);
+        }
+
+        if (issues.length > 0) {
+          toast.warning(
+            'Loaded With Some Rows Skipped',
+            `${matched.length} counsellor(s) with ${totalSlots} slot(s) staged. ${issues.join('. ')}.`
           );
         } else {
           toast.success('Counselors Loaded', `${matched.length} counsellor(s) with ${totalSlots} slots.`);

@@ -191,15 +191,27 @@ const mapProject = (p: ApiProject): Project => ({
   createdAt: (p.createdAt ?? '').slice(0, 10),
 });
 
-// POST /projects/wizard is one atomic transaction — project, students, and counsellor
-// slots either all land or none do, so unlike the old 3-call orchestration there's no
-// partial-success shape to report: a rejected row (bad student email, a slot already
-// booked elsewhere, ...) fails the whole call and nothing is created.
+// POST /projects/wizard is one transaction, but only the project's own fields
+// (code/name/contactNumber/primaryEmail) are all-or-nothing (409 on conflict, nothing
+// created). A conflicting student row or counsellor slot is skipped rather than failing
+// the whole call, so the response reports what landed vs. what was skipped and why.
+export interface StudentSkipReason {
+  index: number;
+  reason: string;
+}
+export interface SlotSkipReason {
+  counsellorCode: string;
+  date: string;
+  startTime: string;
+  reason: string;
+}
 export interface CreateProjectResult {
   project: Project;
   studentsCreated: number;
+  studentsSkipped: StudentSkipReason[];
   counsellorsAssigned: number;
   slotsImported: number;
+  slotsSkipped: SlotSkipReason[];
 }
 
 // The wizard response embeds the created project in the same shape GET/POST /projects
@@ -207,8 +219,10 @@ export interface CreateProjectResult {
 interface ApiProjectWizardResult {
   project: ApiProject;
   studentsCreated: number;
+  studentsSkipped: StudentSkipReason[];
   counsellorsAssigned: number;
   slotsImported: number;
+  slotsSkipped: SlotSkipReason[];
 }
 
 // --- Assigning counsellors to an already-existing project (post-creation) ---
@@ -359,6 +373,26 @@ export const projectService = {
     return mapProject(data);
   },
 
+  // Full delete: hard-deletes every student on the project (DELETE /students/{id}, which
+  // itself cascades to that student's User row, forms, sessions, etc.) and unassigns every
+  // counsellor from the project (DELETE /counsellors/{id}/projects/{projectId}, releasing
+  // their slots for this project) before soft-deleting the project record itself. Unlike
+  // plain `delete`, this is NOT fully reversible via `restore` — the roster and slots are
+  // gone for good, only the project shell comes back.
+  deleteWithDependents: async (id: string): Promise<void> => {
+    const [studentsRes, counsellorsRes] = await Promise.all([
+      apiClient.get<ApiStudent[]>('/students', { params: { projectId: id } }),
+      apiClient.get<ApiCounsellorDir[]>('/counsellors', { params: { projectId: id } }),
+    ]);
+
+    await Promise.all(studentsRes.data.map(st => apiClient.delete(`/students/${st.id}`)));
+    await Promise.all(
+      counsellorsRes.data.map(c => apiClient.delete(`/counsellors/${c.id}/projects/${id}`))
+    );
+
+    await apiClient.delete(`/projects/${id}`);
+  },
+
   // One atomic call: project + student roster + counsellor slots, via the transactional
   // wizard endpoint — either everything lands or nothing does (see CreateProjectResult).
   create: async (payload: CreateProjectPayload): Promise<CreateProjectResult> => {
@@ -425,8 +459,10 @@ export const projectService = {
     return {
       project: mapProject(data.project),
       studentsCreated: data.studentsCreated,
+      studentsSkipped: data.studentsSkipped ?? [],
       counsellorsAssigned: data.counsellorsAssigned,
       slotsImported: data.slotsImported,
+      slotsSkipped: data.slotsSkipped ?? [],
     };
   },
 

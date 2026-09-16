@@ -120,7 +120,7 @@ export const ProjectsPage: React.FC = () => {
   }, [allProjectsData]);
 
   const deleteMutation = useMutation({
-    mutationFn: projectService.delete,
+    mutationFn: projectService.deleteWithDependents,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
@@ -146,6 +146,10 @@ export const ProjectsPage: React.FC = () => {
   });
 
   const handleDeleteClick = (project: Project) => {
+    if (project.status !== 'closed') {
+      toast.error('Project Must Be Closed', 'Close this project before deleting it.');
+      return;
+    }
     setProjectToDelete(project);
   };
 

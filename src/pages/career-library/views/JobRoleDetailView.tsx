@@ -250,7 +250,6 @@ interface JobRoleDetailViewProps {
   role: Career;
   entranceExams: EntranceExam[];
   courses: CourseDetail[];
-  relatedCourses?: CourseDetail[];
   institutions: InstitutionDetail[];
   linkedEducationEntries?: DomainEducationEntry[];
   onEditRole?: (role: Career) => void;
@@ -262,7 +261,6 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
   role,
   entranceExams,
   courses,
-  relatedCourses,
   institutions,
   linkedEducationEntries,
   onEditRole,
@@ -401,11 +399,7 @@ export const JobRoleDetailView: React.FC<JobRoleDetailViewProps> = ({
           {activeTab === 'exams' && <EntranceExamsTab exams={entranceExams} />}
 
           {activeTab === 'courses' && (
-            <CoursesTab
-              courses={courses}
-              relatedCourses={relatedCourses}
-              clusterName={role.careerCluster}
-            />
+            <CoursesTab courses={courses} />
           )}
 
           {activeTab === 'institutions' && <InstitutionsTab institutions={institutions} />}
