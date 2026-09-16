@@ -899,7 +899,7 @@ export const projectService = {
         students: students.map(s => ({
           email: s.email || undefined,
           studentCode: s.studentId || undefined,
-          mobile: s.mobile || undefined,
+          mobile: s.mobile ? normalizePhone(s.mobile) : undefined,
         })),
       }
     );
