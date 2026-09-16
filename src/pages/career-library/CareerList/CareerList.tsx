@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 import { PageHeader } from '@/components/PageHeader';
@@ -111,6 +112,10 @@ export const CareerListPage: React.FC = () => {
   const [selectedDomain, setSelectedDomain] = useState<CareerDomain | null>(null);
   const [selectedRole, setSelectedRole] = useState<Career | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [urlParams, setUrlParams] = useSearchParams();
+  // Guards the URL-sync effect below from firing (and clearing ?roleId=) before the
+  // restore-on-mount effect has had a chance to read it.
+  const hasRestoredFromUrlRef = useRef(false);
 
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -160,6 +165,50 @@ export const CareerListPage: React.FC = () => {
     }
     invalidateCareer();
   };
+
+  // Restore the role detail view from `?roleId=` on first load — otherwise refreshing
+  // the page (or opening a bookmarked/shared link) always lands back on "Choose a Career
+  // Cluster" instead of the role the user was actually looking at.
+  useEffect(() => {
+    const roleId = urlParams.get('roleId');
+    if (!roleId) {
+      hasRestoredFromUrlRef.current = true;
+      return;
+    }
+    queryClient
+      .fetchQuery({ queryKey: ['careerDetail', roleId], queryFn: () => careerService.getById(roleId) })
+      .then(detail => {
+        const c = detail.career;
+        // Only `.id`/`.name` of these are read anywhere at the detail level (breadcrumb
+        // labels, the edit modal's read-only hierarchy) — the rest is filled in properly
+        // if the user navigates from here rather than jumping straight back to detail.
+        setSelectedCluster({ id: '', name: c.careerCluster } as CareerCluster);
+        setSelectedIndustry({ id: '', name: c.industry } as CareerIndustry);
+        setSelectedDomain({ id: c.domainId || '', name: c.domain } as CareerDomain);
+        setSelectedRole(c);
+        setLevel('detail');
+      })
+      .catch(() => {
+        toast.error('Could not restore', 'That job role could no longer be found.');
+      })
+      .finally(() => {
+        hasRestoredFromUrlRef.current = true;
+      });
+    // Runs once on mount only — this is purely for restoring state after a refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep `?roleId=` in sync with the open role so a refresh lands back on the same
+  // detail view instead of resetting to the top of the hierarchy.
+  useEffect(() => {
+    if (!hasRestoredFromUrlRef.current) return;
+    if (level === 'detail' && selectedRole) {
+      setUrlParams({ roleId: selectedRole.id }, { replace: true });
+    } else if (urlParams.get('roleId')) {
+      setUrlParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [level, selectedRole]);
 
   const deleteMutation = useMutation({
     mutationFn: (target: DeleteTarget) => {
@@ -593,7 +642,6 @@ export const CareerListPage: React.FC = () => {
               role={roleDetail.career}
               entranceExams={roleDetail.entranceExams}
               courses={roleDetail.courses}
-              relatedCourses={roleDetail.relatedCourses}
               institutions={roleDetail.institutions}
               linkedEducationEntries={roleDetail.linkedEducationEntries}
               onEditRole={canWrite ? role => setRoleModal({ mode: 'edit', entity: role }) : undefined}

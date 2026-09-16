@@ -257,7 +257,6 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
             role={roleDetail.career}
             entranceExams={roleDetail.entranceExams}
             courses={roleDetail.courses}
-            relatedCourses={roleDetail.relatedCourses}
             institutions={roleDetail.institutions}
             linkedEducationEntries={roleDetail.linkedEducationEntries}
             onEditRole={onEditRole}

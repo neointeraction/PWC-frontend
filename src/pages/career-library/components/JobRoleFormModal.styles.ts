@@ -88,11 +88,19 @@ export const ResilienceCommentBox = styled.div`
   gap: 4px;
 `;
 
-export const ResilienceCommentText = styled.p`
+export const ResilienceCommentText = styled.textarea`
+  width: 100%;
+  min-height: 60px;
   font-size: 13px;
   line-height: 1.5;
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  resize: vertical;
 `;
 
 // ---- Locked hierarchy display (read-only cluster / industry / domain) ----
@@ -130,10 +138,12 @@ export const HierarchyHint = styled.span`
 
 // ---- Linked reference lists (exams / courses / institutions) ----
 
+// Wraps entries onto shared lines (like chips) instead of stacking one full-width row per
+// entry — matches the Education Path list, where multiple entries flow together.
 export const ExistingEntriesList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 `;
 
 export const EmptyListHint = styled.div`
@@ -146,8 +156,7 @@ export const EmptyListHint = styled.div`
 export const EntryRow = styled.div<{ $checked?: boolean }>`
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   padding: 4px 0;
 `;
 
@@ -281,24 +290,33 @@ export const AddRowWrapper = styled.div`
 
 // ---- Education path (domain-level tick list) ----
 
-// Entries wrap to two lines, so the checkbox sits with the first line rather than
-// floating to the vertical middle of a tall row.
-export const EducationEntryRow = styled.div`
+export const EducationLevelName = styled.strong`
+  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+`;
+
+// Groups every entry at the same level (e.g. all Graduate programmes) under one level
+// heading, each entry on its own line.
+export const EducationLevelRow = styled.div`
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   padding: 5px 0;
   font-size: 13px;
   color: ${({ theme }) => theme.colors.text};
   line-height: 1.45;
 `;
 
-export const EducationEntryText = styled.span`
-  flex: 1;
+export const EducationEntriesInline = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 `;
 
-export const EducationLevelName = styled.strong`
-  font-weight: ${({ theme }) => theme.fontWeight.semibold};
+export const EducationEntryChip = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 `;
 
 export const AddEducationButton = styled.button`

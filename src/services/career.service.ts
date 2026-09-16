@@ -197,21 +197,6 @@ export interface DomainEducationEntry {
 // same course row for every job role in a cluster. Field names mirror the raw import
 // sheet (`courseName`, not `name`) and only `id`/`courseName`/`careerCluster` are
 // guaranteed; the rest are optional and may not all be populated per row.
-interface ApiRelatedCourse {
-  id: string;
-  courseName: string;
-  level?: string | null;
-  careerCluster?: string | null;
-  fullForm?: string | null;
-  stream12thRequirements?: string | null;
-  entranceExamsPrimary?: string | null;
-  entranceExamsAlternate?: string | null;
-  topSpecialisations?: string | null;
-  topGovtColleges?: string | null;
-  topPrivateColleges?: string | null;
-  furtherStudyOptions?: string | null;
-}
-
 interface CareerLibraryDetailResponse extends ApiCareerEntry {
   // Curated many-to-many links actually attached to this entry (with ids) — the source
   // for both the read-only detail tabs and pre-ticking the edit form's tick-lists.
@@ -219,11 +204,6 @@ interface CareerLibraryDetailResponse extends ApiCareerEntry {
   linkedCourses?: ApiNormalizedCourse[];
   linkedInstitutions?: ApiNormalizedInstitution[];
   linkedEducationEntries?: DomainEducationEntry[];
-  // Legacy broad value-match view (matched by this entry's career cluster name, not by
-  // this entry's own links) — every job role in the same cluster gets the same rows.
-  // Used for the "courses mapped by career cluster" section, kept separate from
-  // `linkedCourses` so the two are never conflated in the UI.
-  relatedCourses?: ApiRelatedCourse[];
 }
 
 // Typeahead endpoints ("dropdown" reads) may return a bare array or a `{ data }` wrapper.
@@ -458,20 +438,6 @@ const mapCourse = (course: ApiNormalizedCourse): CourseDetail => ({
   entranceExams: course.relevantEntranceExams || '—',
   programsOffered: course.programmesOffered || '—',
   topColleges: course.topColleges || '—',
-  furtherStudyOptions: course.furtherStudyOptions || '—',
-});
-
-const mapRelatedCourse = (course: ApiRelatedCourse): CourseDetail => ({
-  id: course.id,
-  badge: course.level || 'UG',
-  title: course.fullForm ? `${course.courseName} (${course.fullForm})` : course.courseName,
-  streamRequirement: course.stream12thRequirements || '—',
-  entranceExams:
-    [course.entranceExamsPrimary, course.entranceExamsAlternate].filter(Boolean).join('; ') ||
-    '—',
-  programsOffered: course.topSpecialisations || '—',
-  topColleges:
-    [course.topGovtColleges, course.topPrivateColleges].filter(Boolean).join('; ') || '—',
   furtherStudyOptions: course.furtherStudyOptions || '—',
 });
 
@@ -814,9 +780,6 @@ export const careerService = {
     entranceExams: EntranceExam[];
     courses: CourseDetail[];
     institutions: InstitutionDetail[];
-    // Courses mapped to this entry's career cluster (legacy broad value-match, shared by
-    // every job role in the cluster), minus any already shown in `courses` above.
-    relatedCourses: CourseDetail[];
     // Currently-linked canonical records (ids) for the edit form's tick-lists.
     linkedEntranceExams: CareerLinkOption[];
     linkedCourses: CareerLinkOption[];
@@ -824,23 +787,14 @@ export const careerService = {
     linkedEducationEntries: DomainEducationEntry[];
   }> => {
     const { data } = await apiClient.get<CareerLibraryDetailResponse>(`/career-library/${id}`);
-    const linked = mapLinkedRecords(data);
-    const linkedCourseTitles = new Set(linked.courses.map(c => c.title.toLowerCase()));
     return {
       career: mapCareerEntry(data),
-      ...linked,
-      // The detail tabs show only what's actually linked to this entry — not the API's
-      // legacy `related*` view, which broad-matches by domain/cluster name and so showed
-      // the same institutions/courses on every role in an industry regardless of links.
-      relatedCourses: (data.relatedCourses || [])
-        .map(mapRelatedCourse)
-        .filter(c => !linkedCourseTitles.has(c.title.toLowerCase())),
+      ...mapLinkedRecords(data),
     };
   },
 
-  // GET /career-library/proposals/{id} — same shape as getById minus relatedCourses (the
-  // legacy cluster-wide view isn't meaningful for a not-yet-published role), so the Career
-  // Compass edit form can reuse it to pre-fill a counsellor's own still-pending proposal.
+  // GET /career-library/proposals/{id} — same shape as getById, so the Career Compass edit
+  // form can reuse it to pre-fill a counsellor's own still-pending proposal.
   getProposalDetail: async (
     id: string
   ): Promise<{

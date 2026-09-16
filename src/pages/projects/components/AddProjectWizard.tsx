@@ -36,7 +36,7 @@ const WIZARD_STEPS: StepConfig[] = [
 export const AddProjectWizard: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [isValidatingSlots, setIsValidatingSlots] = React.useState(false);
+  const [isValidatingFinish, setIsValidatingFinish] = React.useState(false);
 
   const {
     isWizardOpen,
@@ -47,25 +47,50 @@ export const AddProjectWizard: React.FC = () => {
     instituteDetails,
     counselors,
     students,
+    setStudents,
+    setCounselors,
   } = useProjectStore();
 
   const createMutation = useMutation({
     mutationFn: projectService.create,
-    // The wizard endpoint is one transaction — a success here means the project, every
-    // student, and every counsellor slot all landed. No partial-failure reporting needed.
-    onSuccess: ({ studentsCreated, counsellorsAssigned, slotsImported }) => {
+    // Only the institute's own fields (code/name/email/phone) are all-or-nothing on the
+    // backend now — a conflicting student row or counsellor slot is skipped server-side
+    // rather than failing the call, so a "success" here can still carry skips to report.
+    onSuccess: ({ studentsCreated, studentsSkipped, counsellorsAssigned, slotsImported, slotsSkipped }) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
       toast.success(
         'Project Created',
         `${studentsCreated} student(s) onboarded, ${counsellorsAssigned} counselor(s) assigned with ${slotsImported} slot(s).`
       );
+      if (studentsSkipped.length > 0) {
+        toast.warning(
+          'Some Students Skipped',
+          `${studentsSkipped.length} student row(s) were skipped: ` +
+            studentsSkipped
+              .slice(0, 3)
+              .map(s => s.reason)
+              .join(' · ') +
+            (studentsSkipped.length > 3 ? ` (and ${studentsSkipped.length - 3} more)` : '')
+        );
+      }
+      if (slotsSkipped.length > 0) {
+        toast.warning(
+          'Some Slots Skipped',
+          `${slotsSkipped.length} counsellor slot(s) were skipped: ` +
+            slotsSkipped
+              .slice(0, 3)
+              .map(s => `${s.counsellorCode} ${s.date} ${s.startTime} (${s.reason})`)
+              .join(' · ') +
+            (slotsSkipped.length > 3 ? ` (and ${slotsSkipped.length - 3} more)` : '')
+        );
+      }
       closeWizard();
     },
     onError: (err: unknown) => {
-      // All-or-nothing: nothing was created, so surface exactly what the server rejected
-      // (a duplicate student email/mobile, a slot already booked elsewhere, a duplicate
-      // institute name/email/phone, ...) rather than a generic message.
+      // The project's own fields (code/name/email/phone) are still atomic — a conflict
+      // there is the only way this call itself fails, so surface exactly what the server
+      // rejected rather than a generic message.
       toast.error(
         'Project Not Created',
         getApiErrorMessage(err, 'Failed to create the project. Please try again.')
@@ -96,45 +121,96 @@ export const AddProjectWizard: React.FC = () => {
   }, [wizardStep, instituteDetails, students, counselors]);
 
   const handleFinish = async () => {
-    // Re-check right before creating anything — the sheet was validated on upload, but a
-    // slot can be claimed by another admin in the meantime. Catching that here means the
-    // project is never created with a counsellor left holding zero usable slots (see
-    // /sessions/slots/import's uniqueness on counsellorId+date+startTime).
-    const withSlots = counselors.filter(c => c.matchStatus === 'matched' && c.directoryId && c.slots?.length);
-    setIsValidatingSlots(true);
+    // The wizard endpoint is one transaction — a single duplicate student or booked-slot
+    // conflict would otherwise fail the *entire* project. Re-validate right before
+    // submitting and drop only the offending rows, so the rest of a good roster/sheet
+    // still goes through instead of blocking everything on one bad row.
+    setIsValidatingFinish(true);
     try {
-      const conflicts: string[] = [];
-      for (const c of withSlots) {
-        const existingSlots = await sessionsService.getSlots({ counsellorId: c.directoryId! });
-        const existingKeys = new Set(existingSlots.map(s => `${s.date}|${s.startTime}`));
-        for (const s of c.slots ?? []) {
-          if (existingKeys.has(`${s.date}|${s.startTime}`)) {
-            conflicts.push(`${c.counsellorCode || c.name} on ${s.date} at ${s.startTime}`);
-          }
+      // Students: re-check against existing records (email/studentCode/mobile are
+      // globally unique). The Students step already does this on upload, but a student
+      // can be added elsewhere in the meantime, or the roster can sit staged for a while
+      // before Finish is clicked.
+      let finalStudents = students;
+      if (students.length > 0) {
+        let duplicateCheck;
+        try {
+          duplicateCheck = await projectService.checkDuplicateStudents(students);
+        } catch {
+          toast.error(
+            'Duplicate Check Failed',
+            'Could not verify students against existing records. Please try again.'
+          );
+          return;
+        }
+        const dupIndexes = new Set(duplicateCheck.filter(r => r.isDuplicate).map(r => r.index));
+        if (dupIndexes.size > 0) {
+          finalStudents = students.filter((_, i) => !dupIndexes.has(i));
+          const skipped = students
+            .map((s, i) => ({ s, i }))
+            .filter(({ i }) => dupIndexes.has(i))
+            .map(({ s, i }) => {
+              const match = duplicateCheck.find(r => r.index === i)?.matches[0];
+              return `${s.name || s.email}: ${match ? `already exists (${match.field})` : 'already exists'}`;
+            });
+          setStudents(finalStudents);
+          toast.warning(
+            'Some Students Skipped',
+            `${skipped.length} student(s) already exist and were skipped — ` +
+              skipped.slice(0, 3).join(' · ') +
+              (skipped.length > 3 ? ` (and ${skipped.length - 3} more)` : '')
+          );
         }
       }
-      if (conflicts.length > 0) {
+
+      if (finalStudents.length === 0) {
         toast.error(
-          'Slots Already Booked',
-          `These slots were just booked elsewhere for that counsellor and can't be imported: ` +
-            `${conflicts.slice(0, 3).join(', ')}` +
-            (conflicts.length > 3 ? ` (and ${conflicts.length - 3} more)` : '') +
-            '. Remove or change those rows on the Counselors step and try again.'
+          'No Valid Students',
+          'All students already exist in the system. Add at least one new student to create the project.'
         );
         return;
       }
-    } finally {
-      setIsValidatingSlots(false);
-    }
 
-    createMutation.mutate({
-      instituteDetails: {
-        ...instituteDetails,
-        name: instituteDetails.name.trim(),
-      },
-      counselors,
-      students,
-    });
+      // Counsellor slots: re-check for a collision on counsellorId+date+startTime — see
+      // /sessions/slots/import's uniqueness constraint. A bad counsellor ID or a slot
+      // that's just been booked elsewhere shouldn't block the project — drop only that
+      // row (or that counsellor, if nothing usable is left) and continue.
+      const conflicts: string[] = [];
+      const finalCounselors = await Promise.all(
+        counselors.map(async c => {
+          if (c.matchStatus !== 'matched' || !c.directoryId || !c.slots?.length) return c;
+          const existingSlots = await sessionsService.getSlots({ counsellorId: c.directoryId });
+          const existingKeys = new Set(existingSlots.map(s => `${s.date}|${s.startTime}`));
+          const kept = c.slots.filter(s => {
+            const isConflict = existingKeys.has(`${s.date}|${s.startTime}`);
+            if (isConflict) conflicts.push(`${c.counsellorCode || c.name} on ${s.date} at ${s.startTime}`);
+            return !isConflict;
+          });
+          return kept.length === c.slots.length ? c : { ...c, slots: kept };
+        })
+      );
+      if (conflicts.length > 0) {
+        setCounselors(finalCounselors);
+        toast.warning(
+          'Some Slots Skipped',
+          `${conflicts.length} slot(s) were just booked elsewhere and were skipped: ` +
+            `${conflicts.slice(0, 3).join(', ')}` +
+            (conflicts.length > 3 ? ` (and ${conflicts.length - 3} more)` : '') +
+            '. The rest of the project will still be created.'
+        );
+      }
+
+      createMutation.mutate({
+        instituteDetails: {
+          ...instituteDetails,
+          name: instituteDetails.name.trim(),
+        },
+        counselors: finalCounselors,
+        students: finalStudents,
+      });
+    } finally {
+      setIsValidatingFinish(false);
+    }
   };
 
   const renderStepContent = () => {
@@ -169,8 +245,8 @@ export const AddProjectWizard: React.FC = () => {
           <Button
             leftIcon={<RiCheckLine size={16} />}
             onClick={handleFinish}
-            disabled={isNextDisabled || isValidatingSlots}
-            isLoading={createMutation.isPending || isValidatingSlots}
+            disabled={isNextDisabled || isValidatingFinish}
+            isLoading={createMutation.isPending || isValidatingFinish}
           >
             Finish
           </Button>

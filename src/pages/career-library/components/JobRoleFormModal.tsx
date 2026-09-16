@@ -144,10 +144,8 @@ interface LinkedSectionProps {
   // frontend-integration-guide.md §9.5), so it stays non-editable here.
   onUpdate: (key: string, item: IncludedItem) => void;
   addButtonLabel: string;
-  // What ticking here actually changes — Entrance Exams are curated per role, but Courses
-  // are shared by every role in the career cluster and Institutions by every role in the
-  // industry (see CareerCourse/CareerInstitution in the backend schema), so ticking or
-  // adding one here changes what every sibling role shows too.
+  // Entrance Exams, Courses, and Institutions are all curated per role — ticking or
+  // adding one here only changes what this role shows, never any sibling role.
   listLabel: string;
   renderSubform: (helpers: {
     initial?: IncludedItem;
@@ -272,6 +270,11 @@ export const validateEducationEntry = (
   return null;
 };
 
+// All entries at one level, edited together as a single "/"-separated programme list
+// plus one shared description — mirrors how the detail page already summarizes multiple
+// programmes at a level onto one line.
+type GroupEditTarget = { level: EducationLevel; entries: DomainEducationEntry[] };
+
 const EducationPathSection: React.FC<{
   domainId?: string;
   // Entries already linked to this specific role — not the whole domain's education path.
@@ -282,12 +285,13 @@ const EducationPathSection: React.FC<{
   onUpdate: (entry: DomainEducationEntry) => void;
 }> = ({ domainId, entries, checkedIds, onToggle, onAdd, onUpdate }) => {
   const toast = useToast();
-  // 'closed' | 'add' | editing a specific entry (PATCH /career-library/education/{id}).
-  // Education entries are a canonical row shared by every role that names it, so editing
-  // one here — reachable only by Super Admin (this whole modal is gated at the page level)
-  // — changes it everywhere it's used, not just for this role. Removing it from a role is
-  // just unticking it, same as Entrance Exams/Institutions; there's no hard delete here.
-  const [formMode, setFormMode] = useState<'closed' | 'add' | DomainEducationEntry>('closed');
+  // 'closed' | 'add' | editing every entry at one level as a single group (all Graduate
+  // programmes together, say). Education entries are a canonical row shared by every role
+  // that names it, so editing one here — reachable only by Super Admin (this whole modal is
+  // gated at the page level) — changes it everywhere it's used, not just for this role.
+  // Removing a programme from the group's combined text just unlinks it from this role
+  // (via `onToggle`); the canonical record itself is never hard-deleted.
+  const [formMode, setFormMode] = useState<'closed' | 'add' | GroupEditTarget>('closed');
   const [level, setLevel] = useState<EducationLevel>('GRADUATE');
   const [programme, setProgramme] = useState('');
   const [description, setDescription] = useState('');
@@ -304,17 +308,23 @@ const EducationPathSection: React.FC<{
     staleTime: 60_000,
   });
 
-  // Entries relevant to this role — everything currently linked or unticked-but-not-yet-
-  // saved, so unticking keeps the row visible (re-tickable) until Save Job Role commits it.
-  // Ticking through the domain's whole education path lives in the career-taxonomy admin
-  // screens, not here. Certification levels are excluded since certifications have their
-  // own dedicated fields above.
+  // Entries currently linked to this role. There's no per-entry checkbox in this grouped
+  // editor (dropping a name from a group's "/"-separated text is what unlinks it via
+  // `onToggle`), so this must filter to `checkedIds` — otherwise a name just removed by
+  // "Save Changes" keeps appearing in the group line until the whole form is saved and
+  // reopened, even though the unlink already went through. Ticking through the domain's
+  // whole education path lives in the career-taxonomy admin screens, not here.
+  // Certification levels are excluded since certifications have their own dedicated
+  // fields above.
   const linked = useMemo(
     () =>
       entries.filter(
-        e => e.level !== 'CERTIFICATION_STUDENT' && e.level !== 'CERTIFICATION_UG'
+        e =>
+          e.level !== 'CERTIFICATION_STUDENT' &&
+          e.level !== 'CERTIFICATION_UG' &&
+          checkedIds.has(e.id)
       ),
-    [entries]
+    [entries, checkedIds]
   );
 
   const ordered = useMemo(
@@ -325,6 +335,18 @@ const EducationPathSection: React.FC<{
       }),
     [linked]
   );
+
+  // One row per level (e.g. all Graduate programmes share a line) instead of one row per
+  // entry — `ordered` is already grouped by level, so this just splits on level changes.
+  const groupedByLevel = useMemo(() => {
+    const groups: { level: EducationLevel; entries: DomainEducationEntry[] }[] = [];
+    for (const entry of ordered) {
+      const last = groups[groups.length - 1];
+      if (last && last.level === entry.level) last.entries.push(entry);
+      else groups.push({ level: entry.level, entries: [entry] });
+    }
+    return groups;
+  }, [ordered]);
 
   const resetForm = () => {
     setLevel('GRADUATE');
@@ -340,11 +362,11 @@ const EducationPathSection: React.FC<{
     setFormMode('add');
   };
 
-  const openEdit = (entry: DomainEducationEntry) => {
-    setLevel(entry.level);
-    setProgramme(entry.programme);
-    setDescription(entry.description ?? '');
-    setFormMode(entry);
+  const openEditGroup = (group: GroupEditTarget) => {
+    setLevel(group.level);
+    setProgramme(group.entries.map(e => e.programme).join(' / '));
+    setDescription(group.entries[0]?.description ?? '');
+    setFormMode(group);
   };
 
   const addMutation = useMutation({
@@ -368,39 +390,102 @@ const EducationPathSection: React.FC<{
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: () =>
-      careerService.updateEducationEntry(editing!.id, {
-        level,
-        programme: programme.trim(),
-        description: description.trim() || undefined,
-      }),
-    onSuccess: entry => {
-      onUpdate(entry);
-      resetForm();
-      toast.success('Education Entry Updated', `"${entry.programme}" was updated.`);
+  // Reconciles the group's combined "/"-separated programme text against its existing
+  // entries: matched names get a description update (if it changed), new names become
+  // new canonical entries, and dropped names are just unlinked from this role — never
+  // hard-deleted, since another role may still name them.
+  const groupSaveMutation = useMutation({
+    mutationFn: async () => {
+      const group = editing!;
+      const newNames = Array.from(
+        new Set(
+          programme
+            .split('/')
+            .map(s => s.trim())
+            .filter(Boolean)
+        )
+      );
+      if (newNames.length === 0) {
+        throw new Error('Enter at least one programme / requirement name.');
+      }
+      const trimmedDescription = description.trim() || undefined;
+      const existingByName = new Map(
+        group.entries.map(e => [e.programme.trim().toLowerCase(), e] as const)
+      );
+      const otherDomainEntries = (domainEntries ?? []).filter(
+        e => !group.entries.some(g => g.id === e.id)
+      );
+      const keptKeys = new Set<string>();
+
+      for (const name of newNames) {
+        const key = name.toLowerCase();
+        const existing = existingByName.get(key);
+        if (existing) {
+          keptKeys.add(key);
+          if ((existing.description ?? '') !== (trimmedDescription ?? '')) {
+            const updated = await careerService.updateEducationEntry(existing.id, {
+              level: group.level,
+              programme: existing.programme,
+              description: trimmedDescription,
+            });
+            onUpdate(updated);
+          }
+          continue;
+        }
+        // Not currently in this group, but the canonical record may already exist in the
+        // domain — e.g. a name just dropped from this same group a moment ago, or one
+        // linked to another role. Re-link it instead of creating a duplicate, which the
+        // API would otherwise reject with a 409 ("already in the education path").
+        const domainMatch = otherDomainEntries.find(
+          e => e.level === group.level && e.programme.trim().toLowerCase() === key
+        );
+        if (domainMatch) {
+          onAdd(domainMatch);
+          continue;
+        }
+        const problem = validateEducationEntry(
+          { level: group.level, programme: name, description },
+          otherDomainEntries
+        );
+        if (problem) throw new Error(problem);
+        const created = await careerService.createEducationEntry({
+          level: group.level,
+          programme: name,
+          description: trimmedDescription,
+        });
+        onAdd(created);
+        setSessionAddedIds(prev => new Set(prev).add(created.id));
+      }
+
+      for (const entry of group.entries) {
+        const key = entry.programme.trim().toLowerCase();
+        if (!keptKeys.has(key) && checkedIds.has(entry.id)) onToggle(entry.id);
+      }
     },
-    onError: err => {
+    onSuccess: () => {
+      const label = EDUCATION_LEVEL_LABEL[editing!.level];
+      resetForm();
+      toast.success('Education Path Updated', `${label} was updated.`);
+    },
+    onError: (err: unknown) => {
       toast.error(
         'Could Not Update Entry',
-        getApiErrorMessage(err, 'Failed to update the education entry.')
+        err instanceof Error ? err.message : getApiErrorMessage(err, 'Failed to update the education path.')
       );
     },
   });
 
   const handleSave = () => {
-    // Exclude the entry being edited from the duplicate-clash check, or leaving it
-    // unchanged would falsely collide with itself.
-    const problem = validateEducationEntry(
-      { level, programme, description },
-      (domainEntries ?? []).filter(e => e.id !== editing?.id)
-    );
+    if (editing) {
+      groupSaveMutation.mutate();
+      return;
+    }
+    const problem = validateEducationEntry({ level, programme, description }, domainEntries ?? []);
     if (problem) {
       toast.error('Check the entry', problem);
       return;
     }
-    if (editing) updateMutation.mutate();
-    else addMutation.mutate();
+    addMutation.mutate();
   };
 
   return (
@@ -413,29 +498,31 @@ const EducationPathSection: React.FC<{
         <>
           {ordered.length > 0 && (
             <>
-              <S.FieldLabel>Included with this role — untick to delete:</S.FieldLabel>
+              <S.FieldLabel>Included with this role:</S.FieldLabel>
               <S.ExistingEntriesList>
-                {ordered.map(entry => (
-                  <S.EducationEntryRow key={entry.id}>
-                    <Checkbox
-                      checked={checkedIds.has(entry.id)}
-                      onChange={() => onToggle(entry.id)}
-                    />
-                    <S.EducationEntryText>
-                      <S.EducationLevelName>
-                        {EDUCATION_LEVEL_LABEL[entry.level]}:
-                      </S.EducationLevelName>{' '}
-                      {entry.programme}
-                      {sessionAddedIds.has(entry.id) && <S.NewTag>new</S.NewTag>}
-                    </S.EducationEntryText>
-                    <S.EditIconButton
-                      type="button"
-                      aria-label={`Edit ${entry.programme}`}
-                      onClick={() => openEdit(entry)}
-                    >
-                      <RiPencilLine size={14} />
-                    </S.EditIconButton>
-                  </S.EducationEntryRow>
+                {groupedByLevel.map(group => (
+                  <S.EducationLevelRow key={group.level}>
+                    <S.EducationLevelName>
+                      {EDUCATION_LEVEL_LABEL[group.level]}:
+                    </S.EducationLevelName>
+                    <S.EducationEntriesInline>
+                      <S.EducationEntryChip>
+                        <span>
+                          {group.entries.map(e => e.programme).join(' / ')}
+                          {group.entries.some(e => sessionAddedIds.has(e.id)) && (
+                            <S.NewTag>new</S.NewTag>
+                          )}
+                        </span>
+                        <S.EditIconButton
+                          type="button"
+                          aria-label={`Edit ${EDUCATION_LEVEL_LABEL[group.level]}`}
+                          onClick={() => openEditGroup(group)}
+                        >
+                          <RiPencilLine size={14} />
+                        </S.EditIconButton>
+                      </S.EducationEntryChip>
+                    </S.EducationEntriesInline>
+                  </S.EducationLevelRow>
                 ))}
               </S.ExistingEntriesList>
             </>
@@ -456,26 +543,39 @@ const EducationPathSection: React.FC<{
           ) : (
             <S.ExpandedFormCard>
               <SubformHeader
-                label={editing ? 'EDIT EDUCATION ENTRY' : 'ADD NEW EDUCATION ENTRY'}
+                label={editing ? `EDIT ${EDUCATION_LEVEL_LABEL[editing.level]}` : 'ADD NEW EDUCATION ENTRY'}
                 onClose={resetForm}
               />
 
-              <S.FieldGroup>
-                <S.FieldLabel>Level</S.FieldLabel>
-                <Select
-                  value={level}
-                  onChange={e => setLevel(e.target.value as EducationLevel)}
-                  options={EDUCATION_PATH_LEVELS.map(value => ({
-                    value,
-                    label: EDUCATION_LEVEL_LABEL[value],
-                  }))}
-                />
-              </S.FieldGroup>
+              {editing ? (
+                <S.FieldGroup>
+                  <S.FieldLabel>Level</S.FieldLabel>
+                  <S.LockedValue>{EDUCATION_LEVEL_LABEL[editing.level]}</S.LockedValue>
+                </S.FieldGroup>
+              ) : (
+                <S.FieldGroup>
+                  <S.FieldLabel>Level</S.FieldLabel>
+                  <Select
+                    value={level}
+                    onChange={e => setLevel(e.target.value as EducationLevel)}
+                    options={EDUCATION_PATH_LEVELS.map(value => ({
+                      value,
+                      label: EDUCATION_LEVEL_LABEL[value],
+                    }))}
+                  />
+                </S.FieldGroup>
+              )}
 
               <S.FieldGroup>
-                <S.FieldLabel>Programme / Requirement Name</S.FieldLabel>
+                <S.FieldLabel>
+                  {editing ? 'Programmes / Requirements' : 'Programme / Requirement Name'}
+                </S.FieldLabel>
                 <Input
-                  placeholder="e.g. B.Des – Communication Design"
+                  placeholder={
+                    editing
+                      ? 'Separate multiple with " / ", e.g. BE in relevant branch / BTech'
+                      : 'e.g. B.Des – Communication Design'
+                  }
                   value={programme}
                   onChange={e => setProgramme(e.target.value)}
                 />
@@ -496,7 +596,7 @@ const EducationPathSection: React.FC<{
                   variant="secondary"
                   size="sm"
                   onClick={resetForm}
-                  disabled={addMutation.isPending || updateMutation.isPending}
+                  disabled={addMutation.isPending || groupSaveMutation.isPending}
                 >
                   Cancel
                 </Button>
@@ -505,7 +605,7 @@ const EducationPathSection: React.FC<{
                   variant="primary"
                   size="sm"
                   onClick={handleSave}
-                  isLoading={addMutation.isPending || updateMutation.isPending}
+                  isLoading={addMutation.isPending || groupSaveMutation.isPending}
                 >
                   {editing ? 'Save Changes' : 'Add to Education Path'}
                 </Button>
@@ -1307,8 +1407,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             </S.FormGrid>
 
             <S.ResilienceCommentBox>
-              <S.ResilienceCommentText>{watch('aiResilienceComment')}</S.ResilienceCommentText>
-              <input type="hidden" {...register('aiResilienceComment')} />
+              <S.ResilienceCommentText {...register('aiResilienceComment')} />
               {errors.aiResilienceComment && <S.ErrorText>{errors.aiResilienceComment.message}</S.ErrorText>}
             </S.ResilienceCommentBox>
 
@@ -1328,14 +1427,24 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             </S.FieldGroup>
           </S.SectionBox>
 
-          {/* Certifications — free-text lists kept on the entry itself. */}
-          <S.SectionBox>
-            <S.SectionTitle>Certifications</S.SectionTitle>
-            <S.FormGrid $columns={2}>
-              <Input label="Certifications (Student)" placeholder="Comma-separated" {...register('certificationsStudent')} />
-              <Input label="Certifications (UG)" placeholder="Comma-separated" {...register('certificationsUG')} />
-            </S.FormGrid>
-          </S.SectionBox>
+          {/* Certifications — free-text lists kept on the entry itself. A pending
+              proposal has no certification columns on the backend (see
+              `mapProposalEntry`), so editing them here would silently be discarded. */}
+          {entityKind !== 'proposal' && (
+            <S.SectionBox>
+              <S.SectionTitle>Certifications</S.SectionTitle>
+              <S.FormGrid $columns={2}>
+                <S.FieldGroup>
+                  <S.FieldLabel>Certifications (Student)</S.FieldLabel>
+                  <S.StyledTextarea placeholder="Comma-separated" {...register('certificationsStudent')} />
+                </S.FieldGroup>
+                <S.FieldGroup>
+                  <S.FieldLabel>Certifications (UG)</S.FieldLabel>
+                  <S.StyledTextarea placeholder="Comma-separated" {...register('certificationsUG')} />
+                </S.FieldGroup>
+              </S.FormGrid>
+            </S.SectionBox>
+          )}
 
           {/* Education Path. The tick-list is the input — the entry's own free-text
               qualification columns are derived from it on create (see the mutation). */}
@@ -1376,7 +1485,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             onAddNew={addNew(setCourses)}
             onUpdate={updateItem(setCourses)}
             addButtonLabel="Add New Course"
-            listLabel="Shared with every role in this career cluster (tick / untick):"
+            listLabel="Included with this role (tick / untick):"
             renderSubform={({ initial, save, close }) => (
               <CourseSubform initial={initial} save={save} close={close} />
             )}
@@ -1389,7 +1498,7 @@ export const JobRoleFormModal: React.FC<JobRoleFormModalProps> = ({
             onAddNew={addNew(setInstitutions)}
             onUpdate={updateItem(setInstitutions)}
             addButtonLabel="Add New Institution"
-            listLabel="Shared with every role in this industry (tick / untick):"
+            listLabel="Included with this role (tick / untick):"
             renderSubform={({ initial, save, close }) => (
               <InstitutionSubform initial={initial} save={save} close={close} />
             )}
