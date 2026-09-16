@@ -111,18 +111,23 @@ export const getApiErrorStatus = (error: unknown): number | undefined => {
 };
 
 /**
- * The backend accepts phone numbers as E.164 only — `/^\+?[1-9]\d{1,14}$/`, i.e. an
- * optional `+` then digits, with no spaces, hyphens, brackets or leading zero (see
- * `phoneSchema` in the backend's shared validators). Sheets and hand-typed input routinely
- * carry separators, so strip them before sending. A leading trunk `0` is deliberately left
- * alone: dropping it would silently rewrite the number, so let validation reject it instead.
+ * Phone numbers must be exactly 10 digits, no leading zero, no country code and no
+ * spaces, hyphens or brackets. Sheets and hand-typed input routinely carry separators
+ * and a leading Indian country code (`+91`/`91`), so both are stripped before sending —
+ * the `91` prefix is only dropped when it leaves exactly 10 digits behind, so a genuine
+ * 10-digit number that happens to start with 91 (e.g. 9123456789) is left untouched.
+ * A leading trunk `0` on the 10-digit number is deliberately left alone: dropping it
+ * would silently rewrite the number, so let validation reject it instead.
  */
-export const normalizePhone = (value?: string | null): string =>
-  (value ?? '').replace(/[\s()\-.]/g, '');
+export const normalizePhone = (value?: string | null): string => {
+  const stripped = (value ?? '').replace(/[\s()\-.]/g, '');
+  const match = stripped.match(/^(?:\+?91)?([1-9]\d{9})$/);
+  return match ? match[1] : stripped;
+};
 
-/** Whether a phone number will pass the backend's E.164 check once normalized. */
+/** Whether a phone number is exactly 10 digits (no leading zero) once normalized. */
 export const isValidPhone = (value?: string | null): boolean =>
-  /^\+?[1-9]\d{1,14}$/.test(normalizePhone(value));
+  /^[1-9]\d{9}$/.test(normalizePhone(value));
 
 /** Whether a value will pass the backend's @IsEmail() check. */
 export const isValidEmail = (value?: string | null): boolean =>
