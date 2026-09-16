@@ -256,7 +256,14 @@ export const ProjectDashboardPage: React.FC = () => {
 
   const handleConfirmClose = () => closeMutation.mutate();
 
-  const handleConfirmDelete = () => deleteMutation.mutate();
+  const handleConfirmDelete = () => {
+    if (project?.status !== 'closed') {
+      toast.error('Project Must Be Closed', 'Close this project before deleting it.');
+      setIsDeleteModalOpen(false);
+      return;
+    }
+    deleteMutation.mutate();
+  };
 
   const handleCreateNewStudent = () => {
     const newStd: ProjectStudentDetail = {
@@ -564,14 +571,16 @@ export const ProjectDashboardPage: React.FC = () => {
           >
             Extend Project
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon={<RiCloseCircleLine size={16} />}
-            onClick={() => setIsCloseModalOpen(true)}
-          >
-            {isProjectClosed ? 'Closed' : 'Close Project'}
-          </Button>
+          {!isProjectClosed && (
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<RiCloseCircleLine size={16} />}
+              onClick={() => setIsCloseModalOpen(true)}
+            >
+              Close Project
+            </Button>
+          )}
           {isProjectClosed && (
             <Button
               variant="danger"

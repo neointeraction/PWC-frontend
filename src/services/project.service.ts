@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import { apiClient } from './api';
 import {
   Project,
@@ -376,21 +377,52 @@ export const projectService = {
   // Full delete: hard-deletes every student on the project (DELETE /students/{id}, which
   // itself cascades to that student's User row, forms, sessions, etc.) and unassigns every
   // counsellor from the project (DELETE /counsellors/{id}/projects/{projectId}, releasing
-  // their slots for this project) before soft-deleting the project record itself. Unlike
-  // plain `delete`, this is NOT fully reversible via `restore` — the roster and slots are
-  // gone for good, only the project shell comes back.
+  // their slots for this project), then hard-deletes the project record itself via
+  // DELETE /projects/{id}/purge. This is irreversible — there is no `restore` after this
+  // call, unlike plain `delete` (soft-delete) above. `/purge` requires the project to
+  // already be CLOSED or DELETED, so we soft-delete it first (idempotent — a no-op if it's
+  // already CLOSED/DELETED) and then purge.
+  //
+  // Each batch uses allSettled (not all) so one failing row can't abort the rest of the
+  // batch — a single 404/500 used to reject the whole Promise.all mid-flight, leaving some
+  // students hard-deleted while others (and the counsellor unassignment, and the project
+  // itself) were never touched. A 404 on a row is treated as already-gone/success, which
+  // makes retrying this call after a partial failure safe (already-deleted rows no-op).
+  // The project is only soft-deleted/purged once every student and counsellor row is
+  // confirmed gone; otherwise this throws with exactly which rows failed, and the project
+  // stays active/visible so the failure is diagnosable and the operation can be retried.
   deleteWithDependents: async (id: string): Promise<void> => {
+    const isGone = (err: unknown) => err instanceof AxiosError && err.response?.status === 404;
+
     const [studentsRes, counsellorsRes] = await Promise.all([
       apiClient.get<ApiStudent[]>('/students', { params: { projectId: id } }),
       apiClient.get<ApiCounsellorDir[]>('/counsellors', { params: { projectId: id } }),
     ]);
 
-    await Promise.all(studentsRes.data.map(st => apiClient.delete(`/students/${st.id}`)));
-    await Promise.all(
+    const studentResults = await Promise.allSettled(
+      studentsRes.data.map(st => apiClient.delete(`/students/${st.id}`))
+    );
+    const counsellorResults = await Promise.allSettled(
       counsellorsRes.data.map(c => apiClient.delete(`/counsellors/${c.id}/projects/${id}`))
     );
 
+    const failedStudents = studentResults
+      .map((r, i) => (r.status === 'rejected' && !isGone(r.reason) ? studentsRes.data[i].id : null))
+      .filter((v): v is string => v !== null);
+    const failedCounsellors = counsellorResults
+      .map((r, i) => (r.status === 'rejected' && !isGone(r.reason) ? counsellorsRes.data[i].id : null))
+      .filter((v): v is string => v !== null);
+
+    if (failedStudents.length > 0 || failedCounsellors.length > 0) {
+      throw new Error(
+        `Project delete incomplete — failed to remove student(s) [${failedStudents.join(', ')}] ` +
+          `and/or unassign counsellor(s) [${failedCounsellors.join(', ')}]. The project was left ` +
+          `active so this can be retried; already-removed rows will be skipped.`
+      );
+    }
+
     await apiClient.delete(`/projects/${id}`);
+    await apiClient.delete(`/projects/${id}/purge`);
   },
 
   // One atomic call: project + student roster + counsellor slots, via the transactional
