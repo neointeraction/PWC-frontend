@@ -237,6 +237,24 @@ export const AssessmentFormPage: React.FC = () => {
     if (Object.keys(prefilled).length) setAnswers(prev => ({ ...prefilled, ...prev }));
   }, [attempt]);
 
+  // Resume where the student left off: once their saved answers and the question bank are
+  // both available, land on the first unanswered question (or the last question, if every
+  // saved answer is already complete) instead of always restarting from question 1. Runs
+  // once per page load, not on every answer selection.
+  const hasResumedIndexRef = useRef(false);
+  useEffect(() => {
+    if (hasResumedIndexRef.current) return;
+    if (!attempt || questions.length === 0) return;
+    hasResumedIndexRef.current = true;
+    const answeredKeys = new Set(
+      attempt.answers.filter(a => a.selectedOption !== null && a.fieldKey).map(a => a.fieldKey)
+    );
+    if (answeredKeys.size === 0) return;
+    let resumeIndex = questions.findIndex(q => !answeredKeys.has(q.id));
+    if (resumeIndex === -1) resumeIndex = questions.length - 1;
+    setCurrentQuestionIndex(resumeIndex);
+  }, [attempt, questions]);
+
   // Per-question elapsed time (ms), keyed by fieldKey — feeds the aptitude Time
   // Consistency component of ARI on the backend (scoring/ari.ts). Measured from when a
   // question first becomes visible to when it's (re-)answered; re-selecting an answer

@@ -304,6 +304,24 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
       : isQuestionAnswerMissing(question, value);
   };
 
+  // Resume where the parent left off: once their saved answers and the section layout are
+  // both available, land on the first section that still has a required question unanswered
+  // (or the last section, if every saved answer is already complete) instead of always
+  // restarting at step 1. Runs once per page load, not on every answer edit.
+  const hasResumedStepRef = useRef(false);
+  useEffect(() => {
+    if (hasResumedStepRef.current) return;
+    if (!existingSubmission || sections.length === 0) return;
+    hasResumedStepRef.current = true;
+    if (existingSubmission.answers.length === 0) return;
+    const savedAnswers = new Map(existingSubmission.answers.map(a => [a.fieldKey, a.answer]));
+    let resumeStepIndex = sections.findIndex(section =>
+      section.questions.some(q => q.isRequired && isMissing(q, savedAnswers.get(q.fieldKey)))
+    );
+    if (resumeStepIndex === -1) resumeStepIndex = sections.length - 1;
+    setCurrentStep(resumeStepIndex + 1);
+  }, [existingSubmission, sections]);
+
   const setAnswer = (question: FormQuestion, value: unknown) => {
     setAnswers(prev => ({ ...prev, [question.fieldKey]: value }));
     if (!isMissing(question, value)) {
