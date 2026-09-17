@@ -320,6 +320,7 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
     );
     if (resumeStepIndex === -1) resumeStepIndex = sections.length - 1;
     setCurrentStep(resumeStepIndex + 1);
+    setIsFormStarted(true);
   }, [existingSubmission, sections]);
 
   const setAnswer = (question: FormQuestion, value: unknown) => {

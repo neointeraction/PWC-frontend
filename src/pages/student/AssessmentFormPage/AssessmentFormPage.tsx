@@ -253,6 +253,7 @@ export const AssessmentFormPage: React.FC = () => {
     let resumeIndex = questions.findIndex(q => !answeredKeys.has(q.id));
     if (resumeIndex === -1) resumeIndex = questions.length - 1;
     setCurrentQuestionIndex(resumeIndex);
+    setIsFormStarted(true);
   }, [attempt, questions]);
 
   // Per-question elapsed time (ms), keyed by fieldKey — feeds the aptitude Time

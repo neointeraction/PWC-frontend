@@ -168,6 +168,7 @@ export const PreCounsellingFormPage: React.FC = () => {
     );
     if (resumeStepIndex === -1) resumeStepIndex = sections.length - 1;
     setCurrentStep(resumeStepIndex + 1);
+    setIsFormStarted(true);
   }, [existingSubmission, sections]);
 
   // Required questions left blank, keyed by fieldKey — populated on a failed Next/Submit
