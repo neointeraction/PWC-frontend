@@ -626,6 +626,11 @@ const ACADEMIC_ROW_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+// Same order the row keys appear in the pre-counselling form's matrix question
+// (see comment above) — the stored answer object's key order isn't guaranteed
+// to match, so rows must be explicitly re-sorted to line up with the form.
+const ACADEMIC_ROW_ORDER = Object.keys(ACADEMIC_ROW_LABELS);
+
 const normalizeAcademicRecords = (raw: unknown): AcademicRecord[] => {
   if (!raw || typeof raw !== 'object') return [];
 
@@ -642,8 +647,19 @@ const normalizeAcademicRecords = (raw: unknown): AcademicRecord[] => {
     });
   }
 
-  return Object.entries(raw as Record<string, unknown>).map(([key, cell], i) => {
+  const entries = Object.entries(raw as Record<string, unknown>);
+  entries.sort(([a], [b]) => {
+    const ai = ACADEMIC_ROW_ORDER.indexOf(a);
+    const bi = ACADEMIC_ROW_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  return entries.map(([key, cell], i) => {
     const r = (cell ?? {}) as Record<string, unknown>;
+    const specifiedLabel = pickString(r, '__label');
     return {
       id: `rec-${i}`,
       subject: ACADEMIC_ROW_LABELS[key] ?? toTitleCase(key),
@@ -651,6 +667,7 @@ const normalizeAcademicRecords = (raw: unknown): AcademicRecord[] => {
       class8: pickString(r, 'c8'),
       class9: pickString(r, 'c9'),
       isOther: key === 'other',
+      specifiedLabel: specifiedLabel || undefined,
     };
   });
 };
@@ -1008,8 +1025,8 @@ export const mapChartToFormData = (
       },
       careerDnaNarrative: chart.counsellor.careerDnaNarrative ?? {
         dnaDefinition: '',
-        careerStyleReveals: report?.dominantCareerStyle.explanation ?? '',
-        personalityStyleReveals: report?.dominantPersonalityStyle.explanation ?? '',
+        careerStyleReveals: '',
+        personalityStyleReveals: '',
         thinkingModeReveals: '',
         aptitudeProfileReveals: '',
       },

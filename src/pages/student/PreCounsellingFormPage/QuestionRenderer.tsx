@@ -163,10 +163,16 @@ const isMatrixIncomplete = (options: MatrixOptions, value: unknown): boolean => 
     });
 };
 
+// Q1 ("Fill in your marks or grade for the last three years", fieldKey
+// academic_record_table) is exempt from required-question validation — students can
+// leave any/all rows blank and still proceed.
+const VALIDATION_EXEMPT_FIELD_KEYS = new Set(['academic_record_table']);
+
 // Required-question completeness check used by both pre-counselling forms — routes MATRIX
 // questions through isMatrixIncomplete (per-row/field) and everything else through
 // isAnswerEmpty (top-level value).
 export const isQuestionAnswerMissing = (question: FormQuestion, value: unknown): boolean => {
+  if (VALIDATION_EXEMPT_FIELD_KEYS.has(question.fieldKey)) return false;
   if (isAnswerEmpty(value)) return true;
   if (question.questionType === 'MATRIX') {
     return isMatrixIncomplete(question.options as MatrixOptions, value);
@@ -456,6 +462,16 @@ const MatrixQuestion: React.FC<{
                       onChange={e => setCell(row.key, '__label', e.target.value)}
                     />
                   </div>
+                ) : row.key === 'secondlang' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <SubjectCellText>{row.label}:</SubjectCellText>
+                    <OtherSubjectInput
+                      placeholder="Specify..."
+                      maxLength={50}
+                      value={(getCell(row.key, '__label') as string) ?? ''}
+                      onChange={e => setCell(row.key, '__label', e.target.value)}
+                    />
+                  </div>
                 ) : (
                   <SubjectCellText>{row.label}</SubjectCellText>
                 )}
@@ -504,7 +520,9 @@ export const QuestionRenderer: React.FC<{
     <QuestionBox $hasError={hasError}>
       <QuestionTitle>
         {question.questionCode.replace(/^Q/i, '')}. {question.questionText}
-        {question.isRequired && <RequiredMarker>*</RequiredMarker>}
+        {question.isRequired && !VALIDATION_EXEMPT_FIELD_KEYS.has(question.fieldKey) && (
+          <RequiredMarker>*</RequiredMarker>
+        )}
       </QuestionTitle>
       {question.helpText && <p style={HELP_TEXT_STYLE}>{question.helpText}</p>}
       {hasError && <QuestionErrorText>This question is required.</QuestionErrorText>}

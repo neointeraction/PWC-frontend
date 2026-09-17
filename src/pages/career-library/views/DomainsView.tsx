@@ -244,7 +244,7 @@ export const DomainsView: React.FC<DomainsViewProps> = ({
 
               <CardFooterRow $selected={isSelected}>
                 <CountBadge $selected={isSelected}>
-                  {dom.roleCount || 3} Job Roles
+                  {dom.roleCount ?? 0} Job Roles
                 </CountBadge>
                 <ViewLink $selected={isSelected}>
                   Explore <RiArrowRightSLine size={16} className="arrow-icon" />

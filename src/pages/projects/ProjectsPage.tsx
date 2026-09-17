@@ -10,6 +10,7 @@ import {
   RiUserLine,
   // RiDownloadLine,
   RiRefreshLine,
+  RiFlag2Line,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -35,6 +36,7 @@ import {
   ActionIconButtonGroup,
   ActionIconButton,
   ProjectNameCell,
+  ProjectTitleRow,
   ProjectNameLink,
   ProjectInstituteSubtext,
 } from './Projects.styles';
@@ -188,12 +190,21 @@ export const ProjectsPage: React.FC = () => {
       header: 'Project',
       render: row => (
         <ProjectNameCell>
-          <ProjectNameLink
-            type="button"
-            onClick={() => navigate(`/projects/dashboard/${row.id}`)}
-          >
-            {row.name}
-          </ProjectNameLink>
+          <ProjectTitleRow>
+            <ProjectNameLink
+              type="button"
+              onClick={() => navigate(`/projects/dashboard/${row.id}`)}
+            >
+              {row.name}
+            </ProjectNameLink>
+            {row.hasRedFlag && (
+              <Tooltip content="One or more students in this project are flagged — idle too long or a missed session needing follow-up">
+                <span>
+                  <RiFlag2Line size={15} style={{ color: '#EF4444', verticalAlign: '-2px' }} />
+                </span>
+              </Tooltip>
+            )}
+          </ProjectTitleRow>
           {row.code && <ProjectInstituteSubtext>{row.code}</ProjectInstituteSubtext>}
         </ProjectNameCell>
       ),

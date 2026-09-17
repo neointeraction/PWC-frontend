@@ -10,6 +10,7 @@ import { Select } from '@/components/Select';
 import { counselorService } from '@/services/counselor.service';
 import { useCounselorStore } from '@/store/counselor.store';
 import { useToast } from '@/hooks';
+import { getApiErrorMessage } from '@/utils';
 import { ModalForm } from '../CounselorsList.styles';
 
 const addCounselorSchema = z.object({
@@ -55,8 +56,8 @@ export const AddCounselorModal: React.FC = () => {
       reset();
       closeAddModal();
     },
-    onError: () => {
-      toast.error('Error', 'Failed to register new counselor.');
+    onError: err => {
+      toast.error('Error', getApiErrorMessage(err, 'Failed to register new counselor.'));
     },
   });
 

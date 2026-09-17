@@ -97,6 +97,14 @@ const LinkText = styled.a`
   }
 `;
 
+const CompilingDataText = styled.span`
+  font-style: italic;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const renderDetailValue = (value: string) =>
+  value === '—' ? <CompilingDataText>compiling data</CompilingDataText> : value;
+
 interface InstitutionsTabProps {
   institutions: InstitutionDetail[];
 }
@@ -115,22 +123,30 @@ export const InstitutionsTab: React.FC<InstitutionsTabProps> = ({ institutions }
 
               <DetailList>
                 <DetailRow>
-                  <strong>Entrance:</strong> {inst.entranceExam}
+                  <strong>Entrance:</strong> {renderDetailValue(inst.entranceExam)}
                 </DetailRow>
 
                 <DetailRow>
-                  <strong>Programs Offered:</strong> {inst.programsOffered}
+                  <strong>Programs Offered:</strong> {renderDetailValue(inst.programsOffered)}
                 </DetailRow>
 
                 <DetailRow>
-                  <strong>RANKING:</strong> {inst.ranking}
+                  <strong>RANKING:</strong> {renderDetailValue(inst.ranking)}
+                </DetailRow>
+
+                <DetailRow>
+                  <strong>PLACEMENT SALARY:</strong> {renderDetailValue(inst.placementSalary)}
                 </DetailRow>
 
                 <DetailRow>
                   <strong>WEBSITE:</strong>{' '}
-                  <LinkText href={inst.website} target="_blank" rel="noopener noreferrer">
-                    {inst.website}
-                  </LinkText>
+                  {inst.website ? (
+                    <LinkText href={inst.website} target="_blank" rel="noopener noreferrer">
+                      {inst.website}
+                    </LinkText>
+                  ) : (
+                    <CompilingDataText>compiling data</CompilingDataText>
+                  )}
                 </DetailRow>
               </DetailList>
             </TopContent>

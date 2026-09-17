@@ -156,6 +156,7 @@ interface ApiNormalizedInstitution {
   entranceExamsRequired?: string | null;
   programmesOffered?: string | null;
   ranking?: string | null;
+  approxPlacementCtc?: string | null;
 }
 
 // ---- Domain education path (docs/api-list.md -> Career Taxonomy -> Education Path) ----
@@ -269,6 +270,7 @@ export interface CareerEntryInstitutionInput {
   entranceExamsRequired?: string;
   programmesOffered?: string;
   ranking?: string;
+  approxPlacementCtc?: string;
 }
 
 export type CareerEntryExamItem = CareerEntryLinkRef | CareerEntryExamInput;
@@ -427,6 +429,7 @@ const mapInstitution = (inst: ApiNormalizedInstitution): InstitutionDetail => ({
   entranceExam: inst.entranceExamsRequired || '—',
   programsOffered: inst.programmesOffered || '—',
   ranking: inst.ranking || '—',
+  placementSalary: inst.approxPlacementCtc || '—',
   website: inst.website || '',
 });
 

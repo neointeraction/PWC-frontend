@@ -5,6 +5,9 @@ export interface AcademicRecord {
   class8: string;
   class9: string;
   isOther?: boolean;
+  // Free text the student entered next to the row label — e.g. which language for
+  // "Second Language", or the subject name for "Other subject".
+  specifiedLabel?: string;
 }
 
 export interface ComparisonItem {

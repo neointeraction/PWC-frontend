@@ -80,6 +80,14 @@ const EmptyState = styled.p`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
+const CompilingDataText = styled.span`
+  font-style: italic;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const renderDetailValue = (value: string) =>
+  value === '—' ? <CompilingDataText>compiling data</CompilingDataText> : value;
+
 const renderCourseCard = (course: CourseDetail) => (
   <CourseCard key={course.id}>
     <BadgePill>{course.badge}</BadgePill>
@@ -89,31 +97,31 @@ const renderCourseCard = (course: CourseDetail) => (
     <DetailsList>
       <DetailItem>
         <p>
-          <strong>12th Stream:</strong> {course.streamRequirement}
+          <strong>12th Stream:</strong> {renderDetailValue(course.streamRequirement)}
         </p>
       </DetailItem>
 
       <DetailItem>
         <p>
-          <strong>Entrance Exams:</strong> {course.entranceExams}
+          <strong>Entrance Exams:</strong> {renderDetailValue(course.entranceExams)}
         </p>
       </DetailItem>
 
       <DetailItem>
         <p>
-          <strong>Programs Offered:</strong> {course.programsOffered}
+          <strong>Programs Offered:</strong> {renderDetailValue(course.programsOffered)}
         </p>
       </DetailItem>
 
       <DetailItem>
         <p>
-          <strong>Top Colleges:</strong> {course.topColleges}
+          <strong>Top Colleges:</strong> {renderDetailValue(course.topColleges)}
         </p>
       </DetailItem>
 
       <DetailItem>
         <p>
-          <strong>FURTHER STUDY OPTIONS:</strong> {course.furtherStudyOptions}
+          <strong>FURTHER STUDY OPTIONS:</strong> {renderDetailValue(course.furtherStudyOptions)}
         </p>
       </DetailItem>
     </DetailsList>

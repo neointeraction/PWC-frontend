@@ -127,6 +127,7 @@ export interface InstitutionDetail {
   entranceExam: string;
   programsOffered: string;
   ranking: string;
+  placementSalary: string;
   website: string;
   isShortlisted?: boolean;
 }

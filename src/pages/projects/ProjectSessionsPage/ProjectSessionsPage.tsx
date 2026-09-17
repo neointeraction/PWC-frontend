@@ -77,7 +77,6 @@ export const ProjectSessionsPage: React.FC = () => {
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilterCategory, setSelectedFilterCategory] = useState<string | null>(null);
 
   // Modals state
   const [isAddCounselorModalOpen, setIsAddCounselorModalOpen] = useState(false);
@@ -368,16 +367,6 @@ export const ProjectSessionsPage: React.FC = () => {
   const filteredSessions = effectiveSessions.filter(s => {
     const slots = s.slots;
 
-    if (selectedFilterCategory === 'follow_up_today') {
-      return slots.some(slot => slot.isBooked && slot.date === todayLabel);
-    }
-    if (selectedFilterCategory === 'missed_session_1') {
-      return slots.some(slot => slot.isBooked && slot.sessionType === 'S1' && slot.isMissed);
-    }
-    if (selectedFilterCategory === 'missed_session_2') {
-      return slots.some(slot => slot.isBooked && slot.sessionType === 'S2' && slot.isMissed);
-    }
-
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -579,43 +568,19 @@ export const ProjectSessionsPage: React.FC = () => {
         onBack={() => navigate(ROUTES.PROJECTS)}
       />
 
-      {/* Top Follow-up Metric Filter Cards */}
+      {/* Top Follow-up Metric Cards */}
       <TopMetricCardsGrid>
-        <MetricFilterCard
-          type="button"
-          $isActive={selectedFilterCategory === 'follow_up_today'}
-          onClick={() =>
-            setSelectedFilterCategory(prev =>
-              prev === 'follow_up_today' ? null : 'follow_up_today'
-            )
-          }
-        >
+        <MetricFilterCard>
           <MetricCardLabel>Follow-up today</MetricCardLabel>
           <MetricCardValue $color="#5D2384">{followUpTodayCount}</MetricCardValue>
         </MetricFilterCard>
 
-        <MetricFilterCard
-          type="button"
-          $isActive={selectedFilterCategory === 'missed_session_1'}
-          onClick={() =>
-            setSelectedFilterCategory(prev =>
-              prev === 'missed_session_1' ? null : 'missed_session_1'
-            )
-          }
-        >
+        <MetricFilterCard>
           <MetricCardLabel>Missed Session - 1</MetricCardLabel>
           <MetricCardValue $color="#EA580C">{missedSession1Count}</MetricCardValue>
         </MetricFilterCard>
 
-        <MetricFilterCard
-          type="button"
-          $isActive={selectedFilterCategory === 'missed_session_2'}
-          onClick={() =>
-            setSelectedFilterCategory(prev =>
-              prev === 'missed_session_2' ? null : 'missed_session_2'
-            )
-          }
-        >
+        <MetricFilterCard>
           <MetricCardLabel>Missed Session - 2</MetricCardLabel>
           <MetricCardValue $color="#EA580C">{missedSession2Count}</MetricCardValue>
         </MetricFilterCard>

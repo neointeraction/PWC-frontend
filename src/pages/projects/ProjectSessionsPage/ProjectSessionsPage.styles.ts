@@ -21,26 +21,15 @@ export const TopMetricCardsGrid = styled.div`
   }
 `;
 
-export const MetricFilterCard = styled.button<{ $isActive?: boolean }>`
-  background-color: ${({ theme, $isActive }) =>
-    $isActive ? theme.colors.primaryLight : theme.colors.surface};
-  border: 1px solid
-    ${({ theme, $isActive }) => ($isActive ? theme.colors.primary : theme.colors.border)};
+export const MetricFilterCard = styled.div`
+  background-color: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
   padding: 14px 18px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  text-align: left;
-  cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-    transform: translateY(-1px);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06);
-  }
 `;
 
 export const MetricCardLabel = styled.span`

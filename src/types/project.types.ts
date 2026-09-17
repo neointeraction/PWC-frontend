@@ -16,6 +16,8 @@ export interface Project {
   email?: string;
   phone?: string;
   createdAt?: string;
+  // True if any student in this project is currently 🚩 flagged (idle too long / missed
+  // session) — see the same flag on Student (isFlagged/flagReason).
   hasRedFlag?: boolean;
 }
 

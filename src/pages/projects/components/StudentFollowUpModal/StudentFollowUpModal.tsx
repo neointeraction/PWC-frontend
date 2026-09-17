@@ -144,6 +144,10 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
   const studentEmail = student.email || '';
   const parentEmail = student.parentEmail || '';
 
+  // Plain chat links for the contact-card buttons — no prefilled text.
+  const studentWhatsappPlainUrl = `https://wa.me/${cleanStudentPhone}`;
+  const parentWhatsappPlainUrl = `https://wa.me/${cleanParentPhone}`;
+  // Message-prefilled links for the reminder quick-send buttons below the textarea.
   const studentWhatsappUrl = `https://wa.me/${cleanStudentPhone}?text=${encodeURIComponent(customMessage)}`;
   const parentWhatsappUrl = `https://wa.me/${cleanParentPhone}?text=${encodeURIComponent(customMessage)}`;
   const studentMailtoUrl = `mailto:${studentEmail}?subject=${encodeURIComponent(customSubject)}&body=${encodeURIComponent(customMessage)}`;
@@ -289,7 +293,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
             <ContactActionButtons>
               {cleanStudentPhone && (
                 <WhatsAppButton
-                  href={studentWhatsappUrl}
+                  href={studentWhatsappPlainUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -335,7 +339,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
             <ContactActionButtons>
               {cleanParentPhone && (
                 <WhatsAppButton
-                  href={parentWhatsappUrl}
+                  href={parentWhatsappPlainUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

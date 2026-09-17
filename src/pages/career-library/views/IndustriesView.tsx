@@ -243,7 +243,7 @@ export const IndustriesView: React.FC<IndustriesViewProps> = ({
 
               <CardFooterRow $selected={isSelected}>
                 <CountBadge $selected={isSelected}>
-                  {ind.domainCount || 11} Domains
+                  {ind.domainCount ?? 0} Domains
                 </CountBadge>
                 <ViewLink $selected={isSelected}>
                   Explore <RiArrowRightSLine size={16} className="arrow-icon" />

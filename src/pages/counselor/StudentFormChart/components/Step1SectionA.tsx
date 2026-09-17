@@ -87,10 +87,10 @@ export const Step1SectionA: React.FC<Step1SectionAProps> = ({
           {studentInfo.academicRecords.map((rec: AcademicRecord) => (
             <CompDataRow key={rec.id} style={{ gridTemplateColumns: '220px 1fr 1fr 1fr' }}>
               <CompParamCell>
-                {rec.isOther ? (
+                {rec.specifiedLabel ? (
                   <>
-                    <span>Other: </span>
-                    <ReadOnlyField>{rec.subject}</ReadOnlyField>
+                    <span>{rec.subject}: </span>
+                    <ReadOnlyField>{rec.specifiedLabel}</ReadOnlyField>
                   </>
                 ) : (
                   rec.subject
