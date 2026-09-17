@@ -86,6 +86,13 @@ const excludePastDates = (options: BookingSlotOption[]): BookingSlotOption[] => 
   return options.filter(o => o.date >= today);
 };
 
+// Same safety net for Session 1 specifically — a fresh Session 1 booking can't be made
+// for today, only tomorrow onward (backend enforces this too; see getSession1BookingOptions).
+const excludeTodayAndPast = (options: BookingSlotOption[]): BookingSlotOption[] => {
+  const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+  return options.filter(o => o.date >= tomorrow);
+};
+
 export const BookSessionsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -147,9 +154,17 @@ export const BookSessionsPage: React.FC = () => {
     enabled: !!studentId && showSession1Section && (isReadyToBook || hasExistingBooking),
     staleTime: 30_000,
   });
+  // Fresh booking (no rescheduleTarget) can't offer today for Session 1 — only rescheduling
+  // an already-booked Session 1 still allows today (matches the backend: getSession1BookingOptions
+  // only excludes today on its non-reschedule branch).
   const s1OptionsByDate = useMemo(
-    () => groupByDate(excludePastDates(s1Options ?? [])),
-    [s1Options]
+    () =>
+      groupByDate(
+        rescheduleTarget === null
+          ? excludeTodayAndPast(s1Options ?? [])
+          : excludePastDates(s1Options ?? [])
+      ),
+    [s1Options, rescheduleTarget]
   );
   const s1Dates = useMemo(() => Array.from(s1OptionsByDate.keys()).sort(), [s1OptionsByDate]);
 
