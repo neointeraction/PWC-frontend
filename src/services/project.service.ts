@@ -39,6 +39,9 @@ interface ApiProject {
   status: 'ACTIVE' | 'CLOSED' | 'DELETED';
   _count?: { students: number; counsellors: number; counsellorSlots: number };
   createdAt?: string;
+  // true if any of this project's students is currently 🚩 flagged (idle too long / missed
+  // session) — only present on the list endpoint, see GET /projects in api-list.md.
+  hasFlaggedStudent?: boolean;
 }
 
 // POST /students/check-duplicates response shape.
@@ -190,6 +193,7 @@ const mapProject = (p: ApiProject): Project => ({
   validFrom: parseApiDate(p.fromDate),
   validTo: parseApiDate(p.toDate),
   createdAt: (p.createdAt ?? '').slice(0, 10),
+  hasRedFlag: p.hasFlaggedStudent ?? false,
 });
 
 // POST /projects/wizard is one transaction, but only the project's own fields
@@ -236,9 +240,12 @@ export interface CounselorAssignFailure {
   reason: string;
 }
 
-// POST /sessions/slots/import is one-shot per project: a 409 means this project's sheet
-// was already imported, which is the guard doing its job. Anything else is a real failure
-// (e.g. 400 for a counsellor that isn't assigned to the project) and must reach the user.
+// POST /sessions/slots/import is one-shot per project: a 409 falls back to POST
+// /sessions/slots per counsellor (see assignCounselorsWithSlots) so re-adding counsellors
+// after the first upload still imports their availability. `alreadyImported` only ends up
+// true when that fallback itself finds nothing new to import (every slot already exists for
+// its counsellor). Anything else is a real failure (e.g. 400 for a counsellor that isn't
+// assigned to the project) and must reach the user.
 export interface SlotImportSummary {
   attempted: number;
   imported: number;
@@ -308,7 +315,34 @@ const assignCounselorsWithSlots = async (
       slotImport.imported = slotPayload.length;
     } catch (err) {
       if (getApiErrorStatus(err) === 409) {
-        slotImport.alreadyImported = true;
+        // /sessions/slots/import is a one-shot bulk import per project — a 409 here means
+        // *some* sheet was already imported for this project before, not that these
+        // particular counsellors' slots exist. That happens on every re-add after the
+        // first upload, so fall back to the per-counsellor escape hatch (POST
+        // /sessions/slots) instead of silently dropping the new availability.
+        const byCounsellor = new Map<string, typeof slotPayload>();
+        for (const slot of slotPayload) {
+          if (!byCounsellor.has(slot.counsellorId)) byCounsellor.set(slot.counsellorId, []);
+          byCounsellor.get(slot.counsellorId)!.push(slot);
+        }
+        let clashed = false;
+        for (const [counsellorId, slots] of byCounsellor) {
+          try {
+            await apiClient.post('/sessions/slots', {
+              projectId,
+              counsellorId,
+              slots: slots.map(({ date, startTime, endTime }) => ({ date, startTime, endTime })),
+            });
+            slotImport.imported += slots.length;
+          } catch (err2) {
+            if (getApiErrorStatus(err2) === 409) {
+              clashed = true;
+            } else {
+              slotImport.error = getApiErrorMessage(err2, 'Rejected by the server');
+            }
+          }
+        }
+        slotImport.alreadyImported = slotImport.imported === 0 && clashed && !slotImport.error;
       } else {
         slotImport.error = getApiErrorMessage(err, 'Rejected by the server');
       }

@@ -271,7 +271,7 @@ export const ClustersView: React.FC<ClustersViewProps> = ({
 
               <CardFooterRow $selected={isSelected}>
                 <CountBadge $selected={isSelected}>
-                  {cluster.industryCount || 3} Industries
+                  {cluster.industryCount ?? 0} Industries
                 </CountBadge>
                 <ViewLink $selected={isSelected}>
                   Explore <RiArrowRightSLine size={16} className="arrow-icon" />

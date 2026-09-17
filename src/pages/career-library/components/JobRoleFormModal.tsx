@@ -859,6 +859,7 @@ const InstitutionSubform: React.FC<{
   const [examReq, setExamReq] = useState(initRecord?.entranceExamsRequired ?? '');
   const [programs, setPrograms] = useState(initRecord?.programmesOffered ?? '');
   const [ranking, setRanking] = useState(initRecord?.ranking ?? '');
+  const [placementSalary, setPlacementSalary] = useState(initRecord?.approxPlacementCtc ?? '');
   const [website, setWebsite] = useState(initRecord?.website ?? '');
 
   const updateMutation = useMutation({
@@ -893,6 +894,7 @@ const InstitutionSubform: React.FC<{
       entranceExamsRequired: opt(examReq),
       programmesOffered: opt(programs),
       ranking: opt(ranking),
+      approxPlacementCtc: opt(placementSalary),
       website: opt(website),
     };
     if (isExistingEdit) {
@@ -928,6 +930,7 @@ const InstitutionSubform: React.FC<{
       </S.FieldGroup>
       <S.FormGrid $columns={2}>
         <Input label="Ranking / Recognition" placeholder="e.g. #1 NIRF Design" value={ranking} onChange={e => setRanking(e.target.value)} />
+        <Input label="Placement Salary" placeholder="e.g. ₹6-12 LPA" value={placementSalary} onChange={e => setPlacementSalary(e.target.value)} />
         <Input label="Official Website" placeholder="https://…" value={website} onChange={e => setWebsite(e.target.value)} />
       </S.FormGrid>
       <S.FormActions>

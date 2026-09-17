@@ -102,6 +102,14 @@ const WindowText = styled.span`
   font-style: italic;
 `;
 
+const CompilingDataText = styled.span`
+  font-style: italic;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const renderDetailValue = (value: string) =>
+  value === '—' ? <CompilingDataText>compiling data</CompilingDataText> : value;
+
 interface EntranceExamsTabProps {
   exams: EntranceExam[];
 }
@@ -125,25 +133,29 @@ export const EntranceExamsTab: React.FC<EntranceExamsTabProps> = ({ exams }) => 
 
               <ExamBody>
                 <DetailRow>
-                  <strong>Conducted by:</strong> {exam.conductedBy}
+                  <strong>Conducted by:</strong> {renderDetailValue(exam.conductedBy)}
                 </DetailRow>
                 <DetailRow>
-                  <strong>Mode:</strong> {exam.mode}
+                  <strong>Mode:</strong> {renderDetailValue(exam.mode)}
                 </DetailRow>
                 <DetailRow>
-                  <strong>Frequency:</strong> {exam.frequency}
+                  <strong>Frequency:</strong> {renderDetailValue(exam.frequency)}
                 </DetailRow>
                 <DetailRow>
-                  <strong>Applicable For:</strong> {exam.applicableFor}
+                  <strong>Applicable For:</strong> {renderDetailValue(exam.applicableFor)}
                 </DetailRow>
                 <DetailRow>
-                  <strong>12th Requirement:</strong> {exam.requirement12th}
+                  <strong>12th Requirement:</strong> {renderDetailValue(exam.requirement12th)}
                 </DetailRow>
                 <DetailRow>
                   <strong>Website:</strong>{' '}
-                  <LinkText href={exam.website} target="_blank" rel="noopener noreferrer">
-                    {exam.website}
-                  </LinkText>
+                  {exam.website ? (
+                    <LinkText href={exam.website} target="_blank" rel="noopener noreferrer">
+                      {exam.website}
+                    </LinkText>
+                  ) : (
+                    <CompilingDataText>compiling data</CompilingDataText>
+                  )}
                 </DetailRow>
               </ExamBody>
             </div>
