@@ -152,6 +152,24 @@ export const PreCounsellingFormPage: React.FC = () => {
     }));
   }, [existingSubmission]);
 
+  // Resume where the student left off: once their saved answers and the section layout
+  // are both available, land on the first section that still has a required question
+  // unanswered (or the last section, if every saved answer is already complete) instead
+  // of always restarting at step 1. Runs once per page load, not on every answer edit.
+  const hasResumedStepRef = useRef(false);
+  useEffect(() => {
+    if (hasResumedStepRef.current) return;
+    if (!existingSubmission || sections.length === 0) return;
+    hasResumedStepRef.current = true;
+    if (existingSubmission.answers.length === 0) return;
+    const savedAnswers = new Map(existingSubmission.answers.map(a => [a.fieldKey, a.answer]));
+    let resumeStepIndex = sections.findIndex(section =>
+      section.questions.some(q => q.isRequired && isQuestionAnswerMissing(q, savedAnswers.get(q.fieldKey)))
+    );
+    if (resumeStepIndex === -1) resumeStepIndex = sections.length - 1;
+    setCurrentStep(resumeStepIndex + 1);
+  }, [existingSubmission, sections]);
+
   // Required questions left blank, keyed by fieldKey — populated on a failed Next/Submit
   // attempt so QuestionRenderer can highlight them; cleared as soon as the step re-validates clean.
   const [errorFieldKeys, setErrorFieldKeys] = useState<Set<string>>(new Set());
