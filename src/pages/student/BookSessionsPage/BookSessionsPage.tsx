@@ -86,8 +86,10 @@ const excludePastDates = (options: BookingSlotOption[]): BookingSlotOption[] => 
   return options.filter(o => o.date >= today);
 };
 
-// Same safety net for Session 1 specifically — a fresh Session 1 booking can't be made
-// for today, only tomorrow onward (backend enforces this too; see getSession1BookingOptions).
+// Same safety net for Session 1 specifically, plus an extra same-day exclusion — a fresh
+// Session 1 booking never offers today. The real gate is the backend's strict 48-hour gap
+// from the student's assessment submission time (see getSession1BookingOptions), which the
+// options list already reflects; this just catches same-day options that gap wouldn't.
 const excludeTodayAndPast = (options: BookingSlotOption[]): BookingSlotOption[] => {
   const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
   return options.filter(o => o.date >= tomorrow);

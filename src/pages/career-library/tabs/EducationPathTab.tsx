@@ -151,11 +151,19 @@ const byLevel = (entries: DomainEducationEntry[], level: DomainEducationEntry['l
 
 // Multiple programmes at the same level (e.g. BDes / BFA / Relevant Degree) render as one
 // combined line instead of a separate title+description block per programme.
-const renderStepEntries = (entries: DomainEducationEntry[]) => {
+//
+// `entry.description` lives on the canonical EducationEntry row, which is SHARED by every
+// role that links to the same programme (e.g. "BA Economics" is linked from ~25 different
+// Economist-family roles) — only the first role to ever populate it "wins," so most roles
+// sharing that programme see someone else's Focus-Electives text instead of their own. The
+// role's own flat `*Defined`/`*Explanation` column is role-specific and always correct for
+// THIS role, so it takes priority; the shared entry description is only a fallback for the
+// rare case a role has a structured link with no matching flat text at all.
+const renderStepEntries = (entries: DomainEducationEntry[], ownDescription?: string) => {
   const programmes = entries.map(entry => entry.programme).join(' / ');
-  const descriptions = Array.from(
-    new Set(entries.map(entry => entry.description).filter((d): d is string => Boolean(d)))
-  );
+  const descriptions = ownDescription
+    ? [ownDescription]
+    : Array.from(new Set(entries.map(entry => entry.description).filter((d): d is string => Boolean(d))));
   return (
     <>
       <StepTitle>{programmes}</StepTitle>
@@ -199,7 +207,7 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
           <StepCard>
             <StepLabel>10+2</StepLabel>
             {class10Plus2.length > 0 ? (
-              renderStepEntries(class10Plus2)
+              renderStepEntries(class10Plus2, role.qualification10th12thExplanation)
             ) : (
               <>
                 <StepTitle>{role.minQual10th12thRecommendedSubjects || '—'}</StepTitle>
@@ -213,7 +221,7 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
           <StepCard>
             <StepLabel>GRADUATE</StepLabel>
             {graduate.length > 0 ? (
-              renderStepEntries(graduate)
+              renderStepEntries(graduate, role.qualificationGraduationDefined)
             ) : (
               <>
                 <StepTitle>{role.minQualGradRecommendedSubjects || '—'}</StepTitle>
@@ -227,7 +235,7 @@ export const EducationPathTab: React.FC<EducationPathTabProps> = ({
           <StepCard>
             <StepLabel>POST-GRADUATE</StepLabel>
             {postGraduate.length > 0 ? (
-              renderStepEntries(postGraduate)
+              renderStepEntries(postGraduate, role.qualificationPGDefined)
             ) : (
               <>
                 <StepTitle>{role.minQualPGRecommendedSubjects || '—'}</StepTitle>

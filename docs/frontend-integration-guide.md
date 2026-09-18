@@ -1096,7 +1096,12 @@ slots imported. `400` if any `counsellorId` isn't assigned to the project via
 
 `GET /students/{studentId}/booking-options?sessionNumber=SESSION_1` — deduped list of
 open `{ slotDate, startTime, endTime }` combos across the student's project. **No
-counsellor is shown or returned** — that's the point of blind booking.
+counsellor is shown or returned** — that's the point of blind booking. For a fresh
+booking (no `rescheduleSessionId`), slots are additionally filtered to at least 48
+hours after the student's assessment submission time — a real instant-to-instant gap,
+not a calendar-day one, so a same-day-tomorrow slot right after a late-night submit can
+still be excluded. `POST /students/{studentId}/book` (§10.4) enforces the same gap on
+submit and 400s with a matching message if it's violated.
 ```json
 [{ "slotDate": "20 Aug 2026", "startTime": "16:00", "endTime": "16:45" }]
 ```
