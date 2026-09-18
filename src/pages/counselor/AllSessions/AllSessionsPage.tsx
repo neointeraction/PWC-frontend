@@ -201,15 +201,23 @@ export const AllSessionsPage: React.FC = () => {
         header: 'Time',
         cell: (row: CounselorSessionRow) => {
           const canJoin = row.isBooked ? checkCanJoin(row) : false;
-          const missedJoin = row.isBooked && !row.isCompleted && !canJoin && hasJoinWindowClosed(row);
+          const alreadyJoined = row.isBooked && !!row.counsellorJoinedAt;
+          // "Join window closed" is a no-show remark — don't show it once the counsellor
+          // has actually joined, or it reads as if they missed a session they attended.
+          const missedJoin =
+            row.isBooked && !row.isCompleted && !canJoin && !alreadyJoined && hasJoinWindowClosed(row);
           return (
             <TimeContainer>
               <TimeText>{row.timeSlot || dayjs(row.dateTime).format('HH:mm')}</TimeText>
               {row.isBooked ? (
-                <SessionStatusIndicator $canJoin={canJoin} $missed={missedJoin}>
+                <SessionStatusIndicator $canJoin={canJoin || alreadyJoined} $missed={missedJoin}>
                   {canJoin ? (
                     <>
                       <RiCheckDoubleLine size={14} /> Ready to Join
+                    </>
+                  ) : alreadyJoined ? (
+                    <>
+                      <RiCheckDoubleLine size={14} /> Joined
                     </>
                   ) : missedJoin ? (
                     <>
@@ -278,14 +286,16 @@ export const AllSessionsPage: React.FC = () => {
             );
           }
 
-          const missedJoin = !row.isCompleted && hasJoinWindowClosed(row);
+          const missedJoin = !row.isCompleted && !row.counsellorJoinedAt && hasJoinWindowClosed(row);
 
           return (
             <Tooltip
               content={
-                missedJoin
-                  ? 'Join window has closed — this session is now marked as a no-show'
-                  : 'Join button enables 10 minutes before session start time'
+                row.counsellorJoinedAt
+                  ? 'You have already joined this session'
+                  : missedJoin
+                    ? 'Join window has closed — this session is now marked as a no-show'
+                    : 'Join button enables 10 minutes before session start time'
               }
             >
               <Button

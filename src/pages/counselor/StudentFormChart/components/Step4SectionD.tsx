@@ -167,11 +167,21 @@ export const Step4SectionD: React.FC<Step4SectionDProps> = ({
 
       <SectionBlock>
         {data.indicators.map(item => {
-          // Parse score (e.g. "76%") and label (e.g. "High reliability")
-          const parts = item.valueStatus.split(' ');
-          const firstPartIsPercent = parts[0]?.includes('%');
-          const score = firstPartIsPercent ? parts[0] : '';
-          const label = firstPartIsPercent ? parts.slice(1).join(' ') : item.valueStatus;
+          // Parse score and label. Percent-based measures read "76% High reliability"
+          // (score = leading "76%"); HRS reads "2.3 min · Very Low Reliability"
+          // (score = "2.3 min", split on the " · " separator instead).
+          let score = '';
+          let label = item.valueStatus;
+          if (item.valueStatus.includes(' · ')) {
+            const [scorePart, ...rest] = item.valueStatus.split(' · ');
+            score = scorePart;
+            label = rest.join(' · ');
+          } else {
+            const parts = item.valueStatus.split(' ');
+            const firstPartIsPercent = parts[0]?.includes('%');
+            score = firstPartIsPercent ? parts[0] : '';
+            label = firstPartIsPercent ? parts.slice(1).join(' ') : item.valueStatus;
+          }
 
           return (
             <div

@@ -160,9 +160,12 @@ export const EntranceExamsTab: React.FC<EntranceExamsTabProps> = ({ exams }) => 
               </ExamBody>
             </div>
 
-            <ExamFooter>
-              <WindowText>{exam.datesText || 'Standard Exam Window'}</WindowText>
-            </ExamFooter>
+            {/* Hidden for now: exam window footer */}
+            {false && (
+              <ExamFooter>
+                <WindowText>{exam.datesText || 'Standard Exam Window'}</WindowText>
+              </ExamFooter>
+            )}
           </ExamCard>
         ))}
       </Grid>

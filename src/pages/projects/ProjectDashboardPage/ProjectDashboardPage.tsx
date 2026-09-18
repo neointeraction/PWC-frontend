@@ -30,6 +30,7 @@ import { EditProjectModal } from '../components/EditProjectModal';
 import { EditStudentModal } from '../ProjectStudentsPage/EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
 import { buildCounselorChartReport, buildCounselorFeedbackRatingReport } from './projectReports';
+import { downloadXlsxFromAoa } from '@/utils/exportXlsx';
 import {
   DashboardContainer,
   ProjectTopHeaderCard,
@@ -64,8 +65,13 @@ import {
   ExportMenuItem,
 } from './ProjectDashboardPage.styles';
 
+// Kept in sync with the backend's live-computed `stageInfo.stageLabel` values (see
+// StudentWorkflowStatus in types/student.types.ts) — every label a student's stage can
+// actually resolve to needs an entry here, or it falls out of the filter dropdown and
+// out of the stage-wise summary's intended order in the exported report.
 export const PROJECT_STAGES_OPTIONS = [
   { value: 'all', label: 'All Stages' },
+  { value: 'Invited', label: 'Invited' },
   { value: 'Login Activated', label: 'Login Activated' },
   { value: 'Profile Completed', label: 'Profile Completed' },
   { value: 'Pre-Counselling — Student', label: 'Pre-Counselling — Student' },
@@ -73,6 +79,7 @@ export const PROJECT_STAGES_OPTIONS = [
   { value: 'Assessment Completed', label: 'Assessment Completed' },
   { value: 'Session Booked', label: 'Session Booked' },
   { value: 'Session 1 Completed', label: 'Session 1 Completed' },
+  { value: 'Counsellor Feedback Report', label: 'Counsellor Feedback Report' },
   { value: 'Session 2 Completed', label: 'Session 2 Completed' },
   { value: 'Feedback — Student', label: 'Feedback — Student' },
   { value: 'Feedback — Parent', label: 'Feedback — Parent' },
@@ -284,21 +291,6 @@ export const ProjectDashboardPage: React.FC = () => {
     setIsAddStudentModalOpen(true);
   };
 
-  const downloadCsv = (csvContent: string, filenameSuffix: string) => {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute(
-      'download',
-      `${(project?.name ?? 'Project').replace(/\s+/g, '_')}_${filenameSuffix}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   const handleExportStudentReport = () => {
     // Generate stage-wise distribution summary
     const stageCounts: Record<string, number> = {};
@@ -313,27 +305,48 @@ export const ProjectDashboardPage: React.FC = () => {
 
     const flaggedCount = students.filter(s => s.isFlagged).length;
 
-    let csvContent = `PROJECT STUDENTS STAGE REPORT\n`;
-    csvContent += `Project Name,${project?.name ?? ''}\n`;
-    csvContent += `Institution,${project?.instituteName ?? ''}\n`;
-    csvContent += `Total Enrolled Students,${students.length}\n`;
-    csvContent += `Total Overdue Flagged (>2 Days Inactive),${flaggedCount}\n\n`;
+    const aoa: (string | number | null | undefined)[][] = [
+      ['PROJECT STUDENTS STAGE REPORT'],
+      ['Project Name', project?.name ?? ''],
+      ['Institution', project?.instituteName ?? ''],
+      ['Total Enrolled Students', students.length],
+      ['Total Overdue Flagged (>2 Days Inactive)', flaggedCount],
+      [],
+      ['STAGE-WISE DISTRIBUTION SUMMARY'],
+      ['Stage Name', 'Student Count'],
+      ...Object.entries(stageCounts).map(([stageName, count]) => [stageName, count]),
+      [],
+      ['STUDENT-LEVEL DETAIL LIST'],
+      [
+        'Student ID',
+        'Student Name',
+        'Grade / Class',
+        'Counselor ID',
+        'Counselor Name',
+        'Current Stage',
+        'Stage Date',
+        'Days In Stage',
+        'Follow-up Flag (>2 Days)',
+      ],
+      ...filteredStudents.map(s => [
+        s.studentId || s.id,
+        s.name,
+        s.grade,
+        s.counselorId || '—',
+        s.counselorName || s.session1?.counselorName || '—',
+        s.stage || 'Login Activated',
+        s.stageCompletedDate || s.session1?.date || '—',
+        s.daysInStage ?? '—',
+        s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track',
+      ]),
+    ];
 
-    csvContent += `STAGE-WISE DISTRIBUTION SUMMARY\n`;
-    csvContent += `Stage Name,Student Count\n`;
-    Object.entries(stageCounts).forEach(([stageName, count]) => {
-      csvContent += `"${stageName}",${count}\n`;
-    });
-    csvContent += `\n`;
-
-    csvContent += `STUDENT-LEVEL DETAIL LIST\n`;
-    csvContent += `Student ID,Student Name,Grade / Class,Counselor ID,Counselor Name,Current Stage,Stage Date,Days In Stage,Follow-up Flag (>2 Days)\n`;
-    filteredStudents.forEach(s => {
-      csvContent += `"${s.studentId || s.id}","${s.name}","${s.grade}","${s.counselorId || '—'}","${s.counselorName || s.session1?.counselorName || '—'}","${s.stage || 'Login Activated'}","${s.stageCompletedDate || s.session1?.date || '—'}","${s.daysInStage ?? '—'}","${s.isFlagged ? 'FLAGGED (>2 Days Inactive)' : 'On Track'}"\n`;
-    });
-
-    downloadCsv(csvContent, 'Student_Details_Report');
-    toast.success('Report Export Started', 'Downloaded student details report (.csv).');
+    downloadXlsxFromAoa(
+      `${(project?.name ?? 'Project').replace(/\s+/g, '_')}_Student_Details_Report`,
+      'Student Details',
+      aoa
+    );
+    toast.success('Report Export Started', 'Downloaded student details report (.xlsx).');
   };
 
   // Per-student counsellor chart (pre-counselling + computed assessment + SCRI) — real

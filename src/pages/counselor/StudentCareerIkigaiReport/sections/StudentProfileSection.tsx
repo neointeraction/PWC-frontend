@@ -21,7 +21,7 @@ interface StudentProfileSectionProps {
   notes?: Record<string, string>;
 }
 
-const LENS_GRID_COLUMNS = '180px 1fr 1fr';
+const LENS_GRID_COLUMNS = '180px 1fr';
 
 // One linear name/description/explanation table per lens — mirrors the Dominant Career
 // Style / Personal Signature / Thinking Mode tables on the counsellor chart (Step2SectionB)
@@ -30,14 +30,12 @@ const LensTraitTable: React.FC<{ label: string; trait: ChampionTrait }> = ({ lab
   <TraitMapTableContainer style={{ marginBottom: '12px' }}>
     <TraitMapHeaderRow style={{ gridTemplateColumns: LENS_GRID_COLUMNS, minWidth: 0 }}>
       <TraitCell>{label}</TraitCell>
-      <TraitCell>Description</TraitCell>
       <TraitCell>Explanation</TraitCell>
     </TraitMapHeaderRow>
     <TraitMapDataRow style={{ gridTemplateColumns: LENS_GRID_COLUMNS, minWidth: 0 }}>
       <TraitCell style={{ fontWeight: 800, color: '#4F46E5', alignItems: 'flex-start' }}>
         {trait.name}
       </TraitCell>
-      <TraitCell style={{ alignItems: 'flex-start' }}>{trait.description}</TraitCell>
       <TraitCell style={{ alignItems: 'flex-start' }}>{trait.explanation}</TraitCell>
     </TraitMapDataRow>
   </TraitMapTableContainer>

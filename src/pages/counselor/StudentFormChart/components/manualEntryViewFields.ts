@@ -29,7 +29,7 @@ export const MANUAL_ENTRY_VIEW_FIELDS: Record<string, AddRowFieldConfig[]> = {
     { key: 'subStream', label: 'Sub-Streams' },
     { key: 'coreSubjects', label: 'Core Subjects Usually Offered', multiline: true },
     { key: 'electives', label: 'Optional / Elective Subjects', multiline: true },
-    { key: 'explanation', label: 'Student & Parent-Friendly Explanation', multiline: true },
+    { key: 'explanation', label: 'Student Friendly Explanation', multiline: true },
   ],
   'Graduation Fit': [
     { key: 'mainStream', label: 'Main Stream' },
@@ -46,6 +46,7 @@ export const MANUAL_ENTRY_VIEW_FIELDS: Record<string, AddRowFieldConfig[]> = {
     { key: 'course', label: 'Course' },
     { key: 'entranceExam', label: 'Entrance Exam' },
     { key: 'ranking', label: 'Ranking' },
+    { key: 'placementSalary', label: 'Placement Salary' },
     { key: 'website', label: 'Website' },
   ],
   'Entrance Exams': [

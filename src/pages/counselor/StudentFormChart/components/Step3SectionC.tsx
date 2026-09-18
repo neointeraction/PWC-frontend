@@ -338,6 +338,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           course: values.course || '',
           entranceExam: values.entranceExam || '',
           ranking: values.ranking || '',
+          placementSalary: values.placementSalary || '',
           website: values.website || '',
           isManualEntry,
         };
@@ -523,7 +524,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           { key: 'electives', label: 'Optional / Elective Subjects', multiline: true, derivedOnly: true },
           {
             key: 'explanation',
-            label: 'Student & Parent-Friendly Explanation',
+            label: 'Student Friendly Explanation',
             multiline: true,
             derivedOnly: true,
           },
@@ -577,6 +578,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           { key: 'course', label: 'Course' },
           { key: 'entranceExam', label: 'Entrance Exam' },
           { key: 'ranking', label: 'Ranking' },
+          { key: 'placementSalary', label: 'Placement Salary' },
           { key: 'website', label: 'Website' },
         ];
       case 'entranceExam':
@@ -690,6 +692,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           course: inst.programsOffered,
           entranceExam: inst.entranceExam,
           ranking: inst.ranking,
+          placementSalary: inst.placementSalary,
           website: inst.website,
           sourceRoleId: roleId,
         });
@@ -851,20 +854,21 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
 
         {/* 1. Stream Fit Table */}
         <StreamFitTableContainer>
-          <StreamFitTableHeaderRow style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 100px 3fr 40px' }}>
+          <StreamFitTableHeaderRow style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 100px 3fr 3fr 40px' }}>
             <StreamFitTableHeaderCell>Main Stream</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Sub-Streams</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Core Subjects Usually Offered</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Optional / Elective Subjects</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell>Fit Score</StreamFitTableHeaderCell>
-            <StreamFitTableHeaderCell>Student & Parent-Friendly Explanation</StreamFitTableHeaderCell>
+            <StreamFitTableHeaderCell>Level Meaning</StreamFitTableHeaderCell>
+            <StreamFitTableHeaderCell>Student Friendly Explanation</StreamFitTableHeaderCell>
             <StreamFitTableHeaderCell />
           </StreamFitTableHeaderRow>
 
           {streamFitRows.map(row => (
             <StreamFitDataRow
               key={row.id}
-              style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 100px 3fr 40px' }}
+              style={{ gridTemplateColumns: '110px 1.3fr 1.4fr 1.5fr 100px 3fr 3fr 40px' }}
             >
               <StreamFitCell $bold>
                 {row.mainStream}
@@ -890,6 +894,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <StreamFitCell $secondary>
                 {getStreamFitGrading(row.fitScore)?.explanation || '—'}
               </StreamFitCell>
+              <StreamFitCell $secondary>{row.explanation || '—'}</StreamFitCell>
               <RowActionsCell>
                 <Tooltip content="Delete Row">
                   <RowDeleteButton
@@ -976,8 +981,9 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
           <CompTableContainer style={{ overflowX: 'auto' }}>
             <CompTableHeaderRow
               style={{
-                gridTemplateColumns: '200px 140px 120px minmax(200px, 1fr) 160px 130px 160px 40px',
-                minWidth: '1150px',
+                gridTemplateColumns:
+                  '200px 140px 120px minmax(200px, 1fr) 160px 130px 140px 160px 40px',
+                minWidth: '1290px',
               }}
             >
               <CompTableHeaderCell>College Name</CompTableHeaderCell>
@@ -986,6 +992,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompTableHeaderCell>Course</CompTableHeaderCell>
               <CompTableHeaderCell>Entrance Exam</CompTableHeaderCell>
               <CompTableHeaderCell>Ranking</CompTableHeaderCell>
+              <CompTableHeaderCell>Placement Salary</CompTableHeaderCell>
               <CompTableHeaderCell>Website</CompTableHeaderCell>
               <CompTableHeaderCell />
             </CompTableHeaderRow>
@@ -994,8 +1001,9 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
               <CompDataRow
                 key={row.id}
                 style={{
-                  gridTemplateColumns: '200px 140px 120px minmax(200px, 1fr) 160px 130px 160px 40px',
-                  minWidth: '1150px',
+                  gridTemplateColumns:
+                    '200px 140px 120px minmax(200px, 1fr) 160px 130px 140px 160px 40px',
+                  minWidth: '1290px',
                 }}
               >
                 <CompParamCell style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
@@ -1007,6 +1015,7 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.course}</CompResponseCell>
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.entranceExam}</CompResponseCell>
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.ranking}</CompResponseCell>
+                <CompResponseCell style={{ borderLeft: 'none' }}>{row.placementSalary}</CompResponseCell>
                 <CompResponseCell style={{ borderLeft: 'none' }}>{row.website}</CompResponseCell>
                 <RowActionsCell>
                   <Tooltip content="Delete Row">

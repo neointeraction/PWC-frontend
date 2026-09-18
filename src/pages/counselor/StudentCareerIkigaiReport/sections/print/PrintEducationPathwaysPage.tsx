@@ -38,10 +38,10 @@ export const PrintEducationPathwaysPage: React.FC<PrintEducationPathwaysPageProp
           <tr>
             <th>College Name</th>
             <th>Location</th>
-            <th>Type</th>
             <th>Course</th>
             <th>Entrance Exam</th>
             <th>Ranking</th>
+            <th>Placement Salary</th>
             <th>Website</th>
           </tr>
         </thead>
@@ -50,10 +50,10 @@ export const PrintEducationPathwaysPage: React.FC<PrintEducationPathwaysPageProp
             <tr key={college.id}>
               <td>{college.collegeName}</td>
               <td>{college.location}</td>
-              <td>{college.type}</td>
               <td>{college.course}</td>
               <td>{college.entranceExam}</td>
               <td>{college.ranking}</td>
+              <td>{college.placementSalary}</td>
               <td>{college.website}</td>
             </tr>
           ))}

@@ -143,6 +143,7 @@ const mapReport = (
     subStream: sf.subStream,
     coreSubjects: sf.coreSubjects ?? '',
     electives: sf.electiveSubjects ?? '',
+    reasoning: sf.explanation ?? '',
     fitScore: sf.fitScore ?? null,
   }));
   const whyTheseStreams =

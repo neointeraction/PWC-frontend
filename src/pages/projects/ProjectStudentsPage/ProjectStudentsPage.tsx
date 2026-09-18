@@ -40,8 +40,13 @@ import {
   // ToolbarIconButton,
 } from './ProjectStudentsPage.styles';
 
+// Kept in sync with the backend's live-computed `stageInfo.stageLabel` values (see
+// StudentWorkflowStatus in types/student.types.ts) — every label a student's stage can
+// actually resolve to needs an entry here, or it falls out of the filter dropdown and
+// out of the stage-wise summary's intended order in the exported report.
 export const PROJECT_STAGES_OPTIONS = [
   { value: 'all', label: 'All Stages' },
+  { value: 'Invited', label: 'Invited' },
   { value: 'Login Activated', label: 'Login Activated' },
   { value: 'Profile Completed', label: 'Profile Completed' },
   { value: 'Pre-Counselling — Student', label: 'Pre-Counselling — Student' },
@@ -49,6 +54,7 @@ export const PROJECT_STAGES_OPTIONS = [
   { value: 'Assessment Completed', label: 'Assessment Completed' },
   { value: 'Session Booked', label: 'Session Booked' },
   { value: 'Session 1 Completed', label: 'Session 1 Completed' },
+  { value: 'Counsellor Feedback Report', label: 'Counsellor Feedback Report' },
   { value: 'Session 2 Completed', label: 'Session 2 Completed' },
   { value: 'Feedback — Student', label: 'Feedback — Student' },
   { value: 'Feedback — Parent', label: 'Feedback — Parent' },

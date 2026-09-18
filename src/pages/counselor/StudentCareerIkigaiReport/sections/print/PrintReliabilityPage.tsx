@@ -48,15 +48,15 @@ export const PrintReliabilityPage: React.FC<PrintReliabilityPageProps> = ({
         <PrintTable>
           <thead>
             <tr>
-              <th style={{ width: '46%' }}>Measure</th>
               <th style={{ width: '18%' }}>Status</th>
+              <th style={{ width: '46%' }}>Measure</th>
               <th>Explanation</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>{METRIC_QUESTION[item.code] ?? item.name}</td>
               <td>{item.status}</td>
+              <td>{METRIC_QUESTION[item.code] ?? item.name}</td>
               <td>{item.guidance}</td>
             </tr>
           </tbody>

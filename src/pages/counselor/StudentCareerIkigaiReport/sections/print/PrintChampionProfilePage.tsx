@@ -29,14 +29,12 @@ const ChampionTraitTable: React.FC<{ nameLabel: string; trait: ChampionTrait }> 
     <thead>
       <tr>
         <th style={{ width: '18%' }}>{nameLabel}</th>
-        <th style={{ width: '41%' }}>Description</th>
         <th>Explanation</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td style={{ fontWeight: 700 }}>{trait.name}</td>
-        <td>{trait.description}</td>
         <td>{trait.explanation}</td>
       </tr>
     </tbody>

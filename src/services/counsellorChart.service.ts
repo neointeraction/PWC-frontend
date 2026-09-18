@@ -502,6 +502,27 @@ const formatHobbyRow = (raw: unknown, rowKey: 'hobby_1' | 'hobby_2'): string => 
 const DEFINITELY_RATING_TOKENS = ['definitely', 'clearly'];
 const SOMEWHAT_RATING_TOKENS = ['somewhat', 'sometimes'];
 
+const STRENGTH_TRAIT_LABELS: Record<string, string> = {
+  speaking: 'Speaking or presenting in front of others',
+  writing: 'Writing clearly (essays, stories, descriptions)',
+  creative: 'Drawing, designing or making creative things',
+  original_ideas: 'Coming up with original or unusual ideas',
+  maths_logic: 'Solving maths or logic problems quickly',
+  analysis: 'Analysing and understanding complex topics',
+  handson: 'Fixing or building things with hands',
+  digital_tools: 'Using computers, gadgets or digital tools',
+  teamwork: 'Making friends easily and working in teams',
+  empathy: 'Understanding how others feel (empathy)',
+  sports: 'Playing sports or physical coordination',
+  memory: 'Remembering facts and details accurately',
+  persuasion: 'Persuading or motivating others to follow an idea',
+  organising: 'Organising work, notes and assignments neatly',
+  patterns: 'Finding patterns and solving puzzles',
+  spatial: 'Visualising shapes, maps, or objects in different positions',
+  risk_comfort: 'Being comfortable trying something new even when success is uncertain',
+  initiative: 'Taking initiative without being told what to do',
+};
+
 const formatStrengthsBucket = (raw: unknown, ratingTokens: string[]): string => {
   if (!raw || typeof raw !== 'object') return '';
   const matched: string[] = [];
@@ -510,7 +531,7 @@ const formatStrengthsBucket = (raw: unknown, ratingTokens: string[]): string => 
     const rating = (cell as Record<string, unknown>).rating;
     if (typeof rating !== 'string') return;
     if (ratingTokens.some(token => rating.toLowerCase().includes(token))) {
-      matched.push(toTitleCase(key));
+      matched.push(STRENGTH_TRAIT_LABELS[key] ?? toTitleCase(key));
     }
   });
   if (matched.length === 0) return '';
