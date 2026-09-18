@@ -2,11 +2,12 @@
 // column-for-column matched to the sample files the counsellor ops team already uses.
 import { Project } from '@/types/project.types';
 import { ProjectStudentDetail } from '@/types/project.types';
-import { counsellorChartService } from '@/services/counsellorChart.service';
+import { counsellorChartService, mapChartToFormData } from '@/services/counsellorChart.service';
 import { formsService } from '@/services/forms.service';
 import { toTitleCase } from '@/utils';
 import { downloadXlsx, formatAnswerValue, XlsxHeaderColumn } from '@/utils/exportXlsx';
 import { AssessmentLayer, EnrichedTraitScore } from '@/types/counsellorChart.types';
+import { ComparisonSubGroup } from '@/mocks/studentFormChart.mock';
 
 // The org runs a single cohort today — same constant used by the student-facing form
 // pages (StudentFeedbackFormPage, ParentFeedbackFormPage, ParentPreCounsellingFormPage).
@@ -124,17 +125,32 @@ export const buildCounselorChartReport = async (
       chart?.ourChampion.instituteLocation,
     ];
 
-    // Re-derive this student's own pre-counselling answers keyed by (section, code) —
-    // parameter *order* is shared across students, but values are per-student.
-    const paramValue = (sectionKey: string, code: string, side: 'student' | 'parent') => {
-      const section = chart?.preCounselling.find(s => s.key === sectionKey);
-      const param = section?.parameters.find(p => p.code === code);
-      return param ? formatAnswerValue(param[side]) : '—';
+    // Resolve this student's pre-counselling answers through the exact same formatters
+    // the on-screen Counsellor Chart uses (MCQ option codes -> full option text, matrix
+    // answers -> bullet lists, etc.) — see CHART_PARAM_FORMATTERS in
+    // counsellorChart.service.ts — instead of the raw "a"/"b"/"c" option codes, so the
+    // export reads the same way the counsellor chart does.
+    const formData = chart ? mapChartToFormData(chart, '') : null;
+    const comparisonGroups: ComparisonSubGroup[] = formData
+      ? [
+          ...formData.sectionA.comparisonGroups,
+          ...formData.sectionB.comparisonGroups,
+          ...formData.sectionC.comparisonGroups,
+          ...formData.sectionF.comparisonGroups,
+        ]
+      : [];
+    const answerByCode = new Map(
+      comparisonGroups.flatMap(g => g.items.map(item => [item.code, item]))
+    );
+    const paramValue = (code: string, side: 'student' | 'parent') => {
+      const item = answerByCode.get(code);
+      const value = item ? (side === 'student' ? item.studentResponse : item.parentResponse) : '';
+      return value || '—';
     };
     preSections.forEach(section => {
       section.parameters.forEach(p => {
-        row.push(paramValue(section.key, p.code, 'student'));
-        row.push(paramValue(section.key, p.code, 'parent'));
+        row.push(paramValue(p.code, 'student'));
+        row.push(paramValue(p.code, 'parent'));
       });
     });
 
