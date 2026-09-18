@@ -156,15 +156,23 @@ export const UpcomingSessionsPage: React.FC = () => {
         header: 'Time',
         cell: (row: CounselorSessionRow) => {
           const canJoin = row.isBooked ? checkCanJoin(row) : false;
-          const missedJoin = row.isBooked && !row.isCompleted && !canJoin && checkJoinWindowClosed(row);
+          const alreadyJoined = row.isBooked && !!row.counsellorJoinedAt;
+          // "Join window closed" is a no-show remark — don't show it once the counsellor
+          // has actually joined, or it reads as if they missed a session they attended.
+          const missedJoin =
+            row.isBooked && !row.isCompleted && !canJoin && !alreadyJoined && hasJoinWindowClosed(row);
           return (
             <TimeContainer>
               <TimeText>{row.timeSlot || dayjs(row.dateTime).format('HH:mm')}</TimeText>
               {row.isBooked ? (
-                <StatusPill $canJoin={canJoin} $missed={missedJoin}>
+                <StatusPill $canJoin={canJoin || alreadyJoined} $missed={missedJoin}>
                   {canJoin ? (
                     <>
                       <RiCheckDoubleLine size={14} /> Ready to Join
+                    </>
+                  ) : alreadyJoined ? (
+                    <>
+                      <RiCheckDoubleLine size={14} /> Joined
                     </>
                   ) : missedJoin ? (
                     <>

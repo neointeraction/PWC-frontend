@@ -280,6 +280,7 @@ export interface CollegesAfterItemJson {
   course: string;
   entranceExam: string;
   ranking: string;
+  placementSalary: string;
   website: string;
   isManualEntry?: boolean;
   // See EntranceExamItemJson.sourceRoleId — same auto-suggestion provenance tag.

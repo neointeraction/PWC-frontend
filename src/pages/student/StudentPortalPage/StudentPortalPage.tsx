@@ -124,12 +124,15 @@ export const StudentPortalPage: React.FC = () => {
   // `wf.booked` alone would stay true forever after a student's first booking. Require an
   // actual active (non-cancelled) session pair too, so cancelling for real re-opens booking.
   const isBooked = (wf?.booked ?? false) && !!session1 && !!session2;
-  // A session is treated as "done" the moment the student has actually joined it
+  // A session is treated as "done" only the moment the student has actually joined it
   // (studentJoinedAt, set by POST /sessions/{id}/join) — no separate staff "mark
-  // complete" action exists or is expected, so we don't gate on workflowStatus alone.
-  // Falls back to workflowStatus in case a session record isn't loaded yet.
-  const isSession1Completed = !!session1?.studentJoinedAt || (wf?.session1Completed ?? false);
-  const isSession2Completed = !!session2?.studentJoinedAt || (wf?.session2Completed ?? false);
+  // complete" action exists or is expected. Deliberately NOT falling back to
+  // wf.session1Completed/session2Completed: that workflowStatus flag advances once the
+  // counsellor files the session's feedback report, which can happen even when the
+  // student never joined (a missed session) — falling back to it would wrongly show
+  // "Completed" for a session the student didn't attend.
+  const isSession1Completed = !!session1?.studentJoinedAt;
+  const isSession2Completed = !!session2?.studentJoinedAt;
   const isStudentFeedbackSubmitted = formsStatus?.feedbackStudent ?? false;
   const isParentFeedbackSubmitted = formsStatus?.feedbackParent ?? false;
 

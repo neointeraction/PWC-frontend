@@ -94,6 +94,7 @@ export interface CollegesAfterItem {
   course: string;
   entranceExam: string;
   ranking: string;
+  placementSalary: string;
   website: string;
   isManualEntry?: boolean;
   // See EntranceExamItem.sourceRoleId — same auto-suggestion provenance tag.

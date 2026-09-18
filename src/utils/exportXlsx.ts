@@ -45,6 +45,20 @@ export const downloadXlsx = (
   XLSX.writeFile(wb, `${filename}.xlsx`);
 };
 
+// Downloads a workbook from a plain array-of-arrays sheet body — for reports laid out as
+// stacked free-form blocks (title, summary table, detail table) rather than one flat table
+// with a header row, so `downloadXlsx`'s single-header-row assumption doesn't fit.
+export const downloadXlsxFromAoa = (
+  filename: string,
+  sheetName: string,
+  aoa: (string | number | null | undefined)[][]
+): void => {
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, `${filename}.xlsx`);
+};
+
 // Renders a single form answer (free-form JSON on the backend) as a flat, human-readable
 // cell value — never raw JSON, so counsellors see labelled text instead of `{"a":1}`.
 export const formatAnswerValue = (answer: unknown): string | number => {

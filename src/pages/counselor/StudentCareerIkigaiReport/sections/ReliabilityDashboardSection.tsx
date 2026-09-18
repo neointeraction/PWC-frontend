@@ -33,7 +33,7 @@ const METRIC_QUESTION: Record<string, string> = {
   HRS: 'Whether you moved through the assessment at a comfortable, thoughtful pace?',
 };
 
-const RELIABILITY_GRID_COLUMNS = '1.8fr 130px 2.2fr';
+const RELIABILITY_GRID_COLUMNS = '130px 1.8fr 2.2fr';
 
 export const ReliabilityDashboardSection: React.FC<ReliabilityDashboardSectionProps> = ({
   metrics,
@@ -59,15 +59,15 @@ export const ReliabilityDashboardSection: React.FC<ReliabilityDashboardSectionPr
           <TextCardTitle style={{ fontSize: '0.95rem', marginBottom: '6px' }}>{item.name}</TextCardTitle>
           <TraitMapTableContainer>
             <TraitMapHeaderRow style={{ gridTemplateColumns: RELIABILITY_GRID_COLUMNS, minWidth: 0 }}>
-              <TraitCell>Measure</TraitCell>
               <TraitCell>Status</TraitCell>
+              <TraitCell>Measure</TraitCell>
               <TraitCell>Explanation</TraitCell>
             </TraitMapHeaderRow>
             <TraitMapDataRow style={{ gridTemplateColumns: RELIABILITY_GRID_COLUMNS, minWidth: 0 }}>
+              <TraitCell style={{ alignItems: 'flex-start', fontWeight: 700 }}>{item.status}</TraitCell>
               <TraitCell style={{ alignItems: 'flex-start', fontStyle: 'italic' }}>
                 {METRIC_QUESTION[item.code] ?? item.name}
               </TraitCell>
-              <TraitCell style={{ alignItems: 'flex-start', fontWeight: 700 }}>{item.status}</TraitCell>
               <TraitCell style={{ alignItems: 'flex-start' }}>{item.guidance}</TraitCell>
             </TraitMapDataRow>
           </TraitMapTableContainer>
