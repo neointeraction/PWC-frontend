@@ -91,10 +91,18 @@ export const AddProjectWizard: React.FC = () => {
       // The project's own fields (code/name/email/phone) are still atomic — a conflict
       // there is the only way this call itself fails, so surface exactly what the server
       // rejected rather than a generic message.
-      toast.error(
-        'Project Not Created',
-        getApiErrorMessage(err, 'Failed to create the project. Please try again.')
-      );
+      const message = getApiErrorMessage(err, 'Failed to create the project. Please try again.');
+      // A 400 "Validation failed" carries the offending fields in details.fieldErrors —
+      // without them the toast gives no clue which sheet/form value was rejected.
+      const fieldErrors = (
+        err as { response?: { data?: { error?: { details?: { fieldErrors?: Record<string, string[]> } } } } }
+      ).response?.data?.error?.details?.fieldErrors;
+      const detail = fieldErrors
+        ? Object.entries(fieldErrors)
+            .map(([field, msgs]) => `${field}: ${msgs.join(', ')}`)
+            .join(' · ')
+        : '';
+      toast.error('Project Not Created', detail ? `${message} — ${detail}` : message);
     },
   });
 

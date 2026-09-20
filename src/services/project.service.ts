@@ -520,6 +520,10 @@ export const projectService = {
       },
       students: wizardStudents,
       counsellorSlots,
+    }, {
+      // Server hashes a password per student, so big rosters take tens of seconds — the
+      // default 15s client timeout would report failure for a project that did get created.
+      timeout: 180_000,
     });
 
     return {
