@@ -885,6 +885,12 @@ export const projectService = {
     });
   },
 
+  // DELETE /sessions/slots/{id} — remove one of a counsellor's open (unbooked) availability
+  // slots. The backend 409s for a booked slot (cancel its session first).
+  deleteSlot: async (slotId: string): Promise<void> => {
+    await apiClient.delete(`/sessions/slots/${slotId}`);
+  },
+
   // POST /sessions/{id}/reschedule — same counsellor, new date/time. Releases the old
   // slot back to OPEN and claims the new one.
   rescheduleSession: async (

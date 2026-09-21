@@ -20,6 +20,7 @@ import { Table, Column } from '@/components/Table';
 import { Tooltip, EmptyState, Loader } from '@/components';
 import { Modal } from '@/components/Modal';
 import { AlertModal } from '@/components/AlertModal';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DatePicker } from '@/components/DatePicker';
 import { Select } from '@/components/Select';
 import { projectService } from '@/services/project.service';
@@ -68,6 +69,7 @@ import {
   ActionCellWrapper,
   RescheduleButton,
   ActionIconButton,
+  DangerIconButton,
 } from './ProjectSessionsPage.styles';
 
 export const ProjectSessionsPage: React.FC = () => {
@@ -110,9 +112,21 @@ export const ProjectSessionsPage: React.FC = () => {
     enabled: Boolean(rescheduleSlot?.counselorId && projectId),
   });
 
+  // The session being rescheduled may itself be in the past (a missed session), but the
+  // *new* slot has to be upcoming — drop any open slot whose start time has already passed
+  // (earlier dates, and earlier times today), so only future dates/times are offered.
+  const upcomingRescheduleSlots = useMemo(() => {
+    const now = new Date();
+    return rescheduleOpenSlots.filter(s => {
+      const [y, m, d] = s.date.split('-').map(Number);
+      const [hh, mm] = s.startTime.split(':').map(Number);
+      return new Date(y, m - 1, d, hh || 0, mm || 0) > now;
+    });
+  }, [rescheduleOpenSlots]);
+
   const rescheduleDates = useMemo(
-    () => Array.from(new Set(rescheduleOpenSlots.map(s => s.date))).sort(),
-    [rescheduleOpenSlots]
+    () => Array.from(new Set(upcomingRescheduleSlots.map(s => s.date))).sort(),
+    [upcomingRescheduleSlots]
   );
 
   const rescheduleDateObjs = useMemo(
@@ -131,10 +145,10 @@ export const ProjectSessionsPage: React.FC = () => {
       String(rescheduleDate.getMonth() + 1).padStart(2, '0'),
       String(rescheduleDate.getDate()).padStart(2, '0'),
     ].join('-');
-    return rescheduleOpenSlots
+    return upcomingRescheduleSlots
       .filter(s => s.date === ymd)
       .map(s => ({ value: `${s.startTime} - ${s.endTime}`, label: `${s.startTime} - ${s.endTime}` }));
-  }, [rescheduleOpenSlots, rescheduleDate]);
+  }, [upcomingRescheduleSlots, rescheduleDate]);
 
   // Default-select the first available date once this counsellor's open slots load.
   useEffect(() => {
@@ -319,6 +333,24 @@ export const ProjectSessionsPage: React.FC = () => {
   const handleSaveSlotAssignment = (input: { studentId: string; sessionType: 'S1' | 'S2' }) => {
     assignStudentMutation.mutate(input);
   };
+
+  // DELETE /sessions/slots/{id} — removes an open (unbooked) availability slot, after the
+  // admin confirms. Booked slots have no delete action (cancel the session first).
+  const [slotToDelete, setSlotToDelete] = useState<{ counselorName: string; slot: ProjectSlot } | null>(
+    null
+  );
+  const deleteSlotMutation = useMutation({
+    mutationFn: (slotId: string) => projectService.deleteSlot(slotId),
+    onSuccess: () => {
+      refreshSchedule();
+      toast.success('Slot Deleted', 'The open slot has been removed from the counselor\'s schedule.');
+      setSlotToDelete(null);
+    },
+    onError: err => {
+      toast.error('Delete Failed', getApiErrorMessage(err, 'Could not delete this slot.'));
+      setSlotToDelete(null);
+    },
+  });
 
   // POST /sessions/{id}/reschedule — same counsellor, new date/time. Only a booked row
   // has a session behind it to move.
@@ -549,6 +581,15 @@ export const ProjectSessionsPage: React.FC = () => {
                 <RiCalendarEventLine size={15} />
               </ActionIconButton>
             </Tooltip>
+            <Tooltip content="Delete Slot">
+              <DangerIconButton
+                type="button"
+                aria-label="Delete slot"
+                onClick={() => setSlotToDelete({ counselorName: session.counselorName, slot: row })}
+              >
+                <RiDeleteBinLine size={15} />
+              </DangerIconButton>
+            </Tooltip>
           </ActionCellWrapper>
         );
       },
@@ -724,6 +765,22 @@ export const ProjectSessionsPage: React.FC = () => {
           </CounselorsGrid>
         )}
       </Card>
+
+      {/* Delete open slot confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(slotToDelete)}
+        onClose={() => setSlotToDelete(null)}
+        onConfirm={() => slotToDelete && deleteSlotMutation.mutate(slotToDelete.slot.id)}
+        title="Delete this slot?"
+        description={
+          slotToDelete
+            ? `This will permanently remove ${slotToDelete.counselorName}'s open slot on ${formatDate(slotToDelete.slot.date)} (${slotToDelete.slot.time}). Students will no longer be able to book it.`
+            : undefined
+        }
+        confirmLabel="Delete Slot"
+        isLoading={deleteSlotMutation.isPending}
+        isDangerous
+      />
 
       {/* Assign Student Modal */}
       <AssignStudentModal

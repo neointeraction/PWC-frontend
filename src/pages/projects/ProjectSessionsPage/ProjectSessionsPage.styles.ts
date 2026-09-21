@@ -394,3 +394,11 @@ export const ActionIconButton = styled.button`
     background-color: ${({ theme }) => theme.colors.primaryLight};
   }
 `;
+
+export const DangerIconButton = styled(ActionIconButton)`
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.danger};
+    color: ${({ theme }) => theme.colors.danger};
+    background-color: ${({ theme }) => theme.colors.dangerLight};
+  }
+`;

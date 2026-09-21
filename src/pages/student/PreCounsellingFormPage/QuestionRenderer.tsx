@@ -328,6 +328,16 @@ const CompactMcqSelect: React.FC<{
   );
 };
 
+// NUMBER inputs (hours per week, marks, etc.) never make sense as negatives — clamp at 0 in the
+// browser (min + arrow keys), block typing a minus, and strip one that arrives via paste.
+const NON_NEGATIVE_NUMBER_PROPS = {
+  min: 0,
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === '-' || e.key === 'Minus') e.preventDefault();
+  },
+};
+const stripMinus = (raw: string): string => raw.replace(/-/g, '');
+
 // ---- MATRIX (table/grid) question renderer ----
 const MatrixQuestion: React.FC<{
   options: MatrixOptions;
@@ -362,8 +372,11 @@ const MatrixQuestion: React.FC<{
                 <CustomTextInput
                   style={{ flex: 1, minWidth: 260 }}
                   type={field.type === 'NUMBER' ? 'number' : 'text'}
+                  {...(field.type === 'NUMBER' ? NON_NEGATIVE_NUMBER_PROPS : {})}
                   value={(getCell(null, field.key) as string) ?? ''}
-                  onChange={e => setCell(null, field.key, e.target.value)}
+                  onChange={e =>
+                    setCell(null, field.key, field.type === 'NUMBER' ? stripMinus(e.target.value) : e.target.value)
+                  }
                 />
               </InlineLabelRow>
             ) : (
@@ -488,10 +501,13 @@ const MatrixQuestion: React.FC<{
                   ) : (
                     <TableInput
                       type={field.type === 'NUMBER' ? 'number' : 'text'}
+                      {...(field.type === 'NUMBER' ? NON_NEGATIVE_NUMBER_PROPS : {})}
                       placeholder={field.label}
                       maxLength={10}
                       value={(getCell(row.key, field.key) as string) ?? ''}
-                      onChange={e => setCell(row.key, field.key, e.target.value)}
+                      onChange={e =>
+                        setCell(row.key, field.key, field.type === 'NUMBER' ? stripMinus(e.target.value) : e.target.value)
+                      }
                     />
                   )}
                 </td>
@@ -546,9 +562,10 @@ export const QuestionRenderer: React.FC<{
       ) : (
         <CustomTextInput
           type={question.questionType === 'NUMBER' ? 'number' : 'text'}
+          {...(question.questionType === 'NUMBER' ? NON_NEGATIVE_NUMBER_PROPS : {})}
           placeholder="Type your answer..."
           value={(value as string) ?? ''}
-          onChange={e => onChange(e.target.value)}
+          onChange={e => onChange(question.questionType === 'NUMBER' ? stripMinus(e.target.value) : e.target.value)}
         />
       )}
     </QuestionBox>

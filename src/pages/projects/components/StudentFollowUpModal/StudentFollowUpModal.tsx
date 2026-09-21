@@ -118,7 +118,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
   const currentStage = student?.stage || 'Login Activated';
   const defaultTemplate = STAGE_PREDEFINED_MESSAGES[currentStage] || {
     subject: `Follow-up on Career Counseling: ${currentStage}`,
-    message: `Hello ${student?.name || 'Student'}, this is a follow-up reminder from PWC Career Counselling regarding your pending stage: ${currentStage}. Please log in to complete your next step.`,
+    message: `Hello ${student?.name || 'Student'}, this is a follow-up reminder from kREATE Career Counselling regarding your pending stage: ${currentStage}. Please log in to complete your next step.`,
   };
 
   const [customMessage, setCustomMessage] = useState<string>('');
