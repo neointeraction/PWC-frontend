@@ -49,9 +49,12 @@ interface ApiFormsStatus {
   feedbackComplete?: boolean;
 }
 
-// Whitelisted fields accepted by PATCH /students/me — identity fields (name/email/mobile/
-// studentCode/etc.) are rejected there, unlike the admin PATCH /students/{id}.
+// Whitelisted fields accepted by PATCH /students/me — other identity fields (email/mobile/
+// studentCode/etc.) are rejected there, unlike the admin PATCH /students/{id}. firstName/
+// lastName are sent from the one-time profile form so the student can correct their name.
 export interface StudentSelfUpdate {
+  firstName?: string;
+  lastName?: string;
   whatsappNumber?: string;
   parentMobile?: string;
   parentEmail?: string;

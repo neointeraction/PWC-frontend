@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { RiArrowDownSLine, RiCheckLine } from 'react-icons/ri';
+import { RiArrowDownSLine, RiCheckLine, RiSearchLine } from 'react-icons/ri';
 import {
   SelectWrapper,
   Label,
@@ -10,6 +10,9 @@ import {
   ChevronIcon,
   DropdownMenu,
   DropdownItem,
+  SearchItem,
+  SearchInput,
+  NoResultsItem,
   ComingSoonTag,
   ErrorMessage,
 } from './Select.styles';
@@ -18,6 +21,8 @@ export interface SelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  // Extra text matched by the search box but not displayed (e.g. a student ID or phone).
+  searchText?: string;
 }
 
 export interface SelectProps {
@@ -34,6 +39,10 @@ export interface SelectProps {
   id?: string;
   style?: React.CSSProperties;
   className?: string;
+  // Opt-in: shows a search box at the top of the dropdown that filters options by label
+  // (plus each option's `searchText`).
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
@@ -52,6 +61,8 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       id,
       style,
       className,
+      searchable = false,
+      searchPlaceholder = 'Search...',
     },
     ref
   ) => {
@@ -60,6 +71,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       value !== undefined ? value : defaultValue || ''
     );
     const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+    const [query, setQuery] = useState('');
 
     const containerRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -136,6 +148,10 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       };
     }, [isOpen]);
 
+    useEffect(() => {
+      if (!isOpen) setQuery('');
+    }, [isOpen]);
+
     const toggleOpen = () => {
       if (disabled) return;
       if (!isOpen) {
@@ -145,6 +161,14 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
     };
 
     const selectedOption = options.find(opt => opt.value === selectedValue);
+
+    const normalizedQuery = query.trim().toLowerCase();
+    const visibleOptions =
+      searchable && normalizedQuery
+        ? options.filter(opt =>
+            `${opt.label} ${opt.searchText ?? ''}`.toLowerCase().includes(normalizedQuery)
+          )
+        : options;
 
     const handleSelect = (option: SelectOption) => {
       if (disabled || option.disabled) return;
@@ -201,7 +225,26 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           {isOpen &&
             createPortal(
               <DropdownMenu ref={menuRef} role="listbox" style={menuStyle}>
-                {options.map(opt => {
+                {searchable && (
+                  <SearchItem>
+                    <RiSearchLine size={14} />
+                    <SearchInput
+                      autoFocus
+                      type="text"
+                      value={query}
+                      placeholder={searchPlaceholder}
+                      onChange={e => setQuery(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Escape') setIsOpen(false);
+                        e.stopPropagation();
+                      }}
+                    />
+                  </SearchItem>
+                )}
+                {searchable && visibleOptions.length === 0 && (
+                  <NoResultsItem>No matches found</NoResultsItem>
+                )}
+                {visibleOptions.map(opt => {
                   const isSelected = opt.value === selectedValue;
                   const isOptDisabled = Boolean(opt.disabled);
                   return (

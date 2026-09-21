@@ -98,7 +98,11 @@ export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
     () =>
       students.map(student => ({
         value: student.id,
-        label: `${student.name} (${student.grade || 'Class —'} • ${student.mobile || '—'})`,
+        label: `${student.name} (${[student.studentId, student.grade || 'Class —', student.mobile || '—']
+          .filter(Boolean)
+          .join(' • ')})`,
+        // Matched by the dropdown's search box but not shown in the label.
+        searchText: [student.studentId, student.email, student.mobile].filter(Boolean).join(' '),
       })),
     [students]
   );
@@ -146,6 +150,8 @@ export const AssignStudentModal: React.FC<AssignStudentModalProps> = ({
             options={studentOptions}
             value={selectedStudent}
             onChange={handleStudentChange}
+            searchable
+            searchPlaceholder="Search by name, student ID or phone"
           />
         </FieldGroup>
 

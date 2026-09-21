@@ -437,6 +437,13 @@ const resolveMcqSingle = (raw: unknown, optionMap: Record<string, string>): stri
 
 // Resolves an MCQ_MULTI answer — an array of codes, or a { selected, other } wrapper —
 // to a comma-joined list of labels.
+// Multi-select answers read far easier as one option per line than as a comma run-on
+// (the option labels themselves contain commas). The response cells render with
+// `white-space: pre-line`, so newline-separated "• item" lines show as a bullet list — same
+// convention as formatStrengthsBucket. A lone selection stays plain text, no lonely bullet.
+const toBulletList = (items: string[]): string =>
+  items.length > 1 ? items.map(item => `• ${item}`).join('\n') : items.join('');
+
 const resolveMcqMulti = (raw: unknown, optionMap: Record<string, string>): string => {
   if (raw === null || raw === undefined) return '';
   const codes = Array.isArray(raw)
@@ -452,7 +459,7 @@ const resolveMcqMulti = (raw: unknown, optionMap: Record<string, string>): strin
       ? (raw as Record<string, unknown>).other
       : undefined;
   if (typeof otherText === 'string' && otherText.trim()) labels.push(otherText.trim());
-  return labels.filter(Boolean).join(', ');
+  return toBulletList(labels.filter(Boolean));
 };
 
 // Subject-preference questions (A1.1/A1.2) are a MATRIX block of {subject, reason,

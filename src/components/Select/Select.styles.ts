@@ -143,3 +143,38 @@ export const ErrorMessage = styled.span`
   font-size: ${({ theme }) => theme.fontSize.sm};
   color: ${({ theme }) => theme.colors.danger};
 `;
+
+export const SearchItem = styled.li`
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px -4px 4px;
+  padding: 8px 12px;
+  color: ${({ theme }) => theme.colors.textMuted};
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+export const SearchInput = styled.input`
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.text};
+
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.textMuted};
+  }
+`;
+
+export const NoResultsItem = styled.li`
+  padding: 10px 12px;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.textMuted};
+  text-align: center;
+`;

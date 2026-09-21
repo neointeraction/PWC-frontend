@@ -42,7 +42,7 @@ import {
 
 const studentProfileSchema = z.object({
   // FEW DETAILS ABOUT YOU
-  studentFullName: z.string().optional(),
+  studentFullName: z.string().trim().min(1, 'Full name is required'),
   studentMobile: z.string().optional(),
   studentWhatsapp: z.string().optional(),
   studentEmail: z.string().optional(),
@@ -152,10 +152,17 @@ export const StudentProfileFormPage: React.FC = () => {
   // single parentMobile/parentEmail pair) — see docs/db-design.md. fatherEmail is required
   // (it's what the Pre-Counselling form is actually sent to) so it's the one saved as
   // parentEmail; alternateEmail is an optional backup with nowhere to be saved on the
-  // backend today. fatherWhatsapp and the student's own name/email/mobile (identity
-  // fields, not accepted by /students/me) are intentionally left out of this payload.
+  // backend today. fatherWhatsapp and the student's own email/mobile (identity fields, not
+  // accepted by /students/me) are intentionally left out of this payload. The full name is
+  // split into firstName/lastName using the app's convention (single-word name => lastName
+  // repeats firstName, since the backend requires a non-empty lastName).
   const buildProfilePayload = (data: StudentProfileFormData): StudentSelfUpdate => {
+    const nameParts = data.studentFullName.trim().split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ') || firstName;
     return {
+      firstName,
+      lastName,
       whatsappNumber: data.studentWhatsapp?.trim() || undefined,
       parentMobile: data.alternateMobile?.trim() || undefined,
       parentEmail: data.fatherEmail?.trim() || undefined,
@@ -243,7 +250,6 @@ export const StudentProfileFormPage: React.FC = () => {
                   placeholder="e.g. Aarav Sharma"
                   leftIcon={<RiUser3Line size={18} />}
                   error={errors.studentFullName?.message}
-                  readOnly
                   {...register('studentFullName')}
                 />
                 <Input
