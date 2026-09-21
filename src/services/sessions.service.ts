@@ -278,6 +278,17 @@ export const sessionsService = {
     return data.cancelled.map(mapSession);
   },
 
+  // POST /sessions/students/{studentId}/detach — admin only. Cancels both sessions and frees
+  // their slots even after Session 1 has started or completed (409 once the student is
+  // past the session phase — Session 2 done, or in feedback and beyond), and rolls the student back to the booking step so both sessions can be
+  // reassigned to another counsellor.
+  detach: async (studentId: string): Promise<Session[]> => {
+    const { data } = await apiClient.post<{ cancelled: ApiSession[] }>(
+      `/sessions/students/${studentId}/detach`
+    );
+    return data.cancelled.map(mapSession);
+  },
+
   // GET /sessions/counsellors/{counsellorId} — the counsellor's own dashboard sessions.
   getCounsellorSessions: async (counsellorId: string, status?: SessionStatus): Promise<Session[]> => {
     const { data } = await apiClient.get<ApiSession[]>(`/sessions/counsellors/${counsellorId}`, {

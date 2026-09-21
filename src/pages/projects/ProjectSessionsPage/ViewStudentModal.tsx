@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { RiWhatsappLine } from 'react-icons/ri';
+import { RiWhatsappLine, RiCloseCircleLine } from 'react-icons/ri';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components';
@@ -107,12 +107,22 @@ const WhatsAppPhoneLink = styled.a`
   }
 `;
 
+const FooterActions = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+`;
+
 interface ViewStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
   student: ProjectStudent | ProjectStudentDetail | null;
   instituteName?: string;
   counselorPhone?: string;
+  // When provided, a "Detach Student" button shows at the bottom-left of the footer.
+  onDetach?: () => void;
 }
 
 export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
@@ -121,6 +131,7 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
   student,
   instituteName,
   counselorPhone = '',
+  onDetach,
 }) => {
   if (!student) return null;
 
@@ -157,9 +168,25 @@ export const ViewStudentModal: React.FC<ViewStudentModalProps> = ({
       subtitle={`Detailed metadata for ${student.name}`}
       size="md"
       footer={
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
+        <FooterActions>
+          {onDetach ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onDetach}
+              leftIcon={<RiCloseCircleLine size={16} />}
+              style={{ color: '#DC2626', borderColor: '#FCA5A5' }}
+            >
+              Detach from session
+            </Button>
+          ) : (
+            <span />
+          )}
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </FooterActions>
       }
     >
       <DetailGrid>

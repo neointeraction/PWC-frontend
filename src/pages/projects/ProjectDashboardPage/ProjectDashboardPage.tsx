@@ -12,6 +12,7 @@ import {
   RiFlag2Line,
   RiFileExcel2Line,
   RiUserAddLine,
+  RiUploadCloud2Line,
   RiCalendarLine,
 } from 'react-icons/ri';
 import { Card } from '@/components/Card';
@@ -29,6 +30,7 @@ import { formatDate, getApiErrorMessage } from '@/utils';
 import { EditProjectModal } from '../components/EditProjectModal';
 import { EditStudentModal } from '../ProjectStudentsPage/EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
+import { BulkUploadStudentsModal } from '../components/BulkUploadStudentsModal';
 import { buildCounselorChartReport, buildCounselorFeedbackRatingReport } from './projectReports';
 import { downloadXlsxFromAoa } from '@/utils/exportXlsx';
 import {
@@ -160,6 +162,7 @@ export const ProjectDashboardPage: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<ProjectStudentDetail | null>(null);
   const [viewingStudent, setViewingStudent] = useState<ProjectStudentDetail | null>(null);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [exportingReport, setExportingReport] = useState<
     'student' | 'counselorChart' | 'counselorFeedback' | null
@@ -688,6 +691,14 @@ export const ProjectDashboardPage: React.FC = () => {
               </span>
             </FlagFilterButton>
 
+            <Button
+              variant="secondary"
+              leftIcon={<RiUploadCloud2Line size={16} />}
+              onClick={() => setIsBulkUploadOpen(true)}
+            >
+              Bulk Upload
+            </Button>
+
             <Button leftIcon={<RiUserAddLine size={16} />} onClick={handleCreateNewStudent}>
               Add Student
             </Button>
@@ -730,6 +741,13 @@ export const ProjectDashboardPage: React.FC = () => {
         student={editingStudent}
         onSave={updated => updateMutation.mutate(updated)}
         isSaving={updateMutation.isPending}
+      />
+
+      {/* Bulk Upload Students Modal */}
+      <BulkUploadStudentsModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        projectId={projectId as string}
       />
 
       {/* Edit / Extend Project Modal */}

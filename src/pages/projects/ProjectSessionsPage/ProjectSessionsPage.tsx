@@ -88,6 +88,17 @@ export const ProjectSessionsPage: React.FC = () => {
     slot: ProjectSlot;
   } | null>(null);
   const [selectedStudentForView, setSelectedStudentForView] = useState<ProjectStudent | null>(null);
+  // The counsellor + slot behind the student-details popup, needed to detach that student.
+  const [viewedSlotContext, setViewedSlotContext] = useState<{
+    session: CounselorSession;
+    slot: ProjectSlot;
+  } | null>(null);
+  const [studentToDetach, setStudentToDetach] = useState<{
+    studentId: string;
+    studentName: string;
+    counselorName: string;
+    sessionType?: 'S1' | 'S2';
+  } | null>(null);
   const [rescheduleSlot, setRescheduleSlot] = useState<{
     counselorId: string;
     counselorName: string;
@@ -394,6 +405,42 @@ export const ProjectSessionsPage: React.FC = () => {
     rescheduleMutation.mutate({ sessionId: rescheduleSlot.slot.sessionId, date, startTime });
   };
 
+  // POST /sessions/students/{id}/detach — cancels the student's Session 1 *and* Session 2
+  // together (both must stay with one counsellor, even if Session 1 is already done), frees
+  // both slots and sends the student back to booking, so they can be assigned to another
+  // counsellor. The backend 409s only once Session 2 is completed.
+  const detachStudentMutation = useMutation({
+    mutationFn: (studentId: string) => projectService.detachStudent(projectId as string, studentId),
+    onSuccess: () => {
+      refreshSchedule();
+      toast.success(
+        'Student Detached',
+        `${studentToDetach?.studentName ?? 'The student'} was removed from ${studentToDetach?.counselorName ?? 'the counselor'}'s slots. You can now assign them to another counselor.`
+      );
+      setStudentToDetach(null);
+    },
+    onError: err => {
+      toast.error('Detach Failed', getApiErrorMessage(err, 'Could not detach this student.'));
+      setStudentToDetach(null);
+    },
+  });
+
+  const handleRequestDetach = () => {
+    if (!viewedSlotContext?.slot.studentId) {
+      toast.error('Nothing To Detach', 'This slot has no booked student behind it.');
+      return;
+    }
+    const { session, slot } = viewedSlotContext;
+    setStudentToDetach({
+      studentId: slot.studentId as string,
+      studentName: slot.studentName || 'this student',
+      counselorName: session.counselorName,
+      sessionType: slot.sessionType,
+    });
+    setSelectedStudentForView(null);
+    setViewedSlotContext(null);
+  };
+
   const todayLabel = formatDate(new Date().toISOString());
 
   const filteredSessions = effectiveSessions.filter(s => {
@@ -451,7 +498,8 @@ export const ProjectSessionsPage: React.FC = () => {
         row.isBooked ? (
           <StudentNameButton
             type="button"
-            onClick={() =>
+            onClick={() => {
+              setViewedSlotContext({ session, slot: row });
               setSelectedStudentForView({
                 studentId: row.studentCode,
                 name: row.studentName || '',
@@ -462,8 +510,8 @@ export const ProjectSessionsPage: React.FC = () => {
                 timeSlot: row.time,
                 sessionType: row.sessionType === 'S2' ? 'S2' : 'S1',
                 isMissed: row.isMissed,
-              })
-            }
+              });
+            }}
           >
             {row.studentName}
           </StudentNameButton>
@@ -796,9 +844,35 @@ export const ProjectSessionsPage: React.FC = () => {
       {/* View Student Modal */}
       <ViewStudentModal
         isOpen={Boolean(selectedStudentForView)}
-        onClose={() => setSelectedStudentForView(null)}
+        onClose={() => {
+          setSelectedStudentForView(null);
+          setViewedSlotContext(null);
+        }}
         student={selectedStudentForView}
         instituteName={project?.instituteName}
+        counselorPhone={viewedSlotContext?.session.counselorPhone}
+        onDetach={
+          viewedSlotContext?.slot.studentId && viewedSlotContext.slot.canDetach
+            ? handleRequestDetach
+            : undefined
+        }
+      />
+
+      {/* Detach Student Confirmation Modal */}
+      <AlertModal
+        isOpen={Boolean(studentToDetach)}
+        onClose={() => setStudentToDetach(null)}
+        onConfirm={() => studentToDetach && detachStudentMutation.mutate(studentToDetach.studentId)}
+        title="Detach Student from Counselor?"
+        description={`${studentToDetach?.studentName} will be removed from ${studentToDetach?.counselorName}'s slots. Both Session 1 and Session 2 will be cancelled and their slots released${
+          studentToDetach?.sessionType === 'S2'
+            ? ', even though you opened Session 2 — both sessions must be taken by the same counselor'
+            : ''
+        }. This applies even if Session 1 was already completed: the student goes back to the Session 1 booking step and both sessions must be reassigned or rescheduled with another counselor. The student, parent and counselor will be notified by email.`}
+        variant="danger"
+        confirmText="Detach Student"
+        cancelText="Cancel"
+        isLoading={detachStudentMutation.isPending}
       />
 
       {/* Reschedule Session Modal */}

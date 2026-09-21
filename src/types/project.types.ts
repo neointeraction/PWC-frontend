@@ -130,6 +130,9 @@ export interface ProjectSlot {
   // green check is this, not just that the booked time has passed.
   attended?: boolean;
   studentId?: string;
+  // False once the student is past the session phase (Session 2 done, or in feedback and
+  // beyond) — an admin can no longer detach them from the counsellor.
+  canDetach?: boolean;
   studentName?: string;
   studentCode?: string;
   studentEmail?: string;

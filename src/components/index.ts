@@ -22,3 +22,4 @@ export * from './ErrorBoundary';
 export * from './Stepper';
 export * from './FileUpload';
 export * from './SuccessModal';
+export * from './PasswordRequirements';

@@ -11,10 +11,11 @@ import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
+import { PasswordRequirements } from '@/components/PasswordRequirements';
 import { useToast } from '@/hooks';
 import { useAuthStore, useThemeStore } from '@/store';
 import { authService } from '@/services/auth.service';
-import { getApiErrorMessage } from '@/utils';
+import { getApiErrorMessage, isValidPassword } from '@/utils';
 import { ROUTES } from '@/constants';
 
 const TabsContainer = styled.div`
@@ -150,8 +151,12 @@ export const AdminSettings: React.FC = () => {
                 toast.error('Password Mismatch', 'New password and confirm password do not match.');
                 return;
               }
-              if (passwordForm.newPassword.length < 8) {
-                toast.error('Weak Password', 'Password must be at least 8 characters long.');
+              if (!isValidPassword(passwordForm.newPassword)) {
+                toast.error('Weak Password', 'New password does not meet all the requirements listed below the field.');
+                return;
+              }
+              if (passwordForm.newPassword === passwordForm.currentPassword) {
+                toast.error('Same Password', 'New password must be different from the current password.');
                 return;
               }
               changePasswordMutation.mutate({
@@ -173,11 +178,12 @@ export const AdminSettings: React.FC = () => {
             <Input
               label="New Password"
               type="password"
-              placeholder="Enter new password (min. 8 chars)"
+              placeholder="Enter new password"
               value={passwordForm.newPassword}
               onChange={e => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
               required
             />
+            <PasswordRequirements password={passwordForm.newPassword} />
             <Input
               label="Confirm New Password"
               type="password"
