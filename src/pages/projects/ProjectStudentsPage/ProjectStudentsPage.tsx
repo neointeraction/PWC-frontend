@@ -7,6 +7,7 @@ import {
   RiFlag2Line,
   // RiFileExcel2Line,
   RiUserAddLine,
+  RiUploadCloud2Line,
   RiCalendarLine,
   RiEyeLine,
 } from 'react-icons/ri';
@@ -24,6 +25,7 @@ import { ROUTES } from '@/constants';
 import { formatDate, getApiErrorMessage } from '@/utils';
 import { EditStudentModal } from './EditStudentModal';
 import { StudentFollowUpModal } from '../components/StudentFollowUpModal';
+import { BulkUploadStudentsModal } from '../components/BulkUploadStudentsModal';
 import {
   Container,
   FilterBar,
@@ -74,6 +76,7 @@ export const ProjectStudentsPage: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<ProjectStudentDetail | null>(null);
   const [viewingStudent, setViewingStudent] = useState<ProjectStudentDetail | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const limit = 10;
 
   const { data: project } = useQuery({
@@ -407,6 +410,14 @@ export const ProjectStudentsPage: React.FC = () => {
               </ToolbarIconButton>
             </Tooltip> */}
 
+            <Button
+              variant="secondary"
+              leftIcon={<RiUploadCloud2Line size={16} />}
+              onClick={() => setIsBulkUploadOpen(true)}
+            >
+              Bulk Upload
+            </Button>
+
             <Button leftIcon={<RiUserAddLine size={16} />} onClick={handleCreateNewStudent}>
               Add Student
             </Button>
@@ -437,6 +448,12 @@ export const ProjectStudentsPage: React.FC = () => {
         onSave={updated => updateMutation.mutate(updated)}
         onRetest={studentToRetest => retestMutation.mutate(studentToRetest)}
         isRetesting={retestMutation.isPending}
+      />
+
+      <BulkUploadStudentsModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        projectId={projectId as string}
       />
 
       <EditStudentModal

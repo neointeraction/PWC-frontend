@@ -8,8 +8,8 @@ import { parseExcelFile } from '@/utils/excelParser';
 import { projectService } from '@/services/project.service';
 import { ProjectStudent } from '@/types/project.types';
 import { useToast } from '@/hooks';
-import { isValidEmail, isValidPhone } from '@/utils';
 import { ActionIconButton } from '../Projects.styles';
+import { mapStudentSheetRows, validateStudentRows, studentRowLabel } from './studentSheet';
 import {
   StepFormContainer,
   StepSubtitle,
@@ -38,73 +38,9 @@ export const StepStudents: React.FC = () => {
           return;
         }
 
-        // Column order/names follow the institute's standard roster template:
-        // Student Id, Student Name, Class, Division, Student Mobile No.,
-        // WhatsApp Number (if different), Student Email ID, Father Name,
-        // Father Mobile No., Father Email ID. Older sheet variants (Student ID,
-        // Parent Name/Mobile/Email, etc.) are still accepted as fallbacks.
-        const rawStudents: ProjectStudent[] = rows.map(row => ({
-          studentId:
-            row['Student Id'] || row['Student ID'] || row['studentId'] || row['StudentID'] || '',
-          name: row['Student Name'] || row['Name'] || row['name'] || '',
-          email: row['Student Email ID'] || row['Email'] || row['email'] || '',
-          mobile:
-            row['Student Mobile No.'] || row['Mobile'] || row['mobile'] || row['Phone'] || '',
-          grade: row['Class'] || row['Grade'] || row['grade'] || row['class'] || '',
-          division: row['Division'] || row['division'] || '',
-          parentName: row['Father Name'] || row['Parent Name'] || row['parentName'] || '',
-          parentMobile:
-            row['Father Mobile No.'] ||
-            row['Parent Mobile No.'] ||
-            row['Parent Mobile'] ||
-            row['parentMobile'] ||
-            '',
-          parentEmail:
-            row['Father Email ID'] ||
-            row['Parent Email ID'] ||
-            row['Parent Email'] ||
-            row['parentEmail'] ||
-            '',
-          whatsappNumber:
-            row['WhatsApp Number (if different)'] ||
-            row['WhatsApp Number'] ||
-            row['whatsappNumber'] ||
-            '',
-          password:
-            row['Password'] || row['password'] || row['Temp Password'] || row['PWD'] || '',
-        }));
-
-        // Student ID, Name, Email, Mobile, Class and Division are mandatory —
-        // everything else (parent details, password) is optional.
-        const rowLabel = (s: ProjectStudent, i: number) => s.name || s.email || `Row ${i + 2}`;
-        const invalid: { row: ProjectStudent; index: number; reason: string }[] = [];
-        const validStudents = rawStudents.filter((s, i) => {
-          if (!s.studentId) {
-            invalid.push({ row: s, index: i, reason: 'missing Student ID' });
-            return false;
-          }
-          if (!s.name) {
-            invalid.push({ row: s, index: i, reason: 'missing Name' });
-            return false;
-          }
-          if (!s.email || !isValidEmail(s.email)) {
-            invalid.push({ row: s, index: i, reason: 'missing/invalid Email' });
-            return false;
-          }
-          if (!s.mobile || !isValidPhone(s.mobile)) {
-            invalid.push({ row: s, index: i, reason: 'missing/invalid Mobile' });
-            return false;
-          }
-          if (!s.grade) {
-            invalid.push({ row: s, index: i, reason: 'missing Class' });
-            return false;
-          }
-          if (!s.division) {
-            invalid.push({ row: s, index: i, reason: 'missing Division' });
-            return false;
-          }
-          return true;
-        });
+        const rawStudents = mapStudentSheetRows(rows);
+        const { validStudents, invalid } = validateStudentRows(rawStudents);
+        const rowLabel = studentRowLabel;
 
         if (validStudents.length === 0) {
           toast.error(

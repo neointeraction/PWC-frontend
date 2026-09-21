@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios';
 import { apiClient } from './api';
+import { sessionsService } from './sessions.service';
 import {
   Project,
   ProjectStatus,
@@ -62,6 +63,10 @@ interface ApiCounsellorDir {
 
 // GET /students?projectId — className/divisionName are plain free-text fields on the
 // Student row now (no Division/Class entity to join against).
+// Workflow stages in which an admin may detach a student from their counsellor: the session
+// phase, before Session 2 is done (see POST /sessions/students/{id}/detach).
+const DETACHABLE_WORKFLOW_STATUSES = ['SESSION_SCHEDULED', 'SESSION_1_COMPLETED', 'COUNSELLOR_FEEDBACK_REPORT'];
+
 interface ApiStudent {
   id: string;
   studentCode: string;
@@ -559,6 +564,13 @@ export const projectService = {
     const studentClass = new Map(
       studentsRes.data.map(st => [st.id, formatGrade(st.className, st.divisionName)])
     );
+    // Detach is only allowed while the student is at the Session 1 / Session 2 stage — from
+    // SESSION_SCHEDULED up to (not including) SESSION_2_COMPLETED. Mirrors the backend rule.
+    const detachableStudentIds = new Set(
+      studentsRes.data
+        .filter(st => DETACHABLE_WORKFLOW_STATUSES.includes(st.workflowStatus))
+        .map(st => st.id)
+    );
 
     const activeSessions = sessionsRes.data.filter(sess => sess.status !== 'CANCELLED');
     const sessionById = new Map(activeSessions.map(sess => [sess.id, sess]));
@@ -606,6 +618,7 @@ export const projectService = {
         counsellorNoShow,
         attended: Boolean(sess.studentJoinedAt) && Boolean(sess.counsellorJoinedAt),
         studentId: sess.student?.id,
+        canDetach: sess.student ? detachableStudentIds.has(sess.student.id) : false,
         studentCode: sess.student?.studentCode,
         studentName: sess.student
           ? formatFullName(sess.student.user.firstName, sess.student.user.lastName)
@@ -885,6 +898,29 @@ export const projectService = {
     });
   },
 
+  // POST /sessions/students/{id}/detach — cancels the student's Session 1 and Session 2
+  // together (even if Session 1 is already done), rolls the student back to booking and
+  // releases any slot they held. A session an admin booked with POST
+  // /sessions never sat on a slot, so cancelling it would leave nothing on the counsellor's
+  // schedule; recreate an OPEN slot at each freed time (when the counsellor has none there)
+  // so the slot stays available to assign to someone else.
+  detachStudent: async (projectId: string, studentId: string): Promise<void> => {
+    const cancelled = await sessionsService.detach(studentId);
+    for (const sess of cancelled) {
+      try {
+        const existing = await sessionsService.getSlots({ projectId, counsellorId: sess.counsellorId });
+        if (existing.some(sl => sl.date === sess.scheduledDate && sl.startTime === sess.startTime)) continue;
+        await apiClient.post('/sessions/slots', {
+          projectId,
+          counsellorId: sess.counsellorId,
+          slots: [{ date: sess.scheduledDate, startTime: sess.startTime, endTime: sess.endTime }],
+        });
+      } catch {
+        // Best effort — the detach itself already succeeded; a 409 just means the slot exists.
+      }
+    }
+  },
+
   // DELETE /sessions/slots/{id} — remove one of a counsellor's open (unbooked) availability
   // slots. The backend 409s for a booked slot (cancel its session first).
   deleteSlot: async (slotId: string): Promise<void> => {
@@ -966,6 +1002,61 @@ export const projectService = {
   // POST /students/check-duplicates — searches by email/studentCode/mobile across ALL
   // projects (those fields are globally unique), so a re-uploaded student is caught at
   // upload time instead of surfacing as a POST /students rejection at project submission.
+  // Adds a roster to an EXISTING project. The backend only has a bulk endpoint for the
+  // create-project wizard, so this posts one POST /students per row (small concurrency —
+  // the server hashes a password per student) and reports which rows landed vs. failed,
+  // rather than aborting on the first error. A student's `studentCode` / email / mobile
+  // are globally unique, so a clash comes back as a per-row failure.
+  addStudentsToProject: async (
+    projectId: string,
+    students: ProjectStudent[]
+  ): Promise<{ created: number; failed: { student: ProjectStudent; reason: string }[] }> => {
+    const failed: { student: ProjectStudent; reason: string }[] = [];
+    let created = 0;
+    let next = 0;
+
+    const worker = async () => {
+      while (next < students.length) {
+        const student = students[next++];
+        const parts = student.name.trim().split(/\s+/);
+        const firstName = parts[0] || student.name.trim();
+        const lastName = parts.slice(1).join(' ') || firstName;
+        const className = student.grade.trim();
+        const divisionName = (student.division || className).trim();
+        try {
+          await apiClient.post(
+            '/students',
+            {
+              firstName,
+              lastName,
+              email: student.email,
+              mobile: normalizePhone(student.mobile),
+              projectId,
+              className,
+              divisionName,
+              // Same fallback as the wizard: parentMobile is required by the backend.
+              parentMobile: normalizePhone(student.parentMobile || student.mobile),
+              studentCode: student.studentId?.trim() ?? '',
+              ...(student.parentEmail ? { parentEmail: student.parentEmail } : {}),
+              ...(student.parentName ? { fatherName: student.parentName } : {}),
+              ...(student.password ? { password: student.password } : {}),
+              ...(student.whatsappNumber
+                ? { whatsappNumber: normalizePhone(student.whatsappNumber) }
+                : {}),
+            },
+            { timeout: 60_000 }
+          );
+          created += 1;
+        } catch (err) {
+          failed.push({ student, reason: getApiErrorMessage(err, 'Could not create this student.') });
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(4, students.length) }, worker));
+    return { created, failed };
+  },
+
   checkDuplicateStudents: async (
     students: ProjectStudent[]
   ): Promise<StudentDuplicateCheckResult[]> => {
