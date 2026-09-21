@@ -625,7 +625,12 @@ export const AssessmentFormPage: React.FC = () => {
             )}
             {!isMeLoading && cohort && isAttemptError && (
               <p style={{ color: '#DC2626', fontSize: 13, marginTop: 8 }}>
-                {attemptError instanceof AxiosError && attemptError.response?.status === 409
+                {/* Two different 409s: already submitted, or the pre-counselling forms aren't
+                    done yet — the backend's own message says which, so only the first is
+                    reworded. */}
+                {attemptError instanceof AxiosError &&
+                attemptError.response?.status === 409 &&
+                /already submitted/i.test(getApiErrorMessage(attemptError, ''))
                   ? 'You have already submitted this assessment.'
                   : getApiErrorMessage(attemptError, "We couldn't start your assessment. Please refresh the page or try again shortly.")}
               </p>
