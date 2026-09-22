@@ -24,9 +24,11 @@ export interface CurrentStudent {
   email: string;
   mobile: string;
   whatsappNumber?: string;
+  alternateMobile?: string;
+  alternateEmail?: string;
   parentMobile: string;
   parentEmail: string;
-  father: { name: string; occupation?: string; employer?: string };
+  father: { name: string; occupation?: string; employer?: string; whatsapp?: string };
   mother: { name?: string; occupation?: string; employer?: string };
   academicYear?: string;
   workflowStatus: StudentWorkflowStatus;

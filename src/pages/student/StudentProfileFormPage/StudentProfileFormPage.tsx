@@ -22,6 +22,7 @@ import { SuccessModal } from '@/components/SuccessModal';
 import { ROUTES } from '@/constants';
 import { useToast, useCurrentStudent } from '@/hooks';
 import { studentService, StudentSelfUpdate } from '@/services/student.service';
+import { useAuthStore } from '@/store';
 import { getApiErrorMessage } from '@/utils';
 import {
   FormPageContainer,
@@ -47,12 +48,18 @@ const studentProfileSchema = z.object({
   studentWhatsapp: z.string().optional(),
   studentEmail: z.string().optional(),
   alternateMobile: z.string().optional(),
-  alternateEmail: z.string().optional(),
+  alternateEmail: z
+    .string()
+    .trim()
+    .email('Enter a valid email address')
+    .optional()
+    .or(z.literal('')),
 
   // FATHER'S DETAILS
   fatherFullName: z.string().optional(),
   fatherOccupation: z.string().optional(),
   fatherEmployer: z.string().optional(),
+  fatherMobile: z.string().optional(),
   fatherWhatsapp: z.string().optional(),
   fatherEmail: z
     .string()
@@ -91,6 +98,7 @@ export const StudentProfileFormPage: React.FC = () => {
       fatherFullName: '',
       fatherOccupation: '',
       fatherEmployer: '',
+      fatherMobile: '',
       fatherWhatsapp: '',
       fatherEmail: '',
 
@@ -110,12 +118,13 @@ export const StudentProfileFormPage: React.FC = () => {
       studentMobile: me.mobile || '',
       studentWhatsapp: me.whatsappNumber || '',
       studentEmail: me.email || '',
-      alternateMobile: me.parentMobile || '',
-      alternateEmail: me.parentEmail || '',
+      alternateMobile: me.alternateMobile || '',
+      alternateEmail: me.alternateEmail || '',
       fatherFullName: me.father?.name || '',
       fatherOccupation: me.father?.occupation || '',
       fatherEmployer: me.father?.employer || '',
-      fatherWhatsapp: '',
+      fatherMobile: me.parentMobile || '',
+      fatherWhatsapp: me.father?.whatsapp || '',
       fatherEmail: me.parentEmail || '',
       motherFullName: me.mother?.name || '',
       motherOccupation: me.mother?.occupation || '',
@@ -126,36 +135,43 @@ export const StudentProfileFormPage: React.FC = () => {
   // confirm-profile takes no body and just flips DRAFT -> PROFILE_COMPLETED using whatever
   // is already saved on the Student record, so edited fields must be PATCHed to /students/me
   // first — otherwise they're lost and the parent pre-counselling email goes out with stale data.
+  // updateMe's response is the actual persisted record — the name change only actually applies
+  // while workflowStatus is still DRAFT (the backend silently ignores it after confirm-profile),
+  // so this is used (rather than the raw form input) to push the navbar's cached name in sync
+  // with what the backend really saved.
   const submitMutation = useMutation({
     mutationFn: async (payload: StudentSelfUpdate) => {
-      await studentService.updateMe(payload);
-      await studentService.confirmProfile(me!.id);
+      const updated = await studentService.updateMe(payload);
+      try {
+        await studentService.confirmProfile(me!.id);
+      } catch (err) {
+        // 409 = already confirmed (not DRAFT) — the updateMe PATCH above still went
+        // through, so treat this as done rather than an error.
+        if (!(err instanceof AxiosError && err.response?.status === 409)) throw err;
+      }
+      return updated;
     },
-    onSuccess: () => {
+    onSuccess: updated => {
       queryClient.invalidateQueries({ queryKey: ['student-me'] });
+      const authUser = useAuthStore.getState().user;
+      if (authUser && authUser.name !== updated.name) {
+        useAuthStore.getState().setUser({ ...authUser, name: updated.name });
+      }
       setIsSuccessModalOpen(true);
     },
     onError: (err: unknown) => {
-      // 409 = already confirmed (not DRAFT) — the updateMe PATCH above still went through,
-      // so treat this as done rather than an error.
-      if (err instanceof AxiosError && err.response?.status === 409) {
-        queryClient.invalidateQueries({ queryKey: ['student-me'] });
-        setIsSuccessModalOpen(true);
-        return;
-      }
       toast.error('Error', getApiErrorMessage(err, 'Failed to save your profile.'));
     },
   });
 
   // Map the form fields to the whitelisted self-service payload PATCH /students/me accepts.
-  // Note: the backend's Student model has no fatherEmail/fatherWhatsapp columns (only a
-  // single parentMobile/parentEmail pair) — see docs/db-design.md. fatherEmail is required
-  // (it's what the Pre-Counselling form is actually sent to) so it's the one saved as
-  // parentEmail; alternateEmail is an optional backup with nowhere to be saved on the
-  // backend today. fatherWhatsapp and the student's own email/mobile (identity fields, not
-  // accepted by /students/me) are intentionally left out of this payload. The full name is
-  // split into firstName/lastName using the app's convention (single-word name => lastName
-  // repeats firstName, since the backend requires a non-empty lastName).
+  // Note: there's no fatherEmail column — fatherEmail is required (it's what the
+  // Pre-Counselling form is actually sent to) so it's the one saved as parentEmail, and
+  // fatherMobile is saved as parentMobile — see docs/db-design.md. The student's own
+  // email/mobile (identity fields, not accepted by /students/me) are intentionally left
+  // out of this payload. The full name is split into firstName/lastName using the app's
+  // convention (single-word name => lastName repeats firstName, since the backend
+  // requires a non-empty lastName).
   const buildProfilePayload = (data: StudentProfileFormData): StudentSelfUpdate => {
     const nameParts = data.studentFullName.trim().split(/\s+/);
     const firstName = nameParts[0];
@@ -164,8 +180,11 @@ export const StudentProfileFormPage: React.FC = () => {
       firstName,
       lastName,
       whatsappNumber: data.studentWhatsapp?.trim() || undefined,
-      parentMobile: data.alternateMobile?.trim() || undefined,
+      alternateMobile: data.alternateMobile?.trim() || undefined,
+      alternateEmail: data.alternateEmail?.trim() || undefined,
+      parentMobile: data.fatherMobile?.trim() || undefined,
       parentEmail: data.fatherEmail?.trim() || undefined,
+      fatherWhatsapp: data.fatherWhatsapp?.trim() || undefined,
       fatherName: data.fatherFullName?.trim() || undefined,
       fatherOccupation: data.fatherOccupation?.trim() || undefined,
       fatherEmployer: data.fatherEmployer?.trim() || undefined,
@@ -285,7 +304,7 @@ export const StudentProfileFormPage: React.FC = () => {
                 <Input
                   label="Alternate Mobile Number (Optional)"
                   type="tel"
-                  placeholder="Backup contact number"
+                  placeholder="A second way to reach you"
                   leftIcon={<RiPhoneLine size={18} />}
                   error={errors.alternateMobile?.message}
                   {...register('alternateMobile')}
@@ -337,6 +356,17 @@ export const StudentProfileFormPage: React.FC = () => {
                   {...register('fatherEmployer')}
                 />
                 <Input
+                  label="Mobile Number"
+                  type="tel"
+                  placeholder="10-digit mobile number"
+                  leftIcon={<RiPhoneLine size={18} />}
+                  error={errors.fatherMobile?.message}
+                  {...register('fatherMobile')}
+                />
+              </FormRow>
+
+              <FormRow>
+                <Input
                   label="WhatsApp Mobile Number"
                   type="tel"
                   placeholder="For communication to be sent for Pre-counselling form & Feedback form"
@@ -344,9 +374,6 @@ export const StudentProfileFormPage: React.FC = () => {
                   error={errors.fatherWhatsapp?.message}
                   {...register('fatherWhatsapp')}
                 />
-              </FormRow>
-
-              <FormRow>
                 <Input
                   label="Email ID *"
                   type="email"

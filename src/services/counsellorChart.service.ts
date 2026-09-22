@@ -458,7 +458,18 @@ const resolveMcqMulti = (raw: unknown, optionMap: Record<string, string>): strin
     typeof raw === 'object' && !Array.isArray(raw)
       ? (raw as Record<string, unknown>).other
       : undefined;
-  if (typeof otherText === 'string' && otherText.trim()) labels.push(otherText.trim());
+  if (typeof otherText === 'string' && otherText.trim()) {
+    // The free-text answer belongs to whichever selected option is the "Any Other"
+    // checkbox — fold it into that same bullet ("Any Other - Sleepovers") rather than
+    // appending it as its own unlabelled line, so a counsellor can tell it came from
+    // that checkbox rather than mistaking it for another selected option.
+    const otherIndex = labels.findIndex(l => /^any other$/i.test(l));
+    if (otherIndex >= 0) {
+      labels[otherIndex] = `${labels[otherIndex]} - ${otherText.trim()}`;
+    } else {
+      labels.push(otherText.trim());
+    }
+  }
   return toBulletList(labels.filter(Boolean));
 };
 
