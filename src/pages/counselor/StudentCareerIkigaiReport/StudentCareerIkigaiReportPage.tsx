@@ -26,6 +26,7 @@ import { scriBandGuidanceService } from '@/services/scriBandGuidance.service';
 import { studentService } from '@/services/student.service';
 import { getApiErrorMessage, getApiErrorStatus, formatFullName } from '@/utils';
 import { useToast } from '@/hooks';
+import { useAuthStore } from '@/store';
 
 import { StudentProfileSection } from './sections/StudentProfileSection';
 import { MyTraitMapSection } from './sections/MyTraitMapSection';
@@ -69,6 +70,12 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  // This page is shared: a counsellor lands here straight from finalizing the chart
+  // (ChartSuccessModal), and the student opens the same route later. "Accept the Report"
+  // must be the student's own signal — the backend now rejects a staff caller outright,
+  // but the button itself is hidden from non-students too, so a counsellor previewing
+  // their own just-finalized chart never sees an "Accept" button to click by mistake.
+  const isStudent = useAuthStore(state => state.user?.role === 'student');
 
   const [activeSectionId, setActiveSectionId] = useState('student-profile');
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
@@ -166,8 +173,10 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
   };
 
   // Shown once the counsellor has finalized the chart after Session 2 — the student is
-  // asked whether they're happy with the report before moving on to Feedback.
-  const canAcceptReport = session?.sessionNumber === 'SESSION_2' && !!counsellorChart?.counsellor.finalizedAt;
+  // asked whether they're happy with the report before moving on to Feedback. Accepting
+  // locks the chart, so this must only ever be offered to the student themselves.
+  const canAcceptReport =
+    isStudent && session?.sessionNumber === 'SESSION_2' && !!counsellorChart?.counsellor.finalizedAt;
 
   const isLoading = isSessionLoading || isReportLoading;
   const isError = isSessionError || isReportError;
