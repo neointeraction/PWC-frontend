@@ -503,7 +503,10 @@ const MatrixQuestion: React.FC<{
                       type={field.type === 'NUMBER' ? 'number' : 'text'}
                       {...(field.type === 'NUMBER' ? NON_NEGATIVE_NUMBER_PROPS : {})}
                       placeholder={field.label}
-                      maxLength={10}
+                      // A free-text cell (e.g. "My Hobby") needs real room; a NUMBER cell
+                      // (e.g. "Hours per Week") stays short — nobody's typing more than a
+                      // few digits there.
+                      maxLength={field.type === 'NUMBER' ? 10 : 100}
                       value={(getCell(row.key, field.key) as string) ?? ''}
                       onChange={e =>
                         setCell(row.key, field.key, field.type === 'NUMBER' ? stripMinus(e.target.value) : e.target.value)
