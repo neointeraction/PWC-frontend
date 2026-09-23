@@ -33,6 +33,10 @@ export const ROUTES = {
   COUNSELORS: '/counselors',
   REPORTS: '/reports',
   FORGOT_PASSWORD: '/forgot-password',
+  // Headless-only: the backend's report-PDF render navigates here with a report-pdf
+  // token (?token=...) instead of a login. Renders just the print tree, no dashboard
+  // chrome — see PrintReportOnlyPage.
+  PRINT_REPORT: '/print/report',
 } as const;
 
 export const PLANS = [

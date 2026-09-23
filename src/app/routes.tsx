@@ -84,6 +84,9 @@ const ParentPreCounsellingFormPage = lazy(() =>
 const ParentFeedbackFormPage = lazy(() =>
   import('@/pages/student/ParentFeedbackFormPage').then(m => ({ default: m.ParentFeedbackFormPage }))
 );
+const PrintReportOnlyPage = lazy(() =>
+  import('@/pages/print/PrintReportOnlyPage').then(m => ({ default: m.PrintReportOnlyPage }))
+);
 
 function ProtectedRoute({ children, allowResetOnly }: { children: React.ReactNode; allowResetOnly?: boolean }) {
   const { isAuthenticated, mustResetPassword } = useAuthStore();
@@ -164,6 +167,10 @@ export const AppRoutes: React.FC = () => {
         <Route
           path={`${ROUTES.PARENT_FEEDBACK_FORM}/:studentId`}
           element={<ParentFeedbackFormPage />}
+        />
+        <Route
+          path={`${ROUTES.PRINT_REPORT}/:studentId`}
+          element={<PrintReportOnlyPage />}
         />
         <Route
           path={ROUTES.RESET_PASSWORD}

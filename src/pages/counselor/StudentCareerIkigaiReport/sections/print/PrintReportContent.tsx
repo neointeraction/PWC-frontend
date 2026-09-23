@@ -8,6 +8,7 @@ import {
   PrintPageSetup,
   PRINT_PAGE_HEIGHT_MM,
   PRINT_PAGE_WIDTH_MM,
+  PRINT_PAGE_VERTICAL_PADDING_PX,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
 import { PrintCoverPage } from './PrintCoverPage';
 import { PrintTocPage } from './PrintTocPage';
@@ -26,6 +27,14 @@ interface PrintReportContentProps {
   reportData: StudentCareerIkigaiReportData;
   counsellorChart: CounsellorChartResponse | undefined;
   scriBandGuidance: ScriBandGuidance[] | undefined;
+  // Runs the pagination measurement immediately on mount instead of waiting for the
+  // browser's `beforeprint` event, and calls onMeasured once done. Needed for the headless
+  // report-PDF render (see PrintReportOnlyPage): Puppeteer's page.pdf() applies print CSS
+  // but — unlike a real "Download as PDF"/Ctrl+P — never fires beforeprint/afterprint, a
+  // long-standing Chromium limitation (those events are tied to the print-UI flow, not the
+  // printToPDF command), so this render needs its own trigger.
+  autoMeasureOnMount?: boolean;
+  onMeasured?: () => void;
 }
 
 const groupNotesByPrefix = (notes: Record<string, string> | undefined) => {
@@ -40,9 +49,9 @@ const groupNotesByPrefix = (notes: Record<string, string> | undefined) => {
 };
 
 const MM_TO_PX = 96 / 25.4;
-// PrintPage's top + bottom padding, repeated on every physical page a section spills onto
-// (box-decoration-break: clone) — so it eats into each continuation page's usable height.
-const PRINT_PAGE_VERTICAL_PADDING_PX = 72;
+// PRINT_PAGE_VERTICAL_PADDING_PX: PrintPage's top + bottom padding, repeated on every
+// physical page a section spills onto (box-decoration-break: clone) — so it eats into each
+// continuation page's usable height.
 
 // Every PrintPage starts on a fresh sheet (break-after: page), but a long one (e.g. a big
 // colleges table or insights list) spills onto more than one — so a fixed "one section =
@@ -78,6 +87,8 @@ export const PrintReportContent: React.FC<PrintReportContentProps> = ({
   reportData,
   counsellorChart,
   scriBandGuidance,
+  autoMeasureOnMount,
+  onMeasured,
 }) => {
   const gradeClass = reportData.studentInfo.gradeClass;
   const notesByPrefix = groupNotesByPrefix(counsellorChart?.counsellor.notes);
@@ -86,31 +97,57 @@ export const PrintReportContent: React.FC<PrintReportContentProps> = ({
   // until the first print, when PrintTocPage falls back to one page per section.
   const [sectionStartPages, setSectionStartPages] = useState<number[] | null>(null);
 
+  // `sync`: use flushSync so the DOM reflects sectionStartPages before this call returns —
+  // needed for the beforeprint case, where the browser takes its print snapshot immediately
+  // after the event handler returns. The auto-measure-on-mount case doesn't need that: it
+  // just does a normal setState and waits for the commit via the effect below, since
+  // flushSync called synchronously from inside a mount effect trips React's "flushSync was
+  // called from inside a lifecycle method" warning (there's no next paint to force yet).
+  const runMeasurement = (opts?: { sync?: boolean }) => {
+    const root = rootRef.current;
+    if (!root) return;
+    const counts = measureSectionPageCounts(root);
+    const sections = Array.from(root.children).filter(
+      (el): el is HTMLElement => el.tagName === 'SECTION',
+    );
+    // Advance the footer's CSS page counter by each section's full page span, so the
+    // footer (printed at the end of the section) shows the page it actually lands on.
+    sections.forEach((section, index) => {
+      section.style.counterIncrement = `printPage ${counts[index] ?? 1}`;
+    });
+    const starts: number[] = [];
+    counts.reduce((page, count) => {
+      starts.push(page);
+      return page + count;
+    }, 1);
+    if (opts?.sync) {
+      flushSync(() => setSectionStartPages(starts));
+    } else {
+      setSectionStartPages(starts);
+    }
+  };
+
   // beforeprint fires for both the "Download as PDF" button and Ctrl/Cmd+P, and runs before
   // the print layout is taken — flushSync makes sure the TOC re-renders in time.
   useEffect(() => {
-    const handleBeforePrint = () => {
-      const root = rootRef.current;
-      if (!root) return;
-      const counts = measureSectionPageCounts(root);
-      const sections = Array.from(root.children).filter(
-        (el): el is HTMLElement => el.tagName === 'SECTION',
-      );
-      // Advance the footer's CSS page counter by each section's full page span, so the
-      // footer (printed at the end of the section) shows the page it actually lands on.
-      sections.forEach((section, index) => {
-        section.style.counterIncrement = `printPage ${counts[index] ?? 1}`;
-      });
-      const starts: number[] = [];
-      counts.reduce((page, count) => {
-        starts.push(page);
-        return page + count;
-      }, 1);
-      flushSync(() => setSectionStartPages(starts));
-    };
-    window.addEventListener('beforeprint', handleBeforePrint);
-    return () => window.removeEventListener('beforeprint', handleBeforePrint);
+    const handler = () => runMeasurement({ sync: true });
+    window.addEventListener('beforeprint', handler);
+    return () => window.removeEventListener('beforeprint', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (autoMeasureOnMount) runMeasurement();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoMeasureOnMount]);
+
+  // Fires onMeasured only once sectionStartPages has actually committed and re-rendered
+  // (not right after calling setState, which merely schedules it) — that's the real
+  // signal the print output is final and safe for the PDF service to snapshot.
+  useEffect(() => {
+    if (autoMeasureOnMount && sectionStartPages) onMeasured?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoMeasureOnMount, sectionStartPages]);
 
   return (
     <PrintRoot ref={rootRef}>

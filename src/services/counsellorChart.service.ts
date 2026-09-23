@@ -531,7 +531,7 @@ const STRENGTH_TRAIT_LABELS: Record<string, { layerTrait: string; quality: strin
   maths_logic: { layerTrait: 'Aptitude - Numerical', quality: 'Solving maths or logic problems quickly' },
   analysis: { layerTrait: 'RIASEC - Investigative', quality: 'Analysing and understanding complex topics' },
   handson: { layerTrait: 'RIASEC - Realistic', quality: 'Fixing or building things with hands' },
-  digital_tools: {
+  digital: {
     layerTrait: 'Cognitive & Decision - Learning Velocity',
     quality: 'Using computers, gadgets or digital tools',
   },

@@ -1,12 +1,13 @@
 import React from 'react';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
 import kreateLogo from '@/assets/logo.jpg';
+import coverImage from '@/assets/report-cover.webp';
 import {
   PrintCoverBody,
+  PrintCoverBrand,
   PrintCoverLogo,
-  PrintCoverImagePlaceholder,
+  PrintCoverImage,
   PrintCoverTitle,
-  PrintCoverSubtitle,
   PrintCoverTable,
   PrintDisclaimer,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
@@ -17,17 +18,19 @@ interface PrintCoverPageProps {
 }
 
 export const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ studentInfo }) => (
-  <PrintPageChrome gradeClass={studentInfo.gradeClass}>
+  <PrintPageChrome gradeClass={studentInfo.gradeClass} singleSheet>
     <PrintCoverBody>
-      <PrintCoverLogo src={kreateLogo} alt="Kreate Logo" />
       <PrintCoverTitle>Design Destiny</PrintCoverTitle>
-      <PrintCoverSubtitle>kREATE Compass</PrintCoverSubtitle>
-      <PrintCoverImagePlaceholder>Cover Image Placeholder</PrintCoverImagePlaceholder>
+
+      <PrintCoverBrand>
+        <PrintCoverLogo src={kreateLogo} alt="Kreate Logo" />
+        Career Compass
+      </PrintCoverBrand>
 
       <PrintCoverTable>
         <tbody>
           <tr>
-            <td>STUDENT NAME</td>
+            <td>CHAMPION NAME</td>
             <td>{studentInfo.studentName}</td>
           </tr>
           <tr>
@@ -38,15 +41,13 @@ export const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ studentInfo }) =
             <td>SCHOOL NAME</td>
             <td>{studentInfo.schoolName}</td>
           </tr>
-          <tr>
-            <td>REPORT DATE</td>
-            <td>{studentInfo.reportDate}</td>
-          </tr>
         </tbody>
       </PrintCoverTable>
 
+      <PrintCoverImage src={coverImage} alt="Design Destiny — Discover, Decide, Design" />
+
       <PrintDisclaimer>
-        Confidential · For Student &amp; Parent Use Only
+        Confidential &middot; For Student &amp; Parent Use Only
         <br />
         <br />
         DISCLAIMER: The results in this report reflect the student&apos;s responses at the time

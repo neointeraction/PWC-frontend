@@ -46,10 +46,20 @@ export const PrintRoot = styled.div`
 // silently clipped instead of flowing onto the next page. Block layout paginates
 // correctly, at the cost of PrintFooter no longer being flex-pinned to the page bottom
 // (see its margin-top below).
-export const PrintPage = styled.section`
+//
+// The padding is the report's page margin (@page margin is 0 — see PrintPageSetup).
+// PrintReportContent reads PRINT_PAGE_VERTICAL_PADDING_PX to count physical pages.
+const PRINT_PAGE_PADDING_TOP_PX = 48;
+const PRINT_PAGE_PADDING_BOTTOM_PX = 48;
+const PRINT_PAGE_PADDING_X_PX = 68;
+export const PRINT_PAGE_VERTICAL_PADDING_PX = PRINT_PAGE_PADDING_TOP_PX + PRINT_PAGE_PADDING_BOTTOM_PX;
+
+// $singleSheet: a page that's guaranteed to fit on one sheet (the cover) — safe to lay out
+// as a fixed-height flex column, which is what lets its footer sit at the bottom edge.
+export const PrintPage = styled.section<{ $singleSheet?: boolean }>`
   background: #ffffff;
   color: #1a1a1a;
-  padding: 32px 40px 40px;
+  padding: ${PRINT_PAGE_PADDING_TOP_PX}px ${PRINT_PAGE_PADDING_X_PX}px ${PRINT_PAGE_PADDING_BOTTOM_PX}px;
   /* Repeat the top/bottom padding on every physical page a long section spills onto, so
      continuation pages don't print flush against the paper edge (@page margin is 0). */
   box-decoration-break: clone;
@@ -58,6 +68,15 @@ export const PrintPage = styled.section`
   break-after: page;
   counter-increment: printPage;
   min-height: 100vh;
+
+  ${({ $singleSheet }) =>
+    $singleSheet &&
+    `
+    display: flex;
+    flex-direction: column;
+    height: ${PRINT_PAGE_HEIGHT_MM}mm;
+    overflow: hidden;
+  `}
 
   &:last-child {
     page-break-after: auto;
@@ -84,11 +103,11 @@ export const PrintRunningHeader = styled.div`
   }
 `;
 
-export const PrintFooter = styled.div`
+export const PrintFooter = styled.div<{ $pinToBottom?: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 32px;
+  margin-top: ${({ $pinToBottom }) => ($pinToBottom ? 'auto' : '32px')};
   padding-top: 8px;
   border-top: 1px solid #cccccc;
   font-size: 9px;
@@ -104,78 +123,83 @@ export const PrintPageNumber = styled.span`
   }
 `;
 
-// Cover page
+// Cover page — mirrors the "Cover Page.pdf" reference: title + gold rule, kREATE logo
+// beside "Career Compass", champion details table, full-width hero image, and the
+// disclaimer sitting just above the page footer.
 export const PrintCoverBody = styled.div`
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  min-height: 620px;
-  justify-content: center;
-  gap: 22px;
-`;
-
-export const PrintCoverLogo = styled.img`
-  width: 150px;
-  height: auto;
-  object-fit: contain;
-`;
-
-export const PrintCoverImagePlaceholder = styled.div`
-  width: 320px;
-  height: 190px;
-  border: 1px dashed ${PRINT_BORDER};
-  border-radius: 4px;
-  background: ${PRINT_PURPLE_LIGHT};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${PRINT_GREY_TEXT};
-  font-size: 11px;
-  font-style: italic;
 `;
 
 export const PrintCoverTitle = styled.h1`
-  font-size: 34px;
+  font-size: 32px;
   font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
   color: ${PRINT_PURPLE};
-  margin: 0;
-  border-bottom: 2px solid #d9b95c;
-  padding-bottom: 16px;
+  margin: 56px 0 0;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #d9b95c;
   width: 100%;
 `;
 
-export const PrintCoverSubtitle = styled.p`
-  font-size: 18px;
-  font-style: italic;
-  color: #333333;
-  margin: 0;
+export const PrintCoverBrand = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 48px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+`;
+
+export const PrintCoverLogo = styled.img`
+  height: 34px;
+  width: auto;
+  object-fit: contain;
 `;
 
 export const PrintCoverTable = styled.table`
   border-collapse: collapse;
-  width: 420px;
+  width: 68%;
+  margin-bottom: 44px;
 
   td {
     border: 1px solid ${PRINT_BORDER};
-    padding: 8px 14px;
-    font-size: 12px;
+    padding: 7px 10px;
+    font-size: 11px;
     text-align: left;
+    background: #f5f5f5;
   }
 
   td:first-child {
     background: ${PRINT_PURPLE};
     color: #ffffff;
     font-weight: 700;
-    width: 40%;
+    width: 37%;
   }
 `;
 
+// Full content width. Allowed to shrink (and crop via object-fit) if the cover is ever
+// tight on space, so the disclaimer/footer below are never pushed off the sheet.
+export const PrintCoverImage = styled.img`
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  flex: 0 1 auto;
+  object-fit: cover;
+`;
+
 export const PrintDisclaimer = styled.p`
+  margin: auto 0 16px;
+  padding-top: 24px;
   font-size: 10px;
   font-style: italic;
-  color: ${PRINT_GREY_TEXT};
-  max-width: 620px;
+  color: #1a1a1a;
   line-height: 1.5;
 `;
 
