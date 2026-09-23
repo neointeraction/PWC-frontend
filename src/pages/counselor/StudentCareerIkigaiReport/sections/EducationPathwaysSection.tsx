@@ -4,6 +4,7 @@ import { RiRoadMapLine } from 'react-icons/ri';
 import { CollegesAfterItemJson, EntranceExamItemJson } from '@/types/counsellorChart.types';
 import { EmptyState } from '@/components/EmptyState';
 import { CounsellorInsightsCard } from './CounsellorInsightsCard';
+import { CompilingData, isMissingValue, orCompilingData } from './CompilingData';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,
@@ -92,14 +93,6 @@ const LinkText = styled.a`
   }
 `;
 
-const CompilingDataText = styled.span`
-  font-style: italic;
-  color: ${({ theme }) => theme.colors.textMuted};
-`;
-
-const renderDetailValue = (value: string) =>
-  value ? value : <CompilingDataText>compiling data</CompilingDataText>;
-
 export const EducationPathwaysSection: React.FC<EducationPathwaysSectionProps> = ({
   colleges,
   exams,
@@ -133,13 +126,13 @@ export const EducationPathwaysSection: React.FC<EducationPathwaysSectionProps> =
               key={college.id}
               style={{ gridTemplateColumns: COLLEGE_COLUMNS, minWidth: '1100px' }}
             >
-              <TraitCell style={{ fontWeight: 700, color: '#4F46E5' }}>{college.collegeName}</TraitCell>
-              <TraitCell>{college.location}</TraitCell>
-              <TraitCell>{college.course}</TraitCell>
-              <TraitCell>{college.entranceExam}</TraitCell>
-              <TraitCell>{college.ranking}</TraitCell>
-              <TraitCell>{college.placementSalary}</TraitCell>
-              <TraitCell>{college.website}</TraitCell>
+              <TraitCell style={{ fontWeight: 700, color: '#4F46E5' }}>{orCompilingData(college.collegeName)}</TraitCell>
+              <TraitCell>{orCompilingData(college.location)}</TraitCell>
+              <TraitCell>{orCompilingData(college.course)}</TraitCell>
+              <TraitCell>{orCompilingData(college.entranceExam)}</TraitCell>
+              <TraitCell>{orCompilingData(college.ranking)}</TraitCell>
+              <TraitCell>{orCompilingData(college.placementSalary)}</TraitCell>
+              <TraitCell>{orCompilingData(college.website)}</TraitCell>
             </TraitMapDataRow>
           ))}
         </TraitMapTableContainer>
@@ -160,28 +153,28 @@ export const EducationPathwaysSection: React.FC<EducationPathwaysSectionProps> =
               </ExamHeader>
               <ExamBody>
                 <DetailRow>
-                  <strong>Conducted by:</strong> {renderDetailValue(exam.conductingBody)}
+                  <strong>Conducted by:</strong> {orCompilingData(exam.conductingBody)}
                 </DetailRow>
                 <DetailRow>
-                  <strong>Level:</strong> {renderDetailValue(exam.level)}
+                  <strong>Level:</strong> {orCompilingData(exam.level)}
                 </DetailRow>
                 <DetailRow>
-                  <strong>Applicable For:</strong> {renderDetailValue(exam.applicableFor)}
+                  <strong>Applicable For:</strong> {orCompilingData(exam.applicableFor)}
                 </DetailRow>
                 <DetailRow>
-                  <strong>Subject Requirements:</strong> {renderDetailValue(exam.subjectRequirements)}
+                  <strong>Subject Requirements:</strong> {orCompilingData(exam.subjectRequirements)}
                 </DetailRow>
                 <DetailRow>
-                  <strong>Exam Month:</strong> {renderDetailValue(exam.examMonth)}
+                  <strong>Exam Month:</strong> {orCompilingData(exam.examMonth)}
                 </DetailRow>
                 <DetailRow>
                   <strong>Website:</strong>{' '}
-                  {exam.urlLink ? (
+                  {!isMissingValue(exam.urlLink) ? (
                     <LinkText href={exam.urlLink} target="_blank" rel="noopener noreferrer">
                       {exam.urlLink}
                     </LinkText>
                   ) : (
-                    <CompilingDataText>compiling data</CompilingDataText>
+                    <CompilingData />
                   )}
                 </DetailRow>
               </ExamBody>

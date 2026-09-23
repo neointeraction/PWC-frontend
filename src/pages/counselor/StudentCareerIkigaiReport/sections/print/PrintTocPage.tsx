@@ -21,13 +21,16 @@ const TOC_ROWS = [
 
 interface PrintTocPageProps {
   gradeClass: string;
+  // Physical start page of every section, in PrintReportContent.tsx's render order
+  // (measured just before printing, since long sections span several pages).
+  sectionStartPages: number[] | null;
 }
 
-// Page 1 is the cover, page 2 is this TOC page itself, so the first row below (rendered
-// in the same order PrintReportContent.tsx composes the pages) starts at page 3.
-const FIRST_CONTENT_PAGE = 3;
+// Section 0 is the cover and section 1 is this TOC page itself, so TOC_ROWS[i] (listed in
+// the same order PrintReportContent.tsx composes the pages) is section i + 2.
+const FIRST_CONTENT_SECTION = 2;
 
-export const PrintTocPage: React.FC<PrintTocPageProps> = ({ gradeClass }) => (
+export const PrintTocPage: React.FC<PrintTocPageProps> = ({ gradeClass, sectionStartPages }) => (
   <PrintPageChrome gradeClass={gradeClass}>
     <PrintSectionTitle>Table of Contents</PrintSectionTitle>
     <PrintSectionRule />
@@ -35,7 +38,9 @@ export const PrintTocPage: React.FC<PrintTocPageProps> = ({ gradeClass }) => (
       {TOC_ROWS.map((row, index) => (
         <PrintTocRow key={row}>
           <span>{row}</span>
-          <span>{FIRST_CONTENT_PAGE + index}</span>
+          <span>
+            {sectionStartPages?.[FIRST_CONTENT_SECTION + index] ?? FIRST_CONTENT_SECTION + index + 1}
+          </span>
         </PrintTocRow>
       ))}
     </PrintTocList>

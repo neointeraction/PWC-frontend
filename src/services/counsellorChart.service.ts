@@ -520,25 +520,43 @@ const formatHobbyRow = (raw: unknown, rowKey: 'hobby_1' | 'hobby_2'): string => 
 const DEFINITELY_RATING_TOKENS = ['definitely', 'clearly'];
 const SOMEWHAT_RATING_TOKENS = ['somewhat', 'sometimes'];
 
-const STRENGTH_TRAIT_LABELS: Record<string, string> = {
-  speaking: 'Speaking or presenting in front of others',
-  writing: 'Writing clearly (essays, stories, descriptions)',
-  creative: 'Drawing, designing or making creative things',
-  original_ideas: 'Coming up with original or unusual ideas',
-  maths_logic: 'Solving maths or logic problems quickly',
-  analysis: 'Analysing and understanding complex topics',
-  handson: 'Fixing or building things with hands',
-  digital_tools: 'Using computers, gadgets or digital tools',
-  teamwork: 'Making friends easily and working in teams',
-  empathy: 'Understanding how others feel (empathy)',
-  sports: 'Playing sports or physical coordination',
-  memory: 'Remembering facts and details accurately',
-  persuasion: 'Persuading or motivating others to follow an idea',
-  organising: 'Organising work, notes and assignments neatly',
-  patterns: 'Finding patterns and solving puzzles',
-  spatial: 'Visualising shapes, maps, or objects in different positions',
-  risk_comfort: 'Being comfortable trying something new even when success is uncertain',
-  initiative: 'Taking initiative without being told what to do',
+// layerTrait strings mirror the "${LAYER_LABEL[layer]} - ${toTitleCase(trait)}" format
+// used by toTraitRow below, sourced from the Traits & Weightages reference (PWC-backend
+// prisma/seed-data/assessment-scoring/trait-definitions.json, one row per key here).
+const STRENGTH_TRAIT_LABELS: Record<string, { layerTrait: string; quality: string }> = {
+  speaking: { layerTrait: 'BIG Five - Extraversion', quality: 'Speaking or presenting in front of others' },
+  writing: { layerTrait: 'Aptitude - Verbal', quality: 'Writing clearly (essays, stories, descriptions)' },
+  creative: { layerTrait: 'RIASEC - Artistic', quality: 'Drawing, designing or making creative things' },
+  original_ideas: { layerTrait: 'BIG Five - Openness', quality: 'Coming up with original or unusual ideas' },
+  maths_logic: { layerTrait: 'Aptitude - Numerical', quality: 'Solving maths or logic problems quickly' },
+  analysis: { layerTrait: 'RIASEC - Investigative', quality: 'Analysing and understanding complex topics' },
+  handson: { layerTrait: 'RIASEC - Realistic', quality: 'Fixing or building things with hands' },
+  digital_tools: {
+    layerTrait: 'Cognitive & Decision - Learning Velocity',
+    quality: 'Using computers, gadgets or digital tools',
+  },
+  teamwork: { layerTrait: 'RIASEC - Social', quality: 'Making friends easily and working in teams' },
+  empathy: { layerTrait: 'BIG Five - Agreeableness', quality: 'Understanding how others feel (empathy)' },
+  sports: { layerTrait: 'BIG Five - Emotional Stability', quality: 'Playing sports or physical coordination' },
+  memory: { layerTrait: 'BIG Five - Conscientiousness', quality: 'Remembering facts and details accurately' },
+  persuasion: {
+    layerTrait: 'RIASEC - Enterprising',
+    quality: 'Persuading or motivating others to follow an idea',
+  },
+  organising: { layerTrait: 'RIASEC - Conventional', quality: 'Organising work, notes and assignments neatly' },
+  patterns: { layerTrait: 'Aptitude - Logical', quality: 'Finding patterns and solving puzzles' },
+  spatial: {
+    layerTrait: 'Aptitude - Spatial',
+    quality: 'Visualising shapes, maps, or objects in different positions',
+  },
+  risk_comfort: {
+    layerTrait: 'Cognitive & Decision - Uncertainty Tolerance',
+    quality: 'Being comfortable trying something new even when success is uncertain',
+  },
+  initiative: {
+    layerTrait: 'Cognitive & Decision - Autonomy Preference',
+    quality: 'Taking initiative without being told what to do',
+  },
 };
 
 const formatStrengthsBucket = (raw: unknown, ratingTokens: string[]): string => {
@@ -549,7 +567,8 @@ const formatStrengthsBucket = (raw: unknown, ratingTokens: string[]): string => 
     const rating = (cell as Record<string, unknown>).rating;
     if (typeof rating !== 'string') return;
     if (ratingTokens.some(token => rating.toLowerCase().includes(token))) {
-      matched.push(STRENGTH_TRAIT_LABELS[key] ?? toTitleCase(key));
+      const meta = STRENGTH_TRAIT_LABELS[key];
+      matched.push(meta ? `${meta.layerTrait} - ${meta.quality}` : toTitleCase(key));
     }
   });
   if (matched.length === 0) return '';
@@ -743,6 +762,14 @@ const LAYER_LABEL: Record<AssessmentLayer, string> = {
   APTITUDE: 'Aptitude',
   COGNITIVE: 'Cognitive & Decision',
 };
+
+// Matches one B1.1/B1.2 strength line built by formatStrengthsBucket —
+// "[• ]<Layer> - <Trait> - <quality>" — so the chart can render the trait name in
+// italics while the response itself stays a plain string (it's also exported as text).
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export const STRENGTH_LINE_PATTERN = new RegExp(
+  `^(• )?(${Object.values(LAYER_LABEL).map(escapeRegExp).join('|')}) - (.+?) - (.+)$`,
+);
 
 const toTraitRow = (s: EnrichedTraitScore, no: number): TraitAssessmentItem => ({
   id: `trait-${s.trait}`,
