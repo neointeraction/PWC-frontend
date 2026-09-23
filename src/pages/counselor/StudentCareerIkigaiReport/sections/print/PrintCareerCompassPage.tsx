@@ -9,6 +9,7 @@ import {
   PrintBody,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
 import { PrintPageChrome } from './PrintPageChrome';
+import { orCompilingData } from '../CompilingData';
 import { PrintInsightsSection, NoteEntry } from './PrintInsightsSection';
 
 interface PrintCareerCompassPageProps {
@@ -51,13 +52,13 @@ export const PrintCareerCompassPage: React.FC<PrintCareerCompassPageProps> = ({
           {cards.map(card => (
             <tr key={card.id}>
               <td>{card.cluster}</td>
-              <td>{card.industry}</td>
-              <td>{card.domain}</td>
-              <td>{card.role}</td>
+              <td>{orCompilingData(card.industry)}</td>
+              <td>{orCompilingData(card.domain)}</td>
+              <td>{orCompilingData(card.role)}</td>
               <td>{card.whyItFits}</td>
-              <td>{card.topEmployers}</td>
-              <td>{card.salaryIndia}</td>
-              <td>{card.salaryAbroad}</td>
+              <td>{orCompilingData(card.topEmployers)}</td>
+              <td>{orCompilingData(card.salaryIndia)}</td>
+              <td>{orCompilingData(card.salaryAbroad)}</td>
               <td>{getCareerFitGrading(card.fitScore ?? undefined)?.level || '—'}</td>
               <td>{getCareerFitGrading(card.fitScore ?? undefined)?.explanation || '—'}</td>
             </tr>

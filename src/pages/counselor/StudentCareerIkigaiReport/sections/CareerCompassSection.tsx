@@ -3,6 +3,7 @@ import { RiCompassLine } from 'react-icons/ri';
 import { CareerRecommendationCard as CardType } from '@/types/studentIkigaiReport.types';
 import { getCareerFitGrading } from '@/utils/careerFitGrading';
 import { CounsellorInsightsCard } from './CounsellorInsightsCard';
+import { orCompilingData } from './CompilingData';
 import {
   ReportSectionBlock,
   SectionHeaderGroup,
@@ -58,13 +59,13 @@ export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ card
         {cards.map(card => (
           <TraitMapDataRow key={card.id} style={{ gridTemplateColumns: CAREER_COMPASS_GRID_COLUMNS, minWidth: '1440px' }}>
             <TraitCell style={{ fontWeight: 800, color: '#4F46E5' }}>{card.cluster}</TraitCell>
-            <TraitCell>{card.industry}</TraitCell>
-            <TraitCell>{card.domain}</TraitCell>
-            <TraitCell style={{ fontWeight: 700 }}>{card.role}</TraitCell>
+            <TraitCell>{orCompilingData(card.industry)}</TraitCell>
+            <TraitCell>{orCompilingData(card.domain)}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>{orCompilingData(card.role)}</TraitCell>
             <TraitCell>{card.whyItFits}</TraitCell>
-            <TraitCell>{card.topEmployers}</TraitCell>
-            <TraitCell style={{ fontWeight: 700 }}>{card.salaryIndia}</TraitCell>
-            <TraitCell style={{ fontWeight: 700 }}>{card.salaryAbroad}</TraitCell>
+            <TraitCell>{orCompilingData(card.topEmployers)}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>{orCompilingData(card.salaryIndia)}</TraitCell>
+            <TraitCell style={{ fontWeight: 700 }}>{orCompilingData(card.salaryAbroad)}</TraitCell>
             <TraitCell style={{ fontWeight: 700 }}>
               {getCareerFitGrading(card.fitScore ?? undefined)?.level || '—'}
             </TraitCell>

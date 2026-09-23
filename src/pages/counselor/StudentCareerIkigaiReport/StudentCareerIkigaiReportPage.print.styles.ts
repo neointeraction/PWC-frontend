@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { createGlobalStyle } from 'styled-components';
 
 // Everything in this file is for the printed/"Download as PDF" output only. It is rendered
 // as a sibling of the on-screen report tree and stays display:none on screen at all times —
@@ -12,6 +12,19 @@ const PRINT_GREY_TEXT = '#6B6B6B';
 const PRINT_BORDER = '#B9B9B9';
 const PRINT_HEADER_BG = '#EDEDED';
 
+// Zero page margin + fixed A4 size: with no margin box left, Chrome has nowhere to draw its
+// own header/footer (date, page title, URL, "1/12"), so that stray text never shows up in
+// the saved PDF. PrintPage's own padding provides the visual margin instead. A fixed size
+// also lets PrintReportContent predict physical page breaks for the TOC/footer numbers.
+export const PRINT_PAGE_HEIGHT_MM = 297;
+export const PRINT_PAGE_WIDTH_MM = 210;
+export const PrintPageSetup = createGlobalStyle`
+  @page {
+    size: A4;
+    margin: 0;
+  }
+`;
+
 export const PrintRoot = styled.div`
   display: none;
   counter-reset: printPage;
@@ -19,17 +32,31 @@ export const PrintRoot = styled.div`
   @media print {
     display: block;
   }
+
+  /* Set only while PrintReportContent measures section heights on screen before printing
+     — 100vh there is the browser window, not the A4 page, so it would skew the count. */
+  &[data-measuring='true'] > section {
+    min-height: 0;
+  }
 `;
 
+// Deliberately block layout, not flex: Chrome's print engine doesn't fragment a
+// display:flex column across a page break — once a page's content (e.g. a long
+// "Counsellor's Insights" notes list) grows past one physical page, the overflow gets
+// silently clipped instead of flowing onto the next page. Block layout paginates
+// correctly, at the cost of PrintFooter no longer being flex-pinned to the page bottom
+// (see its margin-top below).
 export const PrintPage = styled.section`
   background: #ffffff;
   color: #1a1a1a;
   padding: 32px 40px 40px;
+  /* Repeat the top/bottom padding on every physical page a long section spills onto, so
+     continuation pages don't print flush against the paper edge (@page margin is 0). */
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
   page-break-after: always;
   break-after: page;
   counter-increment: printPage;
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
 
   &:last-child {
@@ -61,15 +88,16 @@ export const PrintFooter = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: auto;
+  margin-top: 32px;
   padding-top: 8px;
   border-top: 1px solid #cccccc;
   font-size: 9px;
   color: ${PRINT_GREY_TEXT};
 `;
 
-// Page number shown in each page's footer — driven entirely by the CSS counter on
-// PrintPage/PrintRoot above, so it stays correct however many pages the report has.
+// Page number shown in each page's footer — driven by the CSS counter on PrintPage/PrintRoot
+// above. PrintReportContent bumps each section's counter-increment by the number of
+// physical pages it spans, so this reads the real page number the footer lands on.
 export const PrintPageNumber = styled.span`
   &::before {
     content: 'Page ' counter(printPage);

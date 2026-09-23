@@ -198,7 +198,18 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
     }
   };
 
+  // window.print() has no filename option — Chrome/Edge/Safari name the saved PDF after
+  // document.title, so swap it in for the duration of the print dialog.
   const handleDownloadPdf = () => {
+    const studentName = reportData?.studentInfo.studentName?.trim() || 'student';
+    const safeName = studentName.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-');
+    const previousTitle = document.title;
+    document.title = `${safeName}-kreate-report`;
+    const restoreTitle = () => {
+      document.title = previousTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+    window.addEventListener('afterprint', restoreTitle);
     window.print();
   };
 

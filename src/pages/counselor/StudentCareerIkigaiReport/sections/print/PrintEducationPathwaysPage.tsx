@@ -9,6 +9,7 @@ import {
   PrintPlaceholderNote,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
 import { PrintPageChrome } from './PrintPageChrome';
+import { orCompilingData } from '../CompilingData';
 import { PrintInsightsSection, NoteEntry } from './PrintInsightsSection';
 
 interface PrintEducationPathwaysPageProps {
@@ -48,13 +49,13 @@ export const PrintEducationPathwaysPage: React.FC<PrintEducationPathwaysPageProp
         <tbody>
           {colleges.map(college => (
             <tr key={college.id}>
-              <td>{college.collegeName}</td>
-              <td>{college.location}</td>
-              <td>{college.course}</td>
-              <td>{college.entranceExam}</td>
-              <td>{college.ranking}</td>
-              <td>{college.placementSalary}</td>
-              <td>{college.website}</td>
+              <td>{orCompilingData(college.collegeName)}</td>
+              <td>{orCompilingData(college.location)}</td>
+              <td>{orCompilingData(college.course)}</td>
+              <td>{orCompilingData(college.entranceExam)}</td>
+              <td>{orCompilingData(college.ranking)}</td>
+              <td>{orCompilingData(college.placementSalary)}</td>
+              <td>{orCompilingData(college.website)}</td>
             </tr>
           ))}
         </tbody>
@@ -74,31 +75,31 @@ export const PrintEducationPathwaysPage: React.FC<PrintEducationPathwaysPageProp
           <tbody>
             <tr>
               <td>Exam {idx + 1}</td>
-              <td style={{ fontWeight: 700 }}>{exam.fullName}</td>
+              <td style={{ fontWeight: 700 }}>{orCompilingData(exam.fullName)}</td>
             </tr>
             <tr>
               <td>Conducting Body</td>
-              <td>{exam.conductingBody}</td>
+              <td>{orCompilingData(exam.conductingBody)}</td>
             </tr>
             <tr>
               <td>Level</td>
-              <td>{exam.level}</td>
+              <td>{orCompilingData(exam.level)}</td>
             </tr>
             <tr>
               <td>Applicable For</td>
-              <td>{exam.applicableFor}</td>
+              <td>{orCompilingData(exam.applicableFor)}</td>
             </tr>
             <tr>
               <td>Subject Requirements</td>
-              <td>{exam.subjectRequirements}</td>
+              <td>{orCompilingData(exam.subjectRequirements)}</td>
             </tr>
             <tr>
               <td>Exam Month</td>
-              <td>{exam.examMonth}</td>
+              <td>{orCompilingData(exam.examMonth)}</td>
             </tr>
             <tr>
               <td>URL Link</td>
-              <td>{exam.urlLink}</td>
+              <td>{orCompilingData(exam.urlLink)}</td>
             </tr>
           </tbody>
         </PrintKeyValueTable>
