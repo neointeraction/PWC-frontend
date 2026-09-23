@@ -39,7 +39,7 @@ import {
 
 export const STAGE_PREDEFINED_MESSAGES: Record<string, { subject: string; message: string }> = {
   'Login Activated': {
-    subject: 'Action Required: Complete your PWC Career Counseling Profile Setup',
+    subject: 'Action Required: Complete your kREATE Career Counseling Profile Setup',
     message:
       'Hello {STUDENT_NAME}, your login for the Career Counselling platform has been activated. Please log in and complete your initial student profile to proceed.',
   },
