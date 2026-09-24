@@ -111,6 +111,17 @@ export const StudentFormChartPage: React.FC = () => {
     enabled: !!studentId,
   });
 
+  // Finalizing advances the student's stage, so it's only offered once Session 2 is
+  // completed — until then Step 8 keeps "Save Changes" like every other step.
+  const { data: studentSessions } = useQuery({
+    queryKey: ['student-sessions', studentId],
+    queryFn: () => sessionsService.getStudentSessions(studentId!),
+    enabled: !!studentId,
+  });
+  const isSession2Completed = !!studentSessions?.some(
+    s => s.sessionNumber === 'SESSION_2' && s.status === 'COMPLETED'
+  );
+
   const { data: scriBandGuidance } = useQuery({
     queryKey: ['scri-band-guidance'],
     queryFn: () => scriBandGuidanceService.list(),
@@ -132,21 +143,37 @@ export const StudentFormChartPage: React.FC = () => {
     }
   }, [chart, studentId, sessionId]);
 
+  const lastEditedBy = counselor
+    ? formatFullName(counselor.user.firstName, counselor.user.lastName)
+    : undefined;
+
   const saveMutation = useMutation({
-    mutationFn: (overrideData?: CounsellorFormChartData) => {
-      const lastEditedBy = counselor
-        ? formatFullName(counselor.user.firstName, counselor.user.lastName)
-        : undefined;
-      return counsellorChartService.saveChart(
+    mutationFn: (overrideData?: CounsellorFormChartData) =>
+      counsellorChartService.saveChart(
         studentId!,
         buildSaveBody(overrideData ?? formData, lastEditedBy)
-      );
-    },
+      ),
     onSuccess: updated => {
       queryClient.setQueryData(['counsellor-chart', studentId], updated);
     },
     onError: err => {
       toast.error('Save Failed', getApiErrorMessage(err, 'Could not save the counsellor chart.'));
+    },
+  });
+
+  // Save the latest edits first, then finalize — finalize only stamps the chart and
+  // advances the stage, it doesn't carry any content of its own.
+  const finalizeMutation = useMutation({
+    mutationFn: async () => {
+      await counsellorChartService.saveChart(studentId!, buildSaveBody(formData, lastEditedBy));
+      return counsellorChartService.finalizeChart(studentId!, lastEditedBy);
+    },
+    onSuccess: updated => {
+      queryClient.setQueryData(['counsellor-chart', studentId], updated);
+      setIsSuccessModalOpen(true);
+    },
+    onError: err => {
+      toast.error('Finalize Failed', getApiErrorMessage(err, 'Could not finalize the counsellor chart.'));
     },
   });
 
@@ -229,7 +256,7 @@ export const StudentFormChartPage: React.FC = () => {
   };
 
   const handleSaveFormChart = () => {
-    saveMutation.mutate(undefined, { onSuccess: () => setIsSuccessModalOpen(true) });
+    finalizeMutation.mutate();
   };
 
   const handleSaveChanges = () => {
@@ -598,12 +625,20 @@ export const StudentFormChartPage: React.FC = () => {
               <Button variant="secondary" leftIcon={<RiCheckDoubleLine size={16} />} disabled>
                 Read-only
               </Button>
+            ) : !isSession2Completed ? (
+              <Button
+                variant="secondary"
+                onClick={handleSaveChanges}
+                isLoading={saveMutation.isPending}
+              >
+                Save Changes
+              </Button>
             ) : (
               <Button
                 variant="primary"
                 leftIcon={<RiCheckDoubleLine size={16} />}
                 onClick={handleSaveFormChart}
-                isLoading={saveMutation.isPending}
+                isLoading={finalizeMutation.isPending}
               >
                 Finalize Chart
               </Button>

@@ -86,10 +86,14 @@ export const Step1SectionA: React.FC<Step1SectionAProps> = ({
 
           {studentInfo.academicRecords.map((rec: AcademicRecord) => (
             <CompDataRow key={rec.id} style={{ gridTemplateColumns: '220px 1fr 1fr 1fr' }}>
-              <CompParamCell>
+              {/* Baseline-align so ReadOnlyField's top padding doesn't push the value
+                  below the "Subject:" label. */}
+              <CompParamCell style={rec.specifiedLabel ? { alignItems: 'baseline' } : undefined}>
                 {rec.specifiedLabel ? (
                   <>
-                    <span>{rec.subject}: </span>
+                    {/* CompParamCell is a flex row, which drops the trailing space in
+                        "Subject: " — margin keeps the label and value apart. */}
+                    <span style={{ marginRight: 6 }}>{rec.subject}:</span>
                     <ReadOnlyField>{rec.specifiedLabel}</ReadOnlyField>
                   </>
                 ) : (

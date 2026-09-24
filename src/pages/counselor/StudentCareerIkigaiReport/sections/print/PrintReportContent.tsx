@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
 import { CounsellorChartResponse } from '@/types/counsellorChart.types';
 import { ScriBandGuidance } from '@/types';
+import { getReportNotes } from '@/services/counsellorChart.service';
 import {
   PrintRoot,
   PrintPageSetup,
@@ -91,7 +92,7 @@ export const PrintReportContent: React.FC<PrintReportContentProps> = ({
   onMeasured,
 }) => {
   const gradeClass = reportData.studentInfo.gradeClass;
-  const notesByPrefix = groupNotesByPrefix(counsellorChart?.counsellor.notes);
+  const notesByPrefix = groupNotesByPrefix(getReportNotes(counsellorChart));
   const rootRef = useRef<HTMLDivElement>(null);
   // Physical page each section starts on (index-aligned with the sections below) — null
   // until the first print, when PrintTocPage falls back to one page per section.
@@ -106,14 +107,23 @@ export const PrintReportContent: React.FC<PrintReportContentProps> = ({
   const runMeasurement = (opts?: { sync?: boolean }) => {
     const root = rootRef.current;
     if (!root) return;
-    const counts = measureSectionPageCounts(root);
     const sections = Array.from(root.children).filter(
       (el): el is HTMLElement => el.tagName === 'SECTION',
     );
-    // Advance the footer's CSS page counter by each section's full page span, so the
-    // footer (printed at the end of the section) shows the page it actually lands on.
+    // Drop the heights set by a previous run first — an inline min-height would otherwise
+    // override the measuring reset and inflate every count.
+    sections.forEach(section => {
+      section.style.minHeight = '';
+    });
+    const counts = measureSectionPageCounts(root);
     sections.forEach((section, index) => {
-      section.style.counterIncrement = `printPage ${counts[index] ?? 1}`;
+      const pages = counts[index] ?? 1;
+      // Advance the footer's CSS page counter by the section's full page span, so the
+      // footer (on the section's last sheet) shows the page it actually lands on.
+      section.style.counterIncrement = `printPage ${pages}`;
+      // Stretch the section to exactly its whole sheets, so its bottom edge — where
+      // PrintFooter is pinned — is the bottom of its last sheet, not wherever content ends.
+      section.style.minHeight = `${pages * PRINT_PAGE_HEIGHT_MM}mm`;
     });
     const starts: number[] = [];
     counts.reduce((page, count) => {

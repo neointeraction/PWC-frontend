@@ -9,8 +9,7 @@ import {
 interface PrintPageChromeProps {
   gradeClass: string;
   children: React.ReactNode;
-  // Fixed one-sheet page with the footer pinned to the bottom edge — only for pages that
-  // can never overflow (the cover); see PrintPage.
+  // Fixed one-sheet page — only for pages that can never overflow (the cover); see PrintPage.
   singleSheet?: boolean;
 }
 
@@ -25,7 +24,7 @@ export const PrintPageChrome: React.FC<PrintPageChromeProps> = ({ gradeClass, ch
       <span>Confidential</span>
     </PrintRunningHeader>
     {children}
-    <PrintFooter $pinToBottom={singleSheet}>
+    <PrintFooter>
       <span>kREATE Compass Report</span>
       <PrintPageNumber />
     </PrintFooter>

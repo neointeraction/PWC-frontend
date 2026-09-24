@@ -21,7 +21,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ROUTES } from '@/constants';
 import { sessionsService } from '@/services/sessions.service';
 import { reportsService } from '@/services/reports.service';
-import { counsellorChartService } from '@/services/counsellorChart.service';
+import { counsellorChartService, getReportNotes } from '@/services/counsellorChart.service';
 import { scriBandGuidanceService } from '@/services/scriBandGuidance.service';
 import { studentService } from '@/services/student.service';
 import { getApiErrorMessage, getApiErrorStatus, formatFullName } from '@/utils';
@@ -132,6 +132,8 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
     queryFn: () => counsellorChartService.getChart(studentId!),
     enabled: !!studentId,
   });
+  // Synthesis notes plus the Career DNA box (as C1–C5) — same set the PDF prints.
+  const reportNotes = getReportNotes(counsellorChart);
 
   // Static reference data for the SCRI band shown in "My Career Confidence Meter" —
   // same source the counsellor chart's Step6SCRI uses, keyed by band number.
@@ -377,30 +379,30 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
         <ReportMainContent id="report-main-content">
           <StudentProfileSection
             data={reportData.studentProfile}
-            notes={counsellorChart?.counsellor.notes ?? {}}
+            notes={reportNotes}
           />
           <MyTraitMapSection traits={reportData.traitMap} />
           <ReliabilityDashboardSection
             metrics={reportData.reliability}
-            notes={counsellorChart?.counsellor.notes ?? {}}
+            notes={reportNotes}
           />
           <MyStreamFitSection data={reportData.streamFit} />
           <GraduationPathwaysSection data={reportData.graduation} />
           <EducationPathwaysSection
             colleges={counsellorChart?.counsellor.collegesTable}
             exams={counsellorChart?.counsellor.entranceExamsTable}
-            notes={counsellorChart?.counsellor.notes ?? {}}
+            notes={reportNotes}
           />
           <CareerCompassSection
             cards={reportData.careerCompass}
-            notes={counsellorChart?.counsellor.notes ?? {}}
+            notes={reportNotes}
           />
           <KreateBlueprintSection
             roadmapGrid={counsellorChart?.counsellor.roadmapGrid}
             scri={counsellorChart?.counsellor.scri}
             bandGuidance={scriBandGuidance}
             alignmentRating={counsellorChart?.counsellor.alignmentRating}
-            notes={counsellorChart?.counsellor.notes ?? {}}
+            notes={reportNotes}
           />
         </ReportMainContent>
       </ReportBodyLayout>
