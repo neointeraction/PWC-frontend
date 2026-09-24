@@ -4,6 +4,7 @@ import { sessionsService } from './sessions.service';
 import { StudentWorkflowStatus } from '@/types/student.types';
 import {
   CounsellorChartResponse,
+  CareerDnaNarrativeJson,
   PutCounsellorChartBody,
   AmendMirrorPairBody,
   AssessmentResultRow,
@@ -118,6 +119,17 @@ export const counsellorChartService = {
     const { data } = await apiClient.put<CounsellorChartResponse>(
       `/counsellor-chart/students/${studentId}`,
       body
+    );
+    return data;
+  },
+
+  // POST — finalize: stamps finalizedAt and advances the workflow to COUNSELLOR_FEEDBACK
+  // (shown as "Counsellor Feedback Report" in the admin panel). Only offered once
+  // Session 2 is completed — the backend won't advance the stage before that anyway.
+  finalizeChart: async (studentId: string, finalizedBy?: string): Promise<CounsellorChartResponse> => {
+    const { data } = await apiClient.post<CounsellorChartResponse>(
+      `/counsellor-chart/students/${studentId}/finalize`,
+      finalizedBy ? { finalizedBy } : {}
     );
     return data;
   },
@@ -251,6 +263,7 @@ const OPTION_LABELS: Record<string, Record<string, string>> = {
     competitions: 'Competitions — debates, elocutions, quizzes, house events',
     field_trips: 'Field trips — company visits, factory visits, nature outings',
     other: 'Any Other',
+    not_tried: "Haven't had the opportunity to try these",
   },
   learning_style: {
     a: 'Reading and understanding concepts from books or notes',
@@ -267,6 +280,7 @@ const OPTION_LABELS: Record<string, Record<string, string>> = {
     e: 'I keep postponing studying — procrastination',
     f: 'Concepts are hard to understand — feels like memorising',
     g: 'Any Other',
+    h: 'No major difficulty currently',
   },
   child_study_obstacle: {
     a: 'Distraction — phone, TV, other activities pull attention away',
@@ -277,6 +291,7 @@ const OPTION_LABELS: Record<string, Record<string, string>> = {
     f: 'Difficulty understanding concepts — relies on memorisation',
     g: 'Any Other',
     h: 'Not Sure',
+    i: 'No major difficulty currently',
   },
   energy_type: {
     a: 'Introvert — I prefer working alone and feel recharged after time by myself',
@@ -372,7 +387,7 @@ const OPTION_LABELS: Record<string, Record<string, string>> = {
     e: 'We have not really discussed it yet',
   },
   open_to_unconventional: {
-    a: 'Yes — I am open to whatever the counsellor recommends',
+    a: 'Yes — I am open to exploring suitable options with my child',
     b: 'Open but with reservations — I would want to understand it fully first',
     c: 'No — I have a clear plan and prefer to stick to it',
   },
@@ -402,6 +417,7 @@ const OPTION_LABELS: Record<string, Record<string, string>> = {
     d: 'Peer pressure is a negative influence',
     e: 'I am worried they will make a wrong career choice',
     f: 'Any Other',
+    g: 'No major concern',
   },
   programme_expectations: {
     a: 'Help in choosing the right stream (Science / Commerce / Humanities)',
@@ -462,8 +478,9 @@ const resolveMcqMulti = (raw: unknown, optionMap: Record<string, string>): strin
     // The free-text answer belongs to whichever selected option is the "Any Other"
     // checkbox — fold it into that same bullet ("Any Other - Sleepovers") rather than
     // appending it as its own unlabelled line, so a counsellor can tell it came from
-    // that checkbox rather than mistaking it for another selected option.
-    const otherIndex = labels.findIndex(l => /^any other$/i.test(l));
+    // that checkbox rather than mistaking it for another selected option. Some option
+    // lists label it just "Other" (student free_time_activities), so match both.
+    const otherIndex = labels.findIndex(l => /^(any )?other$/i.test(l));
     if (otherIndex >= 0) {
       labels[otherIndex] = `${labels[otherIndex]} - ${otherText.trim()}`;
     } else {
@@ -1215,6 +1232,29 @@ const stripFitScore = <T extends { fitScore?: number }>(row: T): Omit<T, 'fitSco
 };
 
 // Gathers everything the current UI can persist back into one PUT body.
+// The Career DNA box in chart Step 3 is the spec's "C1–C5" synthesis notes (Class 9–10
+// Counsellor Form Chart), but it's stored as `careerDnaNarrative`, not in `notes` — so
+// the report's "What Stood Out about You" (prefix C) never saw it. Folds those five fields
+// back in as C1–C5, in the chart's row order, for every report view to share.
+const CAREER_DNA_NOTE_CODES: [keyof CareerDnaNarrativeJson, string][] = [
+  ['dnaDefinition', 'C1'],
+  ['careerStyleReveals', 'C2'],
+  ['personalityStyleReveals', 'C3'],
+  ['thinkingModeReveals', 'C4'],
+  ['aptitudeProfileReveals', 'C5'],
+];
+
+export const getReportNotes = (chart: CounsellorChartResponse | undefined): Record<string, string> => {
+  const notes: Record<string, string> = { ...(chart?.counsellor.notes ?? {}) };
+  const dna = chart?.counsellor.careerDnaNarrative;
+  if (dna) {
+    CAREER_DNA_NOTE_CODES.forEach(([field, code]) => {
+      if (dna[field]?.trim()) notes[code] = dna[field];
+    });
+  }
+  return notes;
+};
+
 export const buildSaveBody = (
   formData: CounsellorFormChartData,
   lastEditedBy?: string

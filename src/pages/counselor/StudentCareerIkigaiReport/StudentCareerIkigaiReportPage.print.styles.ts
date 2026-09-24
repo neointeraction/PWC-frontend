@@ -44,19 +44,26 @@ export const PrintRoot = styled.div`
 // display:flex column across a page break — once a page's content (e.g. a long
 // "Counsellor's Insights" notes list) grows past one physical page, the overflow gets
 // silently clipped instead of flowing onto the next page. Block layout paginates
-// correctly, at the cost of PrintFooter no longer being flex-pinned to the page bottom
-// (see its margin-top below).
+// correctly; PrintFooter is instead absolutely pinned to the section's bottom edge, and
+// PrintReportContent sizes each section to a whole number of sheets so that edge is the
+// bottom of the section's last sheet — every footer lands at the same spot on the page.
 //
 // The padding is the report's page margin (@page margin is 0 — see PrintPageSetup).
 // PrintReportContent reads PRINT_PAGE_VERTICAL_PADDING_PX to count physical pages.
 const PRINT_PAGE_PADDING_TOP_PX = 48;
-const PRINT_PAGE_PADDING_BOTTOM_PX = 48;
+// Gap between the footer and the paper's bottom edge.
+const PRINT_FOOTER_BOTTOM_PX = 48;
+// Room kept clear above that for the footer itself (rule + text + breathing space), so
+// page content never runs underneath it.
+const PRINT_FOOTER_SPACE_PX = 40;
+const PRINT_PAGE_PADDING_BOTTOM_PX = PRINT_FOOTER_BOTTOM_PX + PRINT_FOOTER_SPACE_PX;
 const PRINT_PAGE_PADDING_X_PX = 68;
 export const PRINT_PAGE_VERTICAL_PADDING_PX = PRINT_PAGE_PADDING_TOP_PX + PRINT_PAGE_PADDING_BOTTOM_PX;
 
 // $singleSheet: a page that's guaranteed to fit on one sheet (the cover) — safe to lay out
 // as a fixed-height flex column, which is what lets its footer sit at the bottom edge.
 export const PrintPage = styled.section<{ $singleSheet?: boolean }>`
+  position: relative;
   background: #ffffff;
   color: #1a1a1a;
   padding: ${PRINT_PAGE_PADDING_TOP_PX}px ${PRINT_PAGE_PADDING_X_PX}px ${PRINT_PAGE_PADDING_BOTTOM_PX}px;
@@ -67,7 +74,9 @@ export const PrintPage = styled.section<{ $singleSheet?: boolean }>`
   page-break-after: always;
   break-after: page;
   counter-increment: printPage;
-  min-height: 100vh;
+  /* One sheet by default; PrintReportContent raises this to the section's full page span
+     once measured, which is what puts PrintFooter at the bottom of its last sheet. */
+  min-height: ${PRINT_PAGE_HEIGHT_MM}mm;
 
   ${({ $singleSheet }) =>
     $singleSheet &&
@@ -103,11 +112,16 @@ export const PrintRunningHeader = styled.div`
   }
 `;
 
-export const PrintFooter = styled.div<{ $pinToBottom?: boolean }>`
+// Pinned to the bottom of its PrintPage (see PrintPage) rather than following the content,
+// so it sits at the same height on every page instead of floating mid-page on short ones.
+export const PrintFooter = styled.div`
+  position: absolute;
+  left: ${PRINT_PAGE_PADDING_X_PX}px;
+  right: ${PRINT_PAGE_PADDING_X_PX}px;
+  bottom: ${PRINT_FOOTER_BOTTOM_PX}px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: ${({ $pinToBottom }) => ($pinToBottom ? 'auto' : '32px')};
   padding-top: 8px;
   border-top: 1px solid #cccccc;
   font-size: 9px;

@@ -18,14 +18,13 @@ import {
   RiCheckLine,
   RiHeartLine,
   RiTimeLine,
-  RiFlaskLine,
 } from 'react-icons/ri';
 import { Button } from '@/components/Button';
 import { SuccessModal } from '@/components';
 import { useToast } from '@/hooks';
 import { formsService, FormAnswerItem, FormQuestion } from '@/services/forms.service';
 import { getApiErrorMessage } from '@/utils';
-import { QuestionRenderer, isAnswerEmpty, isQuestionAnswerMissing, generateRandomAnswer } from '../PreCounsellingFormPage/QuestionRenderer';
+import { QuestionRenderer, isAnswerEmpty, isQuestionAnswerMissing } from '../PreCounsellingFormPage/QuestionRenderer';
 import {
   FormPageContainer,
   HeroHeaderCard,
@@ -473,28 +472,6 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
     submitMutation.mutate();
   };
 
-  // TEST-ONLY: fills every question with random data so the wizard can be clicked through
-  // without hand-typing answers. Remove this along with the button that calls it once QA
-  // no longer needs it.
-  const handleFillRandomData = () => {
-    const next: Record<string, unknown> = { ...answers };
-    (template?.questions ?? []).forEach(q => {
-      const config = SUBJECT_REASON_CONFIG[q.fieldKey];
-      if (config) {
-        const reasonOpt = config.reasonOptions[Math.floor(Math.random() * config.reasonOptions.length)];
-        next[q.fieldKey] = {
-          [config.subjectFieldKey]: 'Mathematics',
-          [config.reasonFieldKey]: reasonOpt.key,
-          [config.reasonOtherFieldKey]: '',
-        };
-      } else {
-        next[q.fieldKey] = generateRandomAnswer(q);
-      }
-    });
-    setAnswers(next);
-    setErrorFieldKeys(new Set());
-  };
-
   const progressPercent = totalSteps ? Math.round((currentStep / totalSteps) * 100) : 0;
 
   if (!studentId) {
@@ -806,12 +783,6 @@ export const ParentPreCounsellingFormPage: React.FC = () => {
       ) : (
         /* WIZARD VIEW — driven entirely by the fetched template's sections/questions */
         <WizardContainer>
-          {/* TEST-ONLY: remove along with handleFillRandomData once QA no longer needs it */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <Button type="button" variant="secondary" size="sm" leftIcon={<RiFlaskLine size={16} />} onClick={handleFillRandomData}>
-              Fill Random Data (Test)
-            </Button>
-          </div>
           <WizardProgressHeader>
             <WizardStepInfoRow>
               <span>{sections[currentStep - 1]?.label?.replace(/^Section\s*\d+\s*[—-]\s*/i, '').toUpperCase()}</span>
