@@ -52,7 +52,7 @@ export const CareerCompassSection: React.FC<CareerCompassSectionProps> = ({ card
           <TraitCell>Top Employers</TraitCell>
           <TraitCell>Salary (India)</TraitCell>
           <TraitCell>Salary (Abroad)</TraitCell>
-          <TraitCell>Grading Level</TraitCell>
+          <TraitCell>Confidence Level</TraitCell>
           <TraitCell>Student-Friendly Explanation</TraitCell>
         </TraitMapHeaderRow>
 

@@ -87,6 +87,9 @@ const ParentFeedbackFormPage = lazy(() =>
 const PrintReportOnlyPage = lazy(() =>
   import('@/pages/print/PrintReportOnlyPage').then(m => ({ default: m.PrintReportOnlyPage }))
 );
+const PrintChartOnlyPage = lazy(() =>
+  import('@/pages/print/PrintChartOnlyPage').then(m => ({ default: m.PrintChartOnlyPage }))
+);
 
 function ProtectedRoute({ children, allowResetOnly }: { children: React.ReactNode; allowResetOnly?: boolean }) {
   const { isAuthenticated, mustResetPassword } = useAuthStore();
@@ -171,6 +174,10 @@ export const AppRoutes: React.FC = () => {
         <Route
           path={`${ROUTES.PRINT_REPORT}/:studentId`}
           element={<PrintReportOnlyPage />}
+        />
+        <Route
+          path={`${ROUTES.PRINT_CHART}/:studentId`}
+          element={<PrintChartOnlyPage />}
         />
         <Route
           path={ROUTES.RESET_PASSWORD}

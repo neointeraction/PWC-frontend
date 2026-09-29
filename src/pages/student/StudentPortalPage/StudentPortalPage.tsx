@@ -556,28 +556,32 @@ export const StudentPortalPage: React.FC = () => {
                             )}
                         </SessionCardTitle>
 
-                        {step.status === 'current' ? (
-                          sessionForCard && isWithinJoinWindow(sessionForCard) ? (
-                            <SessionJoinButton
-                              type="button"
-                              onClick={() => handleStartSession(sessionNum)}
-                            >
-                              <RiVideoChatLine size={13} />
-                              Join
-                            </SessionJoinButton>
-                          ) : (
-                            <SessionJoinButton
-                              type="button"
-                              $disabled
-                              title={
-                                sessionForCard && hasJoinWindowClosed(sessionForCard)
-                                  ? 'Join window has closed — this is now marked as a missed session'
-                                  : 'Join opens 10 minutes before your session starts'
-                              }
-                            >
-                              Join
-                            </SessionJoinButton>
-                          )
+                        {/* The step turns "completed" the moment the student joins, so
+                            Join also stays on a completed step until the session's end
+                            time — lets the student rejoin after a dropped connection. */}
+                        {(step.status === 'current' || step.status === 'completed') &&
+                        sessionForCard &&
+                        sessionForCard.status !== 'CANCELLED' &&
+                        isWithinJoinWindow(sessionForCard) ? (
+                          <SessionJoinButton
+                            type="button"
+                            onClick={() => handleStartSession(sessionNum)}
+                          >
+                            <RiVideoChatLine size={13} />
+                            {sessionForCard.studentJoinedAt ? 'Rejoin' : 'Join'}
+                          </SessionJoinButton>
+                        ) : step.status === 'current' ? (
+                          <SessionJoinButton
+                            type="button"
+                            $disabled
+                            title={
+                              sessionForCard && hasJoinWindowClosed(sessionForCard)
+                                ? 'This session has ended — it is now marked as a missed session'
+                                : 'Join opens 10 minutes before your session starts'
+                            }
+                          >
+                            Join
+                          </SessionJoinButton>
                         ) : step.status === 'upcoming' ? (
                           <SessionJoinButton
                             type="button"

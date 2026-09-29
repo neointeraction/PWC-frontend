@@ -10,8 +10,10 @@ import {
   PRINT_PAGE_HEIGHT_MM,
   PRINT_PAGE_WIDTH_MM,
   PRINT_PAGE_VERTICAL_PADDING_PX,
+  PRINT_BACKGROUND_IMAGES,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
 import { PrintCoverPage } from './PrintCoverPage';
+import { PrintRunningHeader } from './PrintPageChrome';
 import { PrintTocPage } from './PrintTocPage';
 import { PrintAboutPage } from './PrintAboutPage';
 import { PrintChampionProfilePage } from './PrintChampionProfilePage';
@@ -48,6 +50,24 @@ const groupNotesByPrefix = (notes: Record<string, string> | undefined) => {
   Object.values(groups).forEach(list => list.sort((a, b) => a.code.localeCompare(b.code)));
   return groups;
 };
+
+// Kept alive for the page's lifetime so the images stay in the browser's memory cache —
+// the print layout's CSS backgrounds then paint from it instantly instead of starting a
+// fetch that the print snapshot (Ctrl+P, or Puppeteer's page.pdf()) won't wait for.
+const preloadedBackgrounds: HTMLImageElement[] = [];
+const preloadPrintBackgrounds = () =>
+  Promise.all(
+    PRINT_BACKGROUND_IMAGES.map(src => {
+      let img = preloadedBackgrounds.find(existing => existing.src.endsWith(src));
+      if (!img) {
+        img = new Image();
+        img.src = src;
+        preloadedBackgrounds.push(img);
+      }
+      // A failed image shouldn't block the PDF — it just prints without that artwork.
+      return img.decode().catch(() => undefined);
+    }),
+  );
 
 const MM_TO_PX = 96 / 25.4;
 // PRINT_PAGE_VERTICAL_PADDING_PX: PrintPage's top + bottom padding, repeated on every
@@ -146,8 +166,17 @@ export const PrintReportContent: React.FC<PrintReportContentProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Always preload, so the artwork is cached well before a user hits Ctrl+P / Download.
+  // The headless render additionally waits for it before measuring (and so before
+  // onMeasured signals the PDF service to snapshot).
   useEffect(() => {
-    if (autoMeasureOnMount) runMeasurement();
+    let cancelled = false;
+    preloadPrintBackgrounds().then(() => {
+      if (!cancelled && autoMeasureOnMount) runMeasurement();
+    });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoMeasureOnMount]);
 
@@ -162,6 +191,12 @@ export const PrintReportContent: React.FC<PrintReportContentProps> = ({
   return (
     <PrintRoot ref={rootRef}>
       <PrintPageSetup />
+      {/* First, not last, so the final section keeps PrintPage's :last-child (no trailing
+          blank sheet); not a <section>, so the pagination measurement ignores it. */}
+      <PrintRunningHeader
+        studentName={reportData.studentInfo.studentName}
+        gradeClass={gradeClass}
+      />
       <PrintCoverPage studentInfo={reportData.studentInfo} />
       <PrintTocPage gradeClass={gradeClass} sectionStartPages={sectionStartPages} />
       <PrintAboutPage gradeClass={gradeClass} />

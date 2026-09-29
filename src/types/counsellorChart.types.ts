@@ -67,6 +67,7 @@ export interface StreamFit {
   coreSubjects: string | null;
   electiveSubjects: string | null;
   explanation: string | null;
+  careerFeasibility?: string | null;
   fitScore: number;
   level: string;
   meaning: string;

@@ -60,6 +60,12 @@ const SummaryStat = styled.div`
   }
 `;
 
+// Native tooltips only — "Balance" means booked sessions not yet done, not open slots
+// or students still to book.
+const ALLOTTED_TIP = "Counsellor's slots in this project, open or booked";
+const S1_BALANCE_TIP = 'Session 1 bookings still to be done (scheduled or rescheduled, not completed/cancelled)';
+const S2_BALANCE_TIP = 'Session 2 bookings still to be done (scheduled or rescheduled, not completed/cancelled)';
+
 const FooterContainer = styled.div`
   display: flex;
   justify-content: flex-end;
@@ -93,17 +99,17 @@ export const CounselorDeploymentModal: React.FC<CounselorDeploymentModalProps> =
     },
     {
       key: 'totalAllotted',
-      header: 'Total Allotted',
+      header: <span title={ALLOTTED_TIP}>Total Allotted</span>,
       render: row => <span>{row.totalAllotted}</span>,
     },
     {
       key: 'session1Balance',
-      header: 'Session 1 Balance',
+      header: <span title={S1_BALANCE_TIP}>Session 1 Balance</span>,
       render: row => <span>{row.session1Balance}</span>,
     },
     {
       key: 'session2Balance',
-      header: 'Session 2 Balance',
+      header: <span title={S2_BALANCE_TIP}>Session 2 Balance</span>,
       render: row => <span>{row.session2Balance}</span>,
     },
   ];
@@ -126,17 +132,17 @@ export const CounselorDeploymentModal: React.FC<CounselorDeploymentModalProps> =
 
           <div style={{ display: 'flex', gap: '24px' }}>
             <SummaryStat>
-              <span>Total Allotted</span>
+              <span title={ALLOTTED_TIP}>Total Allotted</span>
               <span>{totalAllotted}</span>
             </SummaryStat>
 
             <SummaryStat>
-              <span>S1 Balance</span>
+              <span title={S1_BALANCE_TIP}>S1 Balance</span>
               <span>{session1Balance}</span>
             </SummaryStat>
 
             <SummaryStat>
-              <span>S2 Balance</span>
+              <span title={S2_BALANCE_TIP}>S2 Balance</span>
               <span>{session2Balance}</span>
             </SummaryStat>
           </div>

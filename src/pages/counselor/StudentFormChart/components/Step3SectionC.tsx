@@ -44,6 +44,7 @@ import {
   StreamFitDataRow,
   StreamFitCell,
   TraitScoreBadge,
+  ScreenOnly,
 } from '../StudentFormChartPage.styles';
 
 interface Step3SectionCProps {
@@ -622,13 +623,15 @@ export const Step3SectionC: React.FC<Step3SectionCProps> = ({
     >
       <SectionBlockTitle style={{ marginBottom: 0 }}>{title}</SectionBlockTitle>
       {table && count < MAX_ROWS[table] && (
-        <Button
-          leftIcon={<RiAddLine size={18} />}
-          onClick={() => setActiveAddTable(table)}
-          disabled={isReadOnly}
-        >
-          Add
-        </Button>
+        <ScreenOnly>
+          <Button
+            leftIcon={<RiAddLine size={18} />}
+            onClick={() => setActiveAddTable(table)}
+            disabled={isReadOnly}
+          >
+            Add
+          </Button>
+        </ScreenOnly>
       )}
     </div>
   );

@@ -144,6 +144,7 @@ const mapReport = (
     coreSubjects: sf.coreSubjects ?? '',
     electives: sf.electiveSubjects ?? '',
     reasoning: sf.explanation ?? '',
+    careerFeasibility: sf.careerFeasibility ?? '',
     fitScore: sf.fitScore ?? null,
   }));
   const whyTheseStreams =

@@ -29,7 +29,16 @@ interface ApiCounsellor {
   createdAt?: string;
   user: { id: string; email: string; firstName: string; lastName: string; isActive: boolean };
   institute?: { id: string; name: string };
-  projects?: { projectId: string; project?: { id: string; name: string } }[];
+  // Per-project workload counts (always present, 0 when nothing to count):
+  // totalAllotted = the counsellor's slots in the project (open or booked);
+  // session{1,2}Balance = SESSION_1/2 still booked but not done (SCHEDULED/RESCHEDULED).
+  projects?: {
+    projectId: string;
+    project?: { id: string; name: string };
+    totalAllotted: number;
+    session1Balance: number;
+    session2Balance: number;
+  }[];
 }
 
 // The logged-in counsellor's own record (`GET /counsellors/me`) — resolves the User id
@@ -56,9 +65,9 @@ const splitName = (full: string): { firstName: string; lastName: string } => {
 const mapCounsellor = (c: ApiCounsellor): Counselor => {
   const projectsList: ProjectDeploymentDetail[] = (c.projects ?? []).map(p => ({
     schoolName: p.project?.name ?? '',
-    totalAllotted: 0,
-    session1Balance: 0,
-    session2Balance: 0,
+    totalAllotted: p.totalAllotted ?? 0,
+    session1Balance: p.session1Balance ?? 0,
+    session2Balance: p.session2Balance ?? 0,
   }));
   const active = c.user.isActive;
   return {

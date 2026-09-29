@@ -7,6 +7,7 @@ import {
   SynthesisRowList,
   SynthesisRow,
   SynthesisCodeLabel,
+  SynthesisPrintEmpty,
 } from '../StudentFormChartPage.styles';
 import { AutoSizeTextarea } from './AutoSizeTextarea';
 import { useIsReadOnly } from '../ReadOnlyContext';
@@ -31,6 +32,8 @@ export const SynthesisNotesPanel: React.FC<SynthesisNotesPanelProps> = ({
   onChangeNote,
 }) => {
   const isReadOnly = useIsReadOnly();
+  // A read-only print skips blank note slots — they'd only add "No notes added" lines.
+  const hasAnyNote = rows.some(rowDef => (notes[rowDef.code] || '').trim());
 
   return (
     <SynthesisPanel $readOnly={isReadOnly}>
@@ -45,7 +48,7 @@ export const SynthesisNotesPanel: React.FC<SynthesisNotesPanelProps> = ({
           const guidance = rowDef.placeholder || `Enter counsellor synthesis note ${index + 1}...`;
           const placeholder = isReadOnly && !value ? 'No notes added' : guidance;
           return (
-            <SynthesisRow key={rowDef.code}>
+            <SynthesisRow key={rowDef.code} $printHidden={isReadOnly && !value.trim()}>
               <Tooltip content={guidance} position="right">
                 <SynthesisCodeLabel $readOnly={isReadOnly}>{index + 1}</SynthesisCodeLabel>
               </Tooltip>
@@ -58,6 +61,7 @@ export const SynthesisNotesPanel: React.FC<SynthesisNotesPanelProps> = ({
             </SynthesisRow>
           );
         })}
+        {isReadOnly && !hasAnyNote && <SynthesisPrintEmpty>No notes added</SynthesisPrintEmpty>}
       </SynthesisRowList>
     </SynthesisPanel>
   );

@@ -29,6 +29,7 @@ export interface StreamFitItem {
   coreSubjects: string;
   electives: string;
   reasoning: string;
+  careerFeasibility: string;
   // Grading level + Student-Friendly Explanation are derived from this on the fly (see
   // getStreamFitGrading in utils/careerFitGrading.ts) — same as the counsellor chart.
   fitScore: number | null;

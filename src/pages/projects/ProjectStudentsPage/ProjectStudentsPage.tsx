@@ -10,6 +10,7 @@ import {
   RiUploadCloud2Line,
   RiCalendarLine,
   RiEyeLine,
+  RiDownload2Line,
 } from 'react-icons/ri';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/Card';
@@ -19,6 +20,7 @@ import { Table, Column } from '@/components/Table';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components';
 import { projectService } from '@/services/project.service';
+import { pdfDownloadService } from '@/services/pdfDownload.service';
 import { ProjectStudentDetail } from '@/types/project.types';
 import { useToast } from '@/hooks';
 import { ROUTES } from '@/constants';
@@ -39,6 +41,7 @@ import {
   DateCellWrapper,
   FlagIconWrapper,
   FlagFilterButton,
+  ChartActionsWrapper,
   // ToolbarIconButton,
 } from './ProjectStudentsPage.styles';
 
@@ -77,6 +80,8 @@ export const ProjectStudentsPage: React.FC = () => {
   const [viewingStudent, setViewingStudent] = useState<ProjectStudentDetail | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  // Which row's PDF is being generated — the render takes a few seconds server-side.
+  const [pdfDownload, setPdfDownload] = useState<{ studentId: string; kind: 'chart' | 'compass' } | null>(null);
   const limit = 10;
 
   const { data: project } = useQuery({
@@ -129,6 +134,23 @@ export const ProjectStudentsPage: React.FC = () => {
     },
     onError: err => {
       toast.error('Retest Failed', getApiErrorMessage(err, 'Could not delete student for retest.'));
+    },
+  });
+
+  const discontinueMutation = useMutation({
+    mutationFn: (studentToDiscontinue: ProjectStudentDetail) =>
+      projectService.discontinueProjectStudent(studentToDiscontinue.id),
+    onSuccess: (_result, studentToDiscontinue) => {
+      queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      toast.warning(
+        'Student Discontinued',
+        `${studentToDiscontinue.name} marked as Discontinued and removed from active follow-up.`
+      );
+      setViewingStudent(null);
+    },
+    onError: err => {
+      toast.error('Discontinue Failed', getApiErrorMessage(err, 'Could not discontinue student.'));
     },
   });
 
@@ -221,6 +243,29 @@ export const ProjectStudentsPage: React.FC = () => {
     }
     return true;
   });
+
+  const handleDownloadPdf = async (student: ProjectStudentDetail, kind: 'chart' | 'compass') => {
+    setPdfDownload({ studentId: student.id, kind });
+    try {
+      if (kind === 'chart') {
+        await pdfDownloadService.downloadCounsellorChart(student.id);
+      } else {
+        await pdfDownloadService.downloadCompassReport(student.id);
+      }
+    } catch (err) {
+      toast.error(
+        'Download Failed',
+        getApiErrorMessage(
+          err,
+          kind === 'chart'
+            ? 'Could not generate the Counsellor Chart PDF.'
+            : 'Could not generate the kREATE Compass report PDF.'
+        )
+      );
+    } finally {
+      setPdfDownload(null);
+    }
+  };
 
   const columns: Column<ProjectStudentDetail>[] = [
     {
@@ -318,26 +363,51 @@ export const ProjectStudentsPage: React.FC = () => {
     {
       key: 'counsellorChart',
       header: '',
-      width: '140px',
+      width: '440px',
       render: row => {
         // A chart only exists once a counselor has actually been assigned to a session.
         const assignedSession = row.session1?.counselorName ? row.session1 : row.session2;
         if (!assignedSession?.id) return null;
+        const chartPath = ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', assignedSession.id);
+        const isDownloading = (kind: 'chart' | 'compass') =>
+          pdfDownload?.studentId === row.id && pdfDownload.kind === kind;
         return (
-          <Tooltip content="View this student's Counsellor Chart (read-only)">
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={<RiEyeLine size={14} />}
-              onClick={() =>
-                navigate(
-                  `${ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', assignedSession.id!)}?readOnly=1`
-                )
-              }
-            >
-              View Chart
-            </Button>
-          </Tooltip>
+          <ChartActionsWrapper>
+            <Tooltip content="View this student's Counsellor Chart (read-only)">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<RiEyeLine size={14} />}
+                onClick={() => navigate(`${chartPath}?readOnly=1`)}
+              >
+                View Chart
+              </Button>
+            </Tooltip>
+            <Tooltip content="Download this student's Counsellor Chart as PDF">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<RiDownload2Line size={14} />}
+                onClick={() => handleDownloadPdf(row, 'chart')}
+                isLoading={isDownloading('chart')}
+                disabled={!!pdfDownload}
+              >
+                Download Chart
+              </Button>
+            </Tooltip>
+            <Tooltip content="Download this student's kREATE Compass report as PDF">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<RiDownload2Line size={14} />}
+                onClick={() => handleDownloadPdf(row, 'compass')}
+                isLoading={isDownloading('compass')}
+                disabled={!!pdfDownload}
+              >
+                Download Compass
+              </Button>
+            </Tooltip>
+          </ChartActionsWrapper>
         );
       },
     },
@@ -447,7 +517,9 @@ export const ProjectStudentsPage: React.FC = () => {
         student={viewingStudent}
         onSave={updated => updateMutation.mutate(updated)}
         onRetest={studentToRetest => retestMutation.mutate(studentToRetest)}
+        onDiscontinue={studentToDiscontinue => discontinueMutation.mutate(studentToDiscontinue)}
         isRetesting={retestMutation.isPending}
+        isDiscontinuing={discontinueMutation.isPending}
       />
 
       <BulkUploadStudentsModal

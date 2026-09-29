@@ -44,7 +44,7 @@ export const PrintCareerCompassPage: React.FC<PrintCareerCompassPageProps> = ({
             <th>Top Employers</th>
             <th>Salary (India)</th>
             <th>Salary (Abroad)</th>
-            <th>Grading Level</th>
+            <th>Confidence Level</th>
             <th>Student-Friendly Explanation</th>
           </tr>
         </thead>

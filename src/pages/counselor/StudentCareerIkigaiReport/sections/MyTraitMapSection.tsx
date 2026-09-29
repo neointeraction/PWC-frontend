@@ -18,7 +18,7 @@ interface MyTraitMapSectionProps {
   traits: TraitMapItem[];
 }
 
-const TRAIT_MAP_GRID = '50px 200px 1fr 130px 1fr';
+const TRAIT_MAP_GRID = '200px 1fr 150px 1fr';
 
 // item.layerTrait is "<category> - <layer>" (e.g. "RIASEC - REALISTIC", "BIG Five - OPENNESS").
 // The category prefix groups traits into their own table; subtitles below give each
@@ -64,16 +64,14 @@ export const MyTraitMapSection: React.FC<MyTraitMapSectionProps> = ({ traits }) 
 
           <TraitMapTableContainer>
             <TraitMapHeaderRow style={{ gridTemplateColumns: TRAIT_MAP_GRID }}>
-              <TraitCell>No</TraitCell>
               <TraitCell>Trait Name</TraitCell>
               <TraitCell>What It Measures</TraitCell>
-              <TraitCell>Grade</TraitCell>
+              <TraitCell>Confidence Level</TraitCell>
               <TraitCell>Grade Meaning</TraitCell>
             </TraitMapHeaderRow>
 
-            {category.items.map((item, idx) => (
+            {category.items.map(item => (
               <TraitMapDataRow key={item.no} style={{ gridTemplateColumns: TRAIT_MAP_GRID }}>
-                <TraitCell style={{ fontWeight: 700 }}>{idx + 1}</TraitCell>
                 <TraitCell style={{ fontWeight: 700, color: '#4F46E5' }}>{item.traitName}</TraitCell>
                 <TraitCell>{item.whatItMeasures}</TraitCell>
                 <TraitCell>

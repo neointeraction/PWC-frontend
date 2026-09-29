@@ -1,63 +1,63 @@
 import React from 'react';
 import { StudentCareerIkigaiReportData } from '@/types/studentIkigaiReport.types';
-import kreateLogo from '@/assets/logo.jpg';
-import coverImage from '@/assets/report-cover.webp';
 import {
-  PrintCoverBody,
-  PrintCoverBrand,
-  PrintCoverLogo,
-  PrintCoverImage,
-  PrintCoverTitle,
-  PrintCoverTable,
-  PrintDisclaimer,
+  PrintCoverSheet,
+  PrintCoverCard,
+  PrintCoverRow,
+  PrintCoverConfidential,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
-import { PrintPageChrome } from './PrintPageChrome';
 
 interface PrintCoverPageProps {
   studentInfo: StudentCareerIkigaiReportData['studentInfo'];
 }
 
+const PersonIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="7.5" r="4.5" />
+    <path d="M3 21c0-4.4 4-7.5 9-7.5s9 3.1 9 7.5z" />
+  </svg>
+);
+
+const ClassIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="6" r="3.2" />
+    <circle cx="4.8" cy="8.5" r="2.4" />
+    <circle cx="19.2" cy="8.5" r="2.4" />
+    <path d="M6 19c0-3.4 2.7-6 6-6s6 2.6 6 6zM0.5 18c0-2.6 1.8-4.5 4.3-4.5 1 0 1.9.3 2.6.8A7.6 7.6 0 0 0 5 18zM23.5 18c0-2.6-1.8-4.5-4.3-4.5-1 0-1.9.3-2.6.8A7.6 7.6 0 0 1 19 18z" />
+  </svg>
+);
+
+const SchoolIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 1.5 9 3.3v3.2L2 10v12h7.5v-5h5v5H22V10l-7-3.5V3.3zm0 6.2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM4.5 13h3v2.5h-3zm12 0h3v2.5h-3zm-12 4.5h3V20h-3zm12 0h3V20h-3z" />
+  </svg>
+);
+
+// Full-bleed client artwork (logos, landscape and wave are part of the image) with the
+// champion details card laid over its blank left side — no running header/footer here.
 export const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ studentInfo }) => (
-  <PrintPageChrome gradeClass={studentInfo.gradeClass} singleSheet>
-    <PrintCoverBody>
-      <PrintCoverTitle>Design Destiny</PrintCoverTitle>
-
-      <PrintCoverBrand>
-        <PrintCoverLogo src={kreateLogo} alt="Kreate Logo" />
-        Career Compass
-      </PrintCoverBrand>
-
-      <PrintCoverTable>
-        <tbody>
-          <tr>
-            <td>CHAMPION NAME</td>
-            <td>{studentInfo.studentName}</td>
-          </tr>
-          <tr>
-            <td>CLASS</td>
-            <td>{studentInfo.gradeClass}</td>
-          </tr>
-          <tr>
-            <td>SCHOOL NAME</td>
-            <td>{studentInfo.schoolName}</td>
-          </tr>
-        </tbody>
-      </PrintCoverTable>
-
-      <PrintCoverImage src={coverImage} alt="Design Destiny — Discover, Decide, Design" />
-
-      <PrintDisclaimer>
-        Confidential &middot; For Student &amp; Parent Use Only
-        <br />
-        <br />
-        DISCLAIMER: The results in this report reflect the student&apos;s responses at the time
-        of assessment. Factors such as social influences, peer or parental expectations,
-        exam-day nerves, or simply a moment of uncertainty can affect how one responds and
-        therefore what the results show. This report is best used as a starting point for a
-        meaningful conversation with the child, not as a final verdict on their abilities or
-        personality. It is also worth noting that traits, if underdeveloped, can be strengthened
-        through the right guidance, exposure, and training over time.
-      </PrintDisclaimer>
-    </PrintCoverBody>
-  </PrintPageChrome>
+  // z-index 2: above the fixed running header (see PrintRunningHeader), which prints on
+  // every sheet but mustn't show on the cover.
+  <PrintCoverSheet $singleSheet style={{ zIndex: 2 }}>
+    <PrintCoverCard>
+      <PrintCoverRow>
+        <PersonIcon />
+        <span>Champion Name</span>
+        <span>{studentInfo.studentName}</span>
+      </PrintCoverRow>
+      <PrintCoverRow>
+        <ClassIcon />
+        <span>Class</span>
+        <span>{studentInfo.gradeClass}</span>
+      </PrintCoverRow>
+      <PrintCoverRow>
+        <SchoolIcon />
+        <span>School Name</span>
+        <span>{studentInfo.schoolName}</span>
+      </PrintCoverRow>
+    </PrintCoverCard>
+    <PrintCoverConfidential>
+      Confidential &middot; For Student &amp; Parent Use Only
+    </PrintCoverConfidential>
+  </PrintCoverSheet>
 );

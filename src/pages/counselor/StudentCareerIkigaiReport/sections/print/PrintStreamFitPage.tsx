@@ -9,6 +9,7 @@ import {
   PrintBody,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
 import { PrintPageChrome } from './PrintPageChrome';
+import { PrintReasoningCards } from './PrintReasoningCards';
 
 interface PrintStreamFitPageProps {
   gradeClass: string;
@@ -33,8 +34,7 @@ export const PrintStreamFitPage: React.FC<PrintStreamFitPageProps> = ({ gradeCla
           <th>Sub-Stream</th>
           <th>Core Subjects</th>
           <th>Electives</th>
-          <th>Reasoning</th>
-          <th>Grading Level</th>
+          <th>Confidence Level</th>
           <th>Explanation</th>
         </tr>
       </thead>
@@ -45,12 +45,21 @@ export const PrintStreamFitPage: React.FC<PrintStreamFitPageProps> = ({ gradeCla
             <td>{row.subStream}</td>
             <td>{row.coreSubjects}</td>
             <td>{row.electives}</td>
-            <td>{row.reasoning}</td>
             <td>{getStreamFitGrading(row.fitScore ?? undefined)?.level ?? '—'}</td>
             <td>{getStreamFitGrading(row.fitScore ?? undefined)?.explanation ?? '—'}</td>
           </tr>
         ))}
       </tbody>
     </PrintTable>
+
+    <PrintReasoningCards
+      items={data.table.map(row => ({
+        id: row.id,
+        eyebrow: row.mainStream,
+        title: row.subStream,
+        reasoning: row.reasoning,
+        careerOutlook: row.careerFeasibility,
+      }))}
+    />
   </PrintPageChrome>
 );

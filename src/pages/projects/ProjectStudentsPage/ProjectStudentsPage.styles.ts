@@ -222,3 +222,11 @@ export const FlagFilterButton = styled.button<{ $active?: boolean }>`
     background-color: #FEF2F2;
   }
 `;
+
+export const ChartActionsWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+`;

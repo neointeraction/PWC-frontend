@@ -12,6 +12,7 @@ import {
   TraitMapDataRow,
   TraitCell,
 } from '../StudentCareerIkigaiReportPage.styles';
+import { ReasoningCards } from './ReasoningCards';
 
 interface MyStreamFitSectionProps {
   data: StudentCareerIkigaiReportData['streamFit'];
@@ -34,16 +35,15 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
       <TraitMapTableContainer>
         <TraitMapHeaderRow
           style={{
-            gridTemplateColumns: '150px 180px 220px 180px 1fr 130px 1fr',
-            minWidth: '1300px',
+            gridTemplateColumns: '150px 180px 220px 1fr 130px 1fr',
+            minWidth: '1100px',
           }}
         >
           <TraitCell>Main Stream</TraitCell>
           <TraitCell>Sub-Stream</TraitCell>
           <TraitCell>Core Subjects</TraitCell>
           <TraitCell>Electives</TraitCell>
-          <TraitCell>Reasoning</TraitCell>
-          <TraitCell>Grading Level</TraitCell>
+          <TraitCell>Confidence Level</TraitCell>
           <TraitCell>Explanation</TraitCell>
         </TraitMapHeaderRow>
 
@@ -51,15 +51,14 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
           <TraitMapDataRow
             key={row.id}
             style={{
-              gridTemplateColumns: '150px 180px 220px 180px 1fr 130px 1fr',
-              minWidth: '1300px',
+              gridTemplateColumns: '150px 180px 220px 1fr 130px 1fr',
+              minWidth: '1100px',
             }}
           >
             <TraitCell style={{ fontWeight: 800, color: '#4F46E5' }}>{row.mainStream}</TraitCell>
             <TraitCell style={{ fontWeight: 700 }}>{row.subStream}</TraitCell>
             <TraitCell style={{ fontWeight: 500 }}>{row.coreSubjects}</TraitCell>
             <TraitCell style={{ fontWeight: 600 }}>{row.electives}</TraitCell>
-            <TraitCell style={{ fontWeight: 400 }}>{row.reasoning}</TraitCell>
             <TraitCell style={{ fontWeight: 700 }}>
               {getStreamFitGrading(row.fitScore ?? undefined)?.level ?? '—'}
             </TraitCell>
@@ -69,6 +68,16 @@ export const MyStreamFitSection: React.FC<MyStreamFitSectionProps> = ({ data }) 
           </TraitMapDataRow>
         ))}
       </TraitMapTableContainer>
+
+      <ReasoningCards
+        items={data.table.map(row => ({
+          id: row.id,
+          eyebrow: row.mainStream,
+          title: row.subStream,
+          reasoning: row.reasoning,
+          careerOutlook: row.careerFeasibility,
+        }))}
+      />
     </ReportSectionBlock>
   );
 };
