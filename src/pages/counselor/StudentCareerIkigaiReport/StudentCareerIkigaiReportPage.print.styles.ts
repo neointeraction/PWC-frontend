@@ -428,7 +428,6 @@ export const PrintTable = styled.table`
     border-color: ${PRINT_PURPLE};
     color: #ffffff;
     font-weight: 700;
-    text-transform: uppercase;
     font-size: 9.5px;
     letter-spacing: 0.2px;
   }

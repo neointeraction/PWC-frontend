@@ -1,4 +1,4 @@
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, css } from 'styled-components';
 
 // "Download Chart" PDF only (rendered by ChartPrintContent). Landscape + the Container's
 // print zoom fit the desktop-width layout on the page. The responsive breakpoints in this
@@ -297,17 +297,6 @@ export const StepLabelText = styled.span`
 
 // Wraps the step content only (not the footer nav) so a read-only viewer (e.g. an
 // admin browsing a student's chart) can page through steps but can't edit any field.
-export const ReadOnlyStepContent = styled.div<{ $readOnly?: boolean }>`
-  display: contents;
-
-  ${({ $readOnly }) =>
-    $readOnly &&
-    `
-    pointer-events: none;
-    user-select: text;
-  `}
-`;
-
 // Main Content Panel
 export const MainContentPanel = styled.main`
   flex: 1;
@@ -315,6 +304,22 @@ export const MainContentPanel = styled.main`
   flex-direction: column;
   gap: 24px;
   min-width: 0;
+
+  /* Wide step tables scroll horizontally — the global 6px scrollbar is too thin to
+     grab comfortably with a mouse, so thicken the horizontal bar within the chart. */
+  & *::-webkit-scrollbar:horizontal {
+    height: 12px;
+  }
+
+  & *::-webkit-scrollbar-track:horizontal {
+    background: ${({ theme }) => theme.colors.background};
+    border-radius: 6px;
+  }
+
+  & *::-webkit-scrollbar-thumb:horizontal {
+    border-radius: 6px;
+    background: ${({ theme }) => theme.colors.textMuted};
+  }
 
   @media screen and (max-width: 768px) {
     gap: 16px;
@@ -1368,4 +1373,26 @@ export const StreamFitCell = styled.div<{
     border-left: none;
     padding: 4px 0;
   }
+`;
+
+// Defined after the table containers so they can be referenced as selectors below.
+export const ReadOnlyStepContent = styled.div<{ $readOnly?: boolean }>`
+  display: contents;
+
+  ${({ $readOnly }) =>
+    $readOnly &&
+    css`
+      pointer-events: none;
+      user-select: text;
+
+      /* pointer-events: none also kills scrolling on the wide step tables — re-enable
+         it on the scroll containers only, keeping their contents non-interactive. */
+      ${CompTableContainer}, ${TraitTableContainer} {
+        pointer-events: auto;
+
+        * {
+          pointer-events: none;
+        }
+      }
+    `}
 `;
