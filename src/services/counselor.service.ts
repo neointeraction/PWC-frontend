@@ -30,7 +30,8 @@ interface ApiCounsellor {
   user: { id: string; email: string; firstName: string; lastName: string; isActive: boolean };
   institute?: { id: string; name: string };
   // Per-project workload counts (always present, 0 when nothing to count):
-  // totalAllotted = the counsellor's slots in the project (open or booked);
+  // totalAllotted = students in the project allotted to the counsellor (a non-cancelled
+  // Session 1 or 2 with them);
   // session{1,2}Balance = SESSION_1/2 still booked but not done (SCHEDULED/RESCHEDULED).
   projects?: {
     projectId: string;
