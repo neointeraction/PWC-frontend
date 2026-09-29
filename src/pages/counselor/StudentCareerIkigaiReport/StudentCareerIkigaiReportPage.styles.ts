@@ -331,8 +331,6 @@ export const TraitMapHeaderRow = styled.div`
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   font-weight: 700;
   font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
