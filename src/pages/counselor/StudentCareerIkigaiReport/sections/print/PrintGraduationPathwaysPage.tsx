@@ -9,6 +9,7 @@ import {
   PrintBody,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
 import { PrintPageChrome } from './PrintPageChrome';
+import { PrintReasoningCards } from './PrintReasoningCards';
 
 interface PrintGraduationPathwaysPageProps {
   gradeClass: string;
@@ -37,9 +38,8 @@ export const PrintGraduationPathwaysPage: React.FC<PrintGraduationPathwaysPagePr
           <th style={{ width: '14%' }}>Main Stream</th>
           <th style={{ width: '14%' }}>Sub-Stream</th>
           <th style={{ width: '14%' }}>Specialisation</th>
-          <th>Reasoning</th>
           <th style={{ width: '14%' }}>Key Exams</th>
-          <th style={{ width: '12%' }}>Grading Level</th>
+          <th style={{ width: '12%' }}>Confidence Level</th>
           <th>Explanation</th>
         </tr>
       </thead>
@@ -50,7 +50,6 @@ export const PrintGraduationPathwaysPage: React.FC<PrintGraduationPathwaysPagePr
             <td>{row.mainStream}</td>
             <td>{row.subStream}</td>
             <td>{row.specialisations}</td>
-            <td>{row.reasoning}</td>
             <td>{row.keyExams}</td>
             <td>{getCareerFitGrading(row.fitScore ?? undefined)?.level ?? '—'}</td>
             <td>{getCareerFitGrading(row.fitScore ?? undefined)?.explanation ?? '—'}</td>
@@ -58,5 +57,14 @@ export const PrintGraduationPathwaysPage: React.FC<PrintGraduationPathwaysPagePr
         ))}
       </tbody>
     </PrintTable>
+
+    <PrintReasoningCards
+      items={data.pathways.map(row => ({
+        id: row.id,
+        eyebrow: row.mainStream,
+        title: row.subStream,
+        reasoning: row.reasoning,
+      }))}
+    />
   </PrintPageChrome>
 );

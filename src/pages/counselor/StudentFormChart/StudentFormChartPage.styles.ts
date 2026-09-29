@@ -1,10 +1,77 @@
-import styled from 'styled-components';
+import styled, { createGlobalStyle } from 'styled-components';
+
+// "Download Chart" PDF only (rendered by ChartPrintContent). Landscape + the Container's
+// print zoom fit the desktop-width layout on the page. The responsive breakpoints in this
+// file are all `screen`-only for the same reason: a printed page reports only ~800px, so
+// they'd otherwise collapse every table into stacked mobile cards in the PDF.
+export const ChartPrintStyles = createGlobalStyle`
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  @media print {
+    html,
+    body {
+      background: #ffffff !important;
+    }
+
+    /* Keep table rows and note rows whole instead of splitting them across pages. */
+    [role='row'],
+    tr {
+      break-inside: avoid;
+    }
+  }
+`;
+
+// Print-only copy of a textarea's text — a printed <textarea> keeps its on-screen box
+// height, so anything longer than that would be clipped out of the PDF.
+// Editing controls (Add / delete row) that have no meaning in a printed chart.
+export const ScreenOnly = styled.span`
+  display: contents;
+
+  @media print {
+    display: none;
+  }
+`;
+
+export const PrintTextValue = styled.div`
+  display: none;
+
+  @media print {
+    display: block;
+    flex: 1;
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px dashed ${({ theme }) => theme.colors.border};
+    border-radius: 4px;
+    background-color: ${({ theme }) => theme.colors.background};
+    color: ${({ theme }) => theme.colors.text};
+    font-size: 0.85rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+`;
 
 export const Container = styled.div`
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 70px);
   background-color: ${({ theme }) => theme.colors.background};
+
+  /* The "Download Chart" PDF prints every step stacked — keep the on-screen colours and
+     scale down so the desktop-width layout fits the landscape page. */
+  @media print {
+    min-height: 0;
+    zoom: 0.72;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+
+    textarea {
+      display: none;
+    }
+  }
 `;
 
 export const TopHeaderContainer = styled.div`
@@ -20,8 +87,14 @@ export const LayoutWrapper = styled.div`
   position: relative;
   align-items: flex-start;
 
-  @media (max-width: 900px) {
+  @media screen and (max-width: 900px) {
     flex-direction: column;
+  }
+
+  /* As a column with align-items: flex-start, the main panel would size to its content
+     rather than the page and run off the right edge. */
+  @media print {
+    display: block;
   }
 `;
 
@@ -42,7 +115,7 @@ export const SidebarWrapper = styled.aside<{ $collapsed?: boolean }>`
   overflow-y: auto;
   z-index: 10;
 
-  @media (max-width: 900px) {
+  @media screen and (max-width: 900px) {
     width: 100%;
     min-width: 100%;
     height: auto;
@@ -105,7 +178,7 @@ export const StepNavList = styled.div`
   flex-direction: column;
   gap: 4px;
 
-  @media (max-width: 900px) {
+  @media screen and (max-width: 900px) {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
@@ -243,8 +316,13 @@ export const MainContentPanel = styled.main`
   gap: 24px;
   min-width: 0;
 
-  @media (max-width: 768px) {
+  @media screen and (max-width: 768px) {
     gap: 16px;
+  }
+
+  @media print {
+    width: 100%;
+    gap: 12px;
   }
 `;
 
@@ -254,6 +332,12 @@ export const StepHeaderCard = styled.div`
   border-radius: 4px;
   padding: 20px 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  @media print {
+    padding: 10px 16px;
+    box-shadow: none;
+    break-after: avoid;
+  }
 `;
 
 export const StepHeaderTitle = styled.h2`
@@ -281,6 +365,11 @@ export const SectionBlock = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
+
+  @media print {
+    padding: 12px 16px;
+    gap: 10px;
+  }
 `;
 
 export const SectionBlockTitle = styled.h3`
@@ -291,6 +380,10 @@ export const SectionBlockTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 8px;
+
+  @media print {
+    break-after: avoid;
+  }
 `;
 
 export const SectionBlockSubtitle = styled.p`
@@ -306,7 +399,7 @@ export const FormGrid = styled.div<{ $cols?: number }>`
   grid-template-columns: repeat(${({ $cols }) => $cols || 2}, 1fr);
   gap: 16px;
 
-  @media (max-width: 768px) {
+  @media screen and (max-width: 768px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -375,7 +468,7 @@ export const CompTableHeaderRow = styled.div`
   letter-spacing: 0.4px;
   color: ${({ theme }) => theme.colors.textSecondary};
 
-  @media (max-width: 768px) {
+  @media screen and (max-width: 768px) {
     display: none;
   }
 `;
@@ -433,6 +526,10 @@ export const RowDeleteButton = styled.button`
     opacity: 0.4;
     cursor: not-allowed;
   }
+
+  @media print {
+    display: none;
+  }
 `;
 
 export const RowActionsCell = styled.div`
@@ -456,7 +553,7 @@ export const CompDataRow = styled.div`
     border-bottom: none;
   }
 
-  @media (max-width: 768px) {
+  @media screen and (max-width: 768px) {
     display: flex;
     flex-direction: column;
     padding: 12px;
@@ -490,7 +587,7 @@ export const CompResponseCell = styled.div<{ $type?: 'student' | 'parent' }>`
         ? 'rgba(16, 185, 129, 0.02)'
         : 'transparent'};
 
-  @media (max-width: 768px) {
+  @media screen and (max-width: 768px) {
     border-left: none;
     border-radius: 4px;
     padding: 8px 10px;
@@ -515,6 +612,11 @@ export const SynthesisPanel = styled.div<{ $readOnly?: boolean }>`
   overflow: hidden;
   width: 100%;
   margin-top: 16px;
+
+  @media print {
+    margin-top: 8px;
+    break-inside: avoid;
+  }
 `;
 
 export const SynthesisPanelHeader = styled.div<{ $readOnly?: boolean }>`
@@ -535,15 +637,36 @@ export const SynthesisRowList = styled.div`
   flex-direction: column;
   padding: 16px;
   gap: 12px;
+
+  @media print {
+    padding: 8px 12px;
+    gap: 6px;
+  }
 `;
 
-export const SynthesisRow = styled.div`
+export const SynthesisRow = styled.div<{ $printHidden?: boolean }>`
   display: flex;
   gap: 12px;
   align-items: flex-start;
 
-  @media (max-width: 600px) {
+  @media screen and (max-width: 600px) {
     flex-direction: column;
+  }
+
+  @media print {
+    break-inside: avoid;
+    ${({ $printHidden }) => ($printHidden ? 'display: none;' : '')}
+  }
+`;
+
+export const SynthesisPrintEmpty = styled.div`
+  display: none;
+
+  @media print {
+    display: block;
+    font-size: 0.8rem;
+    font-style: italic;
+    color: ${({ theme }) => theme.colors.textMuted};
   }
 `;
 
@@ -556,6 +679,12 @@ export const SynthesisCodeLabel = styled.div<{ $readOnly?: boolean }>`
   justify-content: center;
   margin-top: 10px;
   background-color: ${({ theme, $readOnly }) => ($readOnly ? theme.colors.textSecondary : theme.colors.warning)};
+
+  @media print {
+    height: 22px;
+    margin-top: 2px;
+  }
+
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -575,7 +704,7 @@ export const SynthesisCodeLabel = styled.div<{ $readOnly?: boolean }>`
   }
   `}
 
-  @media (max-width: 600px) {
+  @media screen and (max-width: 600px) {
     width: 100%;
     height: 26px;
   }
@@ -606,7 +735,7 @@ export const SummaryCardStrip = styled.div`
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 
-  @media (max-width: 768px) {
+  @media screen and (max-width: 768px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -654,7 +783,7 @@ export const ReliabilityCardHeader = styled.div`
   justify-content: space-between;
   align-items: center;
 
-  @media (max-width: 600px) {
+  @media screen and (max-width: 600px) {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
@@ -701,7 +830,7 @@ export const Roadmap3x3Grid = styled.div`
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 
-  @media (max-width: 800px) {
+  @media screen and (max-width: 800px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -744,10 +873,15 @@ export const ScriRow = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 4px;
 
-  @media (max-width: 768px) {
+  @media screen and (max-width: 768px) {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  @media print {
+    padding: 8px 12px;
+    break-inside: avoid;
   }
 `;
 
@@ -774,6 +908,13 @@ export const RadioGroup = styled.div`
   gap: 8px;
   width: 100%;
   margin-top: 8px;
+
+  @media print {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 8px;
+    margin-top: 4px;
+  }
 `;
 
 export const ScriResultCard = styled.div`
@@ -849,6 +990,10 @@ export const RadioLabel = styled.label<{ $checked?: boolean }>`
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     background-color: ${({ theme, $checked }) => ($checked ? `${theme.colors.primary}12` : `${theme.colors.primary}08`)};
+  }
+
+  @media print {
+    padding: 4px 8px;
   }
 `;
 
@@ -944,7 +1089,7 @@ export const TraitTableHeaderRow = styled.div`
   letter-spacing: 0.2px;
   color: ${({ theme }) => theme.colors.text};
 
-  @media (max-width: 860px) {
+  @media screen and (max-width: 860px) {
     display: none;
   }
 `;
@@ -979,7 +1124,7 @@ export const TraitDataRow = styled.div<{ $highlight?: boolean }>`
     border-bottom: none;
   }
 
-  @media (max-width: 860px) {
+  @media screen and (max-width: 860px) {
     display: flex;
     flex-direction: column;
     padding: 12px;
@@ -1010,7 +1155,7 @@ export const TraitCell = styled.div<{
     border-left: none;
   }
 
-  @media (max-width: 860px) {
+  @media screen and (max-width: 860px) {
     border-left: none;
     padding: 4px 0;
   }
@@ -1148,7 +1293,7 @@ export const StreamFitTableHeaderRow = styled.div`
   letter-spacing: 0.2px;
   color: ${({ theme }) => theme.colors.text};
 
-  @media (max-width: 960px) {
+  @media screen and (max-width: 960px) {
     display: none;
   }
 `;
@@ -1187,7 +1332,7 @@ export const StreamFitDataRow = styled.div<{ $highlight?: boolean }>`
     border-bottom: none;
   }
 
-  @media (max-width: 960px) {
+  @media screen and (max-width: 960px) {
     display: flex;
     flex-direction: column;
     padding: 14px;
@@ -1219,7 +1364,7 @@ export const StreamFitCell = styled.div<{
     border-left: none;
   }
 
-  @media (max-width: 960px) {
+  @media screen and (max-width: 960px) {
     border-left: none;
     padding: 4px 0;
   }

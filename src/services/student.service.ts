@@ -29,7 +29,9 @@ interface ApiCurrentStudent {
   className?: string | null;
   divisionName?: string | null;
   cohort?: { code: string; name: string } | null;
+  isDiscontinued?: boolean;
   stageInfo?: {
+    stage?: string;
     stageLabel?: string;
     flagged?: boolean;
     flagReason?: string | null;
@@ -81,6 +83,9 @@ export interface StudentFormsStatus {
   feedbackComplete: boolean;
 }
 
+const isDiscontinuedStudent = (s: ApiCurrentStudent): boolean =>
+  Boolean(s.isDiscontinued) || s.stageInfo?.stage === 'DISCONTINUED';
+
 const mapCurrentStudent = (s: ApiCurrentStudent): CurrentStudent => ({
   id: s.id,
   userId: s.userId,
@@ -113,8 +118,9 @@ const mapCurrentStudent = (s: ApiCurrentStudent): CurrentStudent => ({
   },
   cohort: s.cohort || undefined,
   stageLabel: s.stageInfo?.stageLabel,
-  isFlagged: s.stageInfo?.flagged ?? false,
-  flagReason: s.stageInfo?.flagReason ?? null,
+  // Discontinued students are never 🚩-flagged (they've left the project).
+  isFlagged: !isDiscontinuedStudent(s) && (s.stageInfo?.flagged ?? false),
+  flagReason: isDiscontinuedStudent(s) ? null : s.stageInfo?.flagReason ?? null,
 });
 
 // Ordered workflow stages — used to derive cumulative "reached this stage yet?" booleans

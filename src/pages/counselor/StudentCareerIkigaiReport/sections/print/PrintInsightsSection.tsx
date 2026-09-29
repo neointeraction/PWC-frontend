@@ -27,7 +27,7 @@ export const PrintInsightsSection: React.FC<PrintInsightsSectionProps> = ({ grou
       <PrintInsightsHeading>Counsellor&apos;s Insights</PrintInsightsHeading>
       {populated.map(g => (
         <PrintInsightGroup key={g.heading}>
-          <h4>{g.heading}:</h4>
+          <h4>{g.heading}</h4>
           <ol>
             {g.notes!.map(n => (
               <li key={n.code}>{n.body}</li>

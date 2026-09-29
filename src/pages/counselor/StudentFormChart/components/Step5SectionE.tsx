@@ -11,6 +11,7 @@ import {
   RoadmapCellLabel,
   FormInput,
   FormTextarea,
+  PrintTextValue,
 } from '../StudentFormChartPage.styles';
 
 interface Step5SectionEProps {
@@ -19,6 +20,13 @@ interface Step5SectionEProps {
 }
 
 
+// FormTextarea plus a print-only copy of its text, so long entries aren't clipped in the PDF.
+const RoadmapTextarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = props => (
+  <>
+    <FormTextarea {...props} />
+    <PrintTextValue>{props.value || '—'}</PrintTextValue>
+  </>
+);
 
 export const Step5SectionE: React.FC<Step5SectionEProps> = ({
   data,
@@ -45,7 +53,7 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
           {/* Row 1 */}
           <RoadmapCell>
             <RoadmapCellLabel>Skills to Build</RoadmapCellLabel>
-            <FormTextarea
+            <RoadmapTextarea
               value={roadmapGrid.nowSkills}
               onChange={e => onChangeGrid({ nowSkills: e.target.value })}
               placeholder="e.g. Python, Speed Math..."
@@ -61,7 +69,7 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
           </RoadmapCell>
           <RoadmapCell>
             <RoadmapCellLabel>Degrees to Target</RoadmapCellLabel>
-            <FormTextarea
+            <RoadmapTextarea
               value={roadmapGrid.afterDegrees}
               onChange={e => onChangeGrid({ afterDegrees: e.target.value })}
               placeholder="e.g. B.Tech CS / AI..."
@@ -71,7 +79,7 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
           {/* Row 2 */}
           <RoadmapCell>
             <RoadmapCellLabel>Activities to Join</RoadmapCellLabel>
-            <FormTextarea
+            <RoadmapTextarea
               value={roadmapGrid.nowActivities}
               onChange={e => onChangeGrid({ nowActivities: e.target.value })}
               placeholder="e.g. Robotics Club, Olympiad..."
@@ -79,7 +87,7 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
           </RoadmapCell>
           <RoadmapCell>
             <RoadmapCellLabel>Exams to Watch</RoadmapCellLabel>
-            <FormTextarea
+            <RoadmapTextarea
               value={roadmapGrid.c11Exams}
               onChange={e => onChangeGrid({ c11Exams: e.target.value })}
               placeholder="e.g. JEE Main, BITSAT..."
@@ -87,7 +95,7 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
           </RoadmapCell>
           <RoadmapCell>
             <RoadmapCellLabel>Certifications</RoadmapCellLabel>
-            <FormTextarea
+            <RoadmapTextarea
               value={roadmapGrid.afterCertifications}
               onChange={e => onChangeGrid({ afterCertifications: e.target.value })}
               placeholder="e.g. AWS ML, TensorFlow..."
@@ -97,7 +105,7 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
           {/* Row 3 */}
           <RoadmapCell>
             <RoadmapCellLabel>Habits to Develop</RoadmapCellLabel>
-            <FormTextarea
+            <RoadmapTextarea
               value={roadmapGrid.nowHabits}
               onChange={e => onChangeGrid({ nowHabits: e.target.value })}
               placeholder="e.g. Time blocking, logic puzzles..."
@@ -105,7 +113,7 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
           </RoadmapCell>
           <RoadmapCell>
             <RoadmapCellLabel>Electives to Pick</RoadmapCellLabel>
-            <FormTextarea
+            <RoadmapTextarea
               value={roadmapGrid.c11Electives}
               onChange={e => onChangeGrid({ c11Electives: e.target.value })}
               placeholder="e.g. Computer Science, Economics..."
@@ -113,7 +121,7 @@ export const Step5SectionE: React.FC<Step5SectionEProps> = ({
           </RoadmapCell>
           <RoadmapCell>
             <RoadmapCellLabel>Study Abroad Options</RoadmapCellLabel>
-            <FormTextarea
+            <RoadmapTextarea
               value={roadmapGrid.afterAbroad}
               onChange={e => onChangeGrid({ afterAbroad: e.target.value })}
               placeholder="e.g. US MS Programs, GRE/TOEFL..."

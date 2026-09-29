@@ -37,6 +37,9 @@ export const ROUTES = {
   // token (?token=...) instead of a login. Renders just the print tree, no dashboard
   // chrome — see PrintReportOnlyPage.
   PRINT_REPORT: '/print/report',
+  // Headless-only, same idea for the backend's "Download Chart" PDF — the staff member's
+  // own access token arrives in the URL fragment (#token=...). See PrintChartOnlyPage.
+  PRINT_CHART: '/print/chart',
 } as const;
 
 export const PLANS = [

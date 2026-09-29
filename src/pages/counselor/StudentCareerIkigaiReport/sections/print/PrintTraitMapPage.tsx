@@ -59,17 +59,15 @@ export const PrintTraitMapPage: React.FC<PrintTraitMapPageProps> = ({ gradeClass
           <PrintTable>
             <thead>
               <tr>
-                <th style={{ width: '4%' }}>No</th>
-                <th style={{ width: '18%' }}>Trait Name</th>
+                <th style={{ width: '20%' }}>Trait Name</th>
                 <th>What It Measures</th>
-                <th style={{ width: '12%' }}>Current Level</th>
+                <th style={{ width: '14%' }}>Confidence Level</th>
                 <th style={{ width: '22%' }}>What It Means</th>
               </tr>
             </thead>
             <tbody>
-              {category.items.map((item, idx) => (
+              {category.items.map(item => (
                 <tr key={item.no}>
-                  <td>{idx + 1}</td>
                   <td>{item.traitName}</td>
                   <td>{item.whatItMeasures}</td>
                   <td>{item.grade}</td>

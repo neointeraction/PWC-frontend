@@ -12,6 +12,7 @@ import {
   TraitMapDataRow,
   TraitCell,
 } from '../StudentCareerIkigaiReportPage.styles';
+import { ReasoningCards } from './ReasoningCards';
 
 interface GraduationPathwaysSectionProps {
   data: StudentCareerIkigaiReportData['graduation'];
@@ -34,17 +35,16 @@ export const GraduationPathwaysSection: React.FC<GraduationPathwaysSectionProps>
       <TraitMapTableContainer>
         <TraitMapHeaderRow
           style={{
-            gridTemplateColumns: '150px 180px 180px 180px 1fr 200px 130px 1fr',
-            minWidth: '1620px',
+            gridTemplateColumns: '150px 180px 180px 180px 200px 130px 1fr',
+            minWidth: '1300px',
           }}
         >
           <TraitCell>Cluster</TraitCell>
           <TraitCell>Main Stream</TraitCell>
           <TraitCell>Sub-Stream</TraitCell>
           <TraitCell>Specialisation</TraitCell>
-          <TraitCell>Reasoning</TraitCell>
           <TraitCell>Key Exams</TraitCell>
-          <TraitCell>Grading Level</TraitCell>
+          <TraitCell>Confidence Level</TraitCell>
           <TraitCell>Explanation</TraitCell>
         </TraitMapHeaderRow>
 
@@ -52,15 +52,14 @@ export const GraduationPathwaysSection: React.FC<GraduationPathwaysSectionProps>
           <TraitMapDataRow
             key={row.id}
             style={{
-              gridTemplateColumns: '150px 180px 180px 180px 1fr 200px 130px 1fr',
-              minWidth: '1620px',
+              gridTemplateColumns: '150px 180px 180px 180px 200px 130px 1fr',
+              minWidth: '1300px',
             }}
           >
             <TraitCell style={{ fontWeight: 700, color: '#4F46E5' }}>{row.cluster}</TraitCell>
             <TraitCell style={{ fontWeight: 600 }}>{row.mainStream}</TraitCell>
             <TraitCell style={{ fontWeight: 700 }}>{row.subStream}</TraitCell>
             <TraitCell style={{ fontWeight: 500 }}>{row.specialisations}</TraitCell>
-            <TraitCell style={{ fontWeight: 400 }}>{row.reasoning}</TraitCell>
             <TraitCell style={{ fontWeight: 600 }}>{row.keyExams}</TraitCell>
             <TraitCell style={{ fontWeight: 700 }}>
               {getCareerFitGrading(row.fitScore ?? undefined)?.level ?? '—'}
@@ -69,6 +68,15 @@ export const GraduationPathwaysSection: React.FC<GraduationPathwaysSectionProps>
           </TraitMapDataRow>
         ))}
       </TraitMapTableContainer>
+
+      <ReasoningCards
+        items={data.pathways.map(row => ({
+          id: row.id,
+          eyebrow: row.mainStream,
+          title: row.subStream,
+          reasoning: row.reasoning,
+        }))}
+      />
     </ReportSectionBlock>
   );
 };

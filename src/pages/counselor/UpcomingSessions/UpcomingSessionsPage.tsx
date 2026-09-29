@@ -66,9 +66,13 @@ export const UpcomingSessionsPage: React.FC = () => {
 
   // "Upcoming" — not yet completed, and started no more than 6 hours ago (keeps a
   // just-missed session visible long enough to flag, without the list growing forever).
+  // A session auto-completes the moment both parties join, so a completed one also stays
+  // until its end time — the counsellor may still need to rejoin after a dropped call.
   const upcomingSessions = useMemo(() => {
     const cutoff = dayjs().subtract(6, 'hour');
-    return (board?.rows ?? []).filter(row => !row.isCompleted && dayjs(row.dateTime).isAfter(cutoff));
+    return (board?.rows ?? []).filter(
+      row => (!row.isCompleted || !hasJoinWindowClosed(row)) && dayjs(row.dateTime).isAfter(cutoff)
+    );
   }, [board]);
 
   const sortedSessions = useMemo(() => {
@@ -83,16 +87,11 @@ export const UpcomingSessionsPage: React.FC = () => {
     setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
-  // Join is only enabled within 10 minutes of the session's start time, either side —
-  // past that band it's treated as a no-show rather than a late join (see
-  // sessions.service's isWithinJoinWindow/hasJoinWindowClosed for the shared rule).
-  // Once the counsellor has already joined (counsellorJoinedAt set), the window is
-  // treated as closed so the row doesn't invite a second join.
-  const checkCanJoin = (row: CounselorSessionRow): boolean =>
-    !row.counsellorJoinedAt && isWithinJoinWindow(row);
-
-  const checkJoinWindowClosed = (row: CounselorSessionRow): boolean =>
-    !!row.counsellorJoinedAt || hasJoinWindowClosed(row);
+  // Join opens 10 minutes before the session's start time and stays open until its end
+  // time — including after the counsellor has joined, so they can rejoin if their
+  // connection drops (see sessions.service's isWithinJoinWindow/hasJoinWindowClosed for
+  // the shared rule).
+  const checkCanJoin = (row: CounselorSessionRow): boolean => isWithinJoinWindow(row);
 
   const handleOpenStudentChart = (session: CounselorSessionRow) => {
     navigate(ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', session.id));
@@ -166,13 +165,13 @@ export const UpcomingSessionsPage: React.FC = () => {
               <TimeText>{row.timeSlot || dayjs(row.dateTime).format('HH:mm')}</TimeText>
               {row.isBooked ? (
                 <StatusPill $canJoin={canJoin || alreadyJoined} $missed={missedJoin}>
-                  {canJoin ? (
-                    <>
-                      <RiCheckDoubleLine size={14} /> Ready to Join
-                    </>
-                  ) : alreadyJoined ? (
+                  {alreadyJoined ? (
                     <>
                       <RiCheckDoubleLine size={14} /> Joined
+                    </>
+                  ) : canJoin ? (
+                    <>
+                      <RiCheckDoubleLine size={14} /> Ready to Join
                     </>
                   ) : missedJoin ? (
                     <>
@@ -236,21 +235,21 @@ export const UpcomingSessionsPage: React.FC = () => {
                 isLoading={joinMutation.isPending && joinMutation.variables === row.id}
                 onClick={() => joinMutation.mutate(row.id)}
               >
-                Join Session
+                {row.counsellorJoinedAt ? 'Rejoin Session' : 'Join Session'}
               </Button>
             );
           }
 
-          const missedJoin = !row.isCompleted && checkJoinWindowClosed(row);
+          const joinWindowClosed = hasJoinWindowClosed(row);
 
           return (
             <Tooltip
               content={
-                row.counsellorJoinedAt
-                  ? 'You have already joined this session'
-                  : missedJoin
-                    ? 'Join window has closed — this session is now marked as a no-show'
-                    : 'Join button enables 10 minutes before session start time'
+                joinWindowClosed
+                  ? row.counsellorJoinedAt
+                    ? 'This session has ended'
+                    : 'This session has ended — it is now marked as a no-show'
+                  : 'Join button enables 10 minutes before session start time'
               }
             >
               <Button

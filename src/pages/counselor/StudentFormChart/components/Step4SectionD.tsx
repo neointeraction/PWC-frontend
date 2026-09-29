@@ -22,6 +22,7 @@ import {
   CategoryBlockTitle,
   RedFlagNotice,
 } from '../StudentFormChartPage.styles';
+import { useIsReadOnly } from '../ReadOnlyContext';
 
 interface Step4SectionDProps {
   data: CounsellorFormChartData['sectionD'];
@@ -72,12 +73,14 @@ const QuestionAmendCell: React.FC<{
   onAmend?: (questionCode: string, amendedOption: number) => void;
 }> = ({ questionCode, questionText, response, disabled, onAmend }) => {
   const [pendingValue, setPendingValue] = React.useState<number | null>(null);
+  // Amending is a counsellor action — nothing to show on a read-only view or its PDF.
+  const isReadOnly = useIsReadOnly();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <span>{questionText ?? questionCode}</span>
       <span style={{ color: '#475569' }}>{RESPONSE_LABELS[response] ?? `response ${response}`}</span>
-      {onAmend && (
+      {onAmend && !isReadOnly && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <select
             key={`${questionCode}-${response}`}

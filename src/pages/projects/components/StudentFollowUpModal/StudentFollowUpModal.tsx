@@ -101,7 +101,9 @@ interface StudentFollowUpModalProps {
   student: ProjectStudentDetail | null;
   onSave: (updated: ProjectStudentDetail) => void;
   onRetest: (student: ProjectStudentDetail) => void;
+  onDiscontinue: (student: ProjectStudentDetail) => void;
   isRetesting?: boolean;
+  isDiscontinuing?: boolean;
 }
 
 export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
@@ -110,7 +112,9 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
   student,
   onSave,
   onRetest,
+  onDiscontinue,
   isRetesting = false,
+  isDiscontinuing = false,
 }) => {
   const toast = useToast();
   const [isRetestConfirmOpen, setIsRetestConfirmOpen] = useState(false);
@@ -189,19 +193,10 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
     onClose();
   };
 
+  // Stage + 🚩 flag are computed by the backend, so this goes through the dedicated
+  // discontinue endpoint (via the parent) rather than a local stage edit + onSave.
   const handleMarkDiscontinued = () => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const updatedStudent: ProjectStudentDetail = {
-      ...student,
-      stage: 'Discontinued',
-      isFlagged: false, // Unflag
-      stageCompletedDate: todayStr,
-      daysInStage: 0,
-    };
-
-    onSave(updatedStudent);
-    toast.warning('Student Discontinued', `${student.name} marked as Discontinued and removed from active follow-up.`);
-    onClose();
+    onDiscontinue(student);
   };
 
   const handleConfirmRetest = () => {
@@ -224,6 +219,7 @@ export const StudentFollowUpModal: React.FC<StudentFollowUpModalProps> = ({
               variant="secondary"
               size="sm"
               onClick={handleMarkDiscontinued}
+              disabled={isDiscontinuing}
               leftIcon={<RiCloseCircleLine size={16} />}
               style={{ color: '#DC2626', borderColor: '#FCA5A5' }}
             >

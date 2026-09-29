@@ -4,7 +4,7 @@ import {
   PrintSectionTitle,
   PrintSectionSubtitle,
   PrintSectionRule,
-  PrintTable,
+  PrintTraitCard,
   PrintBody,
 } from '../../StudentCareerIkigaiReportPage.print.styles';
 import { PrintPageChrome } from './PrintPageChrome';
@@ -18,27 +18,19 @@ interface PrintChampionProfilePageProps {
   notesC: NoteEntry[] | undefined;
 }
 
-// One linear name/description/explanation table per lens — mirrors the Dominant
-// Career Style / Personal Signature / Thinking Mode tables on the counsellor chart
-// (Step2SectionB), rather than the 3-up card grid used before.
-const ChampionTraitTable: React.FC<{ nameLabel: string; trait: ChampionTrait }> = ({
+// One accent-bordered card per lens (Career Style / Personal Signature / Thinking Mode),
+// styled after the client's "Champions Profile" reference.
+const ChampionTraitCard: React.FC<{ nameLabel: string; trait: ChampionTrait }> = ({
   nameLabel,
   trait,
 }) => (
-  <PrintTable>
-    <thead>
-      <tr>
-        <th style={{ width: '18%' }}>{nameLabel}</th>
-        <th>Explanation</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style={{ fontWeight: 700 }}>{trait.name}</td>
-        <td>{trait.explanation}</td>
-      </tr>
-    </tbody>
-  </PrintTable>
+  <PrintTraitCard>
+    <h3>
+      <span>{nameLabel}</span>
+      {trait.name}
+    </h3>
+    <PrintBody style={{ margin: 0 }}>{trait.explanation}</PrintBody>
+  </PrintTraitCard>
 );
 
 export const PrintChampionProfilePage: React.FC<PrintChampionProfilePageProps> = ({
@@ -58,9 +50,9 @@ export const PrintChampionProfilePage: React.FC<PrintChampionProfilePageProps> =
       naturally show up with others and how you think things through.
     </PrintBody>
 
-    <ChampionTraitTable nameLabel="Career Style" trait={studentProfile.careerStyle} />
-    <ChampionTraitTable nameLabel="Personal Signature" trait={studentProfile.personalSignature} />
-    <ChampionTraitTable nameLabel="Thinking Mode" trait={studentProfile.thinkingMode} />
+    <ChampionTraitCard nameLabel="Career Style" trait={studentProfile.careerStyle} />
+    <ChampionTraitCard nameLabel="Personal Signature" trait={studentProfile.personalSignature} />
+    <ChampionTraitCard nameLabel="Thinking Mode" trait={studentProfile.thinkingMode} />
 
     <PrintInsightsSection
       groups={[

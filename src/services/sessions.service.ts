@@ -2,23 +2,31 @@ import dayjs from 'dayjs';
 import { apiClient } from './api';
 import { parseApiDate } from '@/utils';
 
-// Client-side "Join Now" gate: enabled only within 10 minutes of the session's start
-// time, before or after. This is a stricter product policy than the backend's own join
-// window (10 min before through endTime — POST /sessions/{id}/join would still accept a
-// join after this closes); anyone who hasn't joined once this band passes is treated as
-// a no-show rather than let in late. Same window on both the student and counsellor
-// sides — see hasJoinWindowClosed below for the no-show check that follows it.
-const JOIN_WINDOW_MINUTES = 10;
+// Client-side "Join Now" gate: opens 10 minutes before the session's start time and stays
+// open until its end time — the same window POST /sessions/{id}/join accepts. Kept open
+// the whole session (not just around the start) so anyone who drops off mid-call, e.g.
+// on a flaky connection, can rejoin. Same window on both the student and counsellor
+// sides — see hasJoinWindowClosed below for the check that follows it.
+const JOIN_OPENS_MINUTES_BEFORE = 10;
 
-export const isWithinJoinWindow = (session: { scheduledDate: string; startTime: string }): boolean => {
-  const startsAt = dayjs(`${session.scheduledDate}T${session.startTime}`);
-  return Math.abs(dayjs().diff(startsAt, 'minute')) <= JOIN_WINDOW_MINUTES;
+export const isWithinJoinWindow = (session: {
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+}): boolean => {
+  const now = dayjs();
+  const opensAt = dayjs(`${session.scheduledDate}T${session.startTime}`).subtract(
+    JOIN_OPENS_MINUTES_BEFORE,
+    'minute'
+  );
+  const endsAt = dayjs(`${session.scheduledDate}T${session.endTime}`);
+  return !now.isBefore(opensAt) && !now.isAfter(endsAt);
 };
 
-// True once the join window above has closed without a join — the moment a session
-// should start reading as a no-show rather than "not joined yet".
-export const hasJoinWindowClosed = (session: { scheduledDate: string; startTime: string }): boolean =>
-  dayjs().isAfter(dayjs(`${session.scheduledDate}T${session.startTime}`).add(JOIN_WINDOW_MINUTES, 'minute'));
+// True once the join window above has closed — i.e. the session's end time has passed.
+// Anyone who never joined by then is a no-show (the backend reconciles it the same way).
+export const hasJoinWindowClosed = (session: { scheduledDate: string; endTime: string }): boolean =>
+  dayjs().isAfter(dayjs(`${session.scheduledDate}T${session.endTime}`));
 
 // The session's actual scheduled window is happening right now — distinct from
 // isWithinJoinWindow's 10-minutes-early allowance, and from a journey step merely being

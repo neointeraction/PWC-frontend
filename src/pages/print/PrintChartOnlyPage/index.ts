@@ -1,0 +1,1 @@
+export { PrintChartOnlyPage } from './PrintChartOnlyPage';

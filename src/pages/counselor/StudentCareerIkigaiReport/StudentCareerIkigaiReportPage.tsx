@@ -312,7 +312,7 @@ export const StudentCareerIkigaiReportPage: React.FC = () => {
               </Button>
             )}
 
-            {isDownloadUnlocked ? (
+            {!isDownloadUnlocked ? (
               <Button
                 variant="primary"
                 leftIcon={<RiPrinterLine size={18} />}

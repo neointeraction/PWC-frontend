@@ -228,6 +228,23 @@ export const ProjectDashboardPage: React.FC = () => {
     },
   });
 
+  const discontinueMutation = useMutation({
+    mutationFn: (studentToDiscontinue: ProjectStudentDetail) =>
+      projectService.discontinueProjectStudent(studentToDiscontinue.id),
+    onSuccess: (_result, studentToDiscontinue) => {
+      queryClient.invalidateQueries({ queryKey: ['projectStudents', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      toast.warning(
+        'Student Discontinued',
+        `${studentToDiscontinue.name} marked as Discontinued and removed from active follow-up.`
+      );
+      setViewingStudent(null);
+    },
+    onError: err => {
+      toast.error('Discontinue Failed', getApiErrorMessage(err, 'Could not discontinue student.'));
+    },
+  });
+
   const handleExtendProject = () => {
     setIsEditModalOpen(true);
   };
@@ -728,7 +745,9 @@ export const ProjectDashboardPage: React.FC = () => {
         student={viewingStudent}
         onSave={updated => updateMutation.mutate(updated)}
         onRetest={studentToRetest => retestMutation.mutate(studentToRetest)}
+        onDiscontinue={studentToDiscontinue => discontinueMutation.mutate(studentToDiscontinue)}
         isRetesting={retestMutation.isPending}
+        isDiscontinuing={discontinueMutation.isPending}
       />
 
       {/* Edit Student Modal */}

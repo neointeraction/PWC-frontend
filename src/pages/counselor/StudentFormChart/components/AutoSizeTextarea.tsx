@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, TextareaHTMLAttributes } from 'react';
 import styled from 'styled-components';
+import { PrintTextValue } from '../StudentFormChartPage.styles';
 
 // Visually hidden mirror div — same font/padding as the textarea
 const MirrorDiv = styled.div`
@@ -106,6 +107,7 @@ export const AutoSizeTextarea: React.FC<AutoSizeTextareaProps> = ({
         $minHeight={minHeight}
         {...rest}
       />
+      <PrintTextValue>{rest.value || placeholder}</PrintTextValue>
     </Wrapper>
   );
 };

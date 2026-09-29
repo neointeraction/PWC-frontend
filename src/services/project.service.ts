@@ -76,6 +76,7 @@ interface ApiStudent {
   parentEmail?: string;
   fatherName?: string;
   workflowStatus: string;
+  isDiscontinued?: boolean;
   user: { firstName: string; lastName: string; email: string };
   project?: { id: string };
   className?: string;
@@ -599,15 +600,15 @@ export const projectService = {
 
     const bookingFields = (sess: ApiSession | undefined) => {
       if (!sess) return { isBooked: false };
-      // A booked session past its 10-minute join window with no join recorded for a
-      // party is a no-show even if the backend's own lazy reconciliation
+      // A booked session past its join window (closes at the session's end time) with no
+      // join recorded for a party is a no-show even if the backend's own lazy reconciliation
       // (student/counsellorNoShow) hasn't caught up yet — the Join button is what
       // actually records studentJoinedAt/counsellorJoinedAt (POST /sessions/{id}/join),
       // so their absence past the window is the real signal. See sessions.service's
       // hasJoinWindowClosed for the shared rule with the student/counsellor dashboards.
       const joinWindowClosed =
         sess.status !== 'COMPLETED' &&
-        hasJoinWindowClosed({ scheduledDate: parseApiDate(sess.scheduledDate), startTime: sess.startTime });
+        hasJoinWindowClosed({ scheduledDate: parseApiDate(sess.scheduledDate), endTime: sess.endTime });
       const counsellorNoShow = Boolean(sess.counsellorNoShow) || (joinWindowClosed && !sess.counsellorJoinedAt);
       const studentNoShow = Boolean(sess.studentNoShow) || (joinWindowClosed && !sess.studentJoinedAt);
       return {
@@ -766,6 +767,9 @@ export const projectService = {
         : { sessionNumber: num, status: 'pending', date: '', timeSlot: '', counselorName: '', counselorEmail: '' };
 
     return studentsRes.data.map(st => {
+      // A discontinued student has left the project — never 🚩-flag them, even if the
+      // stageInfo flag is stale.
+      const discontinued = Boolean(st.isDiscontinued) || st.stageInfo?.stage === 'DISCONTINUED';
       const session1 = mapSess(byStudent.get(st.id)?.s1, 1);
       const session2 = mapSess(byStudent.get(st.id)?.s2, 2);
       const assignedSession = session1.counselorName ? session1 : session2;
@@ -790,8 +794,8 @@ export const projectService = {
         stageCompletedDate: st.stageInfo?.stageEnteredAt
           ? st.stageInfo.stageEnteredAt.slice(0, 10)
           : undefined,
-        isFlagged: st.stageInfo?.flagged ?? false,
-        flagReason: st.stageInfo?.flagReason ?? null,
+        isFlagged: !discontinued && (st.stageInfo?.flagged ?? false),
+        flagReason: discontinued ? null : st.stageInfo?.flagReason ?? null,
         counselorId: assignedSession.counselorId,
         counselorName: assignedSession.counselorName || undefined,
         session1,
@@ -873,6 +877,14 @@ export const projectService = {
   // progress are gone. The institute re-adds them (same email) to start over from scratch.
   deleteProjectStudent: async (studentId: string): Promise<void> => {
     await apiClient.delete(`/students/${studentId}`);
+  },
+
+  // "Discontinued" — POST /students/{id}/discontinue (admin). Not a delete: the backend
+  // only sets `isDiscontinued`, after which `stageInfo` reads "Discontinued" and is never
+  // 🚩-flagged. Stage/flag are computed server-side, so a PATCH can't change them. 409 if
+  // the student is already discontinued.
+  discontinueProjectStudent: async (studentId: string): Promise<void> => {
+    await apiClient.post(`/students/${studentId}/discontinue`, {});
   },
 
   // ---- Schedule writes (admin oversight of a project's sessions) ----

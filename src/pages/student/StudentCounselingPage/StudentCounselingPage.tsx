@@ -17,7 +17,12 @@ import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
 import { useCurrentStudent, useToast } from '@/hooks';
 import { deriveStudentProgress } from '@/services/student.service';
-import { sessionsService, Session, isWithinJoinWindow } from '@/services/sessions.service';
+import {
+  sessionsService,
+  Session,
+  isWithinJoinWindow,
+  hasJoinWindowClosed,
+} from '@/services/sessions.service';
 import { getApiErrorMessage } from '@/utils';
 import { PreCounsellingAnswersModal } from '@/pages/dashboard/components/PreCounsellingAnswersModal';
 import {
@@ -151,10 +156,19 @@ export const StudentCounselingPage: React.FC = () => {
       header: 'Actions',
       render: row => (
         <TableActionsContainer>
-          {row.status === 'scheduled' && (
+          {/* A session auto-completes as soon as both parties join, so keep Join on a
+              completed one until its end time too — lets the student rejoin a dropped call. */}
+          {(row.status === 'scheduled' ||
+            (row.status === 'completed' && isWithinJoinWindow(row.session))) && (
             <Tooltip
               content={
-                isWithinJoinWindow(row.session) ? 'Join Video Call' : 'Join opens 10 minutes before the session starts'
+                isWithinJoinWindow(row.session)
+                  ? row.session.studentJoinedAt
+                    ? 'Rejoin Video Call'
+                    : 'Join Video Call'
+                  : hasJoinWindowClosed(row.session)
+                    ? 'This session has ended'
+                    : 'Join opens 10 minutes before the session starts'
               }
             >
               <ActionIconButton
