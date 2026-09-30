@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import loginBgImg from '@/assets/login-bg.jpg';
+import loginBgImg from '@/assets/login-pattern.png';
 
 export const LoginWrapper = styled.div`
   display: flex;
@@ -16,19 +16,24 @@ export const LeftBannerSection = styled.div`
   flex: 1;
   min-height: 100vh;
   background-image: url(${loginBgImg});
-  background-size: cover;
-  background-position: center;
+  /* Soft half-circle dot fan anchored to the bottom, scaled slightly past the
+     panel width (only its faintest edge dots are trimmed). */
+  background-size: 115% auto;
+  background-position: center bottom;
   background-repeat: no-repeat;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 60px 24px 24px 24px;
+  justify-content: center;
+  /* Bottom padding reserves the fan's height (~0.49 x panel width; the panel is
+     50vw here) so the centred logo always sits above the dots. */
+  padding: 60px 24px calc(26vw + 24px) 24px;
   position: relative;
 
   @media (max-width: 959px) {
     min-height: 320px;
     flex: none;
-    padding: 40px 20px 20px 20px;
+    padding: 40px 20px calc(52vw + 20px) 20px;
   }
 `;
 
@@ -38,7 +43,6 @@ export const BannerHeader = styled.div`
   align-items: center;
   text-align: center;
   max-width: 400px;
-  margin-top: 60px;
 `;
 
 export const BannerSubtext = styled.span`
