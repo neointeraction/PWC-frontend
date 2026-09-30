@@ -66,6 +66,11 @@ export const PROJECT_STAGES_OPTIONS = [
   { value: 'Report Downloaded', label: 'Report Downloaded' },
 ];
 
+const CHART_STAGE_ORDER = PROJECT_STAGES_OPTIONS.filter(opt => opt.value !== 'all').map(
+  opt => opt.value
+);
+const CHART_UNLOCK_STAGE_INDEX = CHART_STAGE_ORDER.indexOf('Assessment Completed');
+
 export const ProjectStudentsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -365,10 +370,11 @@ export const ProjectStudentsPage: React.FC = () => {
       header: '',
       width: '440px',
       render: row => {
-        // A chart only exists once a counselor has actually been assigned to a session.
-        const assignedSession = row.session1?.counselorName ? row.session1 : row.session2;
-        if (!assignedSession?.id) return null;
-        const chartPath = ROUTES.COUNSELOR_STUDENT_CHART.replace(':sessionId', assignedSession.id);
+        // Chart actions unlock from 'Assessment Completed' onwards; stages outside the
+        // ordered list (e.g. Discontinued) stay locked.
+        const stageIndex = CHART_STAGE_ORDER.indexOf(row.stage || '');
+        if (stageIndex < CHART_UNLOCK_STAGE_INDEX) return null;
+        const chartPath = ROUTES.STUDENT_CHART_BY_STUDENT.replace(':studentId', row.id);
         const isDownloading = (kind: 'chart' | 'compass') =>
           pdfDownload?.studentId === row.id && pdfDownload.kind === kind;
         return (

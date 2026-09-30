@@ -71,7 +71,10 @@ const STEP_LABELS = [
 ];
 
 export const StudentFormChartPage: React.FC = () => {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const { sessionId, studentId: studentIdParam } = useParams<{
+    sessionId: string;
+    studentId: string;
+  }>();
   const [searchParams] = useSearchParams();
   // Admins browse a student's chart read-only from Project Students — the page's save
   // and mirror-pair mutations assume a counselor identity (see useCurrentCounselor),
@@ -86,8 +89,9 @@ export const StudentFormChartPage: React.FC = () => {
   const [activeSublinkId, setActiveSublinkId] = useState<string | undefined>();
   const [visitedSteps, setVisitedSteps] = useState<number[]>([0]);
 
-  // The chart is keyed on studentId server-side; the route only carries sessionId, so
-  // resolve the session first.
+  // The chart is keyed on studentId server-side. The counselor route only carries
+  // sessionId, so resolve the session first; the admin route (students past Assessment
+  // Completed who may not have a session yet) passes studentId directly.
   const {
     data: session,
     isLoading: isSessionLoading,
@@ -98,7 +102,7 @@ export const StudentFormChartPage: React.FC = () => {
     enabled: !!sessionId,
   });
 
-  const studentId = session?.studentId;
+  const studentId = studentIdParam || session?.studentId;
 
   const {
     data: chart,

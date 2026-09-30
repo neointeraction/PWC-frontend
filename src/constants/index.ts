@@ -5,6 +5,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   UPCOMING_SESSIONS: '/upcoming-sessions',
   COUNSELOR_STUDENT_CHART: '/counselor/student-chart/:sessionId',
+  STUDENT_CHART_BY_STUDENT: '/counselor/student-chart/student/:studentId',
   GENERATE_REPORT: '/counselor/report/:sessionId',
   STUDENT_PORTAL: '/student-portal',
   STUDENT_PROFILE_FORM: '/student-profile-form',
