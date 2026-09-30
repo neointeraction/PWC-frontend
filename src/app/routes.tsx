@@ -205,6 +205,7 @@ export const AppRoutes: React.FC = () => {
           <Route path={ROUTES.UPCOMING_SESSIONS} element={<UpcomingSessionsPage />} />
           <Route path={ROUTES.SESSIONS} element={<AllSessionsPage />} />
           <Route path={ROUTES.COUNSELOR_STUDENT_CHART} element={<StudentFormChartPage />} />
+          <Route path={ROUTES.STUDENT_CHART_BY_STUDENT} element={<StudentFormChartPage />} />
           <Route path={ROUTES.GENERATE_REPORT} element={<StudentCareerIkigaiReportPage />} />
           <Route path={ROUTES.PROJECTS} element={<ProjectsPage />} />
           <Route path={ROUTES.PROJECT_DASHBOARD} element={<ProjectDashboardPage />} />
