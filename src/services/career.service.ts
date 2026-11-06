@@ -764,13 +764,7 @@ export const careerService = {
     }
     if (search) {
       const q = search.toLowerCase();
-      result = result.filter(
-        c =>
-          c.jobRole.toLowerCase().includes(q) ||
-          c.oneLineDescription.toLowerCase().includes(q) ||
-          c.careerCluster.toLowerCase().includes(q) ||
-          c.domain.toLowerCase().includes(q)
-      );
+      result = result.filter(c => c.jobRole.toLowerCase().includes(q));
     }
     return result;
   },
