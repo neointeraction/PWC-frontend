@@ -147,6 +147,7 @@ export const CareerListPage: React.FC = () => {
         'domains-all',
         'jobRoles',
         'jobRoles-all',
+        'jobRoles-search',
         'careerDetail',
         // The edit modal's own link-list fetch — without this a save is followed by a
         // stale re-seed, and re-saving would restore links the user just removed.
@@ -159,11 +160,46 @@ export const CareerListPage: React.FC = () => {
   // the list row needs. The invalidation right after reconciles it with the server.
   const handleRoleSaved = (saved: Career, savedMode: 'add' | 'edit') => {
     if (savedMode === 'add' && selectedDomain) {
-      queryClient.setQueryData<Career[]>(['jobRoles', selectedDomain.id, searchQuery], prev =>
+      queryClient.setQueryData<Career[]>(['jobRoles', selectedDomain.id], prev =>
         prev ? (prev.some(r => r.id === saved.id) ? prev : [...prev, saved]) : [saved]
       );
     }
     invalidateCareer();
+  };
+
+  // Opening a role from search skips the drill-down, so rebuild the cluster → industry →
+  // domain path from the role itself (real ids where resolvable, so the breadcrumb
+  // steps stay clickable and navigate to the right level).
+  const openRoleFromSearch = async (role: Career) => {
+    let cluster = { id: '', name: role.careerCluster } as CareerCluster;
+    let industry = { id: '', name: role.industry } as CareerIndustry;
+    let domain = { id: role.domainId || '', name: role.domain } as CareerDomain;
+    try {
+      const clusterMatch = (await careerService.getClusters()).find(
+        c => c.name === role.careerCluster
+      );
+      if (clusterMatch) {
+        cluster = clusterMatch;
+        const industryMatch = (await careerService.getIndustries(clusterMatch.id)).find(
+          i => i.name === role.industry
+        );
+        if (industryMatch) {
+          industry = industryMatch;
+          const domainMatch = (await careerService.getDomains(industryMatch.id)).find(
+            d => d.id === role.domainId || d.name === role.domain
+          );
+          if (domainMatch) domain = domainMatch;
+        }
+      }
+    } catch {
+      // Fall back to name-only placeholders — enough for the breadcrumb labels.
+    }
+    setSelectedCluster(cluster);
+    setSelectedIndustry(industry);
+    setSelectedDomain(domain);
+    setSelectedRole(role);
+    setLevel('detail');
+    setSearchQuery('');
   };
 
   // Restore the role detail view from `?roleId=` on first load — otherwise refreshing
@@ -264,8 +300,8 @@ export const CareerListPage: React.FC = () => {
   // Queries — all real reads against GET /api/v1/career-library (read-only API;
   // there's no create/edit/delete/bulk-upload/ratification endpoint yet).
   const { data: clusters = [] } = useQuery({
-    queryKey: ['clusters', searchQuery],
-    queryFn: () => careerService.getClusters(searchQuery),
+    queryKey: ['clusters'],
+    queryFn: () => careerService.getClusters(),
     enabled: viewMode === 'card',
   });
 
@@ -276,21 +312,30 @@ export const CareerListPage: React.FC = () => {
   });
 
   const { data: industries = [] } = useQuery({
-    queryKey: ['industries', selectedCluster?.id, searchQuery],
-    queryFn: () => careerService.getIndustries(selectedCluster?.id, searchQuery),
+    queryKey: ['industries', selectedCluster?.id],
+    queryFn: () => careerService.getIndustries(selectedCluster?.id),
     enabled: level === 'industries',
   });
 
   const { data: domains = [] } = useQuery({
-    queryKey: ['domains', selectedIndustry?.id, searchQuery],
-    queryFn: () => careerService.getDomains(selectedIndustry?.id, searchQuery),
+    queryKey: ['domains', selectedIndustry?.id],
+    queryFn: () => careerService.getDomains(selectedIndustry?.id),
     enabled: level === 'domains',
   });
 
   const { data: roles = [] } = useQuery({
-    queryKey: ['jobRoles', selectedDomain?.id, searchQuery],
-    queryFn: () => careerService.getJobRoles(selectedDomain?.id, searchQuery),
+    queryKey: ['jobRoles', selectedDomain?.id],
+    queryFn: () => careerService.getJobRoles(selectedDomain?.id),
     enabled: level === 'roles',
+  });
+
+  // Search matches job roles only, across the whole library.
+  const trimmedSearch = searchQuery.trim();
+  const isSearching = viewMode === 'card' && trimmedSearch.length > 0;
+  const { data: searchedRoles = [] } = useQuery({
+    queryKey: ['jobRoles-search', trimmedSearch],
+    queryFn: () => careerService.getJobRoles(undefined, trimmedSearch),
+    enabled: isSearching,
   });
 
   // Simple View browses the full hierarchy independently of the Card View's
@@ -483,6 +528,10 @@ export const CareerListPage: React.FC = () => {
             steps={getBreadcrumbs()}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            searchResults={isSearching ? searchedRoles : undefined}
+            onSelectSearchResult={role => {
+              void openRoleFromSearch(role);
+            }}
             actions={
               canWrite && level !== 'detail' ? (
                 <>

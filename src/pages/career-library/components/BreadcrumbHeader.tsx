@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { SearchBox } from '@/components/SearchBox';
+import type { Career } from '@/types/career.types';
 
 const HeaderContainer = styled.div`
   display: flex;
@@ -43,11 +44,65 @@ const Separator = styled.span`
 `;
 
 const SearchWrapper = styled.div`
+  position: relative;
   width: 280px;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
     width: 100%;
   }
+`;
+
+const ResultsPanel = styled.div`
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 320px;
+  max-height: 360px;
+  overflow-y: auto;
+  z-index: 20;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+`;
+
+const ResultItem = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background-color: ${({ theme }) => theme.colors.background};
+    outline: none;
+  }
+`;
+
+const ResultTitle = styled.span`
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  font-weight: ${({ theme }) => theme.fontWeight.medium};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const ResultPath = styled.span`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const EmptyResult = styled.div`
+  padding: 10px;
+  font-size: ${({ theme }) => theme.fontSize.sm};
+  color: ${({ theme }) => theme.colors.textMuted};
 `;
 
 const RightControls = styled.div`
@@ -70,6 +125,9 @@ interface BreadcrumbHeaderProps {
   steps: BreadcrumbStep[];
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  /** Job-role matches for the current query; undefined while the box is empty. */
+  searchResults?: Career[];
+  onSelectSearchResult?: (role: Career) => void;
   actions?: React.ReactNode;
 }
 
@@ -77,8 +135,23 @@ export const BreadcrumbHeader: React.FC<BreadcrumbHeaderProps> = ({
   steps,
   searchQuery,
   onSearchChange,
+  searchResults,
+  onSelectSearchResult,
   actions,
 }) => {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  const showPanel = open && searchResults !== undefined && searchQuery.trim().length > 0;
+
   return (
     <HeaderContainer>
       <BreadcrumbList>
@@ -96,12 +169,45 @@ export const BreadcrumbHeader: React.FC<BreadcrumbHeaderProps> = ({
       </BreadcrumbList>
 
       <RightControls>
-        <SearchWrapper>
+        <SearchWrapper
+          ref={wrapperRef}
+          onFocus={() => setOpen(true)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setOpen(false);
+          }}
+        >
           <SearchBox
             value={searchQuery}
-            onChange={onSearchChange}
-            placeholder="Search a career, role, exam..."
+            onChange={q => {
+              onSearchChange(q);
+              setOpen(true);
+            }}
+            placeholder="Search a job role..."
           />
+          {showPanel && (
+            <ResultsPanel role="listbox">
+              {searchResults.length === 0 ? (
+                <EmptyResult>No matching job roles</EmptyResult>
+              ) : (
+                searchResults.map(role => (
+                  <ResultItem
+                    key={role.id}
+                    type="button"
+                    role="option"
+                    onClick={() => {
+                      setOpen(false);
+                      onSelectSearchResult?.(role);
+                    }}
+                  >
+                    <ResultTitle>{role.jobRole}</ResultTitle>
+                    <ResultPath>
+                      {[role.careerCluster, role.industry, role.domain].filter(Boolean).join(' › ')}
+                    </ResultPath>
+                  </ResultItem>
+                ))
+              )}
+            </ResultsPanel>
+          )}
         </SearchWrapper>
         {actions}
       </RightControls>
