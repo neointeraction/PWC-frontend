@@ -2,6 +2,11 @@ import dayjs from 'dayjs';
 import { apiClient } from './api';
 import { parseApiDate } from '@/utils';
 
+// Session times are stored and enforced by the backend as IST (+05:30) wall-clock — see
+// combineDateTime in PWC-backend sessions.service. Parse them the same way so every gate below
+// matches the server regardless of the viewer's browser timezone.
+const atIst = (date: string, time: string) => dayjs(new Date(`${date}T${time.slice(0, 5)}:00.000+05:30`));
+
 // Client-side "Join Now" gate: opens 10 minutes before the session's start time and stays
 // open until its end time — the same window POST /sessions/{id}/join accepts. Kept open
 // the whole session (not just around the start) so anyone who drops off mid-call, e.g.
@@ -15,26 +20,26 @@ export const isWithinJoinWindow = (session: {
   endTime: string;
 }): boolean => {
   const now = dayjs();
-  const opensAt = dayjs(`${session.scheduledDate}T${session.startTime}`).subtract(
+  const opensAt = atIst(session.scheduledDate, session.startTime).subtract(
     JOIN_OPENS_MINUTES_BEFORE,
     'minute'
   );
-  const endsAt = dayjs(`${session.scheduledDate}T${session.endTime}`);
+  const endsAt = atIst(session.scheduledDate, session.endTime);
   return !now.isBefore(opensAt) && !now.isAfter(endsAt);
 };
 
 // True once the join window above has closed — i.e. the session's end time has passed.
 // Anyone who never joined by then is a no-show (the backend reconciles it the same way).
 export const hasJoinWindowClosed = (session: { scheduledDate: string; endTime: string }): boolean =>
-  dayjs().isAfter(dayjs(`${session.scheduledDate}T${session.endTime}`));
+  dayjs().isAfter(atIst(session.scheduledDate, session.endTime));
 
 // The session's actual scheduled window is happening right now — distinct from
 // isWithinJoinWindow's 10-minutes-early allowance, and from a journey step merely being
 // the student's "current" (next-actionable) one regardless of how far off it is.
 export const isSessionLive = (session: { scheduledDate: string; startTime: string; endTime: string }): boolean => {
   const now = dayjs();
-  const startsAt = dayjs(`${session.scheduledDate}T${session.startTime}`);
-  const endsAt = dayjs(`${session.scheduledDate}T${session.endTime}`);
+  const startsAt = atIst(session.scheduledDate, session.startTime);
+  const endsAt = atIst(session.scheduledDate, session.endTime);
   return !now.isBefore(startsAt) && now.isBefore(endsAt);
 };
 
@@ -43,7 +48,7 @@ export const isSessionLive = (session: { scheduledDate: string; startTime: strin
 // (§10.9) — so a session can be over in wall-clock time while still sitting here waiting
 // on that confirmation, and shouldn't keep reading as "Scheduled".
 export const hasSessionEnded = (session: { scheduledDate: string; endTime: string }): boolean =>
-  dayjs(`${session.scheduledDate}T${session.endTime}`).isBefore(dayjs());
+  atIst(session.scheduledDate, session.endTime).isBefore(dayjs());
 
 const RESCHEDULE_LOCKOUT_HOURS = 24;
 
@@ -52,7 +57,7 @@ const RESCHEDULE_LOCKOUT_HOURS = 24;
 // docs/frontend-integration-guide.md §10.10), so the buttons are gated the same way here.
 export const isWithinRescheduleLockout = (session: { scheduledDate: string; startTime: string }): boolean => {
   const now = dayjs();
-  const startsAt = dayjs(`${session.scheduledDate}T${session.startTime}`);
+  const startsAt = atIst(session.scheduledDate, session.startTime);
   return startsAt.diff(now, 'hour', true) < RESCHEDULE_LOCKOUT_HOURS;
 };
 

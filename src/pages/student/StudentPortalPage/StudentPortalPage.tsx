@@ -27,7 +27,7 @@ import { AlertModal } from '@/components/AlertModal';
 import { Tooltip } from '@/components/Tooltip';
 import { useAuthStore } from '@/store';
 import { ROUTES } from '@/constants';
-import { useToast, useCurrentStudent } from '@/hooks';
+import { useToast, useCurrentStudent, useNow } from '@/hooks';
 import { studentService, deriveStudentProgress } from '@/services/student.service';
 import {
   sessionsService,
@@ -87,6 +87,8 @@ export const StudentPortalPage: React.FC = () => {
   const toast = useToast();
   const user = useAuthStore(state => state.user);
   const queryClient = useQueryClient();
+  // Re-render on a timer so the Join button appears at T-10min and drops off at the end time.
+  useNow();
 
   // Real student record (Student id, cohort, workflow stage) + per-form submission flags.
   const { data: me } = useCurrentStudent();
@@ -123,7 +125,12 @@ export const StudentPortalPage: React.FC = () => {
   // check) — cancelling via restart doesn't roll it back off SESSION_SCHEDULED, so
   // `wf.booked` alone would stay true forever after a student's first booking. Require an
   // actual active (non-cancelled) session pair too, so cancelling for real re-opens booking.
-  const isBooked = (wf?.booked ?? false) && !!session1 && !!session2;
+  // Sessions can also be booked by an admin (POST /sessions), and the backend only advances
+  // workflowStatus to SESSION_SCHEDULED then if the student already meets its prerequisite —
+  // otherwise it skips the advance, leaving wf.booked false even though real sessions exist
+  // (which locked the student's Join button). So the actual active sessions are the source
+  // of truth here, not the workflow stage.
+  const isBooked = !!session1 && !!session2;
   // A session is treated as "done" only the moment the student has actually joined it
   // (studentJoinedAt, set by POST /sessions/{id}/join) — no separate staff "mark
   // complete" action exists or is expected. Deliberately NOT falling back to
@@ -235,7 +242,7 @@ export const StudentPortalPage: React.FC = () => {
     // 5. Video session 1 (12May 5pm-6pm)
     const s5Status: 'completed' | 'current' | 'upcoming' = isSession1Completed
       ? 'completed'
-      : isBooked
+      : isBooked || !!session1
         ? 'current'
         : 'upcoming';
 
