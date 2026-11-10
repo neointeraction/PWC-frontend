@@ -1,12 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  RiFilter3Line,
-  RiSearchLine,
-  RiBriefcaseLine,
-} from 'react-icons/ri';
+import { RiFilter3Line, RiBriefcaseLine } from 'react-icons/ri';
 import { Select } from '@/components/Select';
-import { Input } from '@/components/Input';
+import { BreadcrumbHeader, BreadcrumbStep } from '../components/BreadcrumbHeader';
 import { CareerCluster, CareerIndustry, CareerDomain, Career } from '@/types';
 import { careerService } from '@/services/career.service';
 import { JobRoleDetailView } from './JobRoleDetailView';
@@ -146,16 +142,38 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
     [availableDomains]
   );
 
-  // Search filter applied on top of available roles
-  const displayedRoles = useMemo(() => {
-    if (!searchQuery.trim()) return availableRoles;
-    const query = searchQuery.toLowerCase();
-    return availableRoles.filter(
-      r =>
-        r.jobRole.toLowerCase().includes(query) ||
-        r.oneLineDescription.toLowerCase().includes(query)
-    );
-  }, [availableRoles, searchQuery]);
+  // The roles list follows the hierarchy filters; the header search below is a separate,
+  // library-wide job-role search (same as Card View).
+  const displayedRoles = availableRoles;
+
+  const trimmedSearch = searchQuery.trim().toLowerCase();
+  const searchResults = useMemo(
+    () =>
+      trimmedSearch ? roles.filter(r => r.jobRole.toLowerCase().includes(trimmedSearch)) : undefined,
+    [roles, trimmedSearch]
+  );
+
+  // Jump straight to a searched role: point the filters at its cluster/industry/domain
+  // directly (the parent-sync effect only re-runs when the parent's selection changes).
+  const handleSelectSearchResult = (role: Career) => {
+    const cluster = clusters.find(c => c.name === role.careerCluster);
+    const industry = industries.find(i => i.name === role.industry);
+    const domain = domains.find(d => d.id === role.domainId || d.name === role.domain);
+    if (cluster) setSelectedClusterId(cluster.id);
+    if (industry) setSelectedIndustryId(industry.id);
+    if (domain) setSelectedDomainId(domain.id);
+    setSelectedRoleId(role.id);
+    onSelectRole?.(role);
+    setSearchQuery('');
+  };
+
+  const breadcrumbSteps: BreadcrumbStep[] = [
+    { label: 'Home' },
+    ...(activeCluster ? [{ label: activeCluster.name }] : []),
+    ...(activeIndustry ? [{ label: activeIndustry.name }] : []),
+    ...(activeDomain ? [{ label: activeDomain.name }] : []),
+    ...(activeRole ? [{ label: activeRole.jobRole }] : []),
+  ];
 
   // Clean event handlers that update selection state without triggering conflicting effects
   const handleClusterChange = (newClusterId: string) => {
@@ -183,7 +201,15 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
   });
 
   return (
-    <SimpleViewContainer>
+    <>
+      <BreadcrumbHeader
+        steps={breadcrumbSteps}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchResults={searchResults}
+        onSelectSearchResult={handleSelectSearchResult}
+      />
+      <SimpleViewContainer>
       {/* Left Control Panel */}
       <LeftPanel>
         <PanelTitle>
@@ -215,13 +241,6 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
             placeholder="Select Domain"
           />
         </SelectGroup>
-
-        <Input
-          placeholder="Filter job roles..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          leftIcon={<RiSearchLine size={16} />}
-        />
 
         <RolesListContainer>
           <RolesListTitle>Job Roles ({displayedRoles.length})</RolesListTitle>
@@ -271,7 +290,8 @@ export const SimpleView: React.FC<SimpleViewProps> = ({
           </EmptyDetailCard>
         )}
       </RightPanel>
-    </SimpleViewContainer>
+      </SimpleViewContainer>
+    </>
   );
 };
 
