@@ -15,7 +15,7 @@ import { Table, Column } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { Tooltip } from '@/components/Tooltip';
-import { useCurrentStudent, useToast } from '@/hooks';
+import { useCurrentStudent, useToast, useNow } from '@/hooks';
 import { deriveStudentProgress } from '@/services/student.service';
 import {
   sessionsService,
@@ -63,6 +63,8 @@ const STATUS_MAP: Record<Session['status'], StudentSessionRow['status']> = {
 export const StudentCounselingPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
+  // Re-render on a timer so Join appears at T-10min without a manual refresh.
+  useNow();
   const { data: me } = useCurrentStudent();
   const [isAnswersModalOpen, setIsAnswersModalOpen] = useState(false);
 
