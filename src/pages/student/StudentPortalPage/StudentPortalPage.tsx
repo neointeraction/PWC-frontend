@@ -240,16 +240,19 @@ export const StudentPortalPage: React.FC = () => {
         : 'upcoming';
 
     // 5. Video session 1 (12May 5pm-6pm)
+    // Session cards reflect the actual booking (self-booked or admin-booked) regardless of
+    // which earlier step the student is on — the tracker does not jump ahead, but a booked
+    // session is filled in and highlighted, with Join enabled only inside its join window.
     const s5Status: 'completed' | 'current' | 'upcoming' = isSession1Completed
       ? 'completed'
-      : isBooked || !!session1
+      : session1
         ? 'current'
         : 'upcoming';
 
     // 6. Video session 2 (15May 5pm-6pm)
     const s6Status: 'completed' | 'current' | 'upcoming' = isSession2Completed
       ? 'completed'
-      : isSession1Completed
+      : session2
         ? 'current'
         : 'upcoming';
 
@@ -383,7 +386,7 @@ export const StudentPortalPage: React.FC = () => {
       {
         id: 6,
         title: 'Video session 2',
-        subtext: isSession2Completed ? 'Completed' : isSession1Completed ? `Scheduled (${s2SlotStr})` : 'kREATE & Stream Review Call',
+        subtext: isSession2Completed ? 'Completed' : session2 ? `Scheduled (${s2SlotStr})` : 'kREATE & Stream Review Call',
         status: s6Status,
         attachedStatus: null,
         action: null,
@@ -569,6 +572,7 @@ export const StudentPortalPage: React.FC = () => {
                         {(step.status === 'current' || step.status === 'completed') &&
                         sessionForCard &&
                         sessionForCard.status !== 'CANCELLED' &&
+                        (isAssessmentSubmitted || !!sessionForCard.studentJoinedAt) &&
                         isWithinJoinWindow(sessionForCard) ? (
                           <SessionJoinButton
                             type="button"
@@ -582,7 +586,9 @@ export const StudentPortalPage: React.FC = () => {
                             type="button"
                             $disabled
                             title={
-                              sessionForCard && hasJoinWindowClosed(sessionForCard)
+                              !isAssessmentSubmitted
+                                ? 'Complete the pre-counselling forms and Career Profiling to unlock Join'
+                                : sessionForCard && hasJoinWindowClosed(sessionForCard)
                                 ? 'This session has ended — it is now marked as a missed session'
                                 : 'Join opens 10 minutes before your session starts'
                             }
